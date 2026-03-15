@@ -16,6 +16,7 @@ import { setupHandlers } from '@/handlers';
 import { setupMiddleware } from '@/middleware';
 import { healthCheckRoutes } from '@/routes/health';
 import { webhookRoutes } from '@/routes/webhook';
+import { adminRoutes } from '@/routes/admin';
 import { initializeDatabase } from '@/config/database';
 import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
@@ -77,6 +78,8 @@ async function main() {
     logger.info('🌐 Setting up routes...');
     await server.register(healthCheckRoutes);
     await server.register(webhookRoutes, { bot });
+    await server.register(adminRoutes);
+    logger.info('✅ Routes registered');
 
     // Start server
     const port = parseInt(process.env.PORT || '3000');
