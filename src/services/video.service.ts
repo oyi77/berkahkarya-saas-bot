@@ -180,6 +180,25 @@ export class VideoService {
   }
 
   /**
+   * Delete video by job ID
+   */
+  static async deleteVideo(jobId: string): Promise<void> {
+    await prisma.video.delete({
+      where: { jobId },
+    });
+  }
+
+  /**
+   * Delete video by job ID
+   */
+  static async deleteVideo(jobId: string): Promise<void> {
+    await prisma.video.delete({
+      where: { jobId },
+    });
+    logger.info(`Deleted video: ${jobId}`);
+  }
+
+  /**
    * Get user's videos
    */
   static async getUserVideos(userId: bigint, limit = 10): Promise<Video[]> {

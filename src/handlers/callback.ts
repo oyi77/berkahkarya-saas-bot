@@ -13,7 +13,7 @@ import {
   handleDurationSelection,
   createCommand 
 } from '@/commands/create';
-import { videosCommand } from '@/commands/videos';
+import { videosCommand, viewVideo, copyVideoUrl, deleteVideo } from '@/commands/videos';
 import { VideoService } from '@/services/video.service';
 
 /**
@@ -382,8 +382,48 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    if (data === 'videos_back') {
+    if (data === 'videos_back' || data === 'videos_list') {
       await videosCommand(ctx);
+      return;
+    }
+
+    // Video viewing handlers
+    if (data.startsWith('video_view_')) {
+      const jobId = data.replace('video_view_', '');
+      await viewVideo(ctx, jobId);
+      return;
+    }
+
+    if (data.startsWith('video_copy_')) {
+      const jobId = data.replace('video_copy_', '');
+      await copyVideoUrl(ctx, jobId);
+      return;
+    }
+
+    if (data.startsWith('video_delete_')) {
+      const jobId = data.replace('video_delete_', '');
+      await deleteVideo(ctx, jobId);
+      return;
+    }
+
+    if (data.startsWith('video_confirm_delete_')) {
+      const jobId = data.replace('video_confirm_delete_', '');
+      // Actually delete from database
+      const { VideoService } = await import('@/services/video.service');
+      await VideoService.deleteVideo(jobId);
+      await ctx.editMessageText(
+        '🗑️ *Video Deleted*\n\n' +
+        'The video has been permanently deleted.',
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
+
+    if (data.startsWith('video_retry_')) {
+      const jobId = data.replace('video_retry_', '');
+      // Retry video creation - redirect to create
+      await ctx.answerCbQuery('Retrying video...');
+      await createCommand(ctx);
       return;
     }
 
