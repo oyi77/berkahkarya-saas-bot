@@ -53,6 +53,7 @@ model User {
   videos            Video[]
   commissions       Commission[]
   subscriptions     Subscription[]
+  socialAccounts    SocialAccount[]
   
   @@index([telegramId])
   @@index([referralCode])
@@ -234,4 +235,25 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// =============================================================================
+// SOCIAL ACCOUNT MODEL (PostBridge Integration)
+// =============================================================================
+model SocialAccount {
+  id              Int      @id @default(autoincrement())
+  userId          BigInt   @map("user_id")
+  platform        String   @db.VarChar(32) // tiktok, facebook, instagram, etc
+  pbAccountId     String   @unique @map("pb_account_id") @db.VarChar(64)
+  accountName     String?  @map("account_name") @db.VarChar(128)
+  avatarUrl       String?  @map("avatar_url")
+  status          String   @default("active") @db.VarChar(16)
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  user            User     @relation(fields: [userId], references: [telegramId])
+
+  @@index([userId])
+  @@map("social_accounts")
 }

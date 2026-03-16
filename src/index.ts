@@ -17,6 +17,7 @@ import { setupMiddleware } from '@/middleware';
 import { healthCheckRoutes } from '@/routes/health';
 import { webhookRoutes } from '@/routes/webhook';
 import { adminRoutes } from '@/routes/admin';
+import { webRoutes } from '@/routes/web';
 import { initializeDatabase } from '@/config/database';
 import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
@@ -79,6 +80,7 @@ async function main() {
     await server.register(healthCheckRoutes);
     await server.register(webhookRoutes, { bot });
     await server.register(adminRoutes);
+    await server.register(webRoutes);
     logger.info('✅ Routes registered');
 
     // Start server

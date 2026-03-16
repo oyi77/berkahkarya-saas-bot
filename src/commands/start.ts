@@ -47,6 +47,11 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         `Ready to create some amazing videos? 🎬`,
         {
           reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎬 Create Video', callback_data: 'create_video' }],
+              [{ text: '🖼️ Generate Image', callback_data: 'image_generate' }],
+              [{ text: '📋 Main Menu', callback_data: 'main_menu' }],
+            ],
             keyboard: [
               [{ text: '🎬 Create Video' }, { text: '💰 Top Up' }],
               [{ text: '📁 My Videos' }, { text: '👤 Profile' }],
