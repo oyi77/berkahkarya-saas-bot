@@ -106,8 +106,19 @@ async function main() {
       }
     } else {
       // Use polling in development
-      await bot.launch();
-      logger.info('🤖 Bot started with polling');
+      logger.info('🤖 Starting bot with polling...');
+      
+      // Launch bot
+      await bot.launch({
+        polling: {
+          timeout: 10,
+          limit: 100,
+          allowed_updates: ['message', 'callback_query'],
+        },
+      });
+      
+      logger.info('🤖 Bot started with polling - SUCCESS!');
+      logger.info('✅ OpenClaw Bot is ready!');
     }
 
     // Graceful shutdown
