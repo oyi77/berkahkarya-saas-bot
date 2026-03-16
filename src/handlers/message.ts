@@ -6,6 +6,8 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { videosCommand } from '@/commands/videos';
+import { UserService } from '@/services/user.service';
 
 /**
  * Handle incoming messages
@@ -73,27 +75,25 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           return;
 
         case '📁 My Videos':
-          await ctx.reply(
-            '📁 Your Videos\n\n' +
-            'Here you can find all your generated videos.\n\n' +
-            'No videos yet? Create your first one! 🎬',
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '🎬 Create New Video', callback_data: 'create_video' }],
-                ],
-              },
-            }
-          );
+          // Call the actual videosCommand to show user's videos from database
+          await videosCommand(ctx);
           return;
 
         case '👤 Profile':
+          // Get real user data from database
+          const user = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
+          const stats = ctx.from ? await UserService.getStats(BigInt(ctx.from.id)) : null;
+          
           await ctx.reply(
             '👤 Your Profile\n\n' +
-            'Name: ' + (ctx.from?.first_name || 'Unknown') + '\n' +
-            'Tier: Free\n' +
-            'Credits: 3\n' +
-            'Referral Code: REF-' + (ctx.from?.username?.toUpperCase() || 'USER') + '-X7K9\n\n' +
+            'Name: ' + (user?.firstName || ctx.from?.first_name || 'Unknown') + '\n' +
+            'Username: @' + (user?.username || ctx.from?.username || 'N/A') + '\n' +
+            'Tier: ' + (user?.tier || 'Free') + '\n' +
+            'Credits: ' + (user ? Number(user.creditBalance) : 0) + '\n' +
+            'Referral Code: ' + (user?.referralCode || 'N/A') + '\n\n' +
+            '📊 Stats:\n' +
+            '• Videos Created: ' + (stats?.videosCreated || 0) + '\n' +
+            '• Referrals: ' + (stats?.referralCount || 0) + '\n\n' +
             'Share your referral code and earn 10% commission!',
             {
               reply_markup: {
