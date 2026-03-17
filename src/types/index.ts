@@ -24,6 +24,7 @@ export interface SessionData {
   stateData: Record<string, unknown>;
   lastActivity: Date;
   videoCreation?: {
+    mode?: string;
     niche?: string;
     platform?: string;
     duration?: number;

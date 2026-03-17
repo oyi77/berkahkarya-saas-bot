@@ -8,6 +8,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { handleTopupSelection, checkPayment } from '@/commands/topup';
 import { 
+  handleModeSelection,
   handleNicheSelection, 
   handlePlatformSelection, 
   handleDurationSelection,
@@ -86,6 +87,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     // Video creation handlers
+    if (data.startsWith('mode_')) {
+      const mode = data.replace('mode_', '');
+      await handleModeSelection(ctx, mode);
+      return;
+    }
+
     if (data.startsWith('niche_')) {
       const nicheId = data.replace('niche_', '');
       await handleNicheSelection(ctx, nicheId);
