@@ -259,7 +259,7 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
 
     // Create video job
     const video = await VideoService.createJob({
-      userId: dbUser.id,
+      userId: dbUser.telegramId,  // ← FIX: Pakai telegramId, bukan id!
       niche,
       platform,
       duration: totalDuration,
