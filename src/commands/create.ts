@@ -280,22 +280,23 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
       `Scenes: ${scenes} (${durationPerScene}s each)\n` +
       `Credits used: ${creditCost}\n\n` +
       `🎬 Storyboard:\n${storyboard.map((s, i) => `${i + 1}. ${s.description}`).join('\n')}\n\n` +
-      `⏳ Estimated time: ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes\n\n` +
-      `You'll be notified when it's ready!`,
+      `Step 5: Image Reference\n\n` +
+      `📸 Upload a reference image for base style,\n` +
+      `   OR reply /skip to use auto-generated base image.`,
       { parse_mode: 'Markdown' }
     );
 
-    // Clear session
-    ctx.session.videoCreation = undefined;
-
-    // Generate video with extend technique
-    if (scenes === 1) {
-      // Single scene - direct generation
-      generateVideoAsync(ctx, video.jobId, niche, platform, totalDuration, storyboard);
-    } else {
-      // Multi-scene - sequential chaining
-      generateExtendedVideoAsync(ctx, video.jobId, niche, platform, totalDuration, scenes, storyboard);
-    }
+    // Update session
+    ctx.session.videoCreation = {
+      mode,
+      niche,
+      platform,
+      totalDuration,
+      scenes,
+      storyboard,
+      jobId: video.jobId,
+      waitingForImage: true,
+    };
 
   } catch (error) {
     logger.error('Error handling duration selection:', error);
@@ -413,13 +414,14 @@ async function generateExtendedVideoAsync(
   platform: string,
   totalDuration: number,
   scenes: number,
-  storyboard: Array<any>
+  storyboard: Array<any>,
+  referenceImage?: string | null
 ): Promise<void> {
   try {
     logger.info(`🎬 Starting extended video generation for job ${jobId} (${scenes} scenes)`);
 
     const sceneVideos: string[] = [];
-    let lastFramePath: string | null = null;
+    let lastFramePath: string | null = referenceImage || null;
 
     // Generate each scene sequentially
     for (let i = 0; i < scenes; i++) {
@@ -610,3 +612,6 @@ async function sendErrorNotification(ctx: BotContext, jobId: string, error: stri
     }
   );
 }
+
+// Export functions for message handler
+export { generateVideoAsync, generateExtendedVideoAsync };

@@ -27,8 +27,12 @@ export interface SessionData {
     mode?: string;
     niche?: string;
     platform?: string;
-    duration?: number;
-    images?: string[];
+    totalDuration?: number;
+    scenes?: number;
+    storyboard?: Array<any>;
+    jobId?: string;
+    waitingForImage?: boolean;
+    referenceImage?: string | null;
   };
   selectedPlatforms?: number[];
   currentJobId?: string;

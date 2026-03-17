@@ -16,6 +16,86 @@ async function handleDisassemble(ctx: BotContext): Promise<void> {
   // Will be implemented in callback handler
 }
 
+async function handleVideoCreationImage(ctx: BotContext, photo: any): Promise<void> {
+  if (!ctx.session?.videoCreation?.jobId) {
+    await ctx.reply('❌ No active video job. Please start with /create');
+    return;
+  }
+
+  const { jobId, scenes, storyboard, totalDuration, niche, platform, mode } = ctx.session.videoCreation;
+
+  // Get largest photo
+  const largestPhoto = photo[photo.length - 1];
+  const fileId = largestPhoto.file_id;
+  const imageUrl = (await ctx.telegram.getFileLink(fileId)).toString();
+
+  // Download image
+  const { exec: execCallback } = require('child_process');
+  const { promisify } = require('util');
+  const exec = promisify(execCallback);
+  const fs = require('fs');
+  const path = require('path');
+
+  const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+  if (!fs.existsSync(VIDEO_DIR)) {
+    fs.mkdirSync(VIDEO_DIR, { recursive: true });
+  }
+
+  const imagePath = path.join(VIDEO_DIR, `${jobId}_reference.jpg`);
+  await exec(`wget -O "${imagePath}" "${imageUrl}"`);
+
+  await ctx.reply(
+    `✅ Reference image received!\n\n` +
+    `🎬 Starting video generation...\n\n` +
+    `Scenes: ${scenes}\n` +
+    `Duration: ${totalDuration}s\n\n` +
+    `⏳ This will take ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes...`
+  );
+
+  // Update session
+  ctx.session.videoCreation.waitingForImage = false;
+  ctx.session.videoCreation.referenceImage = imagePath;
+
+  // Import and call generate function
+  const { generateExtendedVideoAsync, generateVideoAsync } = require('@/commands/create');
+  
+  if (scenes === 1) {
+    await generateVideoAsync(ctx, jobId, niche, platform, totalDuration, storyboard);
+  } else {
+    await generateExtendedVideoAsync(ctx, jobId, niche, platform, totalDuration, scenes, storyboard);
+  }
+}
+
+async function handleSkipImageReference(ctx: BotContext): Promise<void> {
+  if (!ctx.session?.videoCreation?.jobId) {
+    await ctx.reply('❌ No active video job. Please start with /create');
+    return;
+  }
+
+  const { jobId, scenes, storyboard, totalDuration, niche, platform } = ctx.session.videoCreation;
+
+  await ctx.reply(
+    `⏭️ Skipping image reference...\n\n` +
+    `🎬 Auto-generating base image...\n\n` +
+    `Scenes: ${scenes}\n` +
+    `Duration: ${totalDuration}s\n\n` +
+    `⏳ This will take ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes...`
+  );
+
+  // Update session
+  ctx.session.videoCreation.waitingForImage = false;
+  ctx.session.videoCreation.referenceImage = null; // Use auto-generated
+
+  // Import and call generate function
+  const { generateExtendedVideoAsync, generateVideoAsync } = require('@/commands/create');
+  
+  if (scenes === 1) {
+    await generateVideoAsync(ctx, jobId, niche, platform, totalDuration, storyboard);
+  } else {
+    await generateExtendedVideoAsync(ctx, jobId, niche, platform, totalDuration, scenes, storyboard);
+  }
+}
+
 /**
  * Handle incoming messages
  */
@@ -361,6 +441,20 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       await handleDisassemble(ctx);
       ctx.session.state = 'DASHBOARD';
       return;
+    }
+
+    // Handle image upload during video creation (extended mode)
+    if (ctx.session?.videoCreation?.waitingForImage && 'photo' in message) {
+      await handleVideoCreationImage(ctx, message.photo);
+      return;
+    }
+
+    // Handle /skip during video creation
+    if ('text' in message && message.text === '/skip') {
+      if (ctx.session?.videoCreation?.waitingForImage) {
+        await handleSkipImageReference(ctx);
+        return;
+      }
     }
 
   } catch (error) {
