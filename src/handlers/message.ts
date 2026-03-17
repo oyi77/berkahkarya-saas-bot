@@ -457,6 +457,85 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
     }
 
+    // Handle custom duration input
+    if (ctx.session?.state === 'CUSTOM_DURATION_INPUT' && 'text' in message) {
+      const text = message.text.trim();
+      const duration = parseInt(text);
+
+      if (isNaN(duration) || duration < 6 || duration > 300) {
+        await ctx.reply('❌ Please enter a valid duration (6-300 seconds)');
+        return;
+      }
+
+      // Calculate best scene combination
+      let bestFit = { scenes: 0, durationPerScene: 0, error: Infinity };
+      
+      for (const durationPerScene of [15, 10, 6]) {
+        const calculatedScenes = Math.ceil(duration / durationPerScene);
+        const totalDuration = calculatedScenes * durationPerScene;
+        const error = Math.abs(totalDuration - duration);
+        
+        if (error < bestFit.error) {
+          bestFit = { scenes: calculatedScenes, durationPerScene, error };
+        }
+      }
+
+      const finalDuration = bestFit.scenes * bestFit.durationPerScene;
+
+      await ctx.reply(
+        `✅ **Duration Selected**\n\n` +
+        `You requested: ${duration}s\n` +
+        `Optimized to: ${finalDuration}s\n` +
+        `Scenes: ${bestFit.scenes} (× ${bestFit.durationPerScene}s each)\n\n` +
+        `Creating video job...`,
+      );
+
+      // Create video job directly (simulate callback)
+      ctx.session.state = 'DASHBOARD';
+      
+      // Call create logic (simplified)
+      const { createJob } = require('@/services/video.service');
+      const { deductCredits } = require('@/services/user.service');
+      const { generateStoryboard } = require('@/commands/create');
+      
+      // Create job
+      const video = await createJob({
+        userId: BigInt(ctx.from!.id),
+        niche: 'fnb',
+        platform: 'tiktok',
+        duration: finalDuration,
+        scenes: bestFit.scenes,
+        title: `Video ${new Date().toLocaleDateString('id-ID')}`,
+      });
+
+      await deductCredits(BigInt(ctx.from!.id), 0.5);
+
+      await ctx.reply(
+        `✅ **Video Job Created!**\n\n` +
+        `Job ID: \`${video.jobId}\`\n` +
+        `Duration: ${finalDuration}s\n` +
+        `Scenes: ${bestFit.scenes}\n\n` +
+        `📸 **Step 2: Add Reference Image**\n\n` +
+        `Send me a photo/video to use as reference,\n` +
+        `OR reply /skip to use AI-generated content.`,
+        { parse_mode: 'Markdown' }
+      );
+
+      // Update session
+      ctx.session.videoCreation = {
+        mode: 'extended',
+        niche: 'fnb',
+        platform: 'tiktok',
+        totalDuration: finalDuration,
+        scenes: bestFit.scenes,
+        storyboard: generateStoryboard('fnb', 'tiktok', finalDuration, bestFit.scenes),
+        jobId: video.jobId,
+        waitingForImage: true,
+      };
+
+      return;
+    }
+
   } catch (error) {
     logger.error('Error in message handler:', error);
     await ctx.reply('❌ Something went wrong. Please try again later.');

@@ -66,19 +66,22 @@ export async function createCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(
       `🎬 **Create New Video**\n\n` +
       `Current credits: ${dbUser.creditBalance}\n\n` +
-      `Select video duration:`,
+      `💡 **Extend Mode: Duration sepanjang apapun!**\n\n` +
+      `Pilih total duration (sistem akan otomatis hitung scenes):`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '🎯 6 seconds (0.5 credits)', callback_data: 'duration_6' },
+              { text: '⚡ Quick: 15s (1 scene)', callback_data: 'duration_15_1' },
+              { text: '📊 Standard: 30s (2 scenes)', callback_data: 'duration_30_2' },
             ],
             [
-              { text: '🎯 10 seconds (0.5 credits)', callback_data: 'duration_10' },
+              { text: '🎬 Long: 60s (4 scenes)', callback_data: 'duration_60_4' },
+              { text: '📹 Extended: 120s (8 scenes)', callback_data: 'duration_120_8' },
             ],
             [
-              { text: '🎯 15 seconds (0.5 credits)', callback_data: 'duration_15' },
+              { text: '🎯 Custom Duration', callback_data: 'custom_duration' },
             ],
             [
               { text: '💰 Need more credits?', callback_data: 'topup' },
@@ -100,12 +103,48 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
   try {
     if (!ctx.session) return;
     
-    const duration = parseInt(durationStr.replace('duration_', ''));
+    // Parse duration and scenes (format: duration_15_2 or duration_30_4)
+    let duration, scenes;
+    
+    if (durationStr === 'custom_duration') {
+      await ctx.reply(
+        `🎯 **Custom Duration**\n\n` +
+        `Send number of seconds you want (e.g., 45, 60, 90, 120)\n\n` +
+        `Note: System will auto-calculate scenes (15s max per scene)\n` +
+        `Example: 60s = 4 scenes (15s each)`,
+      );
+      ctx.session.state = 'CUSTOM_DURATION_INPUT';
+      return;
+    }
+    
+    const parts = durationStr.replace('duration_', '').split('_');
+    duration = parseInt(parts[0]);
+    scenes = parts[1] ? parseInt(parts[1]) : null;
 
-    // Validate duration (must be 6, 10, or 15 seconds for GeminiGen API)
-    const validDurations = [6, 10, 15];
-    if (!validDurations.includes(duration)) {
-      await ctx.answerCbQuery('Duration must be 6, 10, or 15 seconds');
+    // Auto-calculate scenes if not specified
+    if (!scenes) {
+      // Try to fit into max 15s per scene, then 10s, then 6s
+      // Find the best combination for total duration
+      let bestFit = { scenes: 0, durationPerScene: 0, error: Infinity };
+      
+      for (const durationPerScene of [15, 10, 6]) {
+        const calculatedScenes = Math.ceil(duration / durationPerScene);
+        const totalDuration = calculatedScenes * durationPerScene;
+        const error = Math.abs(totalDuration - duration);
+        
+        if (error < bestFit.error) {
+          bestFit = { scenes: calculatedScenes, durationPerScene, error };
+        }
+      }
+      
+      scenes = bestFit.scenes;
+      duration = scenes * bestFit.durationPerScene;
+      logger.info(`📊 Auto-calculated: ${scenes} scenes × ${bestFit.durationPerScene}s = ${duration}s total`);
+    }
+
+    // Validate duration
+    if (duration < 6 || duration > 300) {
+      await ctx.answerCbQuery('Duration must be 6-300 seconds');
       return;
     }
 
@@ -148,7 +187,7 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
     // Default values for MVP
     const niche = 'fnb';  // Default niche
     const platform = 'tiktok';  // Default platform
-    const scenes = 1;
+    // NOTE: scenes already calculated above
 
     // Generate storyboard
     const storyboard = generateStoryboard(niche, platform, duration, scenes);
