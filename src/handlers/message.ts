@@ -60,9 +60,9 @@ async function handleVideoCreationImage(ctx: BotContext, photo: any): Promise<vo
   const { generateExtendedVideoAsync, generateVideoAsync } = require('@/commands/create');
   
   if (scenes === 1) {
-    await generateVideoAsync(ctx, jobId, niche, platform, totalDuration, storyboard);
+    await generateVideoAsync(ctx, jobId, niche, platform, totalDuration, storyboard, imagePath);
   } else {
-    await generateExtendedVideoAsync(ctx, jobId, niche, platform, totalDuration, scenes, storyboard);
+    await generateExtendedVideoAsync(ctx, jobId, niche, platform, totalDuration, scenes, storyboard, imagePath);
   }
 }
 

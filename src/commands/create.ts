@@ -72,7 +72,7 @@ export async function createCommand(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '🎯 5 seconds (0.5 credits)', callback_data: 'duration_5' },
+              { text: '🎯 6 seconds (0.5 credits)', callback_data: 'duration_6' },
             ],
             [
               { text: '🎯 10 seconds (0.5 credits)', callback_data: 'duration_10' },
@@ -102,9 +102,10 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
     
     const duration = parseInt(durationStr.replace('duration_', ''));
 
-    // Validate duration (must be 4-15 seconds for AI)
-    if (duration < 4 || duration > 15) {
-      await ctx.answerCbQuery('Duration must be between 4-15 seconds');
+    // Validate duration (must be 6, 10, or 15 seconds for GeminiGen API)
+    const validDurations = [6, 10, 15];
+    if (!validDurations.includes(duration)) {
+      await ctx.answerCbQuery('Duration must be 6, 10, or 15 seconds');
       return;
     }
 
@@ -257,7 +258,8 @@ async function generateVideoAsync(
   niche: string,
   platform: string,
   duration: number,
-  storyboard: Array<any>
+  storyboard: Array<any>,
+  referenceImage?: string | null
 ): Promise<void> {
   try {
     logger.info(`🎬 Starting single-scene video generation for job ${jobId}`);
@@ -271,6 +273,7 @@ async function generateVideoAsync(
       duration,
       aspectRatio: getAspectRatio(platform),
       style: getStyleForNiche(niche),
+      referenceImage,  // Pass reference image
     });
 
     if (!result.success || !result.videoUrl) {

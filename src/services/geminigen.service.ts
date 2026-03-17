@@ -8,6 +8,7 @@ import { logger } from '@/utils/logger';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
+import * as fs from 'fs';
 import axios from 'axios';
 import FormData from 'form-data';
 
@@ -32,6 +33,7 @@ export interface VideoGenerationParams {
   style?: string;
   model?: string;
   resolution?: string;
+  referenceImage?: string | null;  // Add reference image support
 }
 
 /**
@@ -83,6 +85,12 @@ export async function generateVideo(params: VideoGenerationParams): Promise<Vide
     formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
     formData.append('duration', params.duration.toString());
     formData.append('mode', 'custom');
+
+    // Add reference image if provided
+    if (params.referenceImage) {
+      formData.append('files', fs.createReadStream(params.referenceImage));
+      logger.info('📸 Reference image attached to request');
+    }
 
     // Call GeminiGen API
     const response = await axios.post(
