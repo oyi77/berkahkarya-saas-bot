@@ -25,6 +25,7 @@ import { reportTodayCommand, creativeIdeasCommand } from './ads';
 import { adminBroadcastCommand } from './admin/broadcast';
 import { adminSystemStatusCommand } from './admin/systemStatus';
 import { adminGrantCreditsCommand } from './admin/grantCredits';
+import { paymentSettingsCommand } from './admin/paymentSettings';
 
 /**
  * Setup all bot commands
@@ -53,6 +54,8 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command('broadcast', adminBroadcastCommand);
   bot.command('system_status', adminSystemStatusCommand);
   bot.command('grant_credits', adminGrantCreditsCommand);
+  bot.command('payment_settings', paymentSettingsCommand);
+  bot.command('admin', paymentSettingsCommand); // Alias
 
   // Set bot commands menu - show all features accessible
   bot.telegram.setMyCommands([

@@ -444,4 +444,117 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return reply.status(500).send({ error: 'Failed to generate storyboard' });
     }
   });
+
+  // Get packages/pricing
+  server.get('/api/packages', async () => {
+    const { PaymentService } = await import('@/services/payment.service');
+    return PaymentService.getPackages();
+  });
+
+  // Create payment (topup)
+  server.post('/api/payment/create', async (request, reply) => {
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      const { packageId, gateway } = request.body as any;
+      
+      if (!packageId || !gateway) {
+        return reply.status(400).send({ error: 'packageId and gateway required' });
+      }
+
+      const user = await UserService.findByUuid(decoded.userId);
+      if (!user) {
+        return reply.status(404).send({ error: 'User not found' });
+      }
+
+      let result;
+      if (gateway === 'duitku') {
+        const { DuitkuService } = await import('@/services/duitku.service');
+        result = await DuitkuService.createTransaction({
+          userId: user.telegramId,
+          packageId,
+          username: user.username || user.firstName,
+        });
+      } else if (gateway === 'tripay') {
+        const { TripayService } = await import('@/services/tripay.service');
+        result = await TripayService.createTransaction({
+          userId: user.telegramId,
+          packageId,
+          username: user.username || user.firstName,
+        });
+      } else {
+        result = await PaymentService.createTransaction({
+          userId: user.telegramId,
+          packageId,
+          username: user.username || user.firstName,
+        });
+      }
+
+      return result;
+    } catch (error: any) {
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // Get user transactions
+  server.get('/api/transactions', async (request, reply) => {
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      const user = await UserService.findByUuid(decoded.userId);
+      if (!user) {
+        return reply.status(404).send({ error: 'User not found' });
+      }
+
+      const transactions = await prisma.transaction.findMany({
+        where: { userId: user.telegramId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+
+      return transactions;
+    } catch (error) {
+      return reply.status(500).send({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Get user videos
+  server.get('/api/user/videos', async (request, reply) => {
+    try {
+      const authHeader = request.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      
+      const user = await UserService.findByUuid(decoded.userId);
+      if (!user) {
+        return reply.status(404).send({ error: 'User not found' });
+      }
+
+      const videos = await prisma.video.findMany({
+        where: { userId: user.telegramId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      });
+
+      return videos;
+    } catch (error) {
+      return reply.status(500).send({ error: 'Failed to fetch videos' });
+    }
+  });
 }

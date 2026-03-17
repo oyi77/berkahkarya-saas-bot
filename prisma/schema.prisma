@@ -257,3 +257,17 @@ model SocialAccount {
   @@index([userId])
   @@map("social_accounts")
 }
+
+// =============================================================================
+// PAYMENT SETTINGS MODEL
+// =============================================================================
+model PaymentSettings {
+  id                    Int      @id @default(autoincrement())
+  key                   String   @unique @db.VarChar(64)
+  value                 String   @db.VarChar(256)
+  description           String?  @db.VarChar(256)
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  updatedBy             BigInt?  @map("updated_by")
+  
+  @@map("payment_settings")
+}

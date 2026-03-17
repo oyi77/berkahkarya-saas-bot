@@ -6,11 +6,8 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
-import { handleTopupSelection, checkPayment } from '@/commands/topup';
+import { handleTopupSelection, handlePaymentGateway, checkPayment } from '@/commands/topup';
 import { 
-  handleModeSelection,
-  handleNicheSelection, 
-  handlePlatformSelection, 
   handleDurationSelection,
   createCommand 
 } from '@/commands/create';
@@ -19,6 +16,12 @@ import { VideoService } from '@/services/video.service';
 import { PostAutomationService } from '@/services/postautomation.service';
 import { ImageGenerationService } from '@/services/image.service';
 import { ContentAnalysisService } from '@/services/content-analysis.service';
+import { 
+  paymentSettingsCommand,
+  handlePaymentDefaultGateway,
+  handlePaymentToggleGateway,
+  handlePaymentSetDefault
+} from '@/commands/admin/paymentSettings';
 
 /**
  * Handle storyboard selection
@@ -74,6 +77,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Route to appropriate handler based on callback data prefix
 
     // Topup handlers
+    if (data.startsWith('topup_pkg_')) {
+      const packageId = data.replace('topup_pkg_', '');
+      await handleTopupSelection(ctx, packageId);
+      return;
+    }
+
+    if (data.startsWith('topup_pay_')) {
+      const parts = data.replace('topup_pay_', '').split('_');
+      const packageId = parts[0];
+      const gateway = parts[1];
+      await handlePaymentGateway(ctx, packageId, gateway);
+      return;
+    }
+
     if (data.startsWith('topup_')) {
       const packageId = data.replace('topup_', '');
       await handleTopupSelection(ctx, packageId);
@@ -86,30 +103,15 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Video creation handlers
-    if (data.startsWith('mode_')) {
-      const mode = data.replace('mode_', '');
-      await handleModeSelection(ctx, mode);
-      return;
-    }
-
-    if (data.startsWith('niche_')) {
-      const nicheId = data.replace('niche_', '');
-      await handleNicheSelection(ctx, nicheId);
-      return;
-    }
-
-    if (data.startsWith('platform_')) {
-      const platformId = data.replace('platform_', '');
-      await handlePlatformSelection(ctx, platformId);
-      return;
-    }
-
+    // Video creation - simplified MVP flow (duration selection only)
     if (data.startsWith('duration_')) {
       const durationStr = data.replace('duration_', '');
       await handleDurationSelection(ctx, durationStr);
       return;
     }
+
+    // Legacy handlers removed for MVP
+    // Mode, niche, platform selection now automatic
 
     // Brief skip
     if (data === 'brief_skip') {
@@ -479,6 +481,29 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('disconnect_account_')) {
       const accountId = data.replace('disconnect_account_', '');
       await handleDisconnectAccount(ctx, accountId);
+      return;
+    }
+
+    // Admin Payment Settings
+    if (data === 'admin_payment_settings') {
+      await paymentSettingsCommand(ctx);
+      return;
+    }
+
+    if (data === 'admin_payment_default') {
+      await handlePaymentDefaultGateway(ctx);
+      return;
+    }
+
+    if (data.startsWith('admin_payment_toggle_')) {
+      const gateway = data.replace('admin_payment_toggle_', '');
+      await handlePaymentToggleGateway(ctx, gateway);
+      return;
+    }
+
+    if (data.startsWith('admin_payment_setdefault_')) {
+      const gateway = data.replace('admin_payment_setdefault_', '');
+      await handlePaymentSetDefault(ctx, gateway);
       return;
     }
 

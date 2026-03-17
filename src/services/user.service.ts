@@ -47,7 +47,7 @@ export class UserService {
         firstName: data.firstName,
         lastName: data.lastName,
         tier: 'free',
-        creditBalance: 3, // 3 free trial credits
+        creditBalance: 5, // 5 free trial credits for MVP
         referralCode,
         referredBy: data.referredBy,
         language: 'id',

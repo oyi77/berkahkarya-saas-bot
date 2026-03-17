@@ -209,6 +209,37 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       },
     };
   });
+
+  // API: Get payment settings
+  server.get('/api/payment-settings', async () => {
+    const { PaymentSettingsService } = await import('@/services/payment-settings.service');
+    const settings = await PaymentSettingsService.getAllSettings();
+    const defaultGateway = await PaymentSettingsService.getDefaultGateway();
+    return { settings, defaultGateway };
+  });
+
+  // API: Update payment settings
+  server.post('/api/payment-settings', async (request, reply) => {
+    const body = request.body as { action: string; gateway?: string; value?: string };
+    const { PaymentSettingsService } = await import('@/services/payment-settings.service');
+    
+    try {
+      if (body.action === 'set_default') {
+        await PaymentSettingsService.setDefaultGateway(body.gateway!);
+        return { success: true };
+      }
+      
+      if (body.action === 'toggle_gateway') {
+        const isEnabled = await PaymentSettingsService.isGatewayEnabled(body.gateway!);
+        await PaymentSettingsService.setGatewayEnabled(body.gateway!, !isEnabled);
+        return { success: true, enabled: !isEnabled };
+      }
+      
+      return { error: 'Unknown action' };
+    } catch (error: any) {
+      return reply.status(400).send({ error: error.message });
+    }
+  });
 }
 
 /**

@@ -8,6 +8,15 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { PaymentService } from '@/services/payment.service';
+import { DuitkuService } from '@/services/duitku.service';
+import { PaymentSettingsService } from '@/services/payment-settings.service';
+
+// Available payment gateways
+const GATEWAYS = [
+  { id: 'midtrans', name: '💳 Midtrans', description: 'Credit Card, GOPAY, etc' },
+  { id: 'duitku', name: '🏦 Duitku (VA)', description: 'Bank Transfer, E-Wallet' },
+  { id: 'tripay', name: '🔷 Tripay', description: 'Various Payment Methods' },
+];
 
 /**
  * Handle /topup command
@@ -17,7 +26,6 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     const user = ctx.from;
     if (!user) return;
 
-    // Get current balance
     const dbUser = await UserService.findByTelegramId(BigInt(user.id));
     if (!dbUser) {
       await ctx.reply('❌ Please /start first to use this feature.');
@@ -36,7 +44,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
           inline_keyboard: packages.map(pkg => [
             {
               text: `${pkg.name} - Rp ${pkg.price.toLocaleString('id-ID')} (${pkg.totalCredits} credits)`,
-              callback_data: `topup_${pkg.id}`,
+              callback_data: `topup_pkg_${pkg.id}`,
             },
           ]),
         },
@@ -49,7 +57,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
 }
 
 /**
- * Handle topup package selection
+ * Handle topup package selection - ask for gateway
  */
 export async function handleTopupSelection(ctx: BotContext, packageId: string): Promise<void> {
   try {
@@ -58,17 +66,69 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
 
     await ctx.answerCbQuery('Processing...');
 
-    // Create transaction
-    const transaction = await PaymentService.createTransaction({
-      userId: BigInt(user.id),
-      packageId,
-      username: user.username || user.first_name,
-    });
+    const defaultGateway = await PaymentSettingsService.getDefaultGateway();
+    const enabledGateways = await PaymentSettingsService.getEnabledGateways();
+
+    if (enabledGateways.length === 1) {
+      await handlePaymentGateway(ctx, packageId, enabledGateways[0].id);
+      return;
+    }
+
+    await ctx.editMessageText(
+      `💰 **Select Package: ${packageId.toUpperCase()}**\n\n` +
+      `Now select payment gateway:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            ...enabledGateways.map(gw => [{
+              text: gw.name,
+              callback_data: `topup_pay_${packageId}_${gw.id}`,
+            }]),
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    logger.error('Error handling topup selection:', error);
+    await ctx.editMessageText('❌ Failed to process. Please try again.');
+  }
+}
+
+/**
+ * Handle payment gateway selection and create transaction
+ */
+export async function handlePaymentGateway(ctx: BotContext, packageId: string, gateway: string): Promise<void> {
+  try {
+    const user = ctx.from;
+    if (!user) return;
+
+    await ctx.answerCbQuery('Creating payment...');
+
+    let transaction;
+    const gatewayName = gateway === 'duitku' ? 'Duitku' : 'Midtrans';
+
+    if (gateway === 'duitku') {
+      // Use Duitku
+      transaction = await DuitkuService.createTransaction({
+        userId: BigInt(user.id),
+        packageId,
+        username: user.username || user.first_name,
+      });
+    } else {
+      // Use Midtrans (default)
+      transaction = await PaymentService.createTransaction({
+        userId: BigInt(user.id),
+        packageId,
+        username: user.username || user.first_name,
+      });
+    }
 
     await ctx.editMessageText(
       `💳 **Payment Ready**\n\n` +
       `Order ID: \`${transaction.orderId}\`\n\n` +
-      `Click the button below to complete payment via Midtrans.`,
+      `Payment via: ${gatewayName}\n\n` +
+      `Click the button below to complete payment.`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -76,7 +136,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
             [
               {
                 text: '💳 Pay Now',
-                url: transaction.redirectUrl,
+                url: transaction.paymentUrl || transaction.redirectUrl || '',
               },
             ],
             [
@@ -90,7 +150,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
       }
     );
   } catch (error) {
-    logger.error('Error handling topup selection:', error);
+    logger.error('Error handling payment gateway:', error);
     await ctx.editMessageText('❌ Failed to create payment. Please try again.');
   }
 }

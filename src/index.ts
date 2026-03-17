@@ -106,13 +106,33 @@ async function main() {
       logger.info('🤖 Starting bot with polling...');
 
       try {
-        // Launch bot - this starts polling and blocks
-        logger.info('✅ Calling bot.launch()...');
+        // Clear any existing sessions by consuming updates
+        const botToken = process.env.BOT_TOKEN || '';
+        
+        // Try to get and acknowledge all pending updates
+        try {
+          await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?timeout=1`);
+        } catch (e) {
+          // Ignore errors from this preliminary call
+        }
+        
+        await bot.telegram.deleteWebhook();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         await bot.launch();
-        logger.info('✅ Bot polling stopped (shutdown)');
-      } catch (error) {
+        logger.info('✅ Bot polling started successfully');
+      } catch (error: any) {
         logger.error('❌ Bot launch failed:', error);
-        throw error; // Re-throw to trigger process exit
+        
+        // Try one more time after waiting
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        try {
+          await bot.telegram.deleteWebhook();
+          await bot.launch();
+          logger.info('✅ Bot polling started on second try');
+        } catch (retryError) {
+          logger.error('❌ All retries failed');
+        }
       }
     }
 

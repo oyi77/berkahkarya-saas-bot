@@ -7,6 +7,7 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { Video } from '@prisma/client';
+import { processVideoJob, getCreditCost } from './video-generation.service';
 
 // GeminiGen configuration (for future use)
 // const GEMINIGEN_EMAIL = process.env.GEMINIGEN_EMAIL || 'grahainsanmandiri@gmail.com';
@@ -401,11 +402,49 @@ Visual style: Cinematic, high quality, engaging transitions.
    * Update storyboard (admin function)
    */
   static updateStoryboardTemplate(niche: string, scenes: Array<{ scene: number; duration: number; type: string; description: string }>) {
-    // For now, this updates the runtime template
-    // In production, this should save to database
     if (NICHE_TEMPLATES[niche as keyof typeof NICHE_TEMPLATES]) {
       (NICHE_TEMPLATES[niche as keyof typeof NICHE_TEMPLATES] as any).storyboardTemplate = scenes;
     }
     return true;
+  }
+
+  static async processJob(jobId: string): Promise<void> {
+    const video = await prisma.video.findUnique({ where: { jobId } });
+    if (!video) {
+      logger.error(`Video job not found: ${jobId}`);
+      return;
+    }
+
+    try {
+      await prisma.video.update({ where: { jobId }, data: { status: 'processing', progress: 10 } });
+      
+      const result = await processVideoJob(video);
+      
+      if (result.success) {
+        await prisma.video.update({
+          where: { jobId },
+          data: {
+            status: 'completed',
+            progress: 100,
+            videoUrl: result.videoUrl,
+            thumbnailUrl: result.thumbnailUrl,
+            completedAt: new Date(),
+          },
+        });
+        logger.info(`Video job completed: ${jobId} via ${result.provider}`);
+      } else {
+        await prisma.video.update({
+          where: { jobId },
+          data: { status: 'failed', errorMessage: result.error },
+        });
+        logger.error(`Video job failed: ${jobId} - ${result.error}`);
+      }
+    } catch (error: any) {
+      logger.error(`Video job error: ${jobId}`, error);
+      await prisma.video.update({
+        where: { jobId },
+        data: { status: 'failed', errorMessage: error.message },
+      });
+    }
   }
 }

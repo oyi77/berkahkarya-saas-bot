@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { VideoService } from '@/services/video.service';
 import { GeminiGenService } from '@/services/geminigen.service';
+import { getCreditCost } from '@/services/video-generation.service';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import * as fs from 'fs';
@@ -22,11 +23,8 @@ if (!fs.existsSync(VIDEO_DIR)) {
   fs.mkdirSync(VIDEO_DIR, { recursive: true });
 }
 
-// Video generation modes
 const GENERATION_MODES = {
-  'short': { maxDuration: 15, scenes: 1, name: 'Single Clip (4-15s)' },
-  'medium': { maxDuration: 30, scenes: 2, name: 'Extended (16-30s, 2 scenes)' },
-  'long': { maxDuration: 60, scenes: 3, name: 'Story (31-60s, 3 scenes)' },
+  'short': { maxDuration: 15, scenes: 1, name: 'Short Clip (4-15s)' },
 };
 
 /**
@@ -64,21 +62,26 @@ export async function createCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Show generation mode selection
+    // Show generation mode selection (only short mode for MVP)
     await ctx.reply(
       `🎬 **Create New Video**\n\n` +
       `Current credits: ${dbUser.creditBalance}\n\n` +
-      `Step 1: Select generation mode`,
+      `Select video duration:`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '🎯 Short Clip (4-15s, 1 scene)', callback_data: 'mode_short' },
-              { text: '🎬 Extended (16-30s, 2 scenes)', callback_data: 'mode_medium' },
+              { text: '🎯 5 seconds (0.5 credits)', callback_data: 'duration_5' },
             ],
             [
-              { text: '📖 Story (31-60s, 3 scenes)', callback_data: 'mode_long' },
+              { text: '🎯 10 seconds (0.5 credits)', callback_data: 'duration_10' },
+            ],
+            [
+              { text: '🎯 15 seconds (0.5 credits)', callback_data: 'duration_15' },
+            ],
+            [
+              { text: '💰 Need more credits?', callback_data: 'topup' },
             ],
           ],
         },
@@ -91,207 +94,95 @@ export async function createCommand(ctx: BotContext): Promise<void> {
 }
 
 /**
- * Handle generation mode selection
- */
-export async function handleModeSelection(ctx: BotContext, mode: string): Promise<void> {
-  try {
-    if (!ctx.session) return;
-    
-    ctx.session.videoCreation = { mode };
-    await ctx.answerCbQuery('Mode selected!');
-
-    const modeInfo = GENERATION_MODES[mode as keyof typeof GENERATION_MODES];
-
-    await ctx.editMessageText(
-      `🎬 **Create New Video**\n\n` +
-      `Mode: ${modeInfo.name}\n\n` +
-      `Step 2: Select your niche`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: VideoService.getNiches().map(niche => [
-            { text: niche.name, callback_data: `niche_${niche.id}` },
-          ]),
-        },
-      }
-    );
-  } catch (error) {
-    logger.error('Error handling mode selection:', error);
-    await ctx.answerCbQuery('Error. Please try again.');
-  }
-}
-
-/**
- * Handle niche selection
- */
-export async function handleNicheSelection(ctx: BotContext, nicheId: string): Promise<void> {
-  try {
-    if (!ctx.session) return;
-    
-    ctx.session.videoCreation = { ...ctx.session.videoCreation, niche: nicheId };
-    await ctx.answerCbQuery('Niche selected!');
-
-    const platforms = VideoService.getPlatforms();
-
-    await ctx.editMessageText(
-      `🎬 **Create New Video**\n\n` +
-      `Mode: ${ctx.session.videoCreation.mode}\n` +
-      `Niche: ${nicheId}\n\n` +
-      `Step 3: Select platform`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: platforms.map(p => [
-            { text: `${p.id.toUpperCase()} (${p.aspectRatio})`, callback_data: `platform_${p.id}` },
-          ]),
-        },
-      }
-    );
-  } catch (error) {
-    logger.error('Error handling niche selection:', error);
-    await ctx.answerCbQuery('Error. Please try again.');
-  }
-}
-
-/**
- * Handle platform selection
- */
-export async function handlePlatformSelection(ctx: BotContext, platformId: string): Promise<void> {
-  try {
-    if (!ctx.session) return;
-    
-    ctx.session.videoCreation = { ...ctx.session.videoCreation, platform: platformId };
-    await ctx.answerCbQuery('Platform selected!');
-
-    const modeInfo = GENERATION_MODES[ctx.session.videoCreation.mode as keyof typeof GENERATION_MODES];
-
-    await ctx.editMessageText(
-      `🎬 **Create New Video**\n\n` +
-      `Mode: ${ctx.session.videoCreation.mode}\n` +
-      `Niche: ${ctx.session.videoCreation.niche}\n` +
-      `Platform: ${platformId}\n\n` +
-      `Step 4: Select total duration`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: getDurationButtons(ctx.session.videoCreation.mode),
-        },
-      }
-    );
-  } catch (error) {
-    logger.error('Error handling platform selection:', error);
-    await ctx.answerCbQuery('Error. Please try again.');
-  }
-}
-
-/**
- * Get duration buttons based on mode
- */
-function getDurationButtons(mode: string): Array<Array<{text: string; callback_data: string}>> {
-  const modeInfo = GENERATION_MODES[mode as keyof typeof GENERATION_MODES];
-  
-  if (mode === 'short') {
-    // Short mode: 4-15s single clip
-    return [
-      [
-        { text: '5s', callback_data: 'duration_5' },
-        { text: '10s', callback_data: 'duration_10' },
-        { text: '15s', callback_data: 'duration_15' },
-      ],
-      [
-        { text: '4s', callback_data: 'duration_4' },
-        { text: '7s', callback_data: 'duration_7' },
-      ],
-    ];
-  } else if (mode === 'medium') {
-    // Medium mode: 16-30s (2 scenes)
-    return [
-      [
-        { text: '20s (2 × 10s)', callback_data: 'duration_20' },
-        { text: '30s (2 × 15s)', callback_data: 'duration_30' },
-      ],
-    ];
-  } else {
-    // Long mode: 31-60s (3 scenes)
-    return [
-      [
-        { text: '45s (3 × 15s)', callback_data: 'duration_45' },
-        { text: '60s (3 × 20s)', callback_data: 'duration_60' },
-      ],
-    ];
-  }
-}
-
-/**
- * Handle duration selection
+ * Handle duration selection - simplified for MVP (no mode selection needed)
  */
 export async function handleDurationSelection(ctx: BotContext, durationStr: string): Promise<void> {
   try {
-    if (!ctx.session || !ctx.session.videoCreation) return;
+    if (!ctx.session) return;
     
-    const { mode, niche, platform } = ctx.session.videoCreation;
-    const totalDuration = parseInt(durationStr.replace('duration_', ''));
+    const duration = parseInt(durationStr.replace('duration_', ''));
+
+    // Validate duration (must be 4-15 seconds for AI)
+    if (duration < 4 || duration > 15) {
+      await ctx.answerCbQuery('Duration must be between 4-15 seconds');
+      return;
+    }
 
     const user = ctx.from;
     if (!user) return;
 
-    const dbUser = await UserService.findByTelegramId(BigInt(user.id.toString()));
-    if (!dbUser) return;
+    // Get or create user
+    let dbUser = await UserService.findByTelegramId(BigInt(user.id.toString()));
+    
+    // If user doesn't exist, create them
+    if (!dbUser) {
+      dbUser = await UserService.create({
+        telegramId: BigInt(user.id),
+        username: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      });
+      await ctx.reply(`👋 Welcome! You received 3 free credits to try.`);
+    }
 
-    // Calculate scenes and duration per scene
-    const modeInfo = GENERATION_MODES[mode as keyof typeof GENERATION_MODES];
-    const scenes = modeInfo.scenes;
-    const durationPerScene = Math.floor(totalDuration / scenes);
-
-    // Calculate credit cost
-    const creditCost = totalDuration <= 15 ? 0.5 : 
-                      totalDuration <= 30 ? 1.0 : 
-                      totalDuration <= 60 ? 2.0 : 4.5;
+    // Fixed credit cost: 0.5 credits for any video up to 15s
+    const creditCost = 0.5;
 
     if (Number(dbUser.creditBalance) < creditCost) {
       await ctx.answerCbQuery('Insufficient credits');
-      await ctx.reply(`❌ Need ${creditCost} credits. You have ${dbUser.creditBalance}`);
+      await ctx.reply(
+        `❌ Need ${creditCost} credits. You have ${dbUser.creditBalance}\n\n` +
+        `Use /topup to add more credits.`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '💰 Top Up Credits', callback_data: 'topup' }],
+            ],
+          },
+        }
+      );
       return;
     }
 
+    // Default values for MVP
+    const niche = 'fnb';  // Default niche
+    const platform = 'tiktok';  // Default platform
+    const scenes = 1;
+
     // Generate storyboard
-    const storyboard = generateStoryboard(niche, platform, totalDuration, scenes);
+    const storyboard = generateStoryboard(niche, platform, duration, scenes);
 
     // Create video job
     const video = await VideoService.createJob({
-      userId: dbUser.telegramId,  // ← FIX: Pakai telegramId, bukan id!
+      userId: dbUser.telegramId,
       niche,
       platform,
-      duration: totalDuration,
+      duration,
       scenes,
-      title: `${niche} ${platform} (${totalDuration}s)`,
+      title: `Video ${new Date().toLocaleDateString('id-ID')}`,
     });
 
     // Deduct credits
     await UserService.deductCredits(dbUser.telegramId, creditCost);
 
+    // Ask for image reference
     await ctx.editMessageText(
-      `✅ **Video Job Started**\n\n` +
+      `✅ **Video Job Created!**\n\n` +
       `Job ID: \`${video.jobId}\`\n` +
-      `Mode: ${mode}\n` +
-      `Niche: ${niche}\n` +
-      `Platform: ${platform}\n` +
-      `Total Duration: ${totalDuration}s\n` +
-      `Scenes: ${scenes} (${durationPerScene}s each)\n` +
+      `Duration: ${duration}s\n` +
       `Credits used: ${creditCost}\n\n` +
-      `🎬 Storyboard:\n${storyboard.map((s, i) => `${i + 1}. ${s.description}`).join('\n')}\n\n` +
-      `Step 5: Image Reference\n\n` +
-      `📸 Upload a reference image for base style,\n` +
-      `   OR reply /skip to use auto-generated base image.`,
+      `📸 **Step 2: Add Reference Image**\n\n` +
+      `Send me a photo/video to use as reference,\n` +
+      `OR reply /skip to use AI-generated content.`,
       { parse_mode: 'Markdown' }
     );
 
     // Update session
     ctx.session.videoCreation = {
-      mode,
+      mode: 'short',
       niche,
       platform,
-      totalDuration,
+      totalDuration: duration,
       scenes,
       storyboard,
       jobId: video.jobId,
