@@ -503,7 +503,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // Get user transactions
-  server.get('/api/transactions', async (request, reply) => {
+  server.get('/api/my/transactions', async (request, reply) => {
     try {
       const authHeader = request.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
