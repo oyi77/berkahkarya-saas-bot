@@ -268,7 +268,7 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
     });
 
     // Deduct credits
-    await UserService.deductCredits(dbUser.id, creditCost);
+    await UserService.deductCredits(dbUser.telegramId, creditCost);
 
     await ctx.editMessageText(
       `✅ **Video Job Started**\n\n` +
