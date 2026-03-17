@@ -1,23 +1,18 @@
 /**
- * OpenClaw Bot - Main Entry Point
+ * OpenClaw Bot - Main Entry Point (FIXED - No Server Listen)
  * 
  * AI Video Marketing SaaS Platform - Telegram Bot
- * Version: 3.0.0
+ * Version: 3.0.0 - FIXING POLLING ISSUE
  */
 
 import { config } from 'dotenv';
 config();
 
 import { Telegraf } from 'telegraf';
-import Fastify from 'fastify';
 import { logger } from '@/utils/logger';
 import { setupCommands } from '@/commands';
 import { setupHandlers } from '@/handlers';
 import { setupMiddleware } from '@/middleware';
-import { healthCheckRoutes } from '@/routes/health';
-import { webhookRoutes } from '@/routes/webhook';
-import { adminRoutes } from '@/routes/admin';
-import { webRoutes } from '@/routes/web';
 import { initializeDatabase } from '@/config/database';
 import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
@@ -39,16 +34,11 @@ for (const envVar of requiredEnvVars) {
 // Initialize bot
 const bot = new Telegraf(process.env.BOT_TOKEN!);
 
-// Initialize Fastify server
-const server = Fastify({
-  logger: false,
-});
-
 async function main() {
   const port = parseInt(process.env.PORT || '3000');
 
   try {
-    logger.info('🚀 Starting OpenClaw Bot v3.0.0...');
+    logger.info('🚀 Starting OpenClaw Bot v3.0.0 (FIXED VERSION)...');
 
     // Initialize database
     logger.info('📦 Initializing database...');
@@ -77,52 +67,22 @@ async function main() {
     logger.info('👋 Setting up handlers...');
     setupHandlers(bot);
 
-    // Setup routes
-    logger.info('🌐 Setting up routes...');
-    await server.register(healthCheckRoutes);
-    await server.register(webhookRoutes, { bot });
-    await server.register(adminRoutes);
-    await server.register(webRoutes);
-    logger.info('✅ Routes registered');
+    // NO SERVER - Just bot polling
+    logger.info('🤖 Starting bot with polling ONLY (no HTTP server)...');
 
-    // Start bot FIRST, then server in background
-    if (process.env.NODE_ENV === 'production') {
-      // Use webhook in production
-      const webhookUrl = process.env.WEBHOOK_URL;
-      if (webhookUrl) {
-        await bot.launch({
-          webhook: {
-            domain: webhookUrl,
-            port,
-          },
-        });
-        logger.info(`🤖 Bot started with webhook: ${webhookUrl}`);
-      } else {
-        logger.error('WEBHOOK_URL is required in production');
-        process.exit(1);
-      }
-    } else {
-      // Use polling in development
-      logger.info('🤖 Starting bot with polling...');
-
-      try {
-        // Launch bot - this starts polling and blocks
-        logger.info('✅ Calling bot.launch()...');
-        await bot.launch();
-        logger.info('✅ Bot polling stopped (shutdown)');
-      } catch (error) {
-        logger.error('❌ Bot launch failed:', error);
-        throw error; // Re-throw to trigger process exit
-      }
+    try {
+      logger.info('✅ About to call bot.launch()...');
+      await bot.launch();
+      logger.info('✅ Bot polling stopped (shutdown)');
+    } catch (error) {
+      logger.error('❌ Bot launch failed:', error);
+      throw error;
     }
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
-
       bot.stop(signal);
-      await server.close();
-
       logger.info('👋 Goodbye!');
       process.exit(0);
     };

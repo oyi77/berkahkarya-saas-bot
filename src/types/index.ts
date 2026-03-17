@@ -29,6 +29,10 @@ export interface SessionData {
     duration?: number;
     images?: string[];
   };
+  selectedPlatforms?: number[];
+  currentJobId?: string;
+  caption?: string;
+  connectingPlatform?: string;
 }
 
 export type BotState =
@@ -46,6 +50,9 @@ export type BotState =
   | 'CLONE_VIDEO_WAITING'
   | 'CLONE_IMAGE_WAITING'
   | 'DISASSEMBLE_WAITING'
+  | 'IMAGE_GENERATION_WAITING'
+  | 'WAITING_ACCOUNT_ID'
+  | 'WAITING_CAPTION'
   | 'TOPUP_SELECT'
   | 'TOPUP_PAYMENT'
   | 'TOPUP_CONFIRM'

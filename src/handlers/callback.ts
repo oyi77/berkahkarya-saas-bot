@@ -15,6 +15,9 @@ import {
 } from '@/commands/create';
 import { videosCommand, viewVideo, copyVideoUrl, deleteVideo } from '@/commands/videos';
 import { VideoService } from '@/services/video.service';
+import { PostAutomationService } from '@/services/postautomation.service';
+import { ImageGenerationService } from '@/services/image.service';
+import { ContentAnalysisService } from '@/services/content-analysis.service';
 
 /**
  * Handle storyboard selection
@@ -96,8 +99,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data.startsWith('duration_')) {
-      const duration = parseInt(data.replace('duration_', ''), 10);
-      await handleDurationSelection(ctx, duration);
+      const durationStr = data.replace('duration_', '');
+      await handleDurationSelection(ctx, durationStr);
       return;
     }
 
@@ -210,6 +213,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           },
         }
       );
+      return;
+    }
+
+    // Image generation category handlers
+    if (data.startsWith('img_')) {
+      const category = data.replace('img_', '');
+      await handleImageGeneration(ctx, category);
       return;
     }
 
@@ -340,6 +350,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [{ text: '🔄 Clone Image', callback_data: 'clone_image' }],
               [{ text: '📈 Viral Research', callback_data: 'viral_research' }],
               [{ text: '🔍 Disassemble Prompt', callback_data: 'disassemble' }],
+              [{ text: '🔗 Social Accounts', callback_data: 'manage_accounts' }],
             ],
           },
         }
@@ -409,7 +420,6 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('video_confirm_delete_')) {
       const jobId = data.replace('video_confirm_delete_', '');
       // Actually delete from database
-      const { VideoService } = await import('@/services/video.service');
       await VideoService.deleteVideo(jobId);
       await ctx.editMessageText(
         '🗑️ *Video Deleted*\n\n' +
@@ -427,6 +437,44 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Post Automation - Publish Video
+    if (data.startsWith('publish_video_')) {
+      const jobId = data.replace('publish_video_', '');
+      await handlePublishVideo(ctx, jobId);
+      return;
+    }
+
+    if (data.startsWith('select_platform_')) {
+      const jobId = data.split('_')[2];
+      const platform = data.split('_')[3];
+      await handlePublishPlatformSelection(ctx, jobId, platform);
+      return;
+    }
+
+    if (data.startsWith('confirm_publish_')) {
+      const jobId = data.replace('confirm_publish_', '');
+      await handleConfirmPublish(ctx, jobId);
+      return;
+    }
+
+    // Social Account Management
+    if (data === 'manage_accounts') {
+      await handleManageAccounts(ctx);
+      return;
+    }
+
+    if (data.startsWith('connect_account_')) {
+      const platform = data.replace('connect_account_', '');
+      await handleConnectAccount(ctx, platform);
+      return;
+    }
+
+    if (data.startsWith('disconnect_account_')) {
+      const accountId = data.replace('disconnect_account_', '');
+      await handleDisconnectAccount(ctx, accountId);
+      return;
+    }
+
     // Unknown callback
     logger.warn('Unknown callback:', data);
     await ctx.answerCbQuery('Unknown action');
@@ -434,5 +482,453 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
   } catch (error) {
     logger.error('Error in callback handler:', error);
     await ctx.answerCbQuery('Error processing request');
+  }
+}
+
+/**
+ * Handle video publishing
+ */
+async function handlePublishVideo(ctx: BotContext, jobId: string) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  // Get video details
+  const video = await VideoService.getByJobId(jobId);
+  if (!video || !video.videoUrl) {
+    await ctx.answerCbQuery('❌ Video not found');
+    return;
+  }
+
+  // Check if user has connected accounts
+  const hasAccounts = await PostAutomationService.hasConnectedAccounts(BigInt(userId));
+  
+  if (!hasAccounts) {
+    await ctx.editMessageText(
+      '📤 *Publish to Social Media*\n\n' +
+      'You haven\'t connected any social media accounts yet.\n\n' +
+      'Connect your accounts first to publish videos.',
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔗 Connect Accounts', callback_data: 'manage_accounts' }],
+            [{ text: '❌ Cancel', callback_data: 'videos_list' }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
+  // Get user's connected accounts
+  const accounts = await PostAutomationService.getUserAccounts(BigInt(userId));
+  
+  // Build inline keyboard
+  const keyboard: any[][] = [];
+  
+  // Group by platform
+  const platformGroups: Record<string, typeof accounts> = {};
+  accounts.forEach(acc => {
+    if (!platformGroups[acc.platform]) {
+      platformGroups[acc.platform] = [];
+    }
+    platformGroups[acc.platform].push(acc);
+  });
+
+  Object.entries(platformGroups).forEach(([platform, accs]) => {
+    const platformEmoji = getPlatformEmoji(platform);
+    accs.forEach(acc => {
+      keyboard.push([{
+        text: `${platformEmoji} ${platform.toUpperCase()} (${acc.username})`,
+        callback_data: `select_platform_${jobId}_${acc.id}`,
+      }]);
+    });
+  });
+
+  keyboard.push([{ text: '✅ Post Now', callback_data: `confirm_publish_${jobId}` }]);
+  keyboard.push([{ text: '❌ Cancel', callback_data: 'videos_list' }]);
+
+  await ctx.editMessageText(
+    '📤 *Publish to Social Media*\n\n' +
+    'Select the platform(s) to publish this video:',
+    {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: keyboard,
+      },
+    }
+  );
+
+  // Store selected platform in session
+  ctx.session.selectedPlatforms = [];
+  ctx.session.currentJobId = jobId;
+}
+
+/**
+ * Handle platform selection for publishing
+ */
+async function handlePublishPlatformSelection(ctx: BotContext, jobId: string, platformOrAccountId: string) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  // Initialize session if needed
+  if (!ctx.session.selectedPlatforms) {
+    ctx.session.selectedPlatforms = [];
+  }
+
+  if (platformOrAccountId === 'all') {
+    // Select all accounts
+    const accounts = await PostAutomationService.getUserAccounts(BigInt(userId));
+    ctx.session.selectedPlatforms = accounts.map(acc => acc.id);
+  } else {
+    // Toggle single account
+    const accountId = parseInt(platformOrAccountId);
+    const index = ctx.session.selectedPlatforms.indexOf(accountId);
+    
+    if (index > -1) {
+      ctx.session.selectedPlatforms.splice(index, 1);
+    } else {
+      ctx.session.selectedPlatforms.push(accountId);
+    }
+  }
+
+  // Show confirmation
+  const selectedCount = ctx.session.selectedPlatforms.length;
+  
+  if (selectedCount === 0) {
+    await ctx.answerCbQuery('Select at least one platform');
+    return;
+  }
+
+  await ctx.editMessageText(
+    `📤 *Publish Video*\n\n` +
+    `✅ ${selectedCount} platform(s) selected\n\n` +
+    `Ready to publish?`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '✅ Publish Now', callback_data: `confirm_publish_${jobId}` }],
+          [{ text: '❌ Cancel', callback_data: 'videos_list' }],
+        ],
+      },
+    }
+  );
+}
+
+/**
+ * Handle confirm publish
+ */
+async function handleConfirmPublish(ctx: BotContext, jobId: string) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  await ctx.editMessageText(
+    '⏳ *Publishing...*\n\n' +
+    'Uploading to selected platforms...',
+    { parse_mode: 'Markdown' }
+  );
+
+  try {
+    // Get video
+    const video = await VideoService.getByJobId(jobId);
+    if (!video || !video.videoUrl) {
+      throw new Error('Video not found');
+    }
+
+    // Get user's selected accounts
+    const accounts = await PostAutomationService.getUserAccounts(BigInt(userId));
+    
+    // Publish
+    const results = await PostAutomationService.publish({
+      userId: BigInt(userId),
+      mediaUrl: video.videoUrl,
+      caption: ctx.session.caption || `${video.title || 'Check this out!'} #viral #fyp`,
+      platformAccountIds: accounts.map(a => a.id),
+    });
+
+    // Show results
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    let message = `📤 *Publish Results*\n\n`;
+    message += `✅ Success: ${successCount}\n`;
+    if (failCount > 0) {
+      message += `❌ Failed: ${failCount}\n\n`;
+    }
+
+    results.forEach(result => {
+      const emoji = result.success ? '✅' : '❌';
+      message += `${emoji} ${result.platform.toUpperCase()}\n`;
+      if (result.postUrl) {
+        message += `   ${result.postUrl}\n`;
+      }
+      if (result.error) {
+        message += `   Error: ${result.error}\n`;
+      }
+    });
+
+    await ctx.editMessageText(message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '📁 My Videos', callback_data: 'videos_list' }],
+          [{ text: '🎬 Create Another', callback_data: 'create_video' }],
+        ],
+      },
+    });
+
+  } catch (error: any) {
+    logger.error('Publish failed:', error);
+    await ctx.editMessageText(
+      `❌ *Publish Failed*\n\n` +
+      `Error: ${error.message}\n\n` +
+      `Please try again or contact support.`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔄 Retry', callback_data: `publish_video_${jobId}` }],
+            [{ text: '❌ Cancel', callback_data: 'videos_list' }],
+          ],
+        },
+      }
+    );
+  }
+}
+
+/**
+ * Handle manage accounts
+ */
+async function handleManageAccounts(ctx: BotContext) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  const accounts = await PostAutomationService.getUserAccounts(BigInt(userId));
+
+  if (accounts.length === 0) {
+    await ctx.editMessageText(
+      '🔗 *Connect Social Accounts*\n\n' +
+      'Connect your social media accounts to publish videos directly.\n\n' +
+      'Select platform to connect:',
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📱 TikTok', callback_data: 'connect_account_tiktok' }],
+            [{ text: '📷 Instagram', callback_data: 'connect_account_instagram' }],
+            [{ text: '📘 Facebook', callback_data: 'connect_account_facebook' }],
+            [{ text: '🐦 Twitter/X', callback_data: 'connect_account_twitter' }],
+            [{ text: '📺 YouTube', callback_data: 'connect_account_youtube' }],
+            [{ text: '❌ Cancel', callback_data: 'main_menu' }],
+          ],
+        },
+      }
+    );
+    return;
+  }
+
+  // Show connected accounts
+  let message = '🔗 *Connected Accounts*\n\n';
+  const keyboard: any[][] = [];
+
+  accounts.forEach(acc => {
+    const emoji = getPlatformEmoji(acc.platform);
+    message += `${emoji} ${acc.platform.toUpperCase()}: ${acc.username}\n`;
+    keyboard.push([{
+      text: `❌ Disconnect ${acc.platform} (${acc.username})`,
+      callback_data: `disconnect_account_${acc.id}`,
+    }]);
+  });
+
+  message += '\nConnect more accounts:';
+  keyboard.push([{ text: '➕ Connect New Account', callback_data: 'connect_account_new' }]);
+  keyboard.push([{ text: '◀️ Back', callback_data: 'main_menu' }]);
+
+  await ctx.editMessageText(message, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: keyboard,
+    },
+  });
+}
+
+/**
+ * Handle connect account
+ */
+async function handleConnectAccount(ctx: BotContext, platform: string) {
+  // In production, this would redirect to OAuth flow
+  // For now, we'll show instructions
+  await ctx.editMessageText(
+    `🔗 *Connect ${platform.toUpperCase()}*\n\n` +
+    `To connect your ${platform} account:\n\n` +
+    `1. Go to PostBridge Dashboard\n` +
+    `2. Connect your ${platform} account\n` +
+    `3. Copy your Account ID\n` +
+    `4. Paste it here\n\n` +
+    `Or use the link below:`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: `🔗 Open PostBridge`, url: 'https://post-bridge.com/dashboard' }],
+          [{ text: '◀️ Back', callback_data: 'manage_accounts' }],
+        ],
+      },
+    }
+  );
+
+  ctx.session.state = 'WAITING_ACCOUNT_ID';
+  ctx.session.connectingPlatform = platform;
+}
+
+/**
+ * Handle disconnect account
+ */
+async function handleDisconnectAccount(ctx: BotContext, accountId: string) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  await PostAutomationService.disconnectAccount(BigInt(userId), parseInt(accountId));
+  
+  await ctx.answerCbQuery('✅ Account disconnected');
+  
+  // Refresh account list
+  await handleManageAccounts(ctx);
+}
+
+/**
+ * Get platform emoji
+ */
+function getPlatformEmoji(platform: string): string {
+  const emojis: Record<string, string> = {
+    tiktok: '📱',
+    instagram: '📷',
+    facebook: '📘',
+    twitter: '🐦',
+    youtube: '📺',
+  };
+  return emojis[platform.toLowerCase()] || '📱';
+}
+
+/**
+ * Handle image generation
+ */
+async function handleImageGeneration(ctx: BotContext, category: string) {
+  const categoryNames: Record<string, string> = {
+    product: '🛍️ Product Photo',
+    fnb: '🍔 F&B Food',
+    realestate: '🏠 Real Estate',
+    car: '🚗 Car/Automotive',
+  };
+
+  await ctx.editMessageText(
+    `🖼️ *Generate ${categoryNames[category]}*\n\n` +
+    `Describe what you want to generate:\n\n` +
+    `Example: "Modern smartphone on white background with soft lighting"`,
+    {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+        ],
+      },
+    }
+  );
+
+  ctx.session.state = 'IMAGE_GENERATION_WAITING';
+  ctx.session.stateData = { imageCategory: category };
+}
+
+/**
+ * Handle disassemble prompt (video/image to prompt extraction)
+ */
+async function handleDisassemble(ctx: BotContext) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  // Check if user sent media
+  const message = ctx.message as any;
+  
+  if (!message) {
+    await ctx.reply(
+      '🔍 *Video/Image to Prompt*\n\n' +
+      'Please send a video or image first.',
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  let mediaUrl: string | undefined;
+  let mediaType: 'video' | 'image' = 'image';
+
+  if (message.video) {
+    mediaUrl = message.video.file_id;
+    mediaType = 'video';
+  } else if (message.photo) {
+    const photos = message.photo;
+    mediaUrl = photos[photos.length - 1].file_id;
+    mediaType = 'image';
+  }
+
+  if (!mediaUrl) {
+    await ctx.reply(
+      '❌ No media found. Please send a video or image.',
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  await ctx.reply(
+    '⏳ *Analyzing...*\n\n' +
+    'Extracting prompt from your media...',
+    { parse_mode: 'Markdown' }
+  );
+
+  try {
+    // Get file URL
+    const fileUrl = await ctx.telegram.getFileLink(mediaUrl);
+    
+    // Extract prompt
+    const result = await ContentAnalysisService.extractPrompt(fileUrl.toString(), mediaType);
+
+    if (result.success && result.prompt) {
+      await ctx.reply(
+        `✅ *Prompt Extracted:*\n\n` +
+        `${result.prompt}\n\n` +
+        `*Style:* ${result.style || 'N/A'}\n` +
+        `*Elements:* ${result.elements?.join(', ') || 'N/A'}\n\n` +
+        `_Use this prompt to create similar content!_`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎬 Create Video with This Prompt', callback_data: 'create_video' }],
+              [{ text: '🖼️ Generate Image with This Prompt', callback_data: 'image_generate' }],
+              [{ text: '📋 Copy Prompt', callback_data: 'copy_prompt' }],
+            ],
+          },
+        }
+      );
+
+      // Store prompt in session
+      ctx.session.stateData = { extractedPrompt: result.prompt };
+
+    } else {
+      await ctx.reply(
+        `❌ *Extraction Failed*\n\n` +
+        `Error: ${result.error || 'Unknown error'}\n\n` +
+        `Please try again with different media.`,
+        { parse_mode: 'Markdown' }
+      );
+    }
+
+  } catch (error: any) {
+    logger.error('Disassemble failed:', error);
+    await ctx.reply(
+      `❌ *Error*\n\n` +
+      `Failed to analyze media. Please try again.`,
+      { parse_mode: 'Markdown' }
+    );
   }
 }

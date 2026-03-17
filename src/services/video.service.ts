@@ -171,19 +171,24 @@ export class VideoService {
   }
 
   /**
-   * Get video by job ID
+   * Update video status
    */
-  static async getByJobId(jobId: string): Promise<Video | null> {
-    return prisma.video.findUnique({
+  static async updateStatus(jobId: string, status: string, errorMessage?: string): Promise<Video> {
+    return prisma.video.update({
       where: { jobId },
+      data: {
+        status,
+        errorMessage,
+        ...(status === 'completed' ? { completedAt: new Date(), progress: 100 } : {}),
+      },
     });
   }
 
   /**
-   * Delete video by job ID
+   * Get video by job ID
    */
-  static async deleteVideo(jobId: string): Promise<void> {
-    await prisma.video.delete({
+  static async getByJobId(jobId: string): Promise<Video | null> {
+    return prisma.video.findUnique({
       where: { jobId },
     });
   }

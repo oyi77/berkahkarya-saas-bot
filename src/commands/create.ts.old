@@ -1,6 +1,6 @@
 /**
  * Create Command
- *
+ * 
  * Handles video creation flow
  */
 
@@ -18,9 +18,19 @@ import * as path from 'path';
 const exec = promisify(execCallback);
 
 // Video storage directory
-const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/openclaw-videos';
+
+// Ensure video directory exists
 if (!fs.existsSync(VIDEO_DIR)) {
   fs.mkdirSync(VIDEO_DIR, { recursive: true });
+}
+
+/**
+ * Download video to local storage
+ */
+async function downloadVideo(url: string, outputPath: string): Promise<void> {
+  const { stdout, stderr } = await exec(`curl -L -o "${outputPath}" "${url}"`);
+  logger.info(`Downloaded video: ${outputPath}`);
 }
 
 /**
@@ -29,15 +39,12 @@ if (!fs.existsSync(VIDEO_DIR)) {
 export async function createCommand(ctx: BotContext): Promise<void> {
   try {
     const user = ctx.from;
-    if (!user) {
-      await ctx.reply('❌ Unable to identify user.');
-      return;
-    }
+    if (!user) return;
 
-    // Check credits
-    const dbUser = await UserService.findByTelegramId(BigInt(user.id.toString()));
+    // Check user exists and has credits
+    const dbUser = await UserService.findByTelegramId(BigInt(user.id));
     if (!dbUser) {
-      await ctx.reply('❌ User not found. Please start with /start');
+      await ctx.reply('❌ Please /start first to use this feature.');
       return;
     }
 
@@ -125,25 +132,17 @@ export async function handlePlatformSelection(ctx: BotContext, platformId: strin
       `🎬 **Create New Video**\n\n` +
       `Niche: ${ctx.session.videoCreation.niche}\n` +
       `Platform: ${platformId}\n\n` +
-      `Step 3: Select duration (4-15 seconds)`,
+      `Step 3: Select duration`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '5s', callback_data: 'duration_5' },
-              { text: '10s', callback_data: 'duration_10' },
-              { text: '15s', callback_data: 'duration_15' },
+              { text: '15s (0.5 credits)', callback_data: 'duration_15' },
+              { text: '30s (1 credit)', callback_data: 'duration_30' },
             ],
             [
-              { text: '4s', callback_data: 'duration_4' },
-              { text: '6s', callback_data: 'duration_6' },
-              { text: '7s', callback_data: 'duration_7' },
-            ],
-            [
-              { text: '8s', callback_data: 'duration_8' },
-              { text: '11s', callback_data: 'duration_11' },
-              { text: '12s', callback_data: 'duration_12' },
+              { text: '60s (2 credits)', callback_data: 'duration_60' },
             ],
           ],
         },
@@ -156,50 +155,48 @@ export async function handlePlatformSelection(ctx: BotContext, platformId: strin
 }
 
 /**
- * Handle duration selection
+ * Handle duration selection and start generation
  */
-export async function handleDurationSelection(ctx: BotContext, durationStr: string): Promise<void> {
+export async function handleDurationSelection(ctx: BotContext, duration: number): Promise<void> {
   try {
-    if (!ctx.session || !ctx.session.videoCreation) return;
-    
-    const { niche, platform } = ctx.session.videoCreation;
-    const duration = parseInt(durationStr.replace('duration_', ''));
+    const user = ctx.from;
+    if (!user || !ctx.session) return;
 
-    // Validate duration (must be 4-15 seconds)
-    if (duration < 4 || duration > 15) {
-      await ctx.answerCbQuery('Invalid duration');
-      await ctx.reply('❌ Duration must be between 4 and 15 seconds');
+    const { niche, platform } = ctx.session.videoCreation || {};
+    if (!niche || !platform) {
+      await ctx.answerCbQuery('Please start over with /create');
       return;
     }
-
-    const user = ctx.from;
-    if (!user) return;
-
-    const dbUser = await UserService.findByTelegramId(BigInt(user.id.toString()));
-    if (!dbUser) return;
 
     // Check credits
-    const creditCost = duration <= 5 ? 0.5 : duration <= 10 ? 1 : 1.5;
-    if (Number(dbUser.creditBalance) < creditCost) {
-      await ctx.answerCbQuery('Insufficient credits');
-      await ctx.reply(`❌ Need ${creditCost} credits. You have ${dbUser.creditBalance}`);
+    const creditCost = VideoService.getCreditCost(duration);
+    const hasCredits = await UserService.hasEnoughCredits(BigInt(user.id), creditCost);
+
+    if (!hasCredits) {
+      await ctx.editMessageText(
+        `❌ Insufficient credits.\n\n` +
+        `Required: ${creditCost} credits\n` +
+        `Use /topup to add more credits.`
+      );
       return;
     }
 
-    // Create video job using VideoService.createJob
+    await ctx.answerCbQuery('Starting video generation...');
+
+    // Deduct credits
+    await UserService.deductCredits(BigInt(user.id), creditCost);
+
+    // Create video job
     const video = await VideoService.createJob({
-      userId: dbUser.id,  // Already a bigint from database
+      userId: BigInt(user.id),
       niche,
       platform,
       duration,
-      scenes: 3,
+      scenes: duration <= 15 ? 3 : duration <= 30 ? 5 : 8,
     });
 
-    // Deduct credits
-    await UserService.deductCredits(dbUser.id, creditCost);
-
     await ctx.editMessageText(
-      `✅ **Video Job Started**\n\n` +
+      `🎬 **Video Generation Started!**\n\n` +
       `Job ID: \`${video.jobId}\`\n` +
       `Niche: ${niche}\n` +
       `Platform: ${platform}\n` +
@@ -250,98 +247,117 @@ async function generateVideoAsync(
       logger.error('Video generation failed:', result.error);
       await VideoService.updateStatus(jobId, 'failed', result.error);
       await ctx.reply(
-        `❌ Video generation failed\n\n` +
+        `❌ **Video Generation Failed**\n\n` +
         `Job ID: ${jobId}\n` +
-        `Error: ${result.error || 'Unknown error'}`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🔄 Try Again', callback_data: `retry_${jobId}` }],
-            ],
-          },
-        }
+        `Error: ${result.error || 'Unknown error'}\n\n` +
+        `Your credits have been refunded.`,
+        { parse_mode: 'Markdown' }
       );
       return;
     }
 
-    // Download video
-    const localPath = await downloadVideo(result.videoUrl, jobId);
-    logger.info(`📥 Video downloaded: ${localPath}`);
+    logger.info(`✅ Video generated: ${result.videoUrl}`);
 
-    // Update video with output URLs using setOutput
+    // Download video to local storage
+    const localPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
+    await downloadVideo(result.videoUrl, localPath);
+
+    logger.info(`✅ Video downloaded: ${localPath}`);
+
+    // Update database with URLs
     await VideoService.setOutput(jobId, {
       videoUrl: result.videoUrl,
-      downloadUrl: localPath,
+      downloadUrl: `file://${localPath}`,
+      thumbnailUrl: result.thumbnailUrl,
     });
 
-    // Notify user
-    await ctx.replyWithVideo(
-      { source: localPath },
-      {
-        caption: `✅ **Video Ready!**\n\n` +
-          `Job ID: ${jobId}\n` +
-          `Duration: ${duration}s\n` +
-          `Platform: ${platform}\n\n` +
-          `Tip: Use /social to publish to social media`,
-        parse_mode: 'Markdown',
-      }
+    // Send video to user
+    await ctx.reply(
+      `✅ **Video Ready!**\n\n` +
+      `Job ID: ${jobId}\n` +
+      `Duration: ${duration}s\n\n` +
+      `Downloading video...`,
+      { parse_mode: 'Markdown' }
     );
 
-    logger.info(`✅ Video generation complete for job ${jobId}`);
+    // Send video file
+    if (fs.existsSync(localPath)) {
+      await ctx.replyWithVideo(
+        { source: fs.createReadStream(localPath) },
+        {
+          caption: `🎬 *${niche.toUpperCase()} Video*\n\n` +
+            `Platform: ${platform.toUpperCase()}\n` +
+            `Duration: ${duration}s\n\n` +
+            `_Use /videos to see all your videos_`,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
+              [{ text: '📁 My Videos', callback_data: 'videos_list' }],
+            ],
+          },
+        }
+      );
+    } else {
+      // Fallback: send URL if file not found
+      await ctx.reply(
+        `✅ **Video Ready!**\n\n` +
+        `Download: ${result.videoUrl}`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '⬇️ Download Video', url: result.videoUrl }],
+              [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
+            ],
+          },
+        }
+      );
+    }
 
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Video generation error:', error);
-    await VideoService.updateStatus(jobId, 'failed', String(error));
-    await ctx.reply(`❌ Error generating video: ${error}`);
+    await VideoService.updateStatus(jobId, 'failed', error.message);
+    await ctx.reply(
+      `❌ **Video Generation Failed**\n\n` +
+      `Job ID: ${jobId}\n` +
+      `Error: ${error.message}\n\n` +
+      `Your credits have been refunded.`,
+      { parse_mode: 'Markdown' }
+    );
   }
-}
-
-/**
- * Download video from URL
- */
-async function downloadVideo(url: string, jobId: string): Promise<string> {
-  const outputPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
-
-  const { stdout, stderr } = await exec(
-    `wget -O "${outputPath}" "${url}"`
-  );
-
-  if (stderr) {
-    logger.error('Download error:', stderr);
-    throw new Error('Failed to download video');
-  }
-
-  return outputPath;
 }
 
 /**
  * Build prompt based on niche
  */
 function buildPrompt(niche: string, platform: string, duration: number): string {
-  const prompts: { [key: string]: string } = {
-    'trading': `${duration}s trading strategy visualization with candlestick charts moving smoothly, professional financial analysis style, clean modern graphics`,
-    'fitness': `${duration}s fitness workout demonstration with energetic movements, professional trainer quality, clear exercise form`,
-    'cooking': `${duration}s cooking tutorial with appetizing food preparation, high-quality food photography style`,
-    'tech': `${duration}s technology product showcase with modern sleek design, futuristic presentation`,
-    'travel': `${duration}s travel destination with beautiful scenery, cinematic drone footage style`,
-    'education': `${duration}s educational content with clear illustrations, modern e-learning style`,
+  const nichePrompts: Record<string, string> = {
+    fnb: 'Appetizing food photography, steam, fresh ingredients, warm lighting, close-up shots, sizzling, professional food video',
+    beauty: 'Soft lighting, before-after transformation, professional results, skincare routine, beauty commercial',
+    retail: 'Product showcase, studio lighting, unboxing style, lifestyle context, detail shots, e-commerce video',
+    services: 'Professional service showcase, process demonstration, trust-building, testimonial style',
+    professional: 'Corporate professional, educational content, expert demonstration, clean studio',
+    hospitality: 'Room tour, luxury ambience, relaxing atmosphere, premium experience, elegant decor',
+    realestate: 'Wide angle shots, bright natural lighting, spacious feel, luxury amenities, walkthrough',
+    car: 'Cinematic automotive, showroom lighting, exterior angles, interior luxury, engine detail',
   };
 
-  return prompts[niche] || `${duration}s professional video content`;
+  const basePrompt = nichePrompts[niche] || nichePrompts.retail;
+  return `${basePrompt}. High quality, cinematic, engaging transitions, ${duration} seconds, viral potential.`;
 }
 
 /**
  * Get aspect ratio for platform
  */
 function getAspectRatio(platform: string): string {
-  const ratios: { [key: string]: string } = {
-    'tiktok': '9:16',
-    'shorts': '9:16',
-    'reels': '9:16',
-    'facebook': '16:9',
-    'youtube': '16:9',
+  const ratios: Record<string, string> = {
+    tiktok: '9:16',
+    instagram: '9:16',
+    youtube: '9:16',
+    facebook: '4:5',
+    twitter: '1:1',
   };
-
   return ratios[platform] || '9:16';
 }
 
@@ -349,14 +365,15 @@ function getAspectRatio(platform: string): string {
  * Get style for niche
  */
 function getStyleForNiche(niche: string): string {
-  const styles: { [key: string]: string } = {
-    'trading': 'professional',
-    'fitness': 'energetic',
-    'cooking': 'appetizing',
-    'tech': 'modern',
-    'travel': 'cinematic',
-    'education': 'clear',
+  const styles: Record<string, string> = {
+    fnb: 'cinematic food',
+    beauty: 'beauty commercial',
+    retail: 'product showcase',
+    services: 'professional service',
+    professional: 'corporate',
+    hospitality: 'luxury real estate',
+    realestate: 'architectural',
+    car: 'automotive',
   };
-
-  return styles[niche] || 'professional';
+  return styles[niche] || 'cinematic';
 }

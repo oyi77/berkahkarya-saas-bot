@@ -39,18 +39,25 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         return;
       }
 
-      // Welcome back message
+      // Welcome back message - show full main menu with all features
       await ctx.reply(
         `👋 Welcome back, ${user.first_name}!\n\n` +
         `💰 Credits: ${existingUser.creditBalance}\n` +
         `⭐ Tier: ${existingUser.tier.toUpperCase()}\n\n` +
-        `Ready to create some amazing videos? 🎬`,
+        `🎬 *OpenClaw Video Studio*\n\n` +
+        `What would you like to do?`,
         {
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '🎬 Create Video', callback_data: 'create_video' }],
               [{ text: '🖼️ Generate Image', callback_data: 'image_generate' }],
-              [{ text: '📋 Main Menu', callback_data: 'main_menu' }],
+              [{ text: '🔄 Clone Video', callback_data: 'clone_video' }],
+              [{ text: '📋 Storyboard Creator', callback_data: 'storyboard_create' }],
+              [{ text: '🔄 Clone Image', callback_data: 'clone_image' }],
+              [{ text: '📈 Viral Research', callback_data: 'viral_research' }],
+              [{ text: '🔍 Disassemble Prompt', callback_data: 'disassemble' }],
+              [{ text: '🔗 Social Accounts', callback_data: 'manage_accounts' }],
             ],
             keyboard: [
               [{ text: '🎬 Create Video' }, { text: '💰 Top Up' }],

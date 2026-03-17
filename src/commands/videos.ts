@@ -107,25 +107,24 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
   if (video.status === 'completed' && video.videoUrl && video.thumbnailUrl) {
     try {
       // Send thumbnail with video info
-      await ctx.editMessageText(
+      await ctx.editMessageMedia(
         {
           type: 'photo',
           media: video.thumbnailUrl,
-        },
-        {
           caption: message,
           parse_mode: 'Markdown',
-        }
+        } as any
       );
       
       // Send download button separately
       await ctx.reply(
-        '⬇️ *Download Options*',
+        '⬇️ *Actions*',
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '⬇️ Download Video', url: video.downloadUrl || video.videoUrl }],
+              [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
               [{ text: '📋 Copy Video URL', callback_data: `video_copy_${jobId}` }],
               [{ text: '🗑️ Delete Video', callback_data: `video_delete_${jobId}` }],
               [{ text: '◀️ Back to List', callback_data: 'videos_list' }],

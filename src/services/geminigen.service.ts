@@ -1,25 +1,28 @@
 /**
  * GeminiGen Video Generation Service
  * 
- * Handles AI video generation via GeminiGen.ai browser automation
+ * Handles AI video generation via GeminiGen.ai API
  */
 
 import { logger } from '@/utils/logger';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
+import axios from 'axios';
+import FormData from 'form-data';
 
 const exec = promisify(execCallback);
 
 // GeminiGen configuration
-const GEMINIGEN_EMAIL = process.env.GEMINIGEN_EMAIL || 'grahainsanmandiri@gmail.com';
-const GEMINIGEN_PASSWORD = process.env.GEMINIGEN_PASSWORD || '1Milyarberkah$';
+const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || '';
+const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
 
 export interface VideoGenerationResult {
   success: boolean;
   videoUrl?: string;
   thumbnailUrl?: string;
   error?: string;
+  jobId?: string;
 }
 
 export interface VideoGenerationParams {
@@ -27,119 +30,167 @@ export interface VideoGenerationParams {
   duration: number;
   aspectRatio: string;
   style?: string;
+  model?: string;
+  resolution?: string;
 }
 
 /**
- * Generate video using GeminiGen.ai via browser automation
+ * GeminiGen Service
+ */
+export class GeminiGenService {
+  /**
+   * Generate video using GeminiGen.ai API
+   */
+  static async generateVideo(params: VideoGenerationParams): Promise<VideoGenerationResult> {
+    return generateVideo(params);
+  }
+
+  /**
+   * Generate video from images
+   */
+  static async generateFromImages(
+    imageUrls: string[],
+    params: {
+      niche: string;
+      platform: string;
+      duration: number;
+      brief?: string;
+    }
+  ): Promise<VideoGenerationResult> {
+    return generateFromImages(imageUrls, params);
+  }
+}
+
+/**
+ * Generate video using GeminiGen.ai API
  */
 export async function generateVideo(params: VideoGenerationParams): Promise<VideoGenerationResult> {
   try {
     logger.info(`🎬 Starting video generation: ${params.prompt.slice(0, 50)}...`);
 
-    // Use browser automation to access GeminiGen
-    const scriptPath = '/home/openclaw/.openclaw/workspace/scripts/geminigen_generator.py';
-    
-    // Create the generator script if it doesn't exist
-    await createGeminiGenScript();
+    if (!GEMINIGEN_API_KEY) {
+      return {
+        success: false,
+        error: 'GEMINIGEN_API_KEY not configured',
+      };
+    }
 
-    // Execute video generation
-    const { stdout, stderr } = await exec(
-      `python3 ${scriptPath} --prompt "${params.prompt.replace(/"/g, '\\"')}" --duration ${params.duration} --ratio ${params.aspectRatio}`,
-      { timeout: 300000 } // 5 minute timeout
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('prompt', params.prompt);
+    formData.append('model', params.model || 'grok-3');
+    formData.append('resolution', params.resolution || '480p');
+    formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
+    formData.append('duration', params.duration.toString());
+    formData.append('mode', 'custom');
+
+    // Call GeminiGen API
+    const response = await axios.post(
+      `${GEMINIGEN_API_BASE}/video-gen/grok`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'x-api-key': GEMINIGEN_API_KEY,
+        },
+        timeout: 30000,
+      }
     );
 
-    // Parse result
-    const resultMatch = stdout.match(/VIDEO_URL:(.+)/);
-    if (resultMatch) {
-      const videoUrl = resultMatch[1].trim();
+    const { uuid, status } = response.data;
+    logger.info(`📋 Video generation started: ${uuid}, status: ${status}`);
+
+    // Poll for completion
+    const result = await pollForCompletion(uuid);
+
+    if (result.success && result.videoUrl) {
       return {
         success: true,
-        videoUrl,
-        thumbnailUrl: videoUrl.replace('.mp4', '_thumb.jpg'),
+        videoUrl: result.videoUrl,
+        thumbnailUrl: result.thumbnailUrl,
+        jobId: uuid,
       };
     }
 
     return {
       success: false,
-      error: 'Video URL not found in output',
+      error: result.error || 'Video generation failed',
+      jobId: uuid,
     };
 
   } catch (error: any) {
-    logger.error('Video generation failed:', error);
+    logger.error('Video generation failed:', error.response?.data || error.message);
     return {
       success: false,
-      error: error.message || 'Unknown error',
+      error: error.response?.data?.error_message || error.message || 'Unknown error',
     };
   }
 }
 
 /**
- * Create GeminiGen automation script
+ * Poll for video completion
  */
-async function createGeminiGenScript(): Promise<void> {
-  const fs = await import('fs/promises');
-  const path = await import('path');
-  
-  const scriptContent = `#!/usr/bin/env python3
-"""
-GeminiGen.ai Video Generator
-Automates video generation via browser automation
-"""
+async function pollForCompletion(uuid: string, maxAttempts = 60): Promise<VideoGenerationResult> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await axios.get(
+        `${GEMINIGEN_API_BASE}/history/${uuid}`,
+        {
+          headers: {
+            'x-api-key': GEMINIGEN_API_KEY,
+          },
+        }
+      );
 
-import argparse
-import time
-import requests
-from pathlib import Path
+      const { status, status_percentage, generated_video, thumbnail_url, error_message } = response.data;
 
-GEMINIGEN_URL = "https://geminigen.ai/app/video-gen"
+      logger.info(`⏳ Video status: ${status_percentage}% (${status})`);
 
-def generate_video(prompt: str, duration: int = 6, ratio: str = "9:16", style: str = "cinematic"):
-    """
-    Generate video via GeminiGen.ai
-    
-    In production, this would use browser automation (Playwright/Selenium)
-    For now, returns a placeholder URL for testing
-    """
-    print(f"🎬 Generating video...")
-    print(f"   Prompt: {prompt[:50]}...")
-    print(f"   Duration: {duration}s")
-    print(f"   Ratio: {ratio}")
-    
-    # Simulate generation time
-    time.sleep(2)
-    
-    # Return placeholder URL (in production, this would be real)
-    video_id = f"vid_{int(time.time())}"
-    video_url = f"https://cdn.geminigen.ai/generated/{video_id}.mp4"
-    
-    print(f"VIDEO_URL:{video_url}")
-    return video_url
+      // Status: 1 = processing, 2 = completed, 3 = failed
+      if (status === 2 && generated_video && generated_video.length > 0) {
+        const videoUrl = generated_video[0].video_url || generated_video[0].video_uri;
+        return {
+          success: true,
+          videoUrl,
+          thumbnailUrl: thumbnail_url || '',
+        };
+      }
 
-def main():
-    parser = argparse.ArgumentParser(description='Generate video via GeminiGen.ai')
-    parser.add_argument('--prompt', required=True, help='Video prompt')
-    parser.add_argument('--duration', type=int, default=6, help='Duration in seconds')
-    parser.add_argument('--ratio', default='9:16', help='Aspect ratio')
-    parser.add_argument('--style', default='cinematic', help='Video style')
-    
-    args = parser.parse_args()
-    
-    generate_video(
-        prompt=args.prompt,
-        duration=args.duration,
-        ratio=args.ratio,
-        style=args.style
-    )
+      if (status === 3) {
+        return {
+          success: false,
+          error: error_message || 'Video generation failed',
+        };
+      }
 
-if __name__ == '__main__':
-    main()
-`;
+      // Wait 5 seconds before next check
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
-  const scriptsDir = '/home/openclaw/.openclaw/workspace/scripts';
-  const scriptPath = path.join(scriptsDir, 'geminigen_generator.py');
-  
-  await fs.mkdir(scriptsDir, { recursive: true });
-  await fs.writeFile(scriptPath, scriptContent, { mode: 0o755 });
+    } catch (error: any) {
+      logger.error(`Poll attempt ${i + 1} failed:`, error.message);
+      // Continue polling even if one attempt fails
+    }
+  }
+
+  return {
+    success: false,
+    error: 'Video generation timeout after 5 minutes',
+  };
+}
+
+/**
+ * Map aspect ratio to GeminiGen format
+ */
+function mapAspectRatio(ratio: string): string {
+  const ratioMap: Record<string, string> = {
+    '9:16': 'portrait',
+    '16:9': 'landscape',
+    '1:1': 'square',
+    '4:5': 'vertical',
+    '3:2': 'horizontal',
+  };
+
+  return ratioMap[ratio] || 'portrait';
 }
 
 /**
