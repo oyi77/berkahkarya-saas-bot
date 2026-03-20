@@ -763,12 +763,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     }
 
     // Handle image upload during video creation — accumulate multi-photo (up to 5)
+    // Supports both single photo and batch uploads (media groups)
     if (ctx.session?.videoCreation?.waitingForImage && 'photo' in message) {
       const photos = message.photo;
       const largestPhoto = photos[photos.length - 1];
       const fileId = largestPhoto.file_id;
 
-      // Initialize uploaded photos array if needed
       if (!ctx.session.videoCreation.uploadedPhotos) {
         ctx.session.videoCreation.uploadedPhotos = [];
       }
@@ -783,8 +783,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           {
             reply_markup: {
               inline_keyboard: [
-                [{ text: '\u25b6\ufe0f Generate Now', callback_data: 'generate_video_now' }],
-                [{ text: '\u23ed\ufe0f Skip Reference', callback_data: 'skip_reference_image' }],
+                [{ text: '▶️ Generate Now', callback_data: 'generate_video_now' }],
+                [{ text: '⏭️ Skip Reference', callback_data: 'skip_reference_image' }],
               ],
             },
           }
@@ -796,17 +796,57 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       currentPhotos.push({ fileId });
       const count = currentPhotos.length;
 
+      // Detect batch upload (media_group_id) — debounce reply
+      // When user sends multiple photos at once, Telegram sends them as a media group.
+      // We accumulate silently and only reply after the last photo in the group.
+      const mediaGroupId = (message as any).media_group_id;
+      if (mediaGroupId) {
+        // Track the media group ID to debounce
+        const lastGroupId = (ctx.session as any)._lastMediaGroupId;
+        (ctx.session as any)._lastMediaGroupId = mediaGroupId;
+        (ctx.session as any)._lastMediaGroupTime = Date.now();
+
+        if (lastGroupId === mediaGroupId) {
+          // Same group — accumulate silently, don't spam replies
+          return;
+        }
+
+        // First photo of a new group — wait briefly for the rest to arrive
+        await new Promise(r => setTimeout(r, 1500));
+
+        // Re-read count after debounce (other photos may have arrived)
+        const finalCount = ctx.session.videoCreation.uploadedPhotos?.length || count;
+
+        await ctx.reply(
+          `📸 ${finalCount} photo(s) received!` +
+          (finalCount < MAX_PHOTOS ? ' Send more or tap Generate.' : ' Maximum reached — tap Generate.'),
+          {
+            reply_markup: {
+              inline_keyboard: [
+                ...(finalCount < MAX_PHOTOS
+                  ? [[{ text: '📸 Add More', callback_data: 'add_more_photos' }]]
+                  : []),
+                [{ text: '▶️ Generate Now', callback_data: 'generate_video_now' }],
+                [{ text: '⏭️ Skip Reference', callback_data: 'skip_reference_image' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+
+      // Single photo upload (no media group) — reply immediately
       await ctx.reply(
-        `\ud83d\udcf8 Photo ${count}/${MAX_PHOTOS} received!` +
+        `📸 Photo ${count}/${MAX_PHOTOS} received!` +
         (count < MAX_PHOTOS ? ' Send more photos or tap Generate.' : ' Maximum reached — tap Generate.'),
         {
           reply_markup: {
             inline_keyboard: [
               ...(count < MAX_PHOTOS
-                ? [[{ text: '\ud83d\udcf8 Add More', callback_data: 'add_more_photos' }]]
+                ? [[{ text: '📸 Add More', callback_data: 'add_more_photos' }]]
                 : []),
-              [{ text: '\u25b6\ufe0f Generate Now', callback_data: 'generate_video_now' }],
-              [{ text: '\u23ed\ufe0f Skip Reference', callback_data: 'skip_reference_image' }],
+              [{ text: '▶️ Generate Now', callback_data: 'generate_video_now' }],
+              [{ text: '⏭️ Skip Reference', callback_data: 'skip_reference_image' }],
             ],
           },
         }
