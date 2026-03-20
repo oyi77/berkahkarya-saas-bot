@@ -16,6 +16,7 @@ export interface AnalysisResult {
   prompt?: string;
   style?: string;
   elements?: string[];
+  storyboard?: Array<{ scene: number; duration: number; description: string }>;
   error?: string;
 }
 
@@ -109,7 +110,7 @@ export class ContentAnalysisService {
 
       const systemPrompt = mediaType === 'image'
         ? 'Analyze this image and describe it in detail as an AI image generation prompt. Include: subject, environment, lighting, camera angle, style, and mood. Be specific about colors, textures, and composition. Output only the prompt text.'
-        : 'Analyze this video frame/thumbnail and describe it in detail as an AI video generation prompt. Include: subject, scene, action, environment, lighting, camera movement, editing style, and mood. Be specific about pacing, transitions, and visual effects. Output only the prompt text.';
+        : 'Analyze this video in detail. Describe:\n\nVISUAL: subject, scenes, camera movements, transitions, lighting, color grading, effects\nAUDIO: voiceover text/transcript, background music type, sound effects\nSTORYBOARD: break down into individual scenes with timing\n\nOutput as a comprehensive recreation prompt.';
 
       // Fetch media and convert to base64
       const media = await fetchMediaAsBase64(mediaUrl);
@@ -185,8 +186,15 @@ export class ContentAnalysisService {
         '3. Transitions and editing techniques\n' +
         '4. Subject and action\n' +
         '5. Mood and atmosphere\n' +
-        '6. Text overlays or effects if visible\n\n' +
-        'Format as a single comprehensive AI video generation prompt.';
+        '6. Text overlays or effects if visible\n' +
+        '7. Audio: voiceover transcript, background music type, sound effects\n\n' +
+        'IMPORTANT: Also break down the video into individual scenes with timing.\n' +
+        'After the prompt, output a STORYBOARD section in this exact format:\n' +
+        'STORYBOARD:\n' +
+        'Scene 1 | 3s | Description of scene 1\n' +
+        'Scene 2 | 5s | Description of scene 2\n' +
+        '(continue for all scenes)\n\n' +
+        'First output the comprehensive recreation prompt, then the STORYBOARD section.';
 
       const requestBody = {
         contents: [{
@@ -202,7 +210,7 @@ export class ContentAnalysisService {
         }],
         generationConfig: {
           temperature: 0.4,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 2048,
         },
       };
 
@@ -219,7 +227,15 @@ export class ContentAnalysisService {
         return fallback;
       }
 
-      return parseGeminiResponse(generatedText);
+      const result = parseGeminiResponse(generatedText);
+
+      // Parse storyboard from the response
+      const storyboard = this.parseStoryboard(generatedText);
+      if (storyboard.length > 0) {
+        result.storyboard = storyboard;
+      }
+
+      return result;
 
     } catch (error: any) {
       logger.error('Video cloning failed:', error.message);
@@ -298,6 +314,32 @@ export class ContentAnalysisService {
         error: error.message || 'Failed to clone image',
       };
     }
+  }
+
+  /**
+   * Parse storyboard section from Gemini response text
+   */
+  private static parseStoryboard(text: string): Array<{ scene: number; duration: number; description: string }> {
+    const storyboard: Array<{ scene: number; duration: number; description: string }> = [];
+
+    // Look for STORYBOARD: section
+    const storyboardMatch = text.match(/STORYBOARD[:\s]*\n([\s\S]+?)(?:\n\n|$)/i);
+    if (!storyboardMatch) return storyboard;
+
+    const lines = storyboardMatch[1].split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      // Match pattern: Scene N | Xs | Description
+      const match = line.match(/Scene\s*(\d+)\s*\|\s*(\d+)s?\s*\|\s*(.+)/i);
+      if (match) {
+        storyboard.push({
+          scene: parseInt(match[1], 10),
+          duration: parseInt(match[2], 10),
+          description: match[3].trim(),
+        });
+      }
+    }
+
+    return storyboard;
   }
 
   /**

@@ -253,7 +253,10 @@ export class PromptEngine {
 
     const negative = NEGATIVE_PROMPTS.universal + ', static image, slideshow, no movement, choppy, amateur' + refImageNegative;
 
-    const provider_hint = `${sceneLabel}${userDescription}, ${style}, ${duration}s, cinematic 4K, mood: ${engineResult.mood}${hasReferenceImage ? ', maintain exact visual identity from reference image' : ''}`;
+    const refHintSuffix = hasReferenceImage
+      ? ', CRITICAL: maintain exact visual identity from reference image, same subject/character/product, no identity drift, reference strength 0.85, locked identity anchor'
+      : '';
+    const provider_hint = `${sceneLabel}${userDescription}, ${style}, ${duration}s, cinematic 4K, mood: ${engineResult.mood}${refHintSuffix}`;
 
     return { full, negative, provider_hint };
   }

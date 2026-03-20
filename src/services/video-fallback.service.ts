@@ -656,8 +656,12 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
     try {
       logger.info(`Trying ${provider.name}...`);
 
-      // Use enriched prompt for the provider
-      const enrichedParams = { ...params, prompt: enriched.provider_hint };
+      // Use full prompt for providers that support long prompts, provider_hint for token-limited ones
+      const FULL_PROMPT_PROVIDERS = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
+      const promptForProvider = FULL_PROMPT_PROVIDERS.includes(provider.key)
+        ? enriched.full   // Full prompt with strong identity lock
+        : enriched.provider_hint;  // Short version for token-limited providers
+      const enrichedParams = { ...params, prompt: promptForProvider };
       const result = await provider.generate(enrichedParams);
 
       if (result.success) {
@@ -687,7 +691,10 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
 
       try {
         logger.info(`Trying ${provider.name} (max ${provider.maxDuration}s, degraded)...`);
-        const degradedParams = { ...params, prompt: enriched.provider_hint, duration: provider.maxDuration };
+        const FULL_PROMPT_PROVIDERS_DEGRADED = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
+        const degradedPrompt = FULL_PROMPT_PROVIDERS_DEGRADED.includes(provider.key)
+          ? enriched.full : enriched.provider_hint;
+        const degradedParams = { ...params, prompt: degradedPrompt, duration: provider.maxDuration };
         const result = await provider.generate(degradedParams);
         if (result.success) {
           await CircuitBreaker.recordSuccess(provider.key).catch(() => {});

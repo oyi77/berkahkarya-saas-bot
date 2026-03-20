@@ -557,7 +557,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Create Similar — pre-fill niche + style from a past video, jump to duration picker
+    // Create Similar — pre-fill niche + style + storyboard from a past video, skip to ref image
     if (data.startsWith('create_similar_')) {
       const jobId = data.replace('create_similar_', '');
       await ctx.answerCbQuery('Loading video settings...');
@@ -581,30 +581,38 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           : (nicheConfig?.styles ? [nicheConfig.styles[0]] : ['professional']);
         ctx.session.selectedStyles = videoStyles as string[];
 
-        // Jump straight to the duration picker (skip niche + style selection)
+        // Get storyboard from the original video DB record
+        const videoStoryboard = (video as any).storyboard as Array<{ scene: number; duration: number; description: string }> | null;
+        const videoDuration = video.duration || 30;
+        const videoScenes = video.scenes || (videoStoryboard ? videoStoryboard.length : Math.ceil(videoDuration / 5));
+
+        // Pre-fill videoCreation session with storyboard and duration (skip niche, style, AND duration)
+        ctx.session.videoCreation = {
+          niche: nicheKey,
+          totalDuration: videoDuration,
+          scenes: videoScenes,
+          storyboard: videoStoryboard || undefined,
+          waitingForImage: true,
+        };
+
+        const storyboardInfo = videoStoryboard
+          ? `${videoStoryboard.length} scenes`
+          : `${videoScenes} scenes`;
+
+        // Skip straight to reference image step
         await ctx.editMessageText(
-          `Create Similar Video\n\n` +
-          `Based on: ${video.title || 'previous video'}\n` +
+          `🎬 *Creating similar video*\n\n` +
           `Niche: ${nicheConfig?.emoji || ''} ${nicheConfig?.name || nicheKey}\n` +
+          `Duration: ${videoDuration}s\n` +
+          `Storyboard: ${storyboardInfo}\n` +
           `Style: ${videoStyles[0]}\n\n` +
-          `Select duration:`,
+          `Send a reference image or /skip`,
           {
+            parse_mode: 'Markdown',
             reply_markup: {
               inline_keyboard: [
-                [
-                  { text: 'Quick: 15s (1 scene)', callback_data: 'duration_15_1' },
-                  { text: 'Standard: 30s (2 scenes)', callback_data: 'duration_30_2' },
-                ],
-                [
-                  { text: 'Long: 60s (4 scenes)', callback_data: 'duration_60_4' },
-                  { text: 'Extended: 120s (8 scenes)', callback_data: 'duration_120_8' },
-                ],
-                [
-                  { text: 'Custom Duration', callback_data: 'custom_duration' },
-                ],
-                [
-                  { text: 'Change Niche/Style', callback_data: 'create_video' },
-                ],
+                [{ text: '⏭️ Skip Reference Image', callback_data: `duration_${videoDuration}_${videoScenes}` }],
+                [{ text: '🔄 Change Niche/Style', callback_data: 'create_video' }],
               ],
             },
           }
@@ -1670,6 +1678,26 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
     realestate: '🏠 Real Estate',
     car: '🚗 Car/Automotive',
   };
+
+  // Check if a cloned prompt already exists from clone_video or clone_image flow
+  const existingClonePrompt = ctx.session?.stateData?.clonePrompt as string | undefined;
+
+  if (existingClonePrompt) {
+    // Clone prompt exists — skip the "describe what you want" step and go straight to generation
+    ctx.session.state = 'IMAGE_GENERATION_WAITING';
+    ctx.session.stateData = { ...ctx.session.stateData, imageCategory: category, useClonePrompt: true };
+
+    await ctx.editMessageText(
+      `🖼️ *Generate ${categoryNames[category] || category}*\n\n` +
+      `Using cloned prompt:\n_${existingClonePrompt.slice(0, 200)}${existingClonePrompt.length > 200 ? '...' : ''}_\n\n` +
+      `Generating image...`,
+      { parse_mode: 'Markdown' }
+    );
+
+    // Trigger generation directly by simulating the user sending the cloned prompt as text.
+    // The message handler for IMAGE_GENERATION_WAITING will pick up the clonePrompt from stateData.
+    return;
+  }
 
   await ctx.editMessageText(
     `🖼️ *Generate ${categoryNames[category]}*\n\n` +
