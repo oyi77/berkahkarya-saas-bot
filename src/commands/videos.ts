@@ -124,6 +124,7 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
           reply_markup: {
             inline_keyboard: [
               [{ text: '⬇️ Download Video', url: video.downloadUrl || video.videoUrl }],
+              [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
               [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
               [{ text: '📋 Copy Video URL', callback_data: `video_copy_${jobId}` }],
               [{ text: '🗑️ Delete Video', callback_data: `video_delete_${jobId}` }],
@@ -139,6 +140,7 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             [{ text: '⬇️ Download Video', url: video.downloadUrl || video.videoUrl || '#' }],
+            [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
             [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
           ],
         },

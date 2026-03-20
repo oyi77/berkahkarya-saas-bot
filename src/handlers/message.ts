@@ -23,6 +23,7 @@ import { generateStoryboard } from '@/services/video-generation.service';
 import { getVideoCreditCost } from '@/config/pricing';
 import { generateVideoAsync, generateExtendedVideoAsync } from '@/commands/create';
 import { enqueueVideoGeneration } from '@/config/queue';
+import { actionableError } from '@/utils/errors';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec as execCallback } from 'child_process';
@@ -274,9 +275,9 @@ export async function handleVideoCreationImage(
       ctx.session.videoCreation.waitingForImage = false;
     }
 
+    const userMessage = actionableError(error.message || String(error));
     await ctx.reply(
-      `Failed to process reference image.\n\n` +
-      `${error.message?.includes('download') ? 'Could not download the image. Please try again.' : 'An error occurred processing your image.'}\n\n` +
+      `${userMessage}\n\n` +
       `${creditsDeducted ? 'Credits have been refunded.' : ''}\n\n` +
       `Please send the image again or type /skip to generate without a reference.`,
       { parse_mode: 'Markdown' }
@@ -931,8 +932,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
     }
 
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error in message handler:', error);
-    await ctx.reply('❌ Something went wrong. Please try again later.');
+    const userMessage = actionableError(error.message || String(error));
+    await ctx.reply(userMessage);
   }
 }

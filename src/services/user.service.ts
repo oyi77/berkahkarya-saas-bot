@@ -6,7 +6,10 @@
 
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { redis } from '@/config/redis';
+import { t } from '@/i18n/translations';
 import { User, Prisma } from '@prisma/client';
+import { Telegraf } from 'telegraf';
 
 export class UserService {
   /**
@@ -107,6 +110,17 @@ export class UserService {
     return this.addCredits(userId, amount);
   }
 
+  /** Optional reference to the running Telegraf bot instance for sending DMs. */
+  private static botInstance: Telegraf | null = null;
+
+  /**
+   * Register the bot instance so the service can send proactive messages.
+   * Call this once during startup (e.g. in index.ts after bot creation).
+   */
+  static setBotInstance(bot: Telegraf): void {
+    this.botInstance = bot;
+  }
+
   /**
    * Deduct credits from user
    */
@@ -116,7 +130,7 @@ export class UserService {
       throw new Error('Insufficient credits');
     }
 
-    return prisma.user.update({
+    const updated = await prisma.user.update({
       where: { telegramId },
       data: {
         creditBalance: {
@@ -124,6 +138,54 @@ export class UserService {
         },
       },
     });
+
+    // Fire-and-forget low credit warning
+    const remaining = Number(updated.creditBalance);
+    if (remaining > 0 && remaining < 1) {
+      this.sendLowCreditWarning(telegramId, remaining, (user.language as 'id' | 'en') || 'id').catch(() => {});
+    }
+
+    return updated;
+  }
+
+  /**
+   * Send a low-credit warning via Telegram DM.
+   * Throttled to once per 24 hours per user via Redis.
+   */
+  private static async sendLowCreditWarning(
+    telegramId: bigint,
+    remaining: number,
+    lang: 'id' | 'en',
+  ): Promise<void> {
+    if (!this.botInstance) return;
+
+    const redisKey = `low_credit_warned:${telegramId.toString()}`;
+    const alreadyWarned = await redis.get(redisKey);
+    if (alreadyWarned) return;
+
+    // Set flag with 24h TTL (86400 seconds)
+    await redis.set(redisKey, '1', 'EX', 86400);
+
+    const message = t('credits.low_warning', lang, {
+      remaining: remaining.toFixed(1),
+    });
+
+    await this.botInstance.telegram.sendMessage(
+      telegramId.toString(),
+      message,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: t('menu.top_up', lang), callback_data: 'topup' },
+              { text: t('menu.subscribe', lang), callback_data: 'open_subscription' },
+            ],
+          ],
+        },
+      },
+    );
+
+    logger.info(`Low credit warning sent to user ${telegramId} (${remaining} remaining)`);
   }
 
   /**

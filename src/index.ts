@@ -22,6 +22,7 @@ import { initializeDatabase } from '@/config/database';
 import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
 import { startVideoWorker } from '@/workers/video-generation.worker';
+import { UserService } from '@/services/user.service';
 
 // Validate environment variables
 const requiredEnvVars = [
@@ -39,6 +40,9 @@ for (const envVar of requiredEnvVars) {
 
 // Initialize bot
 const bot = new Telegraf(process.env.BOT_TOKEN!);
+
+// Allow UserService to send proactive DMs (low-credit warnings, etc.)
+UserService.setBotInstance(bot);
 
 // Initialize Fastify server
 const server = Fastify({

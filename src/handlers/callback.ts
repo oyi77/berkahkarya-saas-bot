@@ -21,9 +21,11 @@ import {
   handleDurationSelection,
   handleNicheSelection,
   handleStyleSelection,
-  createCommand
+  createCommand,
+  generateCaption,
 } from '@/commands/create';
 import { videosCommand, viewVideo, copyVideoUrl, deleteVideo } from '@/commands/videos';
+import { NICHES } from '@/services/video-generation.service';
 import { VideoService } from '@/services/video.service';
 import { PostAutomationService } from '@/services/postautomation.service';
 import { handleVideoCreationImage, handleSkipImageReference } from '@/handlers/message';
@@ -527,6 +529,90 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('video_retry_')) {
       await ctx.answerCbQuery('Retrying video...');
       await createCommand(ctx);
+      return;
+    }
+
+    // Copy Caption — reply with plain caption text for easy copying
+    if (data.startsWith('copy_caption_')) {
+      const jobId = data.replace('copy_caption_', '');
+      await ctx.answerCbQuery('Caption copied below!');
+
+      try {
+        const video = await VideoService.getByJobId(jobId);
+        const niche = ctx.session?.selectedNiche || ctx.session?.videoCreation?.niche || (video as any)?.niche || 'product';
+        const storyboard = ctx.session?.videoCreation?.storyboard;
+        const platform = (video as any)?.platform || 'tiktok';
+
+        const scenes = storyboard && storyboard.length > 0
+          ? storyboard
+          : [{ description: (video as any)?.prompt || niche }];
+        const caption = generateCaption(niche, scenes, platform);
+
+        // Send plain text — easy for users to long-press and copy on mobile
+        await ctx.reply(`${caption.text}\n\n${caption.hashtags}`);
+      } catch (err) {
+        logger.error('Failed to generate caption for copy:', err);
+        await ctx.reply('Failed to generate caption. Please try again.');
+      }
+      return;
+    }
+
+    // Create Similar — pre-fill niche + style from a past video, jump to duration picker
+    if (data.startsWith('create_similar_')) {
+      const jobId = data.replace('create_similar_', '');
+      await ctx.answerCbQuery('Loading video settings...');
+
+      try {
+        const video = await VideoService.getByJobId(jobId);
+        if (!video) {
+          await ctx.reply('Video not found. Please try /create instead.');
+          return;
+        }
+
+        // Pre-fill session with the video's niche and style
+        const nicheKey = video.niche || 'fnb';
+        const nicheConfig = NICHES[nicheKey as keyof typeof NICHES];
+
+        ctx.session.selectedNiche = nicheKey;
+
+        // Use the first style from the video's styles array, or default to the niche's first style
+        const videoStyles = video.styles && video.styles.length > 0
+          ? video.styles
+          : (nicheConfig?.styles ? [nicheConfig.styles[0]] : ['professional']);
+        ctx.session.selectedStyles = videoStyles as string[];
+
+        // Jump straight to the duration picker (skip niche + style selection)
+        await ctx.editMessageText(
+          `Create Similar Video\n\n` +
+          `Based on: ${video.title || 'previous video'}\n` +
+          `Niche: ${nicheConfig?.emoji || ''} ${nicheConfig?.name || nicheKey}\n` +
+          `Style: ${videoStyles[0]}\n\n` +
+          `Select duration:`,
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: 'Quick: 15s (1 scene)', callback_data: 'duration_15_1' },
+                  { text: 'Standard: 30s (2 scenes)', callback_data: 'duration_30_2' },
+                ],
+                [
+                  { text: 'Long: 60s (4 scenes)', callback_data: 'duration_60_4' },
+                  { text: 'Extended: 120s (8 scenes)', callback_data: 'duration_120_8' },
+                ],
+                [
+                  { text: 'Custom Duration', callback_data: 'custom_duration' },
+                ],
+                [
+                  { text: 'Change Niche/Style', callback_data: 'create_video' },
+                ],
+              ],
+            },
+          }
+        );
+      } catch (error) {
+        logger.error('Create similar error:', error);
+        await ctx.reply('Failed to load video settings. Please try /create instead.');
+      }
       return;
     }
 

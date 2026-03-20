@@ -7,6 +7,7 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
+import { t } from '@/i18n/translations';
 
 /**
  * Handle /start command
@@ -122,18 +123,10 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         referredBy: referredBy || undefined,
       });
 
-      // New user onboarding
+      // Guided onboarding — Message 1 (immediate): welcome + set persistent keyboard
+      const lang = 'id'; // new users default to Indonesian
       await ctx.reply(
-        `🎉 Welcome to OpenClaw, ${user.first_name}!\n\n` +
-        `I'm your AI video marketing assistant. I can help you create stunning videos for your business in minutes!\n\n` +
-        `🎁 You received:\n` +
-        `✨ 3 free trial credits\n` +
-        `🔗 Referral code: ${newUser.referralCode}\n\n` +
-        `Here's what you can do:\n` +
-        `🎬 Create marketing videos from photos\n` +
-        `📱 Export for TikTok, IG, YouTube\n` +
-        `👥 Earn credits by referring friends\n\n` +
-        `Let's get started! 🚀`,
+        t('onboarding.welcome', lang),
         {
           reply_markup: {
             keyboard: [
@@ -144,6 +137,31 @@ export async function startCommand(ctx: BotContext): Promise<void> {
               [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
             ],
             resize_keyboard: true,
+          },
+        }
+      );
+
+      // Message 2 (after 2s): feature overview
+      await new Promise((r) => setTimeout(r, 2000));
+      await ctx.reply(t('onboarding.features', lang));
+
+      // Message 3 (after 2s): call-to-action with simplified inline menu
+      await new Promise((r) => setTimeout(r, 2000));
+      await ctx.reply(
+        t('onboarding.cta', lang),
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: t('onboarding.btn_create_video', lang), callback_data: 'create_video' },
+              ],
+              [
+                { text: t('onboarding.btn_try_image', lang), callback_data: 'image_generate' },
+              ],
+              [
+                { text: t('onboarding.btn_chat_ai', lang), callback_data: 'open_chat' },
+              ],
+            ],
           },
         }
       );

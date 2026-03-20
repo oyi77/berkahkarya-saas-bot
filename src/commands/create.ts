@@ -13,7 +13,10 @@ import { generateVideoWithFallback } from '@/services/video-fallback.service';
 import { NICHES, generateStoryboard as genStoryboardFromService } from '@/services/video-generation.service';
 import { PostAutomationService } from '@/services/postautomation.service';
 import { SceneConsistencyEngine } from '@/services/scene-consistency.service';
-import { getVideoCreditCost } from '@/config/pricing';
+import { getVideoCreditCost, SUBSCRIPTION_PLANS } from '@/config/pricing';
+import { MARKETING_HOOKS, MARKETING_CTAS } from '@/config/audio-subtitle-engine';
+import { actionableError } from '@/utils/errors';
+import { t } from '@/i18n/translations';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import * as fs from 'fs';
@@ -27,6 +30,12 @@ if (!fs.existsSync(VIDEO_DIR)) {
   fs.mkdirSync(VIDEO_DIR, { recursive: true });
 }
 
+/** Resolve the user's preferred language from the DB record. */
+function getUserLang(dbUser: { language?: string } | null): 'id' | 'en' {
+  const lang = dbUser?.language;
+  return lang === 'en' ? 'en' : 'id';
+}
+
 /**
  * Handle /create command
  */
@@ -34,27 +43,34 @@ export async function createCommand(ctx: BotContext): Promise<void> {
   try {
     const user = ctx.from;
     if (!user) {
-      await ctx.reply('❌ Unable to identify user.');
+      await ctx.reply(t('error.identify_user'));
       return;
     }
 
     // Check credits
     const dbUser = await UserService.findByTelegramId(BigInt(user.id.toString()));
     if (!dbUser) {
-      await ctx.reply('❌ User not found. Please start with /start');
+      await ctx.reply(t('error.user_not_found'));
       return;
     }
 
+    const lang = getUserLang(dbUser);
+
     if (Number(dbUser.creditBalance) < 0.5) {
+      const minPlan = SUBSCRIPTION_PLANS.lite;
+      const maxPlan = SUBSCRIPTION_PLANS.agency;
       await ctx.reply(
-        `❌ Insufficient credits.\n\n` +
-        `Current balance: ${dbUser.creditBalance}\n` +
-        `Minimum required: 0.5 credits\n\n` +
-        `Use /topup to add more credits.`,
+        `${t('error.insufficient_credits', lang)}\n\n` +
+        t('error.insufficient_credits_detail', lang, { balance: String(dbUser.creditBalance), min: '0.5' }) +
+        `\n\n${t('menu.top_up', lang)} -- ${lang === 'id' ? 'Beli kredit langsung' : 'Buy credits instantly'}\n` +
+        `${t('menu.subscribe', lang)} -- ${lang === 'id' ? `Dapatkan ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} kredit/bulan` : `Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month`}`,
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '💰 Top Up Now', callback_data: 'topup' }],
+              [
+                { text: t('menu.top_up', lang), callback_data: 'topup' },
+                { text: t('menu.subscribe', lang), callback_data: 'open_subscription' },
+              ],
             ],
           },
         }
@@ -77,12 +93,12 @@ export async function createCommand(ctx: BotContext): Promise<void> {
       }
       nicheButtons.push(row);
     }
-    nicheButtons.push([{ text: '💰 Need more credits?', callback_data: 'topup' }]);
+    nicheButtons.push([{ text: t('create.need_credits', lang), callback_data: 'topup' }]);
 
     await ctx.reply(
-      `🎬 Create New Video\n\n` +
-      `Current credits: ${dbUser.creditBalance}\n\n` +
-      `Pilih kategori konten:`,
+      `${t('create.title', lang)}\n\n` +
+      `${t('create.current_credits', lang)}: ${dbUser.creditBalance}\n\n` +
+      t('create.select_niche', lang),
       {
         reply_markup: {
           inline_keyboard: nicheButtons,
@@ -91,7 +107,7 @@ export async function createCommand(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('Error in create command:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    await ctx.reply(t('error.generic'));
   }
 }
 
@@ -105,13 +121,12 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
     // Parse duration and scenes (format: duration_15_2 or duration_30_4)
     let duration: number, scenes: number | null;
     
+    // Resolve language
+    const langUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+    const lang = getUserLang(langUser);
+
     if (durationStr === 'custom_duration') {
-      await ctx.reply(
-        `🎯 **Custom Duration**\n\n` +
-        `Send number of seconds you want (e.g., 45, 60, 90, 120)\n\n` +
-        `Note: System will auto-calculate scenes (15s max per scene)\n` +
-        `Example: 60s = 4 scenes (15s each)`,
-      );
+      await ctx.reply(t('create.custom_duration_prompt', lang));
       ctx.session.state = 'CUSTOM_DURATION_INPUT';
       return;
     }
@@ -168,13 +183,21 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
 
     if (Number(dbUser.creditBalance) < creditCost) {
       await ctx.answerCbQuery('Insufficient credits');
+      const minPlan = SUBSCRIPTION_PLANS.lite;
+      const maxPlan = SUBSCRIPTION_PLANS.agency;
       await ctx.reply(
-        `❌ Need ${creditCost} credits. You have ${dbUser.creditBalance}\n\n` +
-        `Use /topup to add more credits.`,
+        `Insufficient credits.\n\n` +
+        `Current: ${dbUser.creditBalance} | Needed: ${creditCost}\n\n` +
+        `Top Up -- Buy credits instantly\n` +
+        `Subscribe -- Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month (better value!)\n\n` +
+        `Which would you like?`,
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '💰 Top Up Credits', callback_data: 'topup' }],
+              [
+                { text: 'Top Up', callback_data: 'topup' },
+                { text: 'Subscribe', callback_data: 'open_subscription' },
+              ],
             ],
           },
         }
@@ -188,13 +211,13 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
 
     const storyboard = genStoryboardFromService(niche, selectedStyles, duration, scenes);
 
+    const sceneLabel = scenes > 1 ? t('create.scenes', lang) : t('create.scene', lang);
     await ctx.editMessageText(
-      `🎬 **Almost Ready!**\n\n` +
-      `📋 Niche: ${niche}\n` +
-      `⏱ Duration: ${duration}s (${scenes} scene${scenes > 1 ? 's' : ''})\n` +
-      `💰 Credit cost: ${creditCost}\n\n` +
-      `📸 **Send a reference image** for your video,\n` +
-      `or type /skip to let AI generate everything.`,
+      `${t('create.almost_ready', lang)}\n\n` +
+      `${t('create.niche_label', lang)}: ${niche}\n` +
+      `${t('create.duration_label', lang)}: ${duration}s (${scenes} ${sceneLabel})\n` +
+      `${t('create.credit_cost_label', lang)}: ${creditCost}\n\n` +
+      t('create.send_reference_image', lang),
       { parse_mode: 'Markdown' }
     );
 
@@ -232,15 +255,19 @@ export async function handleNicheSelection(ctx: BotContext, nicheKey: string): P
 
     ctx.session.selectedNiche = nicheKey;
 
+    // Resolve language
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+    const lang = getUserLang(dbUser);
+
     const styleButtons: any[][] = (nicheConfig.styles as readonly string[]).flatMap((s) => {
       if (!s || typeof s !== 'string') return [];
       return [[{ text: s.charAt(0).toUpperCase() + s.slice(1), callback_data: `select_style_${s}` }]];
     });
-    styleButtons.push([{ text: '← Ganti Kategori', callback_data: 'create_video' }]);
+    styleButtons.push([{ text: t('create.change_category', lang), callback_data: 'create_video' }]);
 
     await ctx.editMessageText(
-      `✅ ${nicheConfig.emoji} ${nicheConfig.name} dipilih!\n\n` +
-      `Pilih style video:`,
+      `✅ ${nicheConfig.emoji} ${nicheConfig.name} ${t('create.niche_selected', lang)}\n\n` +
+      t('create.select_style', lang),
       {
         reply_markup: {
           inline_keyboard: styleButtons,
@@ -262,27 +289,31 @@ export async function handleStyleSelection(ctx: BotContext, styleKey: string): P
 
     ctx.session.selectedStyles = [styleKey];
 
+    // Resolve language
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+    const lang = getUserLang(dbUser);
+
     // Show duration picker (reuse existing layout)
     await ctx.editMessageText(
-      `🎬 Style dipilih!\n\n` +
-      `💡 Extend Mode: Duration sepanjang apapun!\n\n` +
-      `Pilih total duration (sistem akan otomatis hitung scenes):`,
+      `${t('create.style_selected', lang)}\n\n` +
+      `${t('create.extend_mode', lang)}\n\n` +
+      t('create.select_duration', lang),
       {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '⚡ Quick: 15s (1 scene)', callback_data: 'duration_15_1' },
-              { text: '📊 Standard: 30s (2 scenes)', callback_data: 'duration_30_2' },
+              { text: t('create.duration_quick', lang), callback_data: 'duration_15_1' },
+              { text: t('create.duration_standard', lang), callback_data: 'duration_30_2' },
             ],
             [
-              { text: '🎬 Long: 60s (4 scenes)', callback_data: 'duration_60_4' },
-              { text: '📹 Extended: 120s (8 scenes)', callback_data: 'duration_120_8' },
+              { text: t('create.duration_long', lang), callback_data: 'duration_60_4' },
+              { text: t('create.duration_extended', lang), callback_data: 'duration_120_8' },
             ],
             [
-              { text: '🎯 Custom Duration', callback_data: 'custom_duration' },
+              { text: t('create.custom_duration', lang), callback_data: 'custom_duration' },
             ],
             [
-              { text: '← Ganti Kategori', callback_data: 'create_video' },
+              { text: t('create.change_category', lang), callback_data: 'create_video' },
             ],
           ],
         },
@@ -347,7 +378,8 @@ async function generateVideoAsync(
     await VideoService.updateStatus(jobId, 'failed', String(error));
     const telegramId = BigInt(ctx.from!.id);
     await UserService.refundCredits(telegramId, 0.5, jobId, String(error));
-    await ctx.reply(`❌ Error generating video: ${error}\n\n💰 Credits refunded.`);
+    const userMessage = actionableError(String(error), { jobId });
+    await ctx.reply(`${userMessage}\n\nCredits refunded.`);
   }
 }
 
@@ -476,7 +508,8 @@ async function generateExtendedVideoAsync(
   await VideoService.updateStatus(jobId, 'failed', String(error));
   const telegramId = BigInt(ctx.from!.id);
   await UserService.refundCredits(telegramId, 0.5, jobId, String(error));
-  await ctx.reply(`❌ Error generating video: ${error}\n\n💰 Credits refunded.`);
+  const userMessage = actionableError(String(error), { jobId });
+  await ctx.reply(`${userMessage}\n\nCredits refunded.`);
  }
 }
 
@@ -557,6 +590,77 @@ function getStyleForNiche(niche: string): string {
   return styles[niche] || 'professional';
 }
 
+// ── Caption generation ──
+
+interface GeneratedCaption {
+  text: string;
+  hashtags: string;
+}
+
+const NICHE_HASHTAGS: Record<string, string[]> = {
+  fnb: ['foodie', 'foodtok', 'kuliner', 'makananenak', 'resep', 'foodlover'],
+  food_culinary: ['foodie', 'foodtok', 'kuliner', 'makananenak', 'resep', 'foodlover'],
+  realestate: ['properti', 'rumah', 'realestate', 'investasi', 'homedecor'],
+  product: ['produk', 'review', 'unboxing', 'belanja', 'shopee', 'tokopedia'],
+  beauty: ['skincare', 'beauty', 'glowup', 'beautytips', 'makeup'],
+  beauty_skincare: ['skincare', 'beauty', 'glowup', 'beautytips', 'makeup'],
+  fashion: ['ootd', 'fashion', 'style', 'outfit', 'fashiontok'],
+  fashion_lifestyle: ['ootd', 'fashion', 'style', 'outfit', 'fashiontok'],
+  tech: ['tech', 'gadget', 'teknologi', 'review', 'unboxing'],
+  tech_gadgets: ['tech', 'gadget', 'teknologi', 'review', 'unboxing'],
+  travel: ['travel', 'jalan2', 'liburan', 'wisata', 'explore'],
+  travel_adventure: ['travel', 'jalan2', 'liburan', 'wisata', 'explore'],
+  fitness: ['fitness', 'workout', 'gym', 'health', 'fitnesstips'],
+  fitness_health: ['fitness', 'workout', 'gym', 'health', 'fitnesstips'],
+  education: ['edukasi', 'belajar', 'tips', 'tutorial', 'knowledge'],
+  education_knowledge: ['edukasi', 'belajar', 'tips', 'tutorial', 'knowledge'],
+  trading: ['trading', 'saham', 'crypto', 'investasi', 'finansial'],
+  business_finance: ['bisnis', 'entrepreneur', 'bisnismuda', 'tips', 'sukses'],
+  home_decor: ['homedecor', 'rumah', 'interior', 'dekorasi', 'aesthetic'],
+};
+
+const PLATFORM_HASHTAG_COUNT: Record<string, number> = {
+  tiktok: 8,
+  shorts: 5,
+  reels: 6,
+  instagram: 6,
+  youtube: 4,
+  facebook: 4,
+};
+
+export function generateCaption(
+  niche: string,
+  storyboard: Array<{ scene?: number; duration?: number; description: string }>,
+  platform: string
+): GeneratedCaption {
+  const hook = MARKETING_HOOKS[Math.floor(Math.random() * MARKETING_HOOKS.length)];
+  const cta = MARKETING_CTAS[Math.floor(Math.random() * MARKETING_CTAS.length)];
+
+  const sceneDescriptions = storyboard
+    .slice(0, 3)
+    .map((s) => s.description)
+    .filter(Boolean);
+
+  const sceneText = sceneDescriptions.length > 0
+    ? sceneDescriptions[0].charAt(0).toUpperCase() + sceneDescriptions[0].slice(1)
+    : '';
+
+  const captionText = sceneText
+    ? `${hook.charAt(0).toUpperCase() + hook.slice(1)} \u2728\n\n${sceneText}\n\n\ud83d\udc49 ${cta.charAt(0).toUpperCase() + cta.slice(1)}`
+    : `${hook.charAt(0).toUpperCase() + hook.slice(1)} \u2728\n\n\ud83d\udc49 ${cta.charAt(0).toUpperCase() + cta.slice(1)}`;
+
+  const nicheKey = niche.toLowerCase();
+  const nicheTags = NICHE_HASHTAGS[nicheKey] || ['viral', 'fyp', 'trending'];
+  const baseTags = ['fyp', 'viral'];
+  const allTags = [...new Set([...baseTags, ...nicheTags])];
+
+  const maxTags = PLATFORM_HASHTAG_COUNT[platform] || 6;
+  const selectedTags = allTags.slice(0, maxTags);
+  const hashtags = selectedTags.map((t) => `#${t}`).join(' ');
+
+  return { text: captionText, hashtags };
+}
+
 /**
  * Send success notification
  */
@@ -612,20 +716,46 @@ async function sendSuccessNotification(
       },
     }
   );
+
+  // Send auto-generated caption as a follow-up message
+  const niche = ctx.session?.selectedNiche || ctx.session?.videoCreation?.niche;
+  const storyboard = ctx.session?.videoCreation?.storyboard;
+  if (niche && storyboard && storyboard.length > 0) {
+    try {
+      const caption = generateCaption(niche, storyboard, platform);
+      await ctx.reply(
+        `\ud83d\udccb Suggested Caption:\n\n${caption.text}\n\n${caption.hashtags}\n\n\ud83d\udca1 Copy and paste this when posting!`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '\ud83d\udccb Copy Caption', callback_data: `copy_caption_${jobId}` }],
+            ],
+          },
+        }
+      );
+    } catch (captionErr) {
+      logger.warn(`Failed to generate caption for job ${jobId}:`, captionErr);
+    }
+  }
 }
 
 /**
  * Send error notification
  */
 async function sendErrorNotification(ctx: BotContext, jobId: string, error: string): Promise<void> {
+  const userMessage = actionableError(error, { jobId });
   await ctx.reply(
-    `❌ Video generation failed\n\n` +
+    `Video generation failed\n\n` +
     `Job ID: ${jobId}\n` +
-    `Error: ${error}`,
+    `${userMessage}`,
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🔄 Try Again', callback_data: `video_retry_${jobId}` }],
+          [{ text: 'Try Again', callback_data: `video_retry_${jobId}` }],
+          [
+            { text: 'Top Up', callback_data: 'topup' },
+            { text: 'Support', callback_data: 'open_help' },
+          ],
         ],
       },
     }
