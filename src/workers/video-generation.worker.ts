@@ -22,6 +22,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Telegram } from 'telegraf';
 import { MARKETING_HOOKS, MARKETING_CTAS } from '@/config/audio-subtitle-engine';
+import { VideoPostProcessing } from '@/services/video-post-processing.service';
+import { AudioVOService } from '@/services/audio-vo.service';
 
 const exec = promisify(execCallback);
 
@@ -105,31 +107,21 @@ async function downloadVideo(url: string, outputPath: string): Promise<void> {
   await exec(`wget -q -O "${outputPath}" "${url}"`);
 }
 
-async function concatenateVideos(inputPaths: string[], outputPath: string): Promise<void> {
-  if (inputPaths.length === 1) {
-    fs.copyFileSync(inputPaths[0], outputPath);
-    return;
-  }
-  if (inputPaths.length === 2) {
-    await exec(
-      `ffmpeg -y -i "${inputPaths[0]}" -i "${inputPaths[1]}" ` +
-      `-filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.5:offset=4.5[v]" ` +
-      `-map "[v]" "${outputPath}"`
-    );
-  } else if (inputPaths.length === 3) {
-    await exec(
-      `ffmpeg -y -i "${inputPaths[0]}" -i "${inputPaths[1]}" -i "${inputPaths[2]}" ` +
-      `-filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.5:offset=4.5[v1];` +
-      `[v1][2:v]xfade=transition=fade:duration=0.5:offset=9.5[v]" ` +
-      `-map "[v]" "${outputPath}"`
-    );
-  } else {
-    const simpleListPath = path.join(VIDEO_DIR, `concat_${Date.now()}.txt`);
-    const simpleListContent = inputPaths.map((p) => `file '${p}'`).join('\n');
-    fs.writeFileSync(simpleListPath, simpleListContent);
-    await exec(`ffmpeg -y -f concat -safe 0 -i "${simpleListPath}" -c copy "${outputPath}"`);
-    try { fs.unlinkSync(simpleListPath); } catch (_) { /* ignore */ }
-  }
+/**
+ * Concatenate video clips with professional niche-aware transitions.
+ * Delegates to VideoPostProcessing which dynamically builds xfade filter
+ * chains for ANY number of clips using ffprobe-measured durations.
+ * Falls back to simple concat on failure.
+ */
+async function concatenateVideos(
+  inputPaths: string[],
+  outputPath: string,
+  niche?: string
+): Promise<void> {
+  await VideoPostProcessing.concatenateWithTransitions(inputPaths, outputPath, {
+    niche,
+    transitionDuration: 0.5,
+  });
 }
 
 // ── Single-scene generation ──
@@ -283,12 +275,33 @@ async function processExtendedScenes(
     );
   }
 
-  // Concatenate scenes
+  // Concatenate scenes with professional niche-aware transitions
   await notifyProgress(telegram, chatId, '\u2702\ufe0f Combining scenes with transitions...');
 
+  const rawConcatPath = path.join(VIDEO_DIR, `${jobId}_raw.mp4`);
   const finalPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
-  logger.info(`Concatenating ${scenes} scenes for job ${jobId}...`);
-  await concatenateVideos(sceneVideos, finalPath);
+  logger.info(`Concatenating ${scenes} scenes for job ${jobId} (niche: ${niche})...`);
+  await concatenateVideos(sceneVideos, rawConcatPath, niche);
+
+  // Post-processing: color grading
+  await notifyProgress(telegram, chatId, '\ud83c\udfa8 Applying color grading...');
+  try {
+    await VideoPostProcessing.postProcess(rawConcatPath, finalPath, {
+      niche,
+      platform,
+      colorGrade: true,
+    });
+    logger.info(`Post-processing complete for job ${jobId}`);
+  } catch (ppErr: any) {
+    logger.warn(`Post-processing failed for job ${jobId}, using raw concat: ${ppErr.message}`);
+    // Fallback: use raw concatenated video
+    if (fs.existsSync(rawConcatPath)) {
+      fs.copyFileSync(rawConcatPath, finalPath);
+    }
+  }
+
+  // Cleanup raw concat temp file
+  try { fs.unlinkSync(rawConcatPath); } catch (_) { /* ignore */ }
 
   await notifyProgress(telegram, chatId, '\ud83d\udce6 Almost ready!');
 
