@@ -63,6 +63,7 @@ interface VideoProvider {
   name: string;
   enabled: boolean;
   supportsRefImage: boolean;
+  maxDuration: number;  // Max seconds this provider can generate in one call
   generate: (params: VideoFallbackParams) => Promise<VideoFallbackResult>;
 }
 
@@ -556,15 +557,15 @@ async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbac
 
 function getProviders(): VideoProvider[] {
   return [
-    { key: 'geminigen', name: 'GeminiGen', enabled: !!GEMINIGEN_API_KEY, supportsRefImage: true, generate: generateViaGeminiGen },
-    { key: 'falai', name: 'Fal.ai Video', enabled: !!FALAI_API_KEY, supportsRefImage: true, generate: generateViaFalai },
-    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!SILICONFLOW_API_KEY, supportsRefImage: true, generate: generateViaSiliconFlow },
-    { key: 'xai', name: 'XAI Grok', enabled: !!(GEMINIGEN_API_KEY || XAI_API_KEY), supportsRefImage: true, generate: generateViaXAI },
-    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!LAOZHANG_API_KEY, supportsRefImage: true, generate: generateViaLaoZhang },
-    { key: 'evolink', name: 'EvoLink Video', enabled: !!EVOLINK_API_KEY, supportsRefImage: true, generate: generateViaEvoLink },
-    { key: 'hypereal', name: 'Hypereal AI', enabled: !!HYPEREAL_API_KEY, supportsRefImage: true, generate: generateViaHypereal },
-    { key: 'byteplus', name: 'BytePlus Seedance', enabled: !!BYTEPLUS_API_KEY, supportsRefImage: false, generate: generateViaByteplus },
-    { key: 'kie', name: 'Kie.ai', enabled: !!KIE_API_KEY, supportsRefImage: true, generate: generateViaKie },
+    { key: 'geminigen', name: 'GeminiGen', enabled: !!GEMINIGEN_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaGeminiGen },
+    { key: 'falai', name: 'Fal.ai Video', enabled: !!FALAI_API_KEY, supportsRefImage: true, maxDuration: 10, generate: generateViaFalai },
+    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!SILICONFLOW_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaSiliconFlow },
+    { key: 'xai', name: 'XAI Grok', enabled: !!(GEMINIGEN_API_KEY || XAI_API_KEY), supportsRefImage: true, maxDuration: 10, generate: generateViaXAI },
+    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!LAOZHANG_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaLaoZhang },
+    { key: 'evolink', name: 'EvoLink Video', enabled: !!EVOLINK_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaEvoLink },
+    { key: 'hypereal', name: 'Hypereal AI', enabled: !!HYPEREAL_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaHypereal },
+    { key: 'byteplus', name: 'BytePlus Seedance', enabled: !!BYTEPLUS_API_KEY, supportsRefImage: false, maxDuration: 5, generate: generateViaByteplus },
+    { key: 'kie', name: 'Kie.ai', enabled: !!KIE_API_KEY, supportsRefImage: true, maxDuration: 10, generate: generateViaKie },
   ];
 }
 
@@ -634,6 +635,12 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
   logger.info(`${providers.length} video providers (smart-routed): ${providers.map(p => p.name).join(', ')}`);
 
   for (const provider of providers) {
+    // Skip providers that can't deliver the requested duration
+    if (params.duration > provider.maxDuration) {
+      logger.info(`Skipping ${provider.name}: max ${provider.maxDuration}s < requested ${params.duration}s`);
+      continue;
+    }
+
     // Skip providers that don't support ref image if we have one
     if (params.referenceImage && !provider.supportsRefImage) {
       logger.info(`Skipping ${provider.name}: no ref image support`);
@@ -663,6 +670,35 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
       await CircuitBreaker.recordFailure(provider.key).catch(() => {});
       await ProviderRouter.recordFailure(provider.key).catch(() => {});
       logger.warn(`${provider.name} failed: ${error.message}`);
+    }
+  }
+
+  // Graceful degradation: if all duration-compatible providers failed,
+  // try providers with shorter max duration (better short video than no video)
+  const skippedForDuration = allProviders.filter(
+    p => p.maxDuration < params.duration && p.maxDuration >= 5
+  );
+  if (skippedForDuration.length > 0) {
+    logger.warn(`All ${params.duration}s providers failed — trying shorter-duration fallbacks`);
+    for (const provider of skippedForDuration) {
+      if (params.referenceImage && !provider.supportsRefImage) continue;
+      const canExecute = await CircuitBreaker.canExecute(provider.key).catch(() => true);
+      if (!canExecute) continue;
+
+      try {
+        logger.info(`Trying ${provider.name} (max ${provider.maxDuration}s, degraded)...`);
+        const degradedParams = { ...params, prompt: enriched.provider_hint, duration: provider.maxDuration };
+        const result = await provider.generate(degradedParams);
+        if (result.success) {
+          await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
+          await ProviderRouter.recordSuccess(provider.key).catch(() => {});
+          logger.warn(`${provider.name} succeeded with degraded duration: ${provider.maxDuration}s instead of ${params.duration}s`);
+          return result;
+        }
+      } catch (error: any) {
+        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
+        logger.warn(`${provider.name} (degraded) failed: ${error.message}`);
+      }
     }
   }
 
