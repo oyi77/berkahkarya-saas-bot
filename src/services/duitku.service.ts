@@ -2,6 +2,9 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { ReferralService } from '@/services/referral.service';
+import { SubscriptionService } from '@/services/subscription.service';
+import { PlanKey, BillingCycle } from '@/config/pricing';
 
 const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
   ? 'https://passport.duitku.com'
@@ -128,12 +131,32 @@ export class DuitkuService {
     });
 
     if (newStatus === 'success' && transaction.status !== 'success') {
-      const credits = Number(transaction.creditsAmount) || 0;
-      await prisma.user.update({
-        where: { telegramId: transaction.userId },
-        data: { creditBalance: { increment: credits } },
-      });
-      logger.info(`Added ${credits} credits to user ${transaction.userId}`);
+      if (transaction.type === 'subscription') {
+        const parts = transaction.packageName.split('_');
+        const plan = parts[0] as PlanKey;
+        const billingCycle: BillingCycle = parts[1] === 'annual' ? 'annual' : 'monthly';
+
+        await SubscriptionService.createSubscription(
+          transaction.userId,
+          plan,
+          billingCycle,
+          params.merchantOrderId
+        );
+        logger.info(`Subscription activated: ${plan}/${billingCycle} for user ${transaction.userId}`);
+      } else {
+        const credits = Number(transaction.creditsAmount) || 0;
+        await prisma.user.update({
+          where: { telegramId: transaction.userId },
+          data: { creditBalance: { increment: credits } },
+        });
+        logger.info(`Added ${credits} credits to user ${transaction.userId}`);
+      }
+
+      await ReferralService.processCommissions(
+        params.merchantOrderId,
+        Number(transaction.amountIdr),
+        transaction.userId
+      );
     }
 
     return { success: true, message: 'Callback processed' };

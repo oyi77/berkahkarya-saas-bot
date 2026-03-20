@@ -1,13 +1,15 @@
 /**
  * Content Analysis Service
- * 
+ *
  * Handles content cloning, prompt extraction, and viral research
+ * Uses Gemini Vision API for media analysis
  */
 
 import { logger } from '@/utils/logger';
 import axios from 'axios';
 
-const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || 'geminiai-04db42d9b996e147df5e33d8b7d42ac3';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
 
 export interface AnalysisResult {
   success: boolean;
@@ -27,39 +29,116 @@ export interface ViralTrend {
 }
 
 /**
+ * Fetch media as base64 for Gemini inline_data
+ */
+async function fetchMediaAsBase64(url: string): Promise<{ data: string; mimeType: string }> {
+  const response = await axios.get(url, {
+    responseType: 'arraybuffer',
+    timeout: 30000,
+  });
+
+  const contentType = response.headers['content-type'] || 'image/jpeg';
+  const base64 = Buffer.from(response.data).toString('base64');
+
+  return { data: base64, mimeType: contentType };
+}
+
+/**
+ * Parse Gemini response text into structured AnalysisResult
+ */
+function parseGeminiResponse(text: string): AnalysisResult {
+  // Extract style from the response
+  const styleMatch = text.match(/(?:style|aesthetic|mood)[:\s]*([^\n.]+)/i);
+  const style = styleMatch ? styleMatch[1].trim() : 'commercial';
+
+  // Extract elements - look for list items or comma-separated keywords
+  const elements: string[] = [];
+  const listMatches = text.match(/[-*]\s*(.+)/g);
+  if (listMatches) {
+    listMatches.slice(0, 6).forEach(item => {
+      elements.push(item.replace(/^[-*]\s*/, '').trim());
+    });
+  }
+
+  if (elements.length === 0) {
+    // Fallback: extract key phrases
+    const sentences = text.split(/[.\n]/).filter(s => s.trim().length > 10);
+    sentences.slice(0, 5).forEach(s => elements.push(s.trim()));
+  }
+
+  return {
+    success: true,
+    prompt: text.trim(),
+    style,
+    elements,
+  };
+}
+
+/**
  * Content Analysis and Cloning Service
  */
 export class ContentAnalysisService {
 
   /**
-   * Extract prompt from video/image
+   * Extract prompt from video/image using Gemini Vision API
    */
   static async extractPrompt(mediaUrl: string, mediaType: 'video' | 'image'): Promise<AnalysisResult> {
     try {
-      logger.info(`🔍 Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
+      logger.info(`Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
 
-      // In production, this would call Gemini Vision API
-      // For now, return a template response
-      const templates: Record<string, string> = {
-        video: 'Create a dynamic marketing video with quick cuts, engaging transitions, and professional editing. Include product showcase, lifestyle shots, and call-to-action. Use trending audio and text overlays.',
-        image: 'Professional product photography with studio lighting, clean composition, and commercial quality. Sharp focus, vibrant colors, and premium aesthetic.',
+      if (!GEMINI_API_KEY) {
+        logger.warn('GEMINI_API_KEY not set, returning fallback response');
+        return this.getFallbackResult(mediaType);
+      }
+
+      const systemPrompt = mediaType === 'image'
+        ? 'Analyze this image and describe it in detail as an AI image generation prompt. Include: subject, environment, lighting, camera angle, style, and mood. Be specific about colors, textures, and composition. Output only the prompt text.'
+        : 'Analyze this video frame/thumbnail and describe it in detail as an AI video generation prompt. Include: subject, scene, action, environment, lighting, camera movement, editing style, and mood. Be specific about pacing, transitions, and visual effects. Output only the prompt text.';
+
+      // Fetch media and convert to base64
+      const media = await fetchMediaAsBase64(mediaUrl);
+
+      const requestBody = {
+        contents: [{
+          parts: [
+            { text: systemPrompt },
+            {
+              inline_data: {
+                mime_type: media.mimeType,
+                data: media.data,
+              },
+            },
+          ],
+        }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+        },
       };
 
-      return {
-        success: true,
-        prompt: templates[mediaType],
-        style: 'commercial',
-        elements: [
-          'Professional lighting',
-          'Clean composition',
-          'High-quality visuals',
-          'Engaging content',
-          'Commercial aesthetic',
-        ],
-      };
+      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
+      });
+
+      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!generatedText) {
+        logger.warn('Gemini returned empty response');
+        return this.getFallbackResult(mediaType);
+      }
+
+      return parseGeminiResponse(generatedText);
 
     } catch (error: any) {
       logger.error('Prompt extraction failed:', error.message);
+
+      // If API fails, return fallback instead of crashing
+      if (error.response?.status === 400 || error.response?.status === 403) {
+        logger.warn('Gemini API error, returning fallback');
+        return this.getFallbackResult(mediaType);
+      }
+
       return {
         success: false,
         error: error.message || 'Failed to extract prompt',
@@ -68,25 +147,63 @@ export class ContentAnalysisService {
   }
 
   /**
-   * Clone video style
+   * Clone video style using Gemini Vision analysis
    */
   static async cloneVideo(sourceUrl: string): Promise<AnalysisResult> {
     try {
-      logger.info(`🔄 Cloning video: ${sourceUrl.slice(0, 50)}...`);
+      logger.info(`Cloning video: ${sourceUrl.slice(0, 50)}...`);
 
-      // Extract prompt from source
-      const analysis = await this.extractPrompt(sourceUrl, 'video');
-
-      if (!analysis.success) {
-        return analysis;
+      if (!GEMINI_API_KEY) {
+        logger.warn('GEMINI_API_KEY not set, returning fallback response');
+        const fallback = this.getFallbackResult('video');
+        fallback.prompt = `Clone style: ${fallback.prompt}`;
+        return fallback;
       }
 
-      return {
-        success: true,
-        prompt: `Clone style: ${analysis.prompt}`,
-        style: analysis.style,
-        elements: analysis.elements,
+      const media = await fetchMediaAsBase64(sourceUrl);
+
+      const systemPrompt =
+        'Analyze this video/media and create a detailed recreation prompt. Describe:\n' +
+        '1. Visual style (cinematography, color grading, lighting)\n' +
+        '2. Scene composition and camera angles\n' +
+        '3. Transitions and editing techniques\n' +
+        '4. Subject and action\n' +
+        '5. Mood and atmosphere\n' +
+        '6. Text overlays or effects if visible\n\n' +
+        'Format as a single comprehensive AI video generation prompt.';
+
+      const requestBody = {
+        contents: [{
+          parts: [
+            { text: systemPrompt },
+            {
+              inline_data: {
+                mime_type: media.mimeType,
+                data: media.data,
+              },
+            },
+          ],
+        }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+        },
       };
+
+      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
+      });
+
+      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!generatedText) {
+        const fallback = this.getFallbackResult('video');
+        fallback.prompt = `Clone style: ${fallback.prompt}`;
+        return fallback;
+      }
+
+      return parseGeminiResponse(generatedText);
 
     } catch (error: any) {
       logger.error('Video cloning failed:', error.message);
@@ -98,25 +215,64 @@ export class ContentAnalysisService {
   }
 
   /**
-   * Clone image style
+   * Clone image style using Gemini Vision analysis
    */
   static async cloneImage(sourceUrl: string): Promise<AnalysisResult> {
     try {
-      logger.info(`🔄 Cloning image: ${sourceUrl.slice(0, 50)}...`);
+      logger.info(`Cloning image: ${sourceUrl.slice(0, 50)}...`);
 
-      // Extract prompt from source
-      const analysis = await this.extractPrompt(sourceUrl, 'image');
-
-      if (!analysis.success) {
-        return analysis;
+      if (!GEMINI_API_KEY) {
+        logger.warn('GEMINI_API_KEY not set, returning fallback response');
+        const fallback = this.getFallbackResult('image');
+        fallback.prompt = `Clone style: ${fallback.prompt}`;
+        return fallback;
       }
 
-      return {
-        success: true,
-        prompt: `Clone style: ${analysis.prompt}`,
-        style: analysis.style,
-        elements: analysis.elements,
+      const media = await fetchMediaAsBase64(sourceUrl);
+
+      const systemPrompt =
+        'Analyze this image and create a detailed recreation prompt. Describe:\n' +
+        '1. Subject and composition\n' +
+        '2. Lighting setup (direction, quality, color temperature)\n' +
+        '3. Color palette and grading\n' +
+        '4. Camera angle and lens characteristics\n' +
+        '5. Background and environment\n' +
+        '6. Art style and aesthetic\n' +
+        '7. Mood and atmosphere\n\n' +
+        'Format as a single comprehensive AI image generation prompt.';
+
+      const requestBody = {
+        contents: [{
+          parts: [
+            { text: systemPrompt },
+            {
+              inline_data: {
+                mime_type: media.mimeType,
+                data: media.data,
+              },
+            },
+          ],
+        }],
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+        },
       };
+
+      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
+      });
+
+      const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!generatedText) {
+        const fallback = this.getFallbackResult('image');
+        fallback.prompt = `Clone style: ${fallback.prompt}`;
+        return fallback;
+      }
+
+      return parseGeminiResponse(generatedText);
 
     } catch (error: any) {
       logger.error('Image cloning failed:', error.message);
@@ -128,10 +284,33 @@ export class ContentAnalysisService {
   }
 
   /**
+   * Fallback result when API key is missing or API fails
+   */
+  private static getFallbackResult(mediaType: 'video' | 'image'): AnalysisResult {
+    const templates: Record<string, string> = {
+      video: 'Create a dynamic marketing video with quick cuts, engaging transitions, and professional editing. Include product showcase, lifestyle shots, and call-to-action. Use trending audio and text overlays.',
+      image: 'Professional product photography with studio lighting, clean composition, and commercial quality. Sharp focus, vibrant colors, and premium aesthetic.',
+    };
+
+    return {
+      success: true,
+      prompt: templates[mediaType],
+      style: 'commercial',
+      elements: [
+        'Professional lighting',
+        'Clean composition',
+        'High-quality visuals',
+        'Engaging content',
+        'Commercial aesthetic',
+      ],
+    };
+  }
+
+  /**
    * Get viral trends for niche
    */
   static async getViralTrends(niche: string): Promise<ViralTrend> {
-    logger.info(`📈 Fetching viral trends for: ${niche}`);
+    logger.info(`Fetching viral trends for: ${niche}`);
 
     // Trend data (would be dynamic in production)
     const trendData: Record<string, ViralTrend> = {
@@ -204,7 +383,7 @@ export class ContentAnalysisService {
    * Generate storyboard from analysis
    */
   static async generateStoryboard(niche: string, duration: number): Promise<any> {
-    const scenes = Math.ceil(duration / 5); // 5 seconds per scene
+    const _scenes = Math.ceil(duration / 5); // 5 seconds per scene
 
     const storyboardTemplates: Record<string, any> = {
       product: {
@@ -213,10 +392,10 @@ export class ContentAnalysisService {
           { time: '3-8s', description: 'Feature 1: Close-up of key feature', text: 'Feature highlight' },
           { time: '8-13s', description: 'Feature 2: Different angle/use case', text: 'Versatile design' },
           { time: '13-18s', description: 'Lifestyle: Product in real-world setting', text: 'Perfect for...' },
-          { time: '18-25s', description: 'Social proof: Testimonials/reviews', text: '⭐ 5-star reviews' },
+          { time: '18-25s', description: 'Social proof: Testimonials/reviews', text: '5-star reviews' },
           { time: '25-30s', description: 'CTA: Price + urgency + link', text: 'Limited offer! Link in bio' },
         ],
-        caption: '🔥 Check out this amazing product! Limited time offer. Link in bio! #product #musthave #viral',
+        caption: 'Check out this amazing product! Limited time offer. Link in bio! #product #musthave #viral',
       },
       fnb: {
         scenes: [
@@ -225,9 +404,9 @@ export class ContentAnalysisService {
           { time: '8-13s', description: 'Steam/close-up: Texture and details', text: 'Sizzling hot!' },
           { time: '13-18s', description: 'Plating: Final presentation', text: 'Restaurant quality' },
           { time: '18-25s', description: 'Eating: Satisfaction/ASMR', text: 'So delicious!' },
-          { time: '25-30s', description: 'CTA: Location + hours', text: 'Visit us today! 📍' },
+          { time: '25-30s', description: 'CTA: Location + hours', text: 'Visit us today!' },
         ],
-        caption: '😋 You HAVE to try this! Best [food] in town! 📍 Location in bio #food #foodie #yummy',
+        caption: 'You HAVE to try this! Best [food] in town! Location in bio #food #foodie #yummy',
       },
     };
 

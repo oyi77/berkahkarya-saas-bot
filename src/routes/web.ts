@@ -8,9 +8,11 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '@/config/database';
 import { UserService } from '@/services/user.service';
 import { VideoService } from '@/services/video.service';
+import { PaymentService } from '@/services/payment.service';
+import { DuitkuService } from '@/services/duitku.service';
+import { TripayService } from '@/services/tripay.service';
 import { checkTelegramHash } from '@/utils/telegram';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'openclaw-secret-change-in-production';
 const BOT_USERNAME = process.env.BOT_USERNAME || 'openclaw_bot';
@@ -447,7 +449,6 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   // Get packages/pricing
   server.get('/api/packages', async () => {
-    const { PaymentService } = await import('@/services/payment.service');
     return PaymentService.getPackages();
   });
 
@@ -475,14 +476,12 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
       let result;
       if (gateway === 'duitku') {
-        const { DuitkuService } = await import('@/services/duitku.service');
         result = await DuitkuService.createTransaction({
           userId: user.telegramId,
           packageId,
           username: user.username || user.firstName,
         });
       } else if (gateway === 'tripay') {
-        const { TripayService } = await import('@/services/tripay.service');
         result = await TripayService.createTransaction({
           userId: user.telegramId,
           packageId,

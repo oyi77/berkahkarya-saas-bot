@@ -7,20 +7,12 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { Video } from '@prisma/client';
-import { processVideoJob, getCreditCost } from './video-generation.service';
+import { processVideoJob } from './video-generation.service';
+import { getVideoCreditCost } from '@/config/pricing';
 
 // GeminiGen configuration (for future use)
 // const GEMINIGEN_EMAIL = process.env.GEMINIGEN_EMAIL || 'grahainsanmandiri@gmail.com';
 // const GEMINIGEN_PASSWORD = process.env.GEMINIGEN_PASSWORD || '';
-
-// Credit costs based on HPP: 1 min video spent ~IDR 6000 -> Retail IDR 10000
-// Pricing logic: Extra credit usage should be more expensive than subscription
-const CREDIT_COSTS = {
-  '15s': 0.5,  // IDR 5,000 unit
-  '30s': 1.0,  // IDR 10,000 unit
-  '60s': 2.0,  // IDR 20,000 unit
-  '120s': 4.5, // IDR 45,000 unit (Higher per-duration cost for long videos)
-};
 
 // Platform specs
 const PLATFORM_SPECS = {
@@ -109,11 +101,7 @@ export class VideoService {
     scenes: number;
     title?: string;
   }): Promise<Video> {
-    // Calculate credit cost
-    const durationKey = params.duration <= 15 ? '15s' : 
-                        params.duration <= 30 ? '30s' : 
-                        params.duration <= 60 ? '60s' : '120s';
-    const creditCost = CREDIT_COSTS[durationKey as keyof typeof CREDIT_COSTS];
+    const creditCost = getVideoCreditCost(params.duration);
 
     // Generate job ID
     const jobId = `VID-${Date.now()}-${params.userId}-${Math.random().toString(36).substring(2, 8)}`;
@@ -195,13 +183,14 @@ export class VideoService {
   }
 
   /**
-   * Delete video by job ID
+   * Soft delete video by job ID (sets status to 'deleted')
    */
   static async deleteVideo(jobId: string): Promise<void> {
-    await prisma.video.delete({
+    await prisma.video.update({
       where: { jobId },
+      data: { status: 'deleted' },
     });
-    logger.info(`Deleted video: ${jobId}`);
+    logger.info(`Soft-deleted video: ${jobId}`);
   }
 
   /**
@@ -209,7 +198,10 @@ export class VideoService {
    */
   static async getUserVideos(userId: bigint, limit = 10): Promise<Video[]> {
     return prisma.video.findMany({
-      where: { userId },
+      where: {
+        userId,
+        status: { not: 'deleted' },
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -249,10 +241,7 @@ Visual style: Cinematic, high quality, engaging transitions.
    * Get credit cost for video
    */
   static getCreditCost(duration: number): number {
-    const durationKey = duration <= 15 ? '15s' : 
-                        duration <= 30 ? '30s' : 
-                        duration <= 60 ? '60s' : '120s';
-    return CREDIT_COSTS[durationKey as keyof typeof CREDIT_COSTS];
+    return getVideoCreditCost(duration);
   }
 
   /**
@@ -345,7 +334,7 @@ Visual style: Cinematic, high quality, engaging transitions.
     sceneCount: number;
   }): string {
     const nicheTemplate = NICHE_TEMPLATES[params.niche as keyof typeof NICHE_TEMPLATES];
-    const nicheName = nicheTemplate?.name?.replace(/^[^\s]+\s/, '') || 'Professional';
+    const _nicheName = nicheTemplate?.name?.replace(/^[^\s]+\s/, '') || 'Professional';
     
     const captions: Record<string, string[]> = {
       fnb: [

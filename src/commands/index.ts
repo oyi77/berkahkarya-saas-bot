@@ -20,6 +20,8 @@ import { videosCommand } from './videos';
 import { subscriptionCommand } from './subscription';
 import { supportCommand } from './support';
 import { reportTodayCommand, creativeIdeasCommand } from './ads';
+import { chatCommand } from './grok';
+import { socialCommand } from './social';
 
 // Admin commands
 import { adminBroadcastCommand } from './admin/broadcast';
@@ -46,6 +48,10 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command('videos', videosCommand);
   bot.command('subscription', subscriptionCommand);
   bot.command('support', supportCommand);
+  // AI chat (OmniRoute — cheapest/free model)
+  bot.command('chat', chatCommand);
+  bot.command('ask', chatCommand);  // Alias
+  bot.command('social', socialCommand);  // Social media accounts & publish
   // Ads commands - disabled for now, focus on content generation
   // bot.command('report_today', reportTodayCommand);
   // bot.command('creative_ideas', creativeIdeasCommand);
@@ -69,6 +75,7 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
     { command: 'subscription', description: 'Subscription plans' },
     { command: 'settings', description: 'Settings' },
     { command: 'support', description: 'Get help' },
+    { command: 'chat', description: 'Chat with AI' },
     { command: 'help', description: 'Show help' },
   ]);
 

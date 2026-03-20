@@ -7,6 +7,8 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { redis } from './redis';
 import { logger } from '@/utils/logger';
+import { SubscriptionService } from '@/services/subscription.service';
+import type { VideoGenerationJobData } from '@/workers/video-generation.worker';
 
 // Queue instances
 export const videoQueue = new Queue('video-generation', {
@@ -48,6 +50,19 @@ export const notificationQueue = new Queue('notifications', {
   },
 });
 
+export const billingQueue = new Queue('billing', {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 30000,
+    },
+    removeOnComplete: 50,
+    removeOnFail: 200,
+  },
+});
+
 /**
  * Initialize queues
  */
@@ -62,6 +77,28 @@ export async function initializeQueue(): Promise<void> {
       logger.debug(`Payment job waiting: ${jobId}`);
     });
 
+    const billingWorker = new Worker(
+      'billing',
+      async (_job: Job) => {
+        logger.info('Running billing cycle check...');
+        const processed = await SubscriptionService.checkExpiredSubscriptions();
+        logger.info(`Billing check complete: ${processed} subscriptions processed`);
+        return { processed };
+      },
+      {
+        connection: redis,
+        concurrency: 1,
+      }
+    );
+
+    billingWorker.on('failed', (job, err) => {
+      logger.error(`Billing job ${job?.id} failed:`, err);
+    });
+
+    await billingQueue.add('check-billing', {}, {
+      repeat: { every: 3600000 },
+    });
+
     logger.info('✅ Queues initialized successfully');
   } catch (error) {
     logger.error('❌ Queue initialization failed:', error);
@@ -70,12 +107,30 @@ export async function initializeQueue(): Promise<void> {
 }
 
 /**
- * Add video generation job
+ * Add video generation job (legacy — prefer enqueueVideoGeneration)
  */
 export async function addVideoJob(data: unknown): Promise<Job> {
   return videoQueue.add('generate', data, {
     priority: 1,
   });
+}
+
+/**
+ * Enqueue a video generation job with typed payload.
+ * Returns the BullMQ Job and the queue position.
+ */
+export async function enqueueVideoGeneration(
+  params: VideoGenerationJobData
+): Promise<{ job: Job<VideoGenerationJobData>; position: number }> {
+  const job = await videoQueue.add('generate', params, {
+    priority: 1,
+    jobId: params.jobId, // deduplicate by jobId
+  });
+
+  const waitingCount = await videoQueue.getWaitingCount();
+  logger.info(`Enqueued video job ${params.jobId} — position #${waitingCount}`);
+
+  return { job, position: waitingCount };
 }
 
 /**
@@ -103,6 +158,7 @@ export async function getQueueStats(): Promise<{
   video: { waiting: number; active: number; completed: number; failed: number };
   payment: { waiting: number; active: number; completed: number; failed: number };
   notification: { waiting: number; active: number; completed: number; failed: number };
+  billing: { waiting: number; active: number; completed: number; failed: number };
 }> {
   const [videoWaiting, videoActive, videoCompleted, videoFailed] = await Promise.all([
     videoQueue.getWaitingCount(),
@@ -125,6 +181,13 @@ export async function getQueueStats(): Promise<{
     notificationQueue.getFailedCount(),
   ]);
 
+  const [billingWaiting, billingActive, billingCompleted, billingFailed] = await Promise.all([
+    billingQueue.getWaitingCount(),
+    billingQueue.getActiveCount(),
+    billingQueue.getCompletedCount(),
+    billingQueue.getFailedCount(),
+  ]);
+
   return {
     video: {
       waiting: videoWaiting,
@@ -143,6 +206,12 @@ export async function getQueueStats(): Promise<{
       active: notificationActive,
       completed: notificationCompleted,
       failed: notificationFailed,
+    },
+    billing: {
+      waiting: billingWaiting,
+      active: billingActive,
+      completed: billingCompleted,
+      failed: billingFailed,
     },
   };
 }

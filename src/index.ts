@@ -21,6 +21,7 @@ import { webRoutes } from '@/routes/web';
 import { initializeDatabase } from '@/config/database';
 import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
+import { startVideoWorker } from '@/workers/video-generation.worker';
 
 // Validate environment variables
 const requiredEnvVars = [
@@ -65,6 +66,14 @@ async function main() {
     await initializeQueue();
     logger.info('✅ Queue initialized');
 
+    // Start video generation worker
+    try {
+      startVideoWorker(bot);
+      logger.info('✅ Video generation worker started');
+    } catch (workerErr) {
+      logger.warn('⚠️ Video worker failed to start, falling back to direct async:', workerErr);
+    }
+
     // Setup middleware
     logger.info('🔧 Setting up middleware...');
     setupMiddleware(bot);
@@ -85,9 +94,16 @@ async function main() {
     await server.register(webRoutes);
     logger.info('✅ Routes registered');
 
-    // Start bot FIRST, then server in background
+    // Start Fastify server FIRST (non-blocking)
+    logger.info(`🌐 Starting HTTP server on port ${port}...`);
+    server.listen({ port, host: '0.0.0.0' }).then(() => {
+      logger.info(`✅ HTTP server listening on http://0.0.0.0:${port}`);
+    }).catch(err => {
+      logger.error('❌ Failed to start HTTP server:', err);
+    });
+
+    // Start bot polling
     if (process.env.NODE_ENV === 'production') {
-      // Use webhook in production
       const webhookUrl = process.env.WEBHOOK_URL;
       if (webhookUrl) {
         await bot.launch({
@@ -102,47 +118,28 @@ async function main() {
         process.exit(1);
       }
     } else {
-      // Use polling in development
       logger.info('🤖 Starting bot with polling...');
 
       try {
-        // Clear any existing sessions by consuming updates
         const botToken = process.env.BOT_TOKEN || '';
         
-        // Try to get and acknowledge all pending updates
-        try {
-          await fetch(`https://api.telegram.org/bot${botToken}/getUpdates?timeout=1`);
-        } catch (e) {
-          // Ignore errors from this preliminary call
-        }
-        
-        await bot.telegram.deleteWebhook();
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Delete any existing webhook first
+        await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         await bot.launch();
         logger.info('✅ Bot polling started successfully');
       } catch (error: any) {
         logger.error('❌ Bot launch failed:', error);
-        
-        // Try one more time after waiting
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        try {
-          await bot.telegram.deleteWebhook();
-          await bot.launch();
-          logger.info('✅ Bot polling started on second try');
-        } catch (retryError) {
-          logger.error('❌ All retries failed');
-        }
+        logger.warn('Bot will continue without polling - check Telegram API conflicts');
       }
     }
 
     // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
-
       bot.stop(signal);
       await server.close();
-
       logger.info('👋 Goodbye!');
       process.exit(0);
     };

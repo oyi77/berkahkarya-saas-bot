@@ -121,12 +121,13 @@ export class GrokApiService {
     }
 
     try {
-      const resp = await this.client.post<GrokAskResponse>('/ask', {
+      const body: Record<string, unknown> = {
         proxy: this.proxy || 'none',
         message,
         model: model || this.defaultModel,
-        extra_data: null,
-      });
+      };
+
+      const resp = await this.client.post<GrokAskResponse>('/ask', body);
 
       if (resp.data.status === 'success') {
         if (resp.data.extra_data) {
@@ -181,6 +182,32 @@ export class GrokApiService {
       return this.continueConversation(message, model);
     }
     return this.startConversation(message, model);
+  }
+
+  async askMetaClaw(message: string): Promise<GrokAskResponse> {
+    try {
+      const resp = await axios.post<{
+        choices: Array<{ message: { content: string } }>;
+      }>(
+        'http://localhost:30000/v1/chat/completions',
+        {
+          model: 'meta/llama-3.3-70b-instruct',
+          messages: [{ role: 'user', content: message }],
+          temperature: 0.7,
+          max_tokens: 4096,
+        },
+        { timeout: 120_000, headers: { 'Content-Type': 'application/json' } },
+      );
+
+      const content = resp.data.choices?.[0]?.message?.content;
+      if (content) {
+        return { status: 'success', response: content };
+      }
+      return { status: 'error', error: 'MetaClaw returned empty response' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { status: 'error', error: `MetaClaw fallback failed: ${msg}` };
+    }
   }
 
   clearContext(): void {

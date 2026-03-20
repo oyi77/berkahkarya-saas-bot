@@ -4,19 +4,66 @@
  * Serves a web UI for bot management
  */
 
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '@/config/database';
 import { getQueueStats, addNotificationJob } from '@/config/queue';
+import { PaymentSettingsService } from '@/services/payment-settings.service';
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
+  if (!ADMIN_PASSWORD) {
+    return reply.status(503).send({ error: 'Admin password not configured' });
+  }
+
+  const authHeader = request.headers.authorization;
+  if (authHeader?.startsWith('Basic ')) {
+    const decoded = Buffer.from(authHeader.slice(6), 'base64').toString();
+    const [, password] = decoded.split(':');
+    if (password === ADMIN_PASSWORD) return;
+  }
+
+  const cookie = (request.headers.cookie || '').split(';').find(c => c.trim().startsWith('admin_token='));
+  if (cookie) {
+    const token = cookie.split('=')[1]?.trim();
+    if (token === Buffer.from(ADMIN_PASSWORD).toString('base64')) return;
+  }
+
+  const query = request.query as Record<string, string>;
+  if (query.token === ADMIN_PASSWORD) return;
+
+  reply.status(401).header('WWW-Authenticate', 'Basic realm="Admin"').send({ error: 'Unauthorized' });
+}
 
 /**
  * Register admin routes
  */
 export async function adminRoutes(server: FastifyInstance): Promise<void> {
-  
-  // Admin dashboard HTML
+
+  server.addHook('onRequest', async (request, reply) => {
+    const url = request.url;
+    const isAdminRoute = url === '/admin' || url.startsWith('/api/stats') ||
+      url.startsWith('/api/users') || url.startsWith('/api/transactions') ||
+      url.startsWith('/api/videos') || url.startsWith('/api/broadcast') ||
+      url.startsWith('/api/config') || url.startsWith('/api/payment-settings');
+    if (isAdminRoute) {
+      await verifyAdmin(request, reply);
+    }
+  });
+
   server.get('/admin', async (request, reply) => {
-    const html = generateDashboardHTML();
-    return reply.type('text/html').send(html);
+    return reply.type('text/html').send(generateDashboardHTML());
+  });
+
+  server.post('/admin/login', async (request, reply) => {
+    const { password } = request.body as { password: string };
+    if (password === ADMIN_PASSWORD) {
+      const token = Buffer.from(ADMIN_PASSWORD).toString('base64');
+      return reply
+        .header('Set-Cookie', `admin_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`)
+        .send({ success: true });
+    }
+    return reply.status(401).send({ error: 'Wrong password' });
   });
 
   // API: Get stats
@@ -199,7 +246,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: Get config
   server.get('/api/config', async () => {
     return {
-      botToken: process.env.BOT_TOKEN?.slice(0, 20) + '...',
+      botToken: '***REDACTED***',
       botUsername: process.env.BOT_USERNAME,
       environment: process.env.NODE_ENV,
       features: {
@@ -212,7 +259,6 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // API: Get payment settings
   server.get('/api/payment-settings', async () => {
-    const { PaymentSettingsService } = await import('@/services/payment-settings.service');
     const settings = await PaymentSettingsService.getAllSettings();
     const defaultGateway = await PaymentSettingsService.getDefaultGateway();
     return { settings, defaultGateway };
@@ -221,7 +267,6 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: Update payment settings
   server.post('/api/payment-settings', async (request, reply) => {
     const body = request.body as { action: string; gateway?: string; value?: string };
-    const { PaymentSettingsService } = await import('@/services/payment-settings.service');
     
     try {
       if (body.action === 'set_default') {

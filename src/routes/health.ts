@@ -1,13 +1,15 @@
 /**
  * Health Check Routes
- * 
- * API endpoints for health monitoring
+ *
+ * API endpoints for health monitoring, provider status, and metrics
  */
 
 import { FastifyInstance } from 'fastify';
 import { prisma } from '@/config/database';
 import { redis } from '@/config/redis';
 import { getQueueStats } from '@/config/queue';
+import { PROVIDER_CONFIG } from '@/config/providers';
+import { MetricsService } from '@/services/metrics.service';
 
 /**
  * Register health check routes
@@ -114,6 +116,68 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
           stats: queueCheck.status === 'fulfilled' ? queueCheck.value : null,
         },
       },
+    };
+  });
+
+  // ── Provider circuit breaker status ──
+  server.get('/health/providers', async () => {
+    const CB_PREFIX = 'cb:';
+
+    const providerStatus = async (
+      _type: 'video' | 'image',
+      providers: Record<string, { name: string; priority: number; failureThreshold: number; recoveryTimeout: number }>,
+    ) => {
+      const results: Record<string, any> = {};
+      for (const [key, config] of Object.entries(providers)) {
+        try {
+          const raw = await redis.get(`${CB_PREFIX}${key}`);
+          const state = raw
+            ? JSON.parse(raw)
+            : { state: 'closed', failureCount: 0, lastFailure: null, lastSuccess: null };
+
+          results[key] = {
+            name: config.name,
+            priority: config.priority,
+            circuitBreaker: {
+              state: state.state,
+              failureCount: state.failureCount,
+              failureThreshold: config.failureThreshold,
+              lastFailure: state.lastFailure ? new Date(state.lastFailure).toISOString() : null,
+              lastSuccess: state.lastSuccess ? new Date(state.lastSuccess).toISOString() : null,
+            },
+          };
+        } catch {
+          results[key] = {
+            name: config.name,
+            priority: config.priority,
+            circuitBreaker: { state: 'unknown', error: 'Failed to read state' },
+          };
+        }
+      }
+      return results;
+    };
+
+    const [videoProviders, imageProviders] = await Promise.all([
+      providerStatus('video', PROVIDER_CONFIG.video),
+      providerStatus('image', PROVIDER_CONFIG.image),
+    ]);
+
+    return {
+      timestamp: new Date().toISOString(),
+      video: videoProviders,
+      image: imageProviders,
+    };
+  });
+
+  // ── Metrics endpoint ──
+  server.get('/metrics', async (request) => {
+    const query = request.query as Record<string, string>;
+    const date = query.date || undefined;
+    const metrics = await MetricsService.getAll(date);
+
+    return {
+      timestamp: new Date().toISOString(),
+      ...metrics,
     };
   });
 }

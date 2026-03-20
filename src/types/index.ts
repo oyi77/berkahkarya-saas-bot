@@ -33,7 +33,11 @@ export interface SessionData {
     jobId?: string;
     waitingForImage?: boolean;
     referenceImage?: string | null;
+    uploadedPhotos?: Array<{ fileId: string; localPath?: string }>;
+    visionAnalysis?: string;
   };
+  selectedNiche?: string;
+  selectedStyles?: string[];
   selectedPlatforms?: number[];
   currentJobId?: string;
   caption?: string;
@@ -52,6 +56,7 @@ export type BotState =
   | 'CREATE_VIDEO_BRIEF'
   | 'CREATE_VIDEO_CONFIRM'
   | 'CREATE_VIDEO_PROCESSING'
+  | 'CUSTOM_DURATION_INPUT'
   | 'CLONE_VIDEO_WAITING'
   | 'CLONE_IMAGE_WAITING'
   | 'DISASSEMBLE_WAITING'

@@ -102,12 +102,12 @@ export class PaymentSettingsService {
 
     const midtransEnabled = await this.get(this.KEYS.MIDTRANS_ENABLED);
     if (!midtransEnabled) {
-      await this.set(this.KEYS.MIDTRANS_ENABLED, 'true', 'Midtrans enabled');
+      await this.set(this.KEYS.MIDTRANS_ENABLED, 'false', 'Midtrans disabled');
     }
 
     const tripayEnabled = await this.get(this.KEYS.TRIPAY_ENABLED);
     if (!tripayEnabled) {
-      await this.set(this.KEYS.TRIPAY_ENABLED, 'false', 'Tripay enabled');
+      await this.set(this.KEYS.TRIPAY_ENABLED, 'false', 'Tripay disabled');
     }
 
     const duitkuEnabled = await this.get(this.KEYS.DUITKU_ENABLED);

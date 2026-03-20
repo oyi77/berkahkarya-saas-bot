@@ -7,6 +7,7 @@
 import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { ReferralService } from '@/services/referral.service';
 import crypto from 'crypto';
 
 // Payment gateway configuration
@@ -198,11 +199,18 @@ export class PaymentService {
         where: { telegramId: transaction.userId },
         data: {
           creditBalance: { increment: credits },
-          tier: 'basic', // Upgrade to basic after first purchase
+          tier: 'basic',
         },
       });
 
       logger.info(`Added ${credits} credits to user ${transaction.userId}`);
+
+      // Process referral commissions for this purchase
+      await ReferralService.processCommissions(
+        notification.order_id,
+        Number(transaction.amountIdr),
+        transaction.userId
+      );
     }
 
     return { success: true, message: 'Notification processed' };

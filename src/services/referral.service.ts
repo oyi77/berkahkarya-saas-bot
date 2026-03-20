@@ -63,7 +63,7 @@ export class ReferralService {
     const lastTransaction = await prisma.transaction.findFirst({
       where: { 
         userId: telegramId,
-        status: 'completed'
+        status: 'success'
       },
       orderBy: { createdAt: 'desc' }
     });

@@ -39,32 +39,63 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         return;
       }
 
-      // Welcome back message - show full main menu with all features
+      // Set persistent reply keyboard with complete menu
       await ctx.reply(
         `👋 Welcome back, ${user.first_name}!\n\n` +
         `💰 Credits: ${existingUser.creditBalance}\n` +
-        `⭐ Tier: ${existingUser.tier.toUpperCase()}\n\n` +
+        `⭐ Tier: ${existingUser.tier.toUpperCase()}`,
+        {
+          reply_markup: {
+            keyboard: [
+              [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
+              [{ text: '💬 Chat AI' }, { text: '📁 My Videos' }],
+              [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
+              [{ text: '👤 Profile' }, { text: '👥 Referral' }],
+              [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
+            ],
+            resize_keyboard: true,
+          },
+        }
+      );
+
+      // Show inline feature menu (must be separate — Telegram only allows one reply_markup type per message)
+      await ctx.reply(
         `🎬 *OpenClaw Video Studio*\n\n` +
         `What would you like to do?`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🎬 Create Video', callback_data: 'create_video' }],
-              [{ text: '🖼️ Generate Image', callback_data: 'image_generate' }],
-              [{ text: '🔄 Clone Video', callback_data: 'clone_video' }],
-              [{ text: '📋 Storyboard Creator', callback_data: 'storyboard_create' }],
-              [{ text: '🔄 Clone Image', callback_data: 'clone_image' }],
-              [{ text: '📈 Viral Research', callback_data: 'viral_research' }],
-              [{ text: '🔍 Disassemble Prompt', callback_data: 'disassemble' }],
-              [{ text: '🔗 Social Accounts', callback_data: 'manage_accounts' }],
+              [
+                { text: '🎬 Create Video', callback_data: 'create_video' },
+                { text: '🖼️ Generate Image', callback_data: 'image_generate' },
+              ],
+              [{ text: '💬 Chat with AI', callback_data: 'open_chat' }],
+              [
+                { text: '🔄 Clone Video', callback_data: 'clone_video' },
+                { text: '🔄 Clone Image', callback_data: 'clone_image' },
+              ],
+              [
+                { text: '📋 Storyboard', callback_data: 'storyboard_create' },
+                { text: '📈 Viral Research', callback_data: 'viral_research' },
+              ],
+              [
+                { text: '🔍 Disassemble', callback_data: 'disassemble' },
+                { text: '🔗 Social Accounts', callback_data: 'manage_accounts' },
+              ],
+              [
+                { text: '💰 Top Up', callback_data: 'topup' },
+                { text: '⭐ Subscription', callback_data: 'open_subscription' },
+              ],
+              [
+                { text: '📁 My Videos', callback_data: 'videos_list' },
+                { text: '👤 Profile', callback_data: 'open_profile' },
+              ],
+              [
+                { text: '👥 Referral', callback_data: 'open_referral' },
+                { text: '🆘 Help', callback_data: 'open_help' },
+              ],
             ],
-            keyboard: [
-              [{ text: '🎬 Create Video' }, { text: '💰 Top Up' }],
-              [{ text: '📁 My Videos' }, { text: '👤 Profile' }],
-              [{ text: '👥 Referral' }, { text: '⚙️ Settings' }],
-            ],
-            resize_keyboard: true,
           },
         }
       );
@@ -106,8 +137,11 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         {
           reply_markup: {
             keyboard: [
-              [{ text: '🎬 Create Video' }],
-              [{ text: '❓ How it works' }],
+              [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
+              [{ text: '💬 Chat AI' }, { text: '📁 My Videos' }],
+              [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
+              [{ text: '👤 Profile' }, { text: '👥 Referral' }],
+              [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
             ],
             resize_keyboard: true,
           },

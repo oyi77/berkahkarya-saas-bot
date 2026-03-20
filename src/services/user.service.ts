@@ -47,7 +47,7 @@ export class UserService {
         firstName: data.firstName,
         lastName: data.lastName,
         tier: 'free',
-        creditBalance: 5, // 5 free trial credits for MVP
+        creditBalance: 3, // 3 free trial credits
         referralCode,
         referredBy: data.referredBy,
         language: 'id',
@@ -97,6 +97,17 @@ export class UserService {
   }
 
   /**
+   * Grant credits to user (alias for addCredits)
+   */
+  static async grantCredits(userId: bigint, amount: number, reason: string): Promise<User> {
+    // Log the grant reason for audit purposes
+    logger.info(`Granting ${amount} credits to user ${userId}. Reason: ${reason}`);
+    
+    // Add the credits
+    return this.addCredits(userId, amount);
+  }
+
+  /**
    * Deduct credits from user
    */
   static async deductCredits(telegramId: bigint, amount: number): Promise<User> {
@@ -113,6 +124,30 @@ export class UserService {
         },
       },
     });
+  }
+
+  /**
+   * Refund credits to user
+   */
+  static async refundCredits(telegramId: bigint, amount: number, jobId: string, reason: string): Promise<void> {
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { telegramId },
+        data: { creditBalance: { increment: amount } },
+      }),
+      prisma.transaction.create({
+        data: {
+          orderId: `REFUND-${jobId}`,
+          userId: telegramId,
+          type: 'refund',
+          packageName: 'refund',
+          amountIdr: 0,
+          creditsAmount: amount,
+          gateway: 'system',
+          status: 'success',
+        },
+      }),
+    ]);
   }
 
   /**

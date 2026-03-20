@@ -105,6 +105,11 @@
     "testMatch": [
       "**/*.test.ts"
     ],
+    "moduleNameMapper": {
+      "^@/(.*)\\.js$": "<rootDir>/src/$1",
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^(\\.\\.?/.*)\\.js$": "$1"
+    },
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/**/*.d.ts",

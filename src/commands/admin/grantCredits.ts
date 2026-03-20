@@ -6,6 +6,7 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { UserService } from '@/services/user.service';
 
 /**
  * Check if user is admin
@@ -20,21 +21,21 @@ function isAdmin(userId: number): boolean {
  */
 export async function adminGrantCreditsCommand(ctx: BotContext): Promise<void> {
   const userId = ctx.from?.id;
-  
+   
   if (!userId || !isAdmin(userId)) {
     await ctx.reply('❌ You do not have permission to use this command.');
     return;
   }
 
   const message = ctx.message;
-  
+   
   if (!message || !('text' in message)) {
     await ctx.reply('Usage: /grant_credits <user_id> <amount> <reason>');
     return;
   }
 
   const args = message.text.split(' ').slice(1);
-  
+   
   if (args.length < 3) {
     await ctx.reply(
       '💰 *Grant Credits*\n\n' +
@@ -49,22 +50,41 @@ export async function adminGrantCreditsCommand(ctx: BotContext): Promise<void> {
   const targetUserId = args[0];
   const amount = parseFloat(args[1]);
   const reason = args.slice(2).join(' ');
-  
+   
   if (isNaN(amount) || amount <= 0) {
     await ctx.reply('❌ Invalid amount. Please enter a positive number.');
     return;
   }
 
-  logger.info(`Admin ${userId} granting ${amount} credits to user ${targetUserId}. Reason: ${reason}`);
-  
-  // TODO: Implement actual credit grant logic
-  
-  await ctx.reply(
-    '✅ *Credits Granted*\n\n' +
-    `User ID: ${targetUserId}\n` +
-    `Amount: ${amount} credits\n` +
-    `Reason: ${reason}\n\n` +
-    'The user has been notified.',
-    { parse_mode: 'Markdown' }
-  );
+  try {
+    // Find the user by telegram ID
+    const user = await UserService.findByTelegramId(BigInt(targetUserId));
+    
+    if (!user) {
+      await ctx.reply('❌ User not found. Please check the user ID.');
+      return;
+    }
+
+    // Grant credits to the user
+    await UserService.grantCredits(user.id, amount, reason);
+    
+    logger.info(`Admin ${userId} granted ${amount} credits to user ${targetUserId}. Reason: ${reason}`);
+   
+    await ctx.reply(
+      '✅ *Credits Granted*\n\n' +
+      `User ID: ${targetUserId}\n` +
+      `Username: ${user.username || user.firstName || 'Unknown'}\n` +
+      `Amount: ${amount} credits\n` +
+      `Reason: ${reason}\n\n` +
+      'The user has been notified.',
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error: any) {
+    logger.error('Error granting credits:', error);
+    await ctx.reply(
+      '❌ *Error Granting Credits*\n\n' +
+      `Failed to grant credits: ${error.message || 'Unknown error'}`,
+      { parse_mode: 'Markdown' }
+    );
+  }
 }

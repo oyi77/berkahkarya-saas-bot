@@ -10,7 +10,7 @@ import { logger } from '@/utils/logger';
 import axios from 'axios';
 
 const POSTBRIDGE_API = 'https://api.post-bridge.com/v1';
-const POSTBRIDGE_API_KEY = process.env.POSTBRIDGE_API_KEY || 'pb_live_AT9Xm4PKaYBzAvFZYGgexi';
+const POSTBRIDGE_API_KEY = process.env.POSTBRIDGE_API_KEY || '';
 
 export interface SocialAccount {
   id: number;

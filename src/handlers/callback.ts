@@ -6,22 +6,34 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
-import { handleTopupSelection, handlePaymentGateway, checkPayment } from '@/commands/topup';
-import { 
+import { prisma } from '@/config/database';
+import { UserService } from '@/services/user.service';
+import { handleTopupSelection, handlePaymentGateway, checkPayment, handleTopupExtraCredit, topupCommand } from '@/commands/topup';
+import {
+  subscriptionCommand,
+  handleSubscriptionPurchase,
+  handleCancelSubscription,
+} from '@/commands/subscription';
+import { profileCommand } from '@/commands/profile';
+import { referralCommand } from '@/commands/referral';
+import { helpCommand } from '@/commands/help';
+import {
   handleDurationSelection,
-  createCommand 
+  handleNicheSelection,
+  handleStyleSelection,
+  createCommand
 } from '@/commands/create';
 import { videosCommand, viewVideo, copyVideoUrl, deleteVideo } from '@/commands/videos';
 import { VideoService } from '@/services/video.service';
 import { PostAutomationService } from '@/services/postautomation.service';
-import { ImageGenerationService } from '@/services/image.service';
-import { ContentAnalysisService } from '@/services/content-analysis.service';
+import { handleVideoCreationImage, handleSkipImageReference } from '@/handlers/message';
 import { 
   paymentSettingsCommand,
   handlePaymentDefaultGateway,
   handlePaymentToggleGateway,
   handlePaymentSetDefault
 } from '@/commands/admin/paymentSettings';
+import { SUBSCRIPTION_PLANS, PlanKey, BillingCycle, EXTRA_CREDIT_PACKAGES } from '@/config/pricing';
 
 /**
  * Handle storyboard selection
@@ -91,6 +103,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    if (data.startsWith('topup_extra_')) {
+      const credits = parseInt(data.replace('topup_extra_', ''), 10);
+      const validPkg = EXTRA_CREDIT_PACKAGES.find(p => p.credits === credits);
+      if (!validPkg) {
+        await ctx.answerCbQuery('Invalid credit package');
+        return;
+      }
+      await handleTopupExtraCredit(ctx, credits);
+      return;
+    }
+
     if (data.startsWith('topup_')) {
       const packageId = data.replace('topup_', '');
       await handleTopupSelection(ctx, packageId);
@@ -103,7 +126,49 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Video creation - simplified MVP flow (duration selection only)
+    // Subscription handlers
+    if (data.startsWith('subscribe_')) {
+      const parts = data.replace('subscribe_', '').split('_');
+      const plan = parts[0] as PlanKey;
+      const cycle = parts[1] as BillingCycle;
+      if (!(plan in SUBSCRIPTION_PLANS) || !['monthly', 'annual'].includes(cycle)) {
+        await ctx.answerCbQuery('Invalid plan selection');
+        return;
+      }
+      await handleSubscriptionPurchase(ctx, plan, cycle);
+      return;
+    }
+
+    if (data === 'cancel_subscription') {
+      await handleCancelSubscription(ctx);
+      return;
+    }
+
+    if (data === 'open_subscription') {
+      await ctx.deleteMessage().catch(() => {});
+      await subscriptionCommand(ctx);
+      return;
+    }
+
+    // Niche selection (Phase 1)
+    if (data.startsWith('select_niche_')) {
+      const nicheKey = data.replace('select_niche_', '');
+      await handleNicheSelection(ctx, nicheKey);
+      return;
+    }
+
+    // Style selection (Phase 1)
+    if (data.startsWith('select_style_')) {
+      const styleKey = data.replace('select_style_', '');
+      await handleStyleSelection(ctx, styleKey);
+      return;
+    }
+
+    if (data === 'custom_duration') {
+      await handleDurationSelection(ctx, 'custom_duration');
+      return;
+    }
+
     if (data.startsWith('duration_')) {
       const durationStr = data.replace('duration_', '');
       await handleDurationSelection(ctx, durationStr);
@@ -352,14 +417,35 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🎬 Create Video', callback_data: 'create_video' }],
-              [{ text: '🖼️ Generate Image', callback_data: 'image_generate' }],
-              [{ text: '🔄 Clone Video', callback_data: 'clone_video' }],
-              [{ text: '📋 Storyboard Creator', callback_data: 'storyboard_create' }],
-              [{ text: '🔄 Clone Image', callback_data: 'clone_image' }],
-              [{ text: '📈 Viral Research', callback_data: 'viral_research' }],
-              [{ text: '🔍 Disassemble Prompt', callback_data: 'disassemble' }],
-              [{ text: '🔗 Social Accounts', callback_data: 'manage_accounts' }],
+              [
+                { text: '🎬 Create Video', callback_data: 'create_video' },
+                { text: '🖼️ Generate Image', callback_data: 'image_generate' },
+              ],
+              [{ text: '💬 Chat with AI', callback_data: 'open_chat' }],
+              [
+                { text: '🔄 Clone Video', callback_data: 'clone_video' },
+                { text: '🔄 Clone Image', callback_data: 'clone_image' },
+              ],
+              [
+                { text: '📋 Storyboard', callback_data: 'storyboard_create' },
+                { text: '📈 Viral Research', callback_data: 'viral_research' },
+              ],
+              [
+                { text: '🔍 Disassemble', callback_data: 'disassemble' },
+                { text: '🔗 Social Accounts', callback_data: 'manage_accounts' },
+              ],
+              [
+                { text: '💰 Top Up', callback_data: 'topup' },
+                { text: '⭐ Subscription', callback_data: 'open_subscription' },
+              ],
+              [
+                { text: '📁 My Videos', callback_data: 'videos_list' },
+                { text: '👤 Profile', callback_data: 'open_profile' },
+              ],
+              [
+                { text: '👥 Referral', callback_data: 'open_referral' },
+                { text: '🆘 Help', callback_data: 'open_help' },
+              ],
             ],
           },
         }
@@ -428,21 +514,26 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data.startsWith('video_confirm_delete_')) {
       const jobId = data.replace('video_confirm_delete_', '');
-      // Actually delete from database
+      // Soft delete — mark as deleted instead of removing from database
       await VideoService.deleteVideo(jobId);
       await ctx.editMessageText(
-        '🗑️ *Video Deleted*\n\n' +
-        'The video has been permanently deleted.',
+        '🗑️ *Video Moved to Trash*\n\n' +
+        'The video has been moved to trash.',
         { parse_mode: 'Markdown' }
       );
       return;
     }
 
     if (data.startsWith('video_retry_')) {
-      const jobId = data.replace('video_retry_', '');
-      // Retry video creation - redirect to create
       await ctx.answerCbQuery('Retrying video...');
       await createCommand(ctx);
+      return;
+    }
+
+    // Auto-Post to All connected accounts
+    if (data.startsWith('auto_post_')) {
+      const jobId = data.replace('auto_post_', '');
+      await handleAutoPostToAll(ctx, jobId);
       return;
     }
 
@@ -504,6 +595,542 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('admin_payment_setdefault_')) {
       const gateway = data.replace('admin_payment_setdefault_', '');
       await handlePaymentSetDefault(ctx, gateway);
+      return;
+    }
+
+    // Topup from inline menu
+    if (data === 'topup') {
+      await ctx.answerCbQuery();
+      await topupCommand(ctx);
+      return;
+    }
+
+    // Open chat from inline menu — show usage help
+    if (data === 'open_chat') {
+      await ctx.answerCbQuery();
+      await ctx.reply(
+        '*💬 AI Chat*\n\n' +
+        'Ask me anything!\n\n' +
+        'Usage: `/chat <your question>`\n\n' +
+        '*Examples:*\n' +
+        '`/chat What is the best marketing strategy?`\n' +
+        '`/chat Help me write a product description`\n' +
+        '`/chat Suggest 5 TikTok video ideas for my cafe`',
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
+
+    // Open profile from inline menu
+    if (data === 'open_profile') {
+      await ctx.answerCbQuery();
+      await profileCommand(ctx);
+      return;
+    }
+
+    // Open referral from inline menu
+    if (data === 'open_referral') {
+      await ctx.answerCbQuery();
+      await referralCommand(ctx);
+      return;
+    }
+
+    // Open help from inline menu
+    if (data === 'open_help') {
+      await ctx.answerCbQuery();
+      await helpCommand(ctx);
+      return;
+    }
+
+    // =========================================================================
+    // SETTINGS HANDLERS
+    // =========================================================================
+
+    // Show language selection
+    if (data === 'settings_language') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      const user = userId ? await UserService.findByTelegramId(BigInt(userId)) : null;
+      const currentLang = user?.language || 'id';
+
+      await ctx.editMessageText(
+        '🌐 *Change Language*\n\n' +
+        `Current: ${currentLang === 'id' ? '🇮🇩 Bahasa Indonesia' : '🇬🇧 English'}\n\n` +
+        'Select your preferred language:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: `🇮🇩 Bahasa Indonesia ${currentLang === 'id' ? '✅' : ''}`, callback_data: 'set_language_id' },
+                { text: `🇬🇧 English ${currentLang === 'en' ? '✅' : ''}`, callback_data: 'set_language_en' },
+              ],
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Set language to Indonesian
+    if (data === 'set_language_id') {
+      await ctx.answerCbQuery('Language set to Bahasa Indonesia');
+      const userId = ctx.from?.id;
+      if (userId) {
+        await UserService.update(BigInt(userId), { language: 'id' });
+      }
+      await ctx.editMessageText(
+        '🌐 *Language Updated*\n\n' +
+        '✅ Bahasa Indonesia selected.\n\n' +
+        'All messages will now be in Bahasa Indonesia.',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Set language to English
+    if (data === 'set_language_en') {
+      await ctx.answerCbQuery('Language set to English');
+      const userId = ctx.from?.id;
+      if (userId) {
+        await UserService.update(BigInt(userId), { language: 'en' });
+      }
+      await ctx.editMessageText(
+        '🌐 *Language Updated*\n\n' +
+        '✅ English selected.\n\n' +
+        'All messages will now be in English.',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Show notifications toggle
+    if (data === 'settings_notifications') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      const user = userId ? await UserService.findByTelegramId(BigInt(userId)) : null;
+      const enabled = user?.notificationsEnabled ?? true;
+
+      await ctx.editMessageText(
+        '🔔 *Notifications*\n\n' +
+        `Status: ${enabled ? '✅ Enabled' : '❌ Disabled'}\n\n` +
+        'Receive notifications for:\n' +
+        '• Video completion\n' +
+        '• Payment confirmations\n' +
+        '• Referral commissions\n' +
+        '• Promotions & updates',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: enabled ? '🔕 Turn Off Notifications' : '🔔 Turn On Notifications', callback_data: 'toggle_notifications' }],
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Toggle notifications
+    if (data === 'toggle_notifications') {
+      const userId = ctx.from?.id;
+      if (!userId) {
+        await ctx.answerCbQuery('Error: user not found');
+        return;
+      }
+      const user = await UserService.findByTelegramId(BigInt(userId));
+      const newValue = !(user?.notificationsEnabled ?? true);
+      await UserService.update(BigInt(userId), { notificationsEnabled: newValue });
+      await ctx.answerCbQuery(newValue ? 'Notifications enabled' : 'Notifications disabled');
+
+      await ctx.editMessageText(
+        '🔔 *Notifications*\n\n' +
+        `Status: ${newValue ? '✅ Enabled' : '❌ Disabled'}\n\n` +
+        `Notifications have been ${newValue ? 'enabled' : 'disabled'}.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: newValue ? '🔕 Turn Off Notifications' : '🔔 Turn On Notifications', callback_data: 'toggle_notifications' }],
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Show auto-renewal toggle
+    if (data === 'settings_autorenewal') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      const user = userId ? await UserService.findByTelegramId(BigInt(userId)) : null;
+      const enabled = user?.autoRenewal ?? false;
+
+      await ctx.editMessageText(
+        '🔄 *Auto-Renewal*\n\n' +
+        `Status: ${enabled ? '✅ Enabled' : '❌ Disabled'}\n\n` +
+        'When enabled, your subscription will automatically\n' +
+        'renew at the end of each billing cycle.',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: enabled ? '❌ Disable Auto-Renewal' : '✅ Enable Auto-Renewal', callback_data: 'toggle_autorenewal' }],
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Toggle auto-renewal
+    if (data === 'toggle_autorenewal') {
+      const userId = ctx.from?.id;
+      if (!userId) {
+        await ctx.answerCbQuery('Error: user not found');
+        return;
+      }
+      const user = await UserService.findByTelegramId(BigInt(userId));
+      const newValue = !(user?.autoRenewal ?? false);
+      await UserService.update(BigInt(userId), { autoRenewal: newValue });
+      await ctx.answerCbQuery(newValue ? 'Auto-renewal enabled' : 'Auto-renewal disabled');
+
+      await ctx.editMessageText(
+        '🔄 *Auto-Renewal*\n\n' +
+        `Status: ${newValue ? '✅ Enabled' : '❌ Disabled'}\n\n` +
+        `Auto-renewal has been ${newValue ? 'enabled' : 'disabled'}.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: newValue ? '❌ Disable Auto-Renewal' : '✅ Enable Auto-Renewal', callback_data: 'toggle_autorenewal' }],
+              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Open settings menu (back navigation target)
+    if (data === 'open_settings') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      const user = userId ? await UserService.findByTelegramId(BigInt(userId)) : null;
+      const lang = user?.language === 'en' ? 'English' : 'Bahasa Indonesia';
+      const notif = user?.notificationsEnabled ? 'Enabled' : 'Disabled';
+      const autoRenew = user?.autoRenewal ? 'Enabled' : 'Disabled';
+
+      await ctx.editMessageText(
+        '⚙️ *Settings*\n\n' +
+        'Configure your preferences:\n\n' +
+        `*Language:* ${lang}\n` +
+        `*Notifications:* ${notif}\n` +
+        `*Auto-renewal:* ${autoRenew}\n\n` +
+        'What would you like to change?',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🌐 Change Language', callback_data: 'settings_language' }],
+              [{ text: '🔔 Notifications', callback_data: 'settings_notifications' }],
+              [{ text: '🔄 Auto-renewal', callback_data: 'settings_autorenewal' }],
+              [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // =========================================================================
+    // TRANSACTION HISTORY
+    // =========================================================================
+
+    if (data === 'transaction_history') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      try {
+        const transactions = await prisma.transaction.findMany({
+          where: { userId: BigInt(userId) },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        });
+
+        if (transactions.length === 0) {
+          await ctx.editMessageText(
+            '📜 *Transaction History*\n\n' +
+            'No transactions found.\n\n' +
+            'Top up credits to get started!',
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '💰 Top Up Now', callback_data: 'topup' }],
+                  [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+                ],
+              },
+            }
+          );
+          return;
+        }
+
+        let message = '📜 *Transaction History*\n\n';
+        message += '_Last 10 transactions:_\n\n';
+
+        for (const tx of transactions) {
+          const date = tx.createdAt.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+          const statusEmoji = tx.status === 'success' ? '✅' : tx.status === 'pending' ? '⏳' : '❌';
+          const amount = Number(tx.amountIdr).toLocaleString('id-ID');
+          const credits = tx.creditsAmount ? Number(tx.creditsAmount).toFixed(1) : '-';
+          message += `${statusEmoji} ${date} | ${tx.type} | Rp ${amount} | ${credits} credits\n`;
+        }
+
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+            ],
+          },
+        });
+      } catch (error) {
+        logger.error('Transaction history error:', error);
+        await ctx.editMessageText(
+          '❌ Failed to load transaction history.\n\nPlease try again later.',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+      }
+      return;
+    }
+
+    // =========================================================================
+    // COPY PROMPT
+    // =========================================================================
+
+    if (data === 'copy_prompt') {
+      await ctx.answerCbQuery();
+      const extractedPrompt = ctx.session?.stateData?.extractedPrompt as string | undefined;
+
+      if (extractedPrompt) {
+        await ctx.reply(
+          `📋 *Extracted Prompt:*\n\n\`\`\`\n${extractedPrompt}\n\`\`\`\n\n_Copy the text above to use it._`,
+          { parse_mode: 'Markdown' }
+        );
+      } else {
+        await ctx.reply(
+          '❌ No prompt found. Please use the Disassemble feature first to extract a prompt from media.',
+          { parse_mode: 'Markdown' }
+        );
+      }
+      return;
+    }
+
+    // =========================================================================
+    // CONNECT ACCOUNT (NEW) - Route to manage_accounts for platform selection
+    // =========================================================================
+
+    if (data === 'connect_account_new') {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        '🔗 *Connect New Account*\n\n' +
+        'Select platform to connect:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📱 TikTok', callback_data: 'connect_account_tiktok' }],
+              [{ text: '📷 Instagram', callback_data: 'connect_account_instagram' }],
+              [{ text: '📘 Facebook', callback_data: 'connect_account_facebook' }],
+              [{ text: '🐦 Twitter/X', callback_data: 'connect_account_twitter' }],
+              [{ text: '📺 YouTube', callback_data: 'connect_account_youtube' }],
+              [{ text: '◀️ Back', callback_data: 'manage_accounts' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // =========================================================================
+    // REFERRAL STATS
+    // =========================================================================
+
+    if (data === 'referral_stats') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      try {
+        const user = await UserService.findByTelegramId(BigInt(userId));
+        if (!user) {
+          await ctx.reply('❌ User not found.');
+          return;
+        }
+
+        const [referralCount, commissionAgg, availableAgg, withdrawnAgg] = await Promise.all([
+          prisma.user.count({ where: { referredBy: user.uuid } }),
+          prisma.commission.aggregate({
+            where: { referrerId: BigInt(userId) },
+            _sum: { amount: true },
+          }),
+          prisma.commission.aggregate({
+            where: { referrerId: BigInt(userId), status: 'available' },
+            _sum: { amount: true },
+          }),
+          prisma.commission.aggregate({
+            where: { referrerId: BigInt(userId), status: 'withdrawn' },
+            _sum: { amount: true },
+          }),
+        ]);
+
+        const totalCommission = Number(commissionAgg._sum.amount || 0);
+        const availableCommission = Number(availableAgg._sum.amount || 0);
+        const withdrawnCommission = Number(withdrawnAgg._sum.amount || 0);
+
+        await ctx.editMessageText(
+          '📊 *Referral Statistics*\n\n' +
+          `*Total Referrals:* ${referralCount}\n` +
+          `*Referral Tier:* ${user.referralTier}\n\n` +
+          '*Commission Summary:*\n' +
+          `• Total Earned: Rp ${totalCommission.toLocaleString('id-ID')}\n` +
+          `• Available: Rp ${availableCommission.toLocaleString('id-ID')}\n` +
+          `• Withdrawn: Rp ${withdrawnCommission.toLocaleString('id-ID')}\n\n` +
+          `*Referral Code:* \`${user.referralCode || 'N/A'}\``,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '💸 Withdraw', callback_data: 'referral_withdraw' }],
+                [{ text: '◀️ Back to Referral', callback_data: 'open_referral' }],
+              ],
+            },
+          }
+        );
+      } catch (error) {
+        logger.error('Referral stats error:', error);
+        await ctx.reply('❌ Failed to load referral statistics. Please try again.');
+      }
+      return;
+    }
+
+    // =========================================================================
+    // REFERRAL WITHDRAW
+    // =========================================================================
+
+    if (data === 'referral_withdraw') {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      try {
+        const availableAgg = await prisma.commission.aggregate({
+          where: { referrerId: BigInt(userId), status: 'available' },
+          _sum: { amount: true },
+        });
+        const available = Number(availableAgg._sum.amount || 0);
+
+        const minWithdraw = 50000; // Rp 50,000 minimum
+
+        let message = '💸 *Withdraw Commission*\n\n';
+        message += `*Available Balance:* Rp ${available.toLocaleString('id-ID')}\n`;
+        message += `*Minimum Withdrawal:* Rp ${minWithdraw.toLocaleString('id-ID')}\n\n`;
+
+        if (available < minWithdraw) {
+          message += `❌ Insufficient balance for withdrawal.\n\n`;
+          message += `You need at least Rp ${minWithdraw.toLocaleString('id-ID')} to withdraw.\n`;
+          message += `Keep referring to earn more!`;
+        } else {
+          message += `✅ You are eligible for withdrawal.\n\n`;
+          message += `*How to withdraw:*\n`;
+          message += `1. Contact our support team\n`;
+          message += `2. Provide your bank account details\n`;
+          message += `3. Withdrawal processed within 1-3 business days\n\n`;
+          message += `Contact: @OpenClawSupport`;
+        }
+
+        await ctx.editMessageText(message, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📊 View Stats', callback_data: 'referral_stats' }],
+              [{ text: '◀️ Back to Referral', callback_data: 'open_referral' }],
+            ],
+          },
+        });
+      } catch (error) {
+        logger.error('Referral withdraw error:', error);
+        await ctx.reply('❌ Failed to load withdrawal info. Please try again.');
+      }
+      return;
+    }
+
+    // =========================================================================
+    // MULTI-PHOTO VIDEO CREATION HANDLERS
+    // =========================================================================
+
+    // "Generate Now" — trigger video generation with all collected photos
+    if (data === 'generate_video_now') {
+      await ctx.answerCbQuery();
+
+      if (!ctx.session?.videoCreation?.waitingForImage) {
+        await ctx.reply('No active video creation. Please start with /create');
+        return;
+      }
+
+      const uploadedPhotos = ctx.session.videoCreation.uploadedPhotos || [];
+      if (uploadedPhotos.length === 0) {
+        await ctx.reply(
+          'No photos uploaded yet. Send a reference image first, or /skip to generate without one.'
+        );
+        return;
+      }
+
+      await handleVideoCreationImage(ctx, uploadedPhotos);
+      return;
+    }
+
+    // "Add More Photos" — acknowledge, user will send more photos naturally
+    if (data === 'add_more_photos') {
+      await ctx.answerCbQuery();
+      const count = ctx.session?.videoCreation?.uploadedPhotos?.length || 0;
+      const remaining = 5 - count;
+      await ctx.reply(
+        `Send up to ${remaining} more photo(s).\n\nYou can also tap "Generate Now" when ready.`
+      );
+      return;
+    }
+
+    // "Skip Reference Image" — from multi-photo flow inline button
+    if (data === 'skip_reference_image') {
+      await ctx.answerCbQuery();
+      await handleSkipImageReference(ctx);
       return;
     }
 
@@ -730,6 +1357,110 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
 }
 
 /**
+ * Handle auto-post to ALL connected social accounts
+ */
+async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
+  const userId = ctx.from?.id;
+  if (!userId) return;
+
+  // Acknowledge button press immediately
+  await ctx.answerCbQuery('Publishing to all accounts...');
+
+  try {
+    // Get video details
+    const video = await VideoService.getByJobId(jobId);
+    if (!video || !video.videoUrl) {
+      await ctx.reply('❌ Video not found or has no URL.');
+      return;
+    }
+
+    // Get ALL connected accounts for this user
+    const accounts = await PostAutomationService.getUserAccounts(BigInt(userId));
+    if (accounts.length === 0) {
+      await ctx.reply(
+        '❌ No connected social accounts found.\n\n' +
+        'Connect your accounts first to auto-post.',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🔗 Connect Accounts', callback_data: 'manage_accounts' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Show progress message
+    const platformNames = accounts.map(a => `${getPlatformEmoji(a.platform)} ${a.platform}`).join(', ');
+    await ctx.reply(
+      `⏳ *Auto-Posting to ${accounts.length} account(s)...*\n\n` +
+      `Platforms: ${platformNames}`,
+      { parse_mode: 'Markdown' }
+    );
+
+    // Publish to all accounts at once
+    const results = await PostAutomationService.publish({
+      userId: BigInt(userId),
+      mediaUrl: video.videoUrl,
+      caption: ctx.session?.caption || `${video.title || 'Check this out!'} #viral #fyp`,
+      platformAccountIds: accounts.map(a => a.id),
+    });
+
+    // Build results message
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    let message = `🚀 *Auto-Post Results*\n\n`;
+    message += `Total: ${results.length} platform(s)\n`;
+    message += `✅ Success: ${successCount}\n`;
+    if (failCount > 0) {
+      message += `❌ Failed: ${failCount}\n`;
+    }
+    message += '\n';
+
+    results.forEach(result => {
+      const emoji = result.success ? '✅' : '❌';
+      message += `${emoji} ${result.platform.toUpperCase()}`;
+      if (result.postUrl) {
+        message += ` — [View Post](${result.postUrl})`;
+      }
+      if (result.error) {
+        message += ` — ${result.error}`;
+      }
+      message += '\n';
+    });
+
+    await ctx.reply(message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🎬 Create Another', callback_data: 'create_video' }],
+          [{ text: '📁 My Videos', callback_data: 'videos_list' }],
+        ],
+      },
+    });
+
+  } catch (error: any) {
+    logger.error('Auto-post failed:', error);
+    await ctx.reply(
+      `❌ *Auto-Post Failed*\n\n` +
+      `Error: ${error.message}\n\n` +
+      `You can still publish manually.`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📤 Publish Manually', callback_data: `publish_video_${jobId}` }],
+            [{ text: '📁 My Videos', callback_data: 'videos_list' }],
+          ],
+        },
+      }
+    );
+  }
+}
+
+/**
  * Handle manage accounts
  */
 async function handleManageAccounts(ctx: BotContext) {
@@ -870,97 +1601,4 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
 
   ctx.session.state = 'IMAGE_GENERATION_WAITING';
   ctx.session.stateData = { imageCategory: category };
-}
-
-/**
- * Handle disassemble prompt (video/image to prompt extraction)
- */
-async function handleDisassemble(ctx: BotContext) {
-  const userId = ctx.from?.id;
-  if (!userId) return;
-
-  // Check if user sent media
-  const message = ctx.message as any;
-  
-  if (!message) {
-    await ctx.reply(
-      '🔍 *Video/Image to Prompt*\n\n' +
-      'Please send a video or image first.',
-      { parse_mode: 'Markdown' }
-    );
-    return;
-  }
-
-  let mediaUrl: string | undefined;
-  let mediaType: 'video' | 'image' = 'image';
-
-  if (message.video) {
-    mediaUrl = message.video.file_id;
-    mediaType = 'video';
-  } else if (message.photo) {
-    const photos = message.photo;
-    mediaUrl = photos[photos.length - 1].file_id;
-    mediaType = 'image';
-  }
-
-  if (!mediaUrl) {
-    await ctx.reply(
-      '❌ No media found. Please send a video or image.',
-      { parse_mode: 'Markdown' }
-    );
-    return;
-  }
-
-  await ctx.reply(
-    '⏳ *Analyzing...*\n\n' +
-    'Extracting prompt from your media...',
-    { parse_mode: 'Markdown' }
-  );
-
-  try {
-    // Get file URL
-    const fileUrl = await ctx.telegram.getFileLink(mediaUrl);
-    
-    // Extract prompt
-    const result = await ContentAnalysisService.extractPrompt(fileUrl.toString(), mediaType);
-
-    if (result.success && result.prompt) {
-      await ctx.reply(
-        `✅ *Prompt Extracted:*\n\n` +
-        `${result.prompt}\n\n` +
-        `*Style:* ${result.style || 'N/A'}\n` +
-        `*Elements:* ${result.elements?.join(', ') || 'N/A'}\n\n` +
-        `_Use this prompt to create similar content!_`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '🎬 Create Video with This Prompt', callback_data: 'create_video' }],
-              [{ text: '🖼️ Generate Image with This Prompt', callback_data: 'image_generate' }],
-              [{ text: '📋 Copy Prompt', callback_data: 'copy_prompt' }],
-            ],
-          },
-        }
-      );
-
-      // Store prompt in session
-      ctx.session.stateData = { extractedPrompt: result.prompt };
-
-    } else {
-      await ctx.reply(
-        `❌ *Extraction Failed*\n\n` +
-        `Error: ${result.error || 'Unknown error'}\n\n` +
-        `Please try again with different media.`,
-        { parse_mode: 'Markdown' }
-      );
-    }
-
-  } catch (error: any) {
-    logger.error('Disassemble failed:', error);
-    await ctx.reply(
-      `❌ *Error*\n\n` +
-      `Failed to analyze media. Please try again.`,
-      { parse_mode: 'Markdown' }
-    );
-  }
 }

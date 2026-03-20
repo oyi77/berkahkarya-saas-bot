@@ -1,84 +1,67 @@
 /**
- * Grok Command — Chat with Grok-Api AI directly from Telegram.
+ * Chat Command — Simple AI chat via /chat <prompt>
+ * Uses the cheapest/free model on OmniRoute.
  */
 
 import { BotContext } from '@/types';
-import { getGrokApiService } from '@/services/grok-api.service';
+import { getOmniRouteService } from '@/services/omniroute.service';
 import { logger } from '@/utils/logger';
 
-const VALID_MODELS = ['grok-3-auto', 'grok-3-fast', 'grok-4', 'grok-4-mini-thinking-tahoe'];
+// Use the default model configured in OmniRoute (env: OMNIROUTE_DEFAULT_MODEL)
 
-export async function grokCommand(ctx: BotContext): Promise<void> {
-  const args = (ctx.message as { text?: string })?.text?.replace('/grok', '').trim() || '';
+async function safeReply(ctx: BotContext, text: string): Promise<void> {
+  try {
+    await ctx.reply(text, { parse_mode: 'Markdown' });
+  } catch {
+    await ctx.reply(text);
+  }
+}
 
-  if (!args) {
-    await ctx.reply(
-      '*Grok AI — Free LLM*\n\n' +
-      'Usage: /grok <your question>\n\n' +
-      'Models:\n' +
-      '• grok-3-auto (default)\n' +
-      '• grok-3-fast (quick)\n' +
-      '• grok-4 (powerful)\n' +
-      '• grok-4-mini-thinking-tahoe (reasoning)\n\n' +
-      'Switch model: /grok --model grok-4 <question>\n\n' +
-      'Clear context: /grok --clear',
-      { parse_mode: 'Markdown' },
+export async function chatCommand(ctx: BotContext): Promise<void> {
+  const rawText = (ctx.message as { text?: string })?.text || '';
+  const prompt = rawText.replace(/^\/(?:chat|ask)\s*/, '').trim();
+
+  if (!prompt) {
+    await safeReply(
+      ctx,
+      '*💬 AI Chat*\n\n' +
+      'Ask me anything!\n\n' +
+      'Usage: `/chat <your question>`\n\n' +
+      '*Examples:*\n' +
+      '`/chat What is the best marketing strategy?`\n' +
+      '`/chat Help me write a product description`\n' +
+      '`/chat Suggest 5 TikTok video ideas for my cafe`',
     );
     return;
   }
 
-  let model = 'grok-3-fast';
-  let message = args;
-
-  if (args.startsWith('--model ')) {
-    const parts = args.split(' ');
-    const modelArg = parts[1];
-    if (modelArg && VALID_MODELS.includes(modelArg)) {
-      model = modelArg;
-      message = parts.slice(2).join(' ');
-    }
-  }
-
-  const clearMatch = message.match(/^--clear\s*/);
-  if (clearMatch) {
-    message = message.replace(/^--clear\s*/, '');
-    const grok = getGrokApiService();
-    grok.clearContext();
-    await ctx.reply('Context cleared.');
-    if (!message) return;
-  }
-
-  if (!message) {
-    await ctx.reply('Please ask a question after the command.');
-    return;
-  }
+  const userId = String(ctx.from?.id || 'unknown');
+  const omni = getOmniRouteService();
 
   await ctx.reply('Thinking...');
 
-  const grok = getGrokApiService();
-
   try {
-    const result = await grok.ask(message, model);
+    const result = await omni.chat(userId, prompt);
 
-    if (result.status !== 'success') {
+    if (!result.success) {
       await ctx.reply(`Error: ${result.error || 'Unknown error'}`);
       return;
     }
 
-    const response = result.response || 'No response received.';
+    const response = result.content || 'No response received.';
 
     if (response.length > 4000) {
       const chunks = response.match(/[\s\S]{1,4000}/g) || [response];
       for (const chunk of chunks) {
-        await ctx.reply(chunk, { parse_mode: 'Markdown' });
+        await safeReply(ctx, chunk);
       }
     } else {
-      await ctx.reply(response, { parse_mode: 'Markdown' });
+      await safeReply(ctx, response);
     }
 
-    logger.info(`LLM response: ${result.response?.slice(0, 100)}...`);
+    logger.info(`Chat response (${result.model}): ${result.content?.slice(0, 100)}...`);
   } catch (err) {
-    logger.error('Grok command error:', err);
-    await ctx.reply(`Failed to connect to Grok-Api: ${err}`);
+    logger.error('Chat command error:', err);
+    await ctx.reply('Failed to get AI response. Please try again.');
   }
 }
