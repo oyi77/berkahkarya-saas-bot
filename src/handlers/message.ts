@@ -30,9 +30,70 @@ import { promisify } from 'util';
 
 const exec = promisify(execCallback);
 
-// Forward declaration
-async function handleDisassemble(_ctx: BotContext): Promise<void> {
-  // Will be implemented in callback handler
+/**
+ * Handle disassemble — extract prompt from user's uploaded media
+ */
+async function handleDisassemble(ctx: BotContext): Promise<void> {
+  const message = ctx.message as any;
+  if (!message) return;
+
+  let mediaUrl: string | undefined;
+  let mediaType: 'video' | 'image' = 'image';
+
+  if (message.video) {
+    mediaUrl = message.video.file_id;
+    mediaType = 'video';
+  } else if (message.photo) {
+    const photos = message.photo;
+    mediaUrl = photos[photos.length - 1].file_id;
+    mediaType = 'image';
+  }
+
+  if (!mediaUrl) {
+    await ctx.reply('❌ No media found. Please send a video or image.');
+    return;
+  }
+
+  await ctx.reply(
+    '⏳ *Analyzing...*\n\nExtracting prompt from your media...',
+    { parse_mode: 'Markdown' }
+  );
+
+  try {
+    const fileLink = await ctx.telegram.getFileLink(mediaUrl);
+    const result = await ContentAnalysisService.extractPrompt(fileLink.toString(), mediaType);
+
+    if (result.success && result.prompt) {
+      await ctx.reply(
+        `✅ *Prompt Extracted:*\n\n` +
+        `\`\`\`\n${result.prompt.slice(0, 1000)}\n\`\`\`\n\n` +
+        `*Style:* ${result.style || 'N/A'}\n` +
+        `*Elements:* ${result.elements?.slice(0, 5).join(', ') || 'N/A'}\n\n` +
+        `_Use this prompt to create similar content!_`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎬 Create Video with This', callback_data: 'create_video' }],
+              [{ text: '🖼️ Generate Image with This', callback_data: 'image_generate' }],
+            ],
+          },
+        }
+      );
+
+      ctx.session.stateData = { extractedPrompt: result.prompt };
+    } else {
+      await ctx.reply(
+        `❌ *Extraction Failed*\n\n` +
+        `Error: ${result.error || 'Unknown error'}\n\n` +
+        `Please try again with a different image or video.`,
+        { parse_mode: 'Markdown' }
+      );
+    }
+  } catch (error: any) {
+    logger.error('Disassemble failed:', error);
+    await ctx.reply('❌ Failed to analyze media. Please try again.');
+  }
 }
 
 export async function handleVideoCreationImage(
@@ -652,14 +713,16 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         const result = await ContentAnalysisService.cloneVideo(videoUrl);
 
         if (result.success && result.prompt) {
+          const cleanPrompt = result.prompt
+            .replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').replace(/`/g, '')
+            .slice(0, 1500);
+
           await ctx.reply(
-            `✅ *Video Style Extracted:*\n\n` +
-            `${result.prompt}\n\n` +
-            `*Style:* ${result.style || 'N/A'}\n` +
-            `*Key Elements:* ${result.elements?.join(', ') || 'N/A'}\n\n` +
+            `✅ Video Style Extracted:\n\n` +
+            `${cleanPrompt}\n\n` +
+            `Style: ${result.style || 'N/A'}\n\n` +
             `Ready to create a similar video?`,
             {
-              parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
                   [{ text: '🎬 Create Similar Video', callback_data: 'create_video' }],
@@ -717,14 +780,20 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         const result = await ContentAnalysisService.cloneImage(imageUrl);
 
         if (result.success && result.prompt) {
+          // Sanitize Gemini output for Telegram (strip markdown that breaks parsing)
+          const cleanPrompt = result.prompt
+            .replace(/\*\*/g, '')  // Remove ** bold
+            .replace(/\*/g, '')    // Remove * italic
+            .replace(/_/g, '')     // Remove _ underline
+            .replace(/`/g, '')     // Remove backticks
+            .slice(0, 1500);       // Telegram message limit safety
+
           await ctx.reply(
-            `✅ *Image Style Extracted:*\n\n` +
-            `${result.prompt}\n\n` +
-            `*Style:* ${result.style || 'N/A'}\n` +
-            `*Key Elements:* ${result.elements?.join(', ') || 'N/A'}\n\n` +
+            `✅ Image Style Extracted:\n\n` +
+            `${cleanPrompt}\n\n` +
+            `Style: ${result.style || 'N/A'}\n\n` +
             `Ready to generate a similar image?`,
             {
-              parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
                   [{ text: '🖼️ Generate Similar Image', callback_data: 'image_generate' }],

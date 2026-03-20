@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger';
 import axios from 'axios';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 export interface AnalysisResult {
   success: boolean;
@@ -37,9 +37,25 @@ async function fetchMediaAsBase64(url: string): Promise<{ data: string; mimeType
     timeout: 30000,
   });
 
-  const contentType = response.headers['content-type'] || 'image/jpeg';
-  const base64 = Buffer.from(response.data).toString('base64');
+  // Telegram often returns 'application/octet-stream' — detect real type from URL or magic bytes
+  let contentType = response.headers['content-type'] || 'image/jpeg';
+  if (contentType === 'application/octet-stream' || !contentType.startsWith('image/')) {
+    // Infer from URL extension
+    if (url.includes('.jpg') || url.includes('.jpeg')) contentType = 'image/jpeg';
+    else if (url.includes('.png')) contentType = 'image/png';
+    else if (url.includes('.webp')) contentType = 'image/webp';
+    else if (url.includes('.gif')) contentType = 'image/gif';
+    else if (url.includes('.mp4')) contentType = 'video/mp4';
+    else {
+      // Check magic bytes
+      const buf = Buffer.from(response.data);
+      if (buf[0] === 0xFF && buf[1] === 0xD8) contentType = 'image/jpeg';
+      else if (buf[0] === 0x89 && buf[1] === 0x50) contentType = 'image/png';
+      else contentType = 'image/jpeg'; // safe default for Gemini
+    }
+  }
 
+  const base64 = Buffer.from(response.data).toString('base64');
   return { data: base64, mimeType: contentType };
 }
 
@@ -275,7 +291,8 @@ export class ContentAnalysisService {
       return parseGeminiResponse(generatedText);
 
     } catch (error: any) {
-      logger.error('Image cloning failed:', error.message);
+      const detail = error.response?.data ? JSON.stringify(error.response.data).slice(0, 300) : error.message;
+      logger.error(`Image cloning failed: ${detail}`);
       return {
         success: false,
         error: error.message || 'Failed to clone image',

@@ -206,7 +206,7 @@ async function generateViaNvidia(prompt: string, params: ImageGenerationParams):
 /** Tier 5: Google Gemini — Imagen (via Gemini API) */
 async function generateViaGemini(prompt: string, _params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       contents: [{
         parts: [{ text: `Generate a high-quality image: ${prompt}` }],
