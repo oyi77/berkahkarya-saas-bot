@@ -204,6 +204,13 @@ Respond with ONLY the JSON, no other text.`,
         fs.unlinkSync(tmpFile);
       }
 
+      // Schedule cleanup of the cleaned file after 5 minutes
+      if (cleanedPath !== tmpFile) {
+        setTimeout(() => {
+          try { if (fs.existsSync(cleanedPath)) fs.unlinkSync(cleanedPath); } catch { /* ignore */ }
+        }, 5 * 60 * 1000);
+      }
+
       return cleanedPath;
     } catch (err: any) {
       logger.warn(`Watermark clean failed: ${err.message}`);

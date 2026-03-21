@@ -40,7 +40,7 @@ import {
   handlePaymentToggleGateway,
   handlePaymentSetDefault
 } from '@/commands/admin/paymentSettings';
-import { SUBSCRIPTION_PLANS, PlanKey, BillingCycle, EXTRA_CREDIT_PACKAGES } from '@/config/pricing';
+import { SUBSCRIPTION_PLANS, PlanKey, BillingCycle, EXTRA_CREDIT_PACKAGES, getImageCreditCostAsync } from '@/config/pricing';
 import { t } from '@/i18n/translations';
 
 /**
@@ -1971,13 +1971,15 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
   // Build reference image options
   const telegramId = BigInt(ctx.from!.id);
   const avatars = await AvatarService.listAvatars(telegramId);
+  const creditCost = await getImageCreditCostAsync();
 
   const avatarButtons = avatars.slice(0, 3).map(a => (
     { text: `👤 ${a.isDefault ? '⭐ ' : ''}${a.name}`, callback_data: `imgref_avatar_${a.id}` }
   ));
 
   await ctx.editMessageText(
-    `🖼️ *Generate ${categoryNames[category]}*\n\n` +
+    `🖼️ *Generate ${categoryNames[category]}*\n` +
+    `💰 _Biaya: ${creditCost} kredit per gambar_\n\n` +
     `How do you want to generate?\n\n` +
     `📸 *Upload Reference* — Send your product photo and AI will create marketing images based on it\n` +
     `👤 *Use Avatar* — Keep a consistent character/person across images\n` +

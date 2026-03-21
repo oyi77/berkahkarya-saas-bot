@@ -23,6 +23,7 @@ import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
 import { startVideoWorker } from '@/workers/video-generation.worker';
 import { UserService } from '@/services/user.service';
+import { PaymentSettingsService } from '@/services/payment-settings.service';
 
 // Validate environment variables
 const requiredEnvVars = [
@@ -59,6 +60,10 @@ async function main() {
     logger.info('📦 Initializing database...');
     await initializeDatabase();
     logger.info('✅ Database connected');
+
+    // Seed pricing defaults (first run only)
+    await PaymentSettingsService.initializePricingDefaults().catch(() => {});
+    logger.info('✅ Pricing config ready');
 
     // Initialize Redis
     logger.info('💾 Initializing Redis...');

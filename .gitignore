@@ -21,3 +21,7 @@ uploads/
 downloads/
 *.session
 *.session-journal
+dist.bak/
+dump.rdb
+test-img.ts
+test-watermark.ts

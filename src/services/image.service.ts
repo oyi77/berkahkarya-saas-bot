@@ -608,16 +608,7 @@ function getProviders(): ImageProvider[] {
       supportsIPAdapter: false,
       generate: generateViaSiliconFlow,
     },
-    // Tier 5: Good quality text2img ($0.02/img)
-    {
-      key: 'geminigen',
-      name: 'GeminiGen',
-      enabled: !!GEMINIGEN_API_KEY,
-      supportsImg2Img: false,
-      supportsIPAdapter: false,
-      generate: generateViaGeminiGen,
-    },
-    // Tier 6: Fal.ai — best img2img + IP-Adapter quality ($0.03/img)
+    // Tier 5: Fal.ai — best img2img + IP-Adapter quality ($0.03/img)
     {
       key: 'falai',
       name: 'Fal.ai Flux',
@@ -656,6 +647,15 @@ function getProviders(): ImageProvider[] {
       supportsImg2Img: false,
       supportsIPAdapter: false,
       generate: generateViaNvidia,
+    },
+    // Tier 10: GeminiGen — currently returning 500 errors, lowest priority
+    {
+      key: 'geminigen',
+      name: 'GeminiGen',
+      enabled: !!GEMINIGEN_API_KEY,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      generate: generateViaGeminiGen,
     },
   ];
 }
