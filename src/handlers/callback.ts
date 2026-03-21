@@ -23,6 +23,8 @@ import {
   handleNicheSelection,
   handleStyleSelection,
   handlePlatformSelection,
+  handleVOToggle,
+  handleVOContinue,
   createCommand,
   generateCaption,
 } from '@/commands/create';
@@ -215,6 +217,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('duration_')) {
       const durationStr = data.replace('duration_', '');
       await handleDurationSelection(ctx, durationStr);
+      return;
+    }
+
+    // VO / Subtitle toggle handlers
+    if (data === 'vo_toggle_vo') {
+      await handleVOToggle(ctx, 'vo');
+      return;
+    }
+    if (data === 'vo_toggle_subtitles') {
+      await handleVOToggle(ctx, 'subtitles');
+      return;
+    }
+    if (data === 'vo_continue') {
+      await handleVOContinue(ctx);
       return;
     }
 

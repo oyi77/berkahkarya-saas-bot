@@ -230,15 +230,8 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
     const storyboard = genStoryboardFromService(niche, selectedStyles, duration, scenes);
 
     const sceneLabel = scenes > 1 ? t('create.scenes', lang) : t('create.scene', lang);
-    await ctx.editMessageText(
-      `${t('create.almost_ready', lang)}\n\n` +
-      `${t('create.niche_label', lang)}: ${niche}\n` +
-      `${t('create.duration_label', lang)}: ${duration}s (${scenes} ${sceneLabel})\n` +
-      `${t('create.credit_cost_label', lang)}: ${creditCost}\n\n` +
-      t('create.send_reference_image', lang),
-      { parse_mode: 'Markdown' }
-    );
 
+    // Store creation state before showing VO settings
     ctx.session.videoCreation = {
       mode: scenes > 1 ? 'extended' : 'short',
       niche,
@@ -247,8 +240,37 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
       scenes,
       storyboard,
       jobId: '',
-      waitingForImage: true,
+      waitingForImage: false,
+      enableVO: true,        // default ON
+      enableSubtitles: true, // default ON
     };
+
+    // Show VO/Subtitle toggle step
+    const voLabel = ctx.session.videoCreation.enableVO ? 'ON' : 'OFF';
+    const subLabel = ctx.session.videoCreation.enableSubtitles ? 'ON' : 'OFF';
+
+    await ctx.editMessageText(
+      `${t('create.almost_ready', lang)}\n\n` +
+      `${t('create.niche_label', lang)}: ${niche}\n` +
+      `${t('create.duration_label', lang)}: ${duration}s (${scenes} ${sceneLabel})\n` +
+      `${t('create.credit_cost_label', lang)}: ${creditCost}\n\n` +
+      `\ud83c\udf99\ufe0f Voice Over: ${voLabel}\n` +
+      `\ud83d\udcdd Subtitles: ${subLabel}\n`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: `\ud83c\udf99\ufe0f Toggle VO`, callback_data: 'vo_toggle_vo' },
+              { text: `\ud83d\udcdd Toggle Subs`, callback_data: 'vo_toggle_subtitles' },
+            ],
+            [
+              { text: '\u25b6\ufe0f Continue', callback_data: 'vo_continue' },
+            ],
+          ],
+        },
+      }
+    );
 
   } catch (error) {
     logger.error('Error handling duration selection:', error);
@@ -851,6 +873,90 @@ async function sendErrorNotification(ctx: BotContext, jobId: string, error: stri
       },
     }
   );
+}
+
+/**
+ * Handle VO/Subtitle toggle callbacks.
+ * Toggles the flag in session and re-renders the settings panel.
+ */
+export async function handleVOToggle(ctx: BotContext, toggleKey: 'vo' | 'subtitles'): Promise<void> {
+  try {
+    if (!ctx.session?.videoCreation) {
+      await ctx.answerCbQuery('No active video creation');
+      return;
+    }
+
+    if (toggleKey === 'vo') {
+      ctx.session.videoCreation.enableVO = !ctx.session.videoCreation.enableVO;
+    } else {
+      ctx.session.videoCreation.enableSubtitles = !ctx.session.videoCreation.enableSubtitles;
+    }
+
+    const voLabel = ctx.session.videoCreation.enableVO ? 'ON' : 'OFF';
+    const subLabel = ctx.session.videoCreation.enableSubtitles ? 'ON' : 'OFF';
+
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+    const lang = getUserLang(dbUser);
+
+    const { niche, totalDuration, scenes } = ctx.session.videoCreation;
+    const creditCost = getVideoCreditCost(totalDuration);
+    const sceneLabel = (scenes || 1) > 1 ? t('create.scenes', lang) : t('create.scene', lang);
+
+    await ctx.editMessageText(
+      `${t('create.almost_ready', lang)}\n\n` +
+      `${t('create.niche_label', lang)}: ${niche}\n` +
+      `${t('create.duration_label', lang)}: ${totalDuration}s (${scenes} ${sceneLabel})\n` +
+      `${t('create.credit_cost_label', lang)}: ${creditCost}\n\n` +
+      `\ud83c\udf99\ufe0f Voice Over: ${voLabel}\n` +
+      `\ud83d\udcdd Subtitles: ${subLabel}\n`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: `\ud83c\udf99\ufe0f Toggle VO`, callback_data: 'vo_toggle_vo' },
+              { text: `\ud83d\udcdd Toggle Subs`, callback_data: 'vo_toggle_subtitles' },
+            ],
+            [
+              { text: '\u25b6\ufe0f Continue', callback_data: 'vo_continue' },
+            ],
+          ],
+        },
+      }
+    );
+
+    await ctx.answerCbQuery();
+  } catch (error) {
+    logger.error('Error handling VO toggle:', error);
+    await ctx.answerCbQuery('Error. Please try again.');
+  }
+}
+
+/**
+ * Handle "Continue" after VO settings — move to reference image step.
+ */
+export async function handleVOContinue(ctx: BotContext): Promise<void> {
+  try {
+    if (!ctx.session?.videoCreation) {
+      await ctx.answerCbQuery('No active video creation');
+      return;
+    }
+
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+    const lang = getUserLang(dbUser);
+
+    ctx.session.videoCreation.waitingForImage = true;
+
+    await ctx.editMessageText(
+      t('create.send_reference_image', lang),
+      { parse_mode: 'Markdown' }
+    );
+
+    await ctx.answerCbQuery();
+  } catch (error) {
+    logger.error('Error handling VO continue:', error);
+    await ctx.answerCbQuery('Error. Please try again.');
+  }
 }
 
 // Export functions for message handler

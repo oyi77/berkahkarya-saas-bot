@@ -21,9 +21,14 @@ import { exec as execCallback } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Telegram } from 'telegraf';
-import { MARKETING_HOOKS, MARKETING_CTAS } from '@/config/audio-subtitle-engine';
+import {
+  MARKETING_HOOKS, MARKETING_CTAS,
+  CATEGORY_TO_VOICE, AI_VOICE_PROFILES,
+} from '@/config/audio-subtitle-engine';
 import { VideoPostProcessing } from '@/services/video-post-processing.service';
 import { AudioVOService } from '@/services/audio-vo.service';
+import { QualityCheckService } from '@/services/quality-check.service';
+import { prisma } from '@/config/database';
 
 const exec = promisify(execCallback);
 
@@ -72,6 +77,8 @@ export interface VideoGenerationJobData {
   referenceImage?: string | null;
   userId: string;   // bigint serialised as string
   chatId: number;
+  enableVO?: boolean;
+  enableSubtitles?: boolean;
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -124,6 +131,192 @@ async function concatenateVideos(
     niche,
     transitionDuration: 0.5,
   });
+}
+
+// ── Voice Over Script Generation ──
+
+/**
+ * Generate a VO narration script from the storyboard scene descriptions.
+ * Uses Gemini API when available; falls back to a template-based approach.
+ */
+async function generateVOScript(
+  niche: string,
+  storyboard: Array<{ scene?: number; duration: number; description: string }>,
+  platform: string,
+  totalDuration: number,
+  language: 'id' | 'en' = 'id'
+): Promise<string> {
+  // Try LLM-based generation first
+  try {
+    const script = await generateVOScriptWithAI(niche, storyboard, language, totalDuration);
+    if (script && script.length > 20) return script;
+  } catch (err: any) {
+    logger.warn('AI VO script generation failed, using template fallback:', err.message);
+  }
+
+  // Template fallback
+  return generateVOScriptTemplate(niche, storyboard, language);
+}
+
+/**
+ * Generate a natural-sounding VO script using Gemini.
+ */
+async function generateVOScriptWithAI(
+  niche: string,
+  storyboard: Array<{ scene?: number; duration: number; description: string }>,
+  language: 'id' | 'en',
+  totalDuration: number
+): Promise<string> {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+  if (!GEMINI_API_KEY) throw new Error('No Gemini API key');
+
+  const sceneDescriptions = storyboard.map((s, i) =>
+    `Scene ${i + 1} (${s.duration}s): ${s.description}`
+  ).join('\n');
+
+  const langLabel = language === 'id' ? 'Indonesian (Bahasa Indonesia)' : 'English';
+
+  const prompt = `Generate a ${langLabel} voiceover narration script for a ${niche} marketing video.
+
+Scenes:
+${sceneDescriptions}
+
+Total duration: ${totalDuration} seconds.
+
+Requirements:
+- Write the narration in ${langLabel}, natural and conversational tone
+- Keep it concise — the spoken words must fit within ${totalDuration} seconds (roughly ${Math.round(totalDuration * 2.3)} words for ${langLabel})
+- Flow naturally from scene to scene
+- Start with an attention hook
+- End with a soft call-to-action
+- Do NOT include scene labels, timestamps, or stage directions
+- Output ONLY the narration text, nothing else`;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  const { default: axios } = await import('axios');
+  const response = await axios.post(url, {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
+  }, { timeout: 30000 });
+
+  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Empty Gemini response');
+
+  return text.trim();
+}
+
+/**
+ * Template-based VO script fallback when Gemini is unavailable.
+ */
+function generateVOScriptTemplate(
+  niche: string,
+  storyboard: Array<{ scene?: number; duration: number; description: string }>,
+  language: 'id' | 'en'
+): string {
+  const hook = MARKETING_HOOKS[Math.floor(Math.random() * MARKETING_HOOKS.length)];
+  const cta = MARKETING_CTAS[Math.floor(Math.random() * MARKETING_CTAS.length)];
+
+  if (language === 'en') {
+    const sceneNarrations = storyboard.map(s => s.description).filter(Boolean);
+    const middle = sceneNarrations.length > 0
+      ? sceneNarrations.slice(0, 3).join('. ')
+      : 'Discover something special today.';
+    return `Check this out. ${middle}. Don't miss it — see the details now.`;
+  }
+
+  // Indonesian default
+  const sceneNarrations = storyboard.map(s => s.description).filter(Boolean);
+  const middle = sceneNarrations.length > 0
+    ? sceneNarrations.slice(0, 3).join('. ')
+    : 'Temukan sesuatu yang istimewa hari ini.';
+
+  return `${hook.charAt(0).toUpperCase() + hook.slice(1)}. ${middle}. ${cta.charAt(0).toUpperCase() + cta.slice(1)}.`;
+}
+
+/**
+ * Apply the full VO pipeline to a video file.
+ * Resilient: if any step fails, returns the original video path.
+ */
+async function applyVOPipeline(
+  videoPath: string,
+  jobId: string,
+  niche: string,
+  platform: string,
+  storyboard: Array<{ scene: number; duration: number; description: string }>,
+  totalDuration: number,
+  options: { enableVO: boolean; enableSubtitles: boolean },
+  telegram: Telegram,
+  chatId: number
+): Promise<string> {
+  try {
+    // Determine voice language from niche
+    const voiceKey = CATEGORY_TO_VOICE[niche] || 'indonesian_female_soft';
+    const voiceProfile = AI_VOICE_PROFILES[voiceKey];
+    const language: 'id' | 'en' = voiceProfile?.language === 'en' ? 'en' : 'id';
+
+    // Step 1: Generate VO script
+    await notifyProgress(telegram, chatId, '\ud83c\udfa4 Generating voice over script...');
+    const script = await generateVOScript(niche, storyboard, platform, totalDuration, language);
+    logger.info(`VO script generated for ${jobId}: ${script.slice(0, 80)}...`);
+
+    if (options.enableVO && options.enableSubtitles) {
+      // Full pipeline: TTS + merge + subtitles
+      await notifyProgress(telegram, chatId, '\ud83c\udf99\ufe0f Recording voice over...');
+      const result = await AudioVOService.fullVOPipeline(videoPath, script, niche, jobId);
+      if (result.success && result.outputPath) {
+        await notifyProgress(telegram, chatId, '\ud83c\udfb5 Audio mixing complete!');
+        return result.outputPath;
+      }
+      logger.warn(`Full VO pipeline failed for ${jobId}: ${result.error}. Delivering raw video.`);
+      return videoPath;
+    }
+
+    if (options.enableVO && !options.enableSubtitles) {
+      // VO only: TTS + merge, no subtitle burn
+      await notifyProgress(telegram, chatId, '\ud83c\udf99\ufe0f Recording voice over...');
+      const tts = await AudioVOService.generateTTS(script, niche, jobId);
+      if (!tts.success || !tts.audioPath) {
+        logger.warn(`TTS failed for ${jobId}: ${tts.error}. Delivering raw video.`);
+        return videoPath;
+      }
+
+      await notifyProgress(telegram, chatId, '\ud83c\udfb5 Mixing audio...');
+      const merge = await AudioVOService.mergeAudioVideo(videoPath, tts.audioPath);
+      if (merge.success && merge.outputPath) {
+        return merge.outputPath;
+      }
+      logger.warn(`Audio merge failed for ${jobId}: ${merge.error}. Delivering raw video.`);
+      return videoPath;
+    }
+
+    if (!options.enableVO && options.enableSubtitles) {
+      // Subtitles only: TTS for timing data, burn subtitles, but don't merge audio
+      await notifyProgress(telegram, chatId, '\ud83d\udcdd Generating subtitles...');
+      const tts = await AudioVOService.generateTTS(script, niche, jobId);
+      if (!tts.success || !tts.subtitleBlocks || tts.subtitleBlocks.length === 0) {
+        logger.warn(`TTS/subtitle generation failed for ${jobId}. Delivering raw video.`);
+        return videoPath;
+      }
+
+      const srtPath = path.join(process.env.AUDIO_DIR || '/tmp/audio', `${jobId}.srt`);
+      AudioVOService.generateSRT(tts.subtitleBlocks, srtPath);
+
+      await notifyProgress(telegram, chatId, '\ud83d\udcdd Burning subtitles...');
+      const burn = await AudioVOService.burnSubtitles(videoPath, srtPath);
+      if (burn.success && burn.outputPath) {
+        return burn.outputPath;
+      }
+      logger.warn(`Subtitle burn failed for ${jobId}: ${burn.error}. Delivering raw video.`);
+      return videoPath;
+    }
+
+    // Neither VO nor subtitles enabled
+    return videoPath;
+  } catch (err: any) {
+    logger.error(`VO pipeline error for ${jobId}: ${err.message}. Delivering raw video.`);
+    return videoPath;
+  }
 }
 
 // ── Single-scene generation ──
@@ -180,13 +373,77 @@ async function processSingleScene(
   const localPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
   await downloadVideo(result.videoUrl, localPath);
 
-  await notifyProgress(telegram, chatId, '\ud83d\udce6 Almost ready! Preparing delivery...');
+  // Quality check: score the video before delivery (max 1 retry)
+  try {
+    await notifyProgress(telegram, chatId, '\ud83d\udd0d Running quality check...');
+    const qcResult = await QualityCheckService.scoreVideo(localPath, niche, duration, !!referenceImage);
 
-  await VideoService.setOutput(jobId, { videoUrl: result.videoUrl, downloadUrl: localPath });
+    // Store quality score in video metadata (best-effort)
+    try {
+      // prisma imported at top level
+      await prisma.video.update({
+        where: { jobId },
+        data: { generationMetadata: { qualityScore: qcResult.score, qualityIssues: qcResult.issues } },
+      });
+    } catch (_) { /* metadata update is best-effort */ }
+
+    // Check if this is already a retry (tracked via Redis key)
+    const qcAttemptKey = `qc_retry:${jobId}`;
+    const isRetry = await redis.get(qcAttemptKey);
+
+    if (!qcResult.passable && !isRetry) {
+      logger.warn(`[QualityCheck] Video ${jobId} scored ${qcResult.score}/10 -- retrying with different provider`);
+      await redis.set(qcAttemptKey, '1', 'EX', 600);
+
+      // Clean up low-quality video
+      try { fs.unlinkSync(localPath); } catch (_) { /* ignore */ }
+
+      // Retry generation with enhanced prompt
+      await notifyProgress(telegram, chatId, '\ud83d\udd04 Improving quality... Regenerating video.');
+      const retryResult = await generateVideoWithFallback({
+        prompt: `High quality commercial ${niche} content. ${buildPrompt(storyboard[0].description, platform, duration)}`,
+        duration,
+        aspectRatio: getAspectRatio(platform),
+        style: getStyleForNiche(niche),
+        niche,
+        referenceImage,
+      });
+
+      if (retryResult.success && retryResult.videoUrl) {
+        await downloadVideo(retryResult.videoUrl, localPath);
+        logger.info(`[QualityCheck] Retry succeeded via ${retryResult.provider} for job ${jobId}`);
+      } else {
+        // Retry failed -- re-download original
+        logger.warn(`[QualityCheck] Retry failed for ${jobId}, delivering original`);
+        await downloadVideo(result.videoUrl, localPath);
+      }
+    } else {
+      logger.info(`[QualityCheck] Video ${jobId} passed with score ${qcResult.score}/10`);
+    }
+  } catch (qcErr: any) {
+    logger.warn(`[QualityCheck] Quality check error for ${jobId}, delivering as-is:`, qcErr.message);
+  }
+
+  // Apply Voice Over pipeline (if enabled)
+  const enableVO = job.data.enableVO !== false;    // default ON
+  const enableSubtitles = job.data.enableSubtitles !== false; // default ON
+  let deliveryPath = localPath;
+
+  if (enableVO || enableSubtitles) {
+    deliveryPath = await applyVOPipeline(
+      localPath, jobId, niche, platform, storyboard, duration,
+      { enableVO, enableSubtitles },
+      telegram, chatId
+    );
+  } else {
+    await notifyProgress(telegram, chatId, '\ud83d\udce6 Almost ready! Preparing delivery...');
+  }
+
+  await VideoService.setOutput(jobId, { videoUrl: result.videoUrl, downloadUrl: deliveryPath });
   await job.updateProgress(100);
 
   cancelTimeout();
-  await sendVideoToUser(telegram, chatId, jobId, duration, platform, localPath, niche, storyboard);
+  await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
 }
 
 // ── Multi-scene (extended) generation ──
@@ -305,14 +562,50 @@ async function processExtendedScenes(
   // Cleanup raw concat temp file
   try { fs.unlinkSync(rawConcatPath); } catch (_) { /* ignore */ }
 
-  await notifyProgress(telegram, chatId, '\ud83d\udce6 Almost ready!');
+  // Quality check on final concatenated video
+  try {
+    await notifyProgress(telegram, chatId, '\ud83d\udd0d Running quality check...');
+    const qcResult = await QualityCheckService.scoreVideo(finalPath, niche, duration, !!referenceImage);
+
+    // Store quality score in video metadata (best-effort)
+    try {
+      // prisma imported at top level
+      await prisma.video.update({
+        where: { jobId },
+        data: { generationMetadata: { qualityScore: qcResult.score, qualityIssues: qcResult.issues } },
+      });
+    } catch (_) { /* metadata update is best-effort */ }
+
+    if (!qcResult.passable) {
+      logger.warn(`[QualityCheck] Multi-scene video ${jobId} scored ${qcResult.score}/10 -- delivering as-is (no retry for multi-scene)`);
+    } else {
+      logger.info(`[QualityCheck] Multi-scene video ${jobId} passed with score ${qcResult.score}/10`);
+    }
+  } catch (qcErr: any) {
+    logger.warn(`[QualityCheck] Quality check error for multi-scene ${jobId}:`, qcErr.message);
+  }
+
+  // Apply Voice Over pipeline (if enabled)
+  const enableVO = job.data.enableVO !== false;    // default ON
+  const enableSubtitles = job.data.enableSubtitles !== false; // default ON
+  let deliveryPath = finalPath;
+
+  if (enableVO || enableSubtitles) {
+    deliveryPath = await applyVOPipeline(
+      finalPath, jobId, niche, platform, storyboard, duration,
+      { enableVO, enableSubtitles },
+      telegram, chatId
+    );
+  } else {
+    await notifyProgress(telegram, chatId, '\ud83d\udce6 Almost ready!');
+  }
 
   await VideoService.updateProgress(jobId, 100);
   await VideoService.updateStatus(jobId, 'completed');
   await job.updateProgress(100);
 
   cancelTimeout();
-  await sendVideoToUser(telegram, chatId, jobId, duration, platform, finalPath, niche, storyboard);
+  await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
 
   // Cleanup scene files
   for (const sp of sceneVideos) {

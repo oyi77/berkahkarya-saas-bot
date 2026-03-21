@@ -233,6 +233,8 @@ export async function handleVideoCreationImage(
     ctx.session.videoCreation.jobId = jobId;
 
     const capturedJobId = jobId;
+    const enableVO = ctx.session.videoCreation.enableVO !== false;
+    const enableSubtitles = ctx.session.videoCreation.enableSubtitles !== false;
     try {
       const { position } = await enqueueVideoGeneration({
         jobId: capturedJobId,
@@ -244,6 +246,8 @@ export async function handleVideoCreationImage(
         referenceImage: imagePath,
         userId: telegramId.toString(),
         chatId: ctx.chat!.id,
+        enableVO,
+        enableSubtitles,
       });
       await ctx.reply(
         `Video queued! Position: #${position}. You'll be notified when ready.`
@@ -328,6 +332,8 @@ export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
   ctx.session.videoCreation.referenceImage = null;
   ctx.session.videoCreation.jobId = jobId;
 
+  const skipEnableVO = ctx.session.videoCreation.enableVO !== false;
+  const skipEnableSubtitles = ctx.session.videoCreation.enableSubtitles !== false;
   try {
     const { position } = await enqueueVideoGeneration({
       jobId,
@@ -339,6 +345,8 @@ export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
       referenceImage: null,
       userId: telegramId.toString(),
       chatId: ctx.chat!.id,
+      enableVO: skipEnableVO,
+      enableSubtitles: skipEnableSubtitles,
     });
     await ctx.reply(
       `Video queued! Position: #${position}. You'll be notified when ready.`
@@ -431,6 +439,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         storyboard: generateStoryboard(niche, styles, finalDuration, bestFit.scenes),
         jobId: '',
         waitingForImage: true,
+        enableVO: true,
+        enableSubtitles: true,
       };
       return;
     }

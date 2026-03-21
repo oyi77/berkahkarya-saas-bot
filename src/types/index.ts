@@ -35,6 +35,8 @@ export interface SessionData {
     referenceImage?: string | null;
     uploadedPhotos?: Array<{ fileId: string; localPath?: string }>;
     visionAnalysis?: string;
+    enableVO?: boolean;
+    enableSubtitles?: boolean;
   };
   selectedNiche?: string;
   selectedStyles?: string[];

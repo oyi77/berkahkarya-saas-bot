@@ -8,6 +8,7 @@ import { Queue, Worker, Job } from 'bullmq';
 import { redis } from './redis';
 import { logger } from '@/utils/logger';
 import { SubscriptionService } from '@/services/subscription.service';
+import { startCleanupWorker } from '@/workers/cleanup.worker';
 import type { VideoGenerationJobData } from '@/workers/video-generation.worker';
 
 // Queue instances
@@ -63,6 +64,19 @@ export const billingQueue = new Queue('billing', {
   },
 });
 
+export const cleanupQueue = new Queue('cleanup-videos', {
+  connection: redis,
+  defaultJobOptions: {
+    attempts: 2,
+    backoff: {
+      type: 'fixed',
+      delay: 60000,
+    },
+    removeOnComplete: 10,
+    removeOnFail: 50,
+  },
+});
+
 /**
  * Initialize queues
  */
@@ -98,6 +112,13 @@ export async function initializeQueue(): Promise<void> {
     await billingQueue.add('check-billing', {}, {
       repeat: { every: 3600000 },
     });
+
+    // Start cleanup worker and schedule daily cleanup at 3am
+    startCleanupWorker();
+    await cleanupQueue.add('cleanup-videos', {}, {
+      repeat: { pattern: '0 3 * * *' },
+    });
+    logger.info('Cleanup cron scheduled (daily at 3am)');
 
     logger.info('✅ Queues initialized successfully');
   } catch (error) {
@@ -159,6 +180,7 @@ export async function getQueueStats(): Promise<{
   payment: { waiting: number; active: number; completed: number; failed: number };
   notification: { waiting: number; active: number; completed: number; failed: number };
   billing: { waiting: number; active: number; completed: number; failed: number };
+  cleanup: { waiting: number; active: number; completed: number; failed: number };
 }> {
   const [videoWaiting, videoActive, videoCompleted, videoFailed] = await Promise.all([
     videoQueue.getWaitingCount(),
@@ -212,6 +234,12 @@ export async function getQueueStats(): Promise<{
       active: billingActive,
       completed: billingCompleted,
       failed: billingFailed,
+    },
+    cleanup: {
+      waiting: await cleanupQueue.getWaitingCount(),
+      active: await cleanupQueue.getActiveCount(),
+      completed: await cleanupQueue.getCompletedCount(),
+      failed: await cleanupQueue.getFailedCount(),
     },
   };
 }
