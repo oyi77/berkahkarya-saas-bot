@@ -21,6 +21,7 @@ import { logger } from '@/utils/logger';
 import { CircuitBreaker } from './circuit-breaker.service';
 import { ProviderRouter } from './provider-router.service';
 import { PromptEngine } from '@/config/prompt-engine';
+import { VideoPostProcessing } from './video-post-processing.service';
 import { AIPromptOptimizer } from './ai-prompt-optimizer.service';
 import axios from 'axios';
 import FormData from 'form-data';
@@ -75,6 +76,15 @@ const POLL_MAX_ATTEMPTS = 60;
 function mapAspectRatio(ratio: string): string {
   const map: Record<string, string> = { '9:16': 'portrait', '16:9': 'landscape', '1:1': 'square' };
   return map[ratio] || 'portrait';
+}
+
+const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+
+async function downloadToFile(url: string, outputPath: string): Promise<void> {
+  const { exec: execCb } = await import('child_process');
+  const { promisify } = await import('util');
+  const execAsync = promisify(execCb);
+  await execAsync(`wget -q -O "${outputPath}" "${url}"`, { timeout: 60000 });
 }
 
 function mapAspectRatioSimple(ratio: string): string {
@@ -634,13 +644,9 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
 
   logger.info(`${providers.length} video providers (smart-routed): ${providers.map(p => p.name).join(', ')}`);
 
-  for (const provider of providers) {
-    // Skip providers that can't deliver the requested duration
-    if (params.duration > provider.maxDuration) {
-      logger.info(`Skipping ${provider.name}: max ${provider.maxDuration}s < requested ${params.duration}s`);
-      continue;
-    }
+  const FULL_PROMPT_PROVIDERS = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
 
+  for (const provider of providers) {
     // Skip providers that don't support ref image if we have one
     if (params.referenceImage && !provider.supportsRefImage) {
       logger.info(`Skipping ${provider.name}: no ref image support`);
@@ -653,58 +659,92 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
       continue;
     }
 
-    try {
-      logger.info(`Trying ${provider.name}...`);
+    const promptForProvider = FULL_PROMPT_PROVIDERS.includes(provider.key)
+      ? enriched.full : enriched.provider_hint;
 
-      // Use full prompt for providers that support long prompts, provider_hint for token-limited ones
-      const FULL_PROMPT_PROVIDERS = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
-      const promptForProvider = FULL_PROMPT_PROVIDERS.includes(provider.key)
-        ? enriched.full   // Full prompt with strong identity lock
-        : enriched.provider_hint;  // Short version for token-limited providers
-      const enrichedParams = { ...params, prompt: promptForProvider };
-      const result = await provider.generate(enrichedParams);
-
-      if (result.success) {
-        await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
-        await ProviderRouter.recordSuccess(provider.key).catch(() => {});
-        logger.info(`${provider.name} succeeded!`);
-        return result;
-      }
-    } catch (error: any) {
-      await CircuitBreaker.recordFailure(provider.key).catch(() => {});
-      await ProviderRouter.recordFailure(provider.key).catch(() => {});
-      logger.warn(`${provider.name} failed: ${error.message}`);
-    }
-  }
-
-  // Graceful degradation: if all duration-compatible providers failed,
-  // try providers with shorter max duration (better short video than no video)
-  const skippedForDuration = allProviders.filter(
-    p => p.maxDuration < params.duration && p.maxDuration >= 5
-  );
-  if (skippedForDuration.length > 0) {
-    logger.warn(`All ${params.duration}s providers failed — trying shorter-duration fallbacks`);
-    for (const provider of skippedForDuration) {
-      if (params.referenceImage && !provider.supportsRefImage) continue;
-      const canExecute = await CircuitBreaker.canExecute(provider.key).catch(() => true);
-      if (!canExecute) continue;
-
+    // If provider can handle the full duration → single call
+    if (params.duration <= provider.maxDuration) {
       try {
-        logger.info(`Trying ${provider.name} (max ${provider.maxDuration}s, degraded)...`);
-        const FULL_PROMPT_PROVIDERS_DEGRADED = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
-        const degradedPrompt = FULL_PROMPT_PROVIDERS_DEGRADED.includes(provider.key)
-          ? enriched.full : enriched.provider_hint;
-        const degradedParams = { ...params, prompt: degradedPrompt, duration: provider.maxDuration };
-        const result = await provider.generate(degradedParams);
+        logger.info(`Trying ${provider.name} (${params.duration}s, single call)...`);
+        const enrichedParams = { ...params, prompt: promptForProvider };
+        const result = await provider.generate(enrichedParams);
         if (result.success) {
           await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
           await ProviderRouter.recordSuccess(provider.key).catch(() => {});
-          logger.warn(`${provider.name} succeeded with degraded duration: ${provider.maxDuration}s instead of ${params.duration}s`);
+          logger.info(`${provider.name} succeeded!`);
           return result;
         }
       } catch (error: any) {
         await CircuitBreaker.recordFailure(provider.key).catch(() => {});
-        logger.warn(`${provider.name} (degraded) failed: ${error.message}`);
+        await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        logger.warn(`${provider.name} failed: ${error.message}`);
+      }
+    } else {
+      // Provider can't do the full duration → auto-split into multi-scene
+      // e.g., 15s request + 5s provider = 3 scenes × 5s → concatenate
+      try {
+        const scenesNeeded = Math.ceil(params.duration / provider.maxDuration);
+        const sceneDuration = provider.maxDuration;
+        logger.info(`Trying ${provider.name} (${params.duration}s as ${scenesNeeded}×${sceneDuration}s multi-scene)...`);
+
+        const sceneVideos: string[] = [];
+        let allScenesOk = true;
+
+        for (let si = 0; si < scenesNeeded; si++) {
+          const scenePrompt = `[Scene ${si + 1}/${scenesNeeded}] ${promptForProvider}`;
+          const sceneParams = { ...params, prompt: scenePrompt, duration: sceneDuration };
+
+          // Only pass reference image to first scene
+          if (si > 0) {
+            sceneParams.referenceImage = undefined;
+          }
+
+          const sceneResult = await provider.generate(sceneParams);
+          if (!sceneResult.success || !sceneResult.videoUrl) {
+            logger.warn(`${provider.name} scene ${si + 1}/${scenesNeeded} failed: ${sceneResult.error}`);
+            allScenesOk = false;
+            break;
+          }
+
+          // Download scene to temp file
+          const scenePath = path.join(VIDEO_DIR, `fallback_${Date.now()}_scene_${si + 1}.mp4`);
+          await downloadToFile(sceneResult.videoUrl, scenePath);
+          sceneVideos.push(scenePath);
+        }
+
+        if (allScenesOk && sceneVideos.length === scenesNeeded) {
+          // Concatenate scenes with transitions
+          const outputPath = path.join(VIDEO_DIR, `fallback_${Date.now()}_final.mp4`);
+          await VideoPostProcessing.concatenateWithTransitions(sceneVideos, outputPath, {
+            transitionType: 'fade',
+            transitionDuration: 0.3,
+            niche: params.niche,
+          });
+
+          // Cleanup scene files
+          for (const sp of sceneVideos) {
+            try { fs.unlinkSync(sp); } catch { /* ignore */ }
+          }
+
+          if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+            await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
+            await ProviderRouter.recordSuccess(provider.key).catch(() => {});
+            logger.info(`${provider.name} succeeded via multi-scene: ${scenesNeeded}×${sceneDuration}s = ~${params.duration}s`);
+            return { success: true, videoUrl: outputPath, provider: provider.key };
+          }
+        }
+
+        // Cleanup on failure
+        for (const sp of sceneVideos) {
+          try { fs.unlinkSync(sp); } catch { /* ignore */ }
+        }
+        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
+        await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        logger.warn(`${provider.name} multi-scene failed`);
+      } catch (error: any) {
+        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
+        await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        logger.warn(`${provider.name} multi-scene error: ${error.message}`);
       }
     }
   }
