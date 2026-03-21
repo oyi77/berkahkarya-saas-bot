@@ -343,6 +343,66 @@ const translations: Record<string, Record<Lang, string>> = {
     id: '💬 Chat dengan AI',
     en: '💬 Chat with AI',
   },
+
+  // ---------------------------------------------------------------------------
+  // Image reference & Avatar
+  // ---------------------------------------------------------------------------
+  'image.select_mode': {
+    id: 'Pilih cara generate:',
+    en: 'Select generation method:',
+  },
+  'image.upload_reference': {
+    id: '📸 Kirim foto produk/subjek kamu sebagai referensi.',
+    en: '📸 Send your product/subject photo as reference.',
+  },
+  'image.reference_received': {
+    id: '📸 Gambar referensi diterima! Sekarang deskripsikan yang ingin di-generate:',
+    en: '📸 Reference image received! Now describe what you want to generate:',
+  },
+  'image.generating_with_ref': {
+    id: '⏳ Generating gambar dengan referensi...',
+    en: '⏳ Generating image with reference...',
+  },
+  'image.generating_with_avatar': {
+    id: '⏳ Generating gambar dengan avatar...',
+    en: '⏳ Generating image with avatar...',
+  },
+  'image.no_img2img_providers': {
+    id: '⚠️ Tidak ada provider yang mendukung gambar referensi saat ini. Menggunakan mode teks saja.',
+    en: '⚠️ No providers support reference images right now. Using text-only mode.',
+  },
+  'avatar.title': {
+    id: '👤 Avatar Kamu',
+    en: '👤 Your Avatars',
+  },
+  'avatar.empty': {
+    id: 'Belum ada avatar tersimpan.',
+    en: 'No avatars saved yet.',
+  },
+  'avatar.add_prompt': {
+    id: 'Kirim foto yang jelas untuk avatar baru.',
+    en: 'Send a clear photo for your new avatar.',
+  },
+  'avatar.name_prompt': {
+    id: 'Beri nama avatar ini:',
+    en: 'Give this avatar a name:',
+  },
+  'avatar.saved': {
+    id: '✅ Avatar tersimpan!',
+    en: '✅ Avatar saved!',
+  },
+  'avatar.deleted': {
+    id: '🗑️ Avatar dihapus.',
+    en: '🗑️ Avatar deleted.',
+  },
+  'avatar.set_default': {
+    id: '⭐ Avatar ditetapkan sebagai default!',
+    en: '⭐ Avatar set as default!',
+  },
+  'avatar.max_reached': {
+    id: '❌ Maksimal {max} avatar. Hapus salah satu dulu.',
+    en: '❌ Maximum {max} avatars. Delete one first.',
+  },
 };
 
 /**

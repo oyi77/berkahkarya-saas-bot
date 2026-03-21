@@ -15,12 +15,13 @@ import { subscriptionCommand } from '@/commands/subscription';
 import { settingsCommand } from '@/commands/settings';
 import { supportCommand } from '@/commands/support';
 import { UserService } from '@/services/user.service';
-import { ImageGenerationService } from '@/services/image.service';
+import { ImageGenerationService, ImageGenerationMode } from '@/services/image.service';
+import { AvatarService } from '@/services/avatar.service';
 import { ContentAnalysisService } from '@/services/content-analysis.service';
 import { VideoService } from '@/services/video.service';
 import { PostAutomationService } from '@/services/postautomation.service';
 import { generateStoryboard } from '@/services/video-generation.service';
-import { getVideoCreditCost } from '@/config/pricing';
+import { getVideoCreditCost, getImageCreditCostAsync } from '@/config/pricing';
 import { generateVideoAsync, generateExtendedVideoAsync } from '@/commands/create';
 import { enqueueVideoGeneration } from '@/config/queue';
 import { actionableError } from '@/utils/errors';
@@ -613,49 +614,172 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
     }
 
-    // Handle image generation
+    // Handle reference image upload for image generation (img2img)
+    if (ctx.session.state === 'IMAGE_REFERENCE_WAITING' && 'photo' in message) {
+      const photos = message.photo;
+      const largestPhoto = photos[photos.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
+      const referenceUrl = fileLink.toString();
+
+      ctx.session.state = 'IMAGE_GENERATION_WAITING';
+      ctx.session.stateData = {
+        ...ctx.session.stateData,
+        referenceImageUrl: referenceUrl,
+        mode: 'img2img',
+      };
+
+      await ctx.reply(
+        `📸 *Reference image received!*\n\n` +
+        `Now describe what you want to generate:\n\n` +
+        `_Example: "Product on marble table with soft studio lighting, marketing photo"_`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Handle avatar photo upload
+    if (ctx.session.state === 'AVATAR_UPLOAD_WAITING' && 'photo' in message) {
+      const photos = message.photo;
+      const largestPhoto = photos[photos.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
+      const avatarUrl = fileLink.toString();
+
+      ctx.session.state = 'AVATAR_NAME_WAITING';
+      ctx.session.stateData = { avatarImageUrl: avatarUrl };
+
+      await ctx.reply(
+        `📸 *Photo received!*\n\n` +
+        `Give this avatar a name (e.g., "Sarah", "Product Model", "Brand Mascot"):`,
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
+
+    // Handle avatar name input
+    if (ctx.session.state === 'AVATAR_NAME_WAITING' && 'text' in message) {
+      const name = message.text.slice(0, 64);
+      const avatarUrl = ctx.session.stateData?.avatarImageUrl as string;
+
+      if (!avatarUrl) {
+        await ctx.reply('❌ Avatar image lost. Please start over.');
+        ctx.session.state = 'DASHBOARD';
+        return;
+      }
+
+      await ctx.reply('⏳ *Analyzing avatar...*', { parse_mode: 'Markdown' });
+
+      try {
+        const telegramId = BigInt(ctx.from!.id);
+        const avatar = await AvatarService.createAvatar(telegramId, name, avatarUrl);
+
+        await ctx.reply(
+          `✅ *Avatar "${avatar.name}" saved!*\n` +
+          `${avatar.isDefault ? '⭐ Set as default avatar\n' : ''}\n` +
+          `${avatar.description ? `_${avatar.description.slice(0, 200)}_\n\n` : ''}` +
+          `You can now use this avatar when generating images to keep consistent characters.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🖼️ Generate with Avatar', callback_data: 'image_generate' }],
+                [{ text: '👤 Manage Avatars', callback_data: 'avatar_manage' }],
+                [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+      } catch (error: any) {
+        logger.error('Avatar creation failed:', error);
+        await ctx.reply(
+          `❌ *Failed to save avatar*\n\n${error.message || 'Please try again.'}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      ctx.session.state = 'DASHBOARD';
+      return;
+    }
+
+    // Handle image generation (text2img, img2img, or ip_adapter)
     if (ctx.session.state === 'IMAGE_GENERATION_WAITING' && 'text' in message) {
       const description = message.text;
       const category = ctx.session.stateData?.imageCategory as string;
+      const referenceImageUrl = ctx.session.stateData?.referenceImageUrl as string | undefined;
+      const avatarImageUrl = ctx.session.stateData?.avatarImageUrl as string | undefined;
+      const mode = (ctx.session.stateData?.mode as ImageGenerationMode) || 'text2img';
+
+      const modeLabel = mode === 'img2img' ? ' (with reference)'
+        : mode === 'ip_adapter' ? ' (with avatar)'
+        : '';
+
+      // Check credits before generating
+      const estimatedCost = await getImageCreditCostAsync();
+      const telegramIdImg = BigInt(ctx.from!.id);
+      const userImg = await UserService.findByTelegramId(telegramIdImg);
+      if (!userImg || Number(userImg.creditBalance) < estimatedCost) {
+        await ctx.reply(
+          `❌ *Kredit tidak cukup*\n\n` +
+          `Image generation: ${estimatedCost} kredit\n` +
+          `Saldo kamu: ${userImg?.creditBalance || 0} kredit\n\n` +
+          `Gunakan /topup untuk menambah kredit.`,
+          { parse_mode: 'Markdown' }
+        );
+        ctx.session.state = 'DASHBOARD';
+        return;
+      }
 
       await ctx.reply(
-        '⏳ *Generating image...*\n\n' +
+        `⏳ *Generating image${modeLabel}...*\n\n` +
         'This may take 30-60 seconds.',
         { parse_mode: 'Markdown' }
       );
 
       try {
-        let result: any;
-
-        switch (category) {
-          case 'product':
-            result = await ImageGenerationService.generateProductImage(description);
-            break;
-          case 'fnb':
-            result = await ImageGenerationService.generateFoodImage(description);
-            break;
-          case 'realestate':
-            result = await ImageGenerationService.generateRealEstateImage(description);
-            break;
-          case 'car':
-            result = await ImageGenerationService.generateCarImage(description);
-            break;
-          default:
-            result = await ImageGenerationService.generateProductImage(description);
-        }
+        const result = await ImageGenerationService.generateImage({
+          prompt: description,
+          category: category || 'product',
+          aspectRatio: category === 'realestate' || category === 'car' ? '16:9'
+            : category === 'fnb' ? '4:5' : '1:1',
+          style: category === 'fnb' ? 'food photography'
+            : category === 'realestate' ? 'architectural'
+            : category === 'car' ? 'automotive'
+            : 'commercial',
+          referenceImageUrl,
+          avatarImageUrl,
+          mode,
+        });
 
         if (result.success && result.imageUrl) {
           const isDemo = result.provider === 'demo';
+
+          // Deduct credits based on actual provider used
+          if (!isDemo) {
+            const actualCost = await getImageCreditCostAsync(result.provider);
+            await UserService.deductCredits(telegramIdImg, actualCost);
+            logger.info(`🖼️ Charged ${actualCost} credits for image (provider: ${result.provider})`);
+          }
+
+          const modeInfo = result.mode === 'img2img' ? '\n📸 _Generated with your reference image_'
+            : result.mode === 'ip_adapter' ? '\n👤 _Generated with avatar consistency_'
+            : '';
+
           const caption = isDemo
             ? `🖼️ *Sample Image (Demo)*\n\n` +
               `_Description: ${description}_\n\n` +
               `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
               `The actual product will generate images matching your description.`
             : `✅ *Image Generated!*\n\n` +
-              `_Description: ${description}_\n\n` +
+              `_Description: ${description}_${modeInfo}\n` +
+              `_Provider: ${result.provider}_\n\n` +
               `What would you like to do?`;
 
-          // Handle base64 data URIs (from NVIDIA, HuggingFace, etc.) vs URL images
           let photoSource: string | { source: Buffer };
           let isBase64 = false;
           if (result.imageUrl!.startsWith('data:')) {

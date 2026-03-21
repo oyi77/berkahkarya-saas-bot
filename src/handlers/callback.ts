@@ -33,6 +33,7 @@ import { NICHES } from '@/services/video-generation.service';
 import { VideoService } from '@/services/video.service';
 import { PostAutomationService } from '@/services/postautomation.service';
 import { handleVideoCreationImage, handleSkipImageReference } from '@/handlers/message';
+import { AvatarService } from '@/services/avatar.service';
 import { 
   paymentSettingsCommand,
   handlePaymentDefaultGateway,
@@ -341,6 +342,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [{ text: '🍔 F&B Food', callback_data: 'img_fnb' }],
               [{ text: '🏠 Real Estate', callback_data: 'img_realestate' }],
               [{ text: '🚗 Car/Automotive', callback_data: 'img_car' }],
+              [{ text: '👤 Manage Avatars', callback_data: 'avatar_manage' }],
               [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
             ],
           },
@@ -353,6 +355,216 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('img_')) {
       const category = data.replace('img_', '');
       await handleImageGeneration(ctx, category);
+      return;
+    }
+
+    // ── Avatar management ──
+    if (data === 'avatar_manage') {
+      const telegramId = BigInt(ctx.from!.id);
+      const avatars = await AvatarService.listAvatars(telegramId);
+
+      let message = '👤 *Your Avatars*\n\n';
+      if (avatars.length === 0) {
+        message += '_No avatars saved yet._\n\n';
+        message += 'Save an avatar to maintain consistent characters across your images and videos.';
+      } else {
+        avatars.forEach((a, i) => {
+          message += `${i + 1}. ${a.isDefault ? '⭐ ' : ''}*${a.name}*\n`;
+          if (a.description) message += `   _${a.description.slice(0, 80)}..._\n`;
+        });
+      }
+
+      const avatarButtons = avatars.map(a => ([
+        { text: `${a.isDefault ? '⭐ ' : ''}${a.name}`, callback_data: `avatar_view_${a.id}` },
+      ]));
+
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            ...avatarButtons,
+            [{ text: '➕ Add New Avatar', callback_data: 'avatar_add' }],
+            [{ text: '◀️ Back', callback_data: 'image_generate' }],
+          ],
+        },
+      });
+      return;
+    }
+
+    if (data === 'avatar_add') {
+      await ctx.editMessageText(
+        '👤 *Add New Avatar*\n\n' +
+        'Send me a clear photo of the character/person you want to use consistently.\n\n' +
+        '📸 _Tips:_\n' +
+        '• Use a clear, front-facing photo\n' +
+        '• Good lighting helps AI understand features\n' +
+        '• One person per avatar works best',
+        { parse_mode: 'Markdown' }
+      );
+      ctx.session.state = 'AVATAR_UPLOAD_WAITING';
+      ctx.session.stateData = {};
+      return;
+    }
+
+    if (data.startsWith('avatar_view_')) {
+      const avatarId = parseInt(data.replace('avatar_view_', ''), 10);
+      const avatar = await AvatarService.getAvatar(avatarId);
+      if (!avatar) {
+        await ctx.answerCbQuery('Avatar not found');
+        return;
+      }
+
+      await ctx.editMessageText(
+        `👤 *Avatar: ${avatar.name}*\n` +
+        `${avatar.isDefault ? '⭐ Default avatar\n' : ''}\n` +
+        `${avatar.description ? `_${avatar.description.slice(0, 300)}_\n\n` : ''}` +
+        `What would you like to do?`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              ...(avatar.isDefault ? [] : [[{ text: '⭐ Set as Default', callback_data: `avatar_default_${avatar.id}` }]]),
+              [{ text: '🗑️ Delete', callback_data: `avatar_delete_${avatar.id}` }],
+              [{ text: '◀️ Back', callback_data: 'avatar_manage' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data.startsWith('avatar_default_')) {
+      const avatarId = parseInt(data.replace('avatar_default_', ''), 10);
+      const telegramId = BigInt(ctx.from!.id);
+      await AvatarService.setDefault(telegramId, avatarId);
+      await ctx.answerCbQuery('✅ Avatar set as default!');
+      // Re-show manage screen
+      const avatars = await AvatarService.listAvatars(telegramId);
+      let message = '👤 *Your Avatars*\n\n';
+      avatars.forEach((a, i) => {
+        message += `${i + 1}. ${a.isDefault ? '⭐ ' : ''}*${a.name}*\n`;
+      });
+      const avatarButtons = avatars.map(a => ([
+        { text: `${a.isDefault ? '⭐ ' : ''}${a.name}`, callback_data: `avatar_view_${a.id}` },
+      ]));
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            ...avatarButtons,
+            [{ text: '➕ Add New Avatar', callback_data: 'avatar_add' }],
+            [{ text: '◀️ Back', callback_data: 'image_generate' }],
+          ],
+        },
+      });
+      return;
+    }
+
+    if (data.startsWith('avatar_delete_')) {
+      const avatarId = parseInt(data.replace('avatar_delete_', ''), 10);
+      const telegramId = BigInt(ctx.from!.id);
+      const deleted = await AvatarService.deleteAvatar(telegramId, avatarId);
+      await ctx.answerCbQuery(deleted ? '🗑️ Avatar deleted' : '❌ Avatar not found');
+      // Return to manage
+      const avatars = await AvatarService.listAvatars(telegramId);
+      let message = '👤 *Your Avatars*\n\n';
+      if (avatars.length === 0) {
+        message += '_No avatars saved yet._';
+      } else {
+        avatars.forEach((a, i) => {
+          message += `${i + 1}. ${a.isDefault ? '⭐ ' : ''}*${a.name}*\n`;
+        });
+      }
+      const avatarButtons = avatars.map(a => ([
+        { text: `${a.isDefault ? '⭐ ' : ''}${a.name}`, callback_data: `avatar_view_${a.id}` },
+      ]));
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            ...avatarButtons,
+            [{ text: '➕ Add New Avatar', callback_data: 'avatar_add' }],
+            [{ text: '◀️ Back', callback_data: 'image_generate' }],
+          ],
+        },
+      });
+      return;
+    }
+
+    // Upload reference image for image generation
+    if (data === 'imgref_upload') {
+      ctx.session.state = 'IMAGE_REFERENCE_WAITING';
+      // Keep category in stateData
+      await ctx.editMessageText(
+        `📸 *Upload Reference Image*\n\n` +
+        `Send a photo of your product/subject.\n\n` +
+        `AI will use it as a reference to generate marketing images that keep your product's identity.\n\n` +
+        `_Supported: Product photos, food shots, property photos, etc._`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '⏭️ Skip — Describe Only', callback_data: 'imgref_skip' }],
+              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Skip reference image during image generation → generate text2img
+    if (data === 'imgref_skip') {
+      ctx.session.state = 'IMAGE_GENERATION_WAITING';
+      // Remove reference-related data, keep category
+      const category = ctx.session.stateData?.imageCategory as string;
+      ctx.session.stateData = { imageCategory: category };
+      await ctx.editMessageText(
+        `🖼️ *No reference image*\n\n` +
+        `Describe what you want to generate:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Use saved avatar for image generation
+    if (data.startsWith('imgref_avatar_')) {
+      const avatarId = parseInt(data.replace('imgref_avatar_', ''), 10);
+      const avatar = await AvatarService.getAvatar(avatarId);
+      if (!avatar) {
+        await ctx.answerCbQuery('Avatar not found');
+        return;
+      }
+
+      ctx.session.state = 'IMAGE_GENERATION_WAITING';
+      ctx.session.stateData = {
+        ...ctx.session.stateData,
+        avatarImageUrl: avatar.imageUrl,
+        avatarId: avatar.id,
+        avatarName: avatar.name,
+        mode: 'ip_adapter',
+      };
+
+      await ctx.editMessageText(
+        `🖼️ *Using Avatar: ${avatar.name}*\n\n` +
+        `The AI will maintain this character's identity.\n\n` +
+        `Now describe the scene/setting you want:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+            ],
+          },
+        }
+      );
       return;
     }
 
@@ -1756,14 +1968,27 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
     return;
   }
 
+  // Build reference image options
+  const telegramId = BigInt(ctx.from!.id);
+  const avatars = await AvatarService.listAvatars(telegramId);
+
+  const avatarButtons = avatars.slice(0, 3).map(a => (
+    { text: `👤 ${a.isDefault ? '⭐ ' : ''}${a.name}`, callback_data: `imgref_avatar_${a.id}` }
+  ));
+
   await ctx.editMessageText(
     `🖼️ *Generate ${categoryNames[category]}*\n\n` +
-    `Describe what you want to generate:\n\n` +
-    `Example: "Modern smartphone on white background with soft lighting"`,
+    `How do you want to generate?\n\n` +
+    `📸 *Upload Reference* — Send your product photo and AI will create marketing images based on it\n` +
+    `👤 *Use Avatar* — Keep a consistent character/person across images\n` +
+    `✏️ *Describe Only* — AI generates from your text description`,
     {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
+          [{ text: '📸 Upload Reference Photo', callback_data: 'imgref_upload' }],
+          ...(avatarButtons.length > 0 ? [avatarButtons] : []),
+          [{ text: '✏️ Describe Only (No Reference)', callback_data: 'imgref_skip' }],
           [{ text: '❌ Cancel', callback_data: 'image_generate' }],
         ],
       },

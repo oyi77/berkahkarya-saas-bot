@@ -1,32 +1,49 @@
 /**
- * Image Generation Service — Multi-Provider Fallback Chain
+ * Image Generation Service — Multi-Provider Smart Routing
  *
- * Uses the same providers as video generation where they support image models:
- *   1. GeminiGen (primary — nano-banana-pro)
- *   2. Fal.ai (flux/dev — shared key with video)
- *   3. SiliconFlow (SDXL/Flux — shared key with video)
- *   4. NVIDIA (SDXL — shared key with video)
- *   5. GeminiGen via Gemini API (Imagen)
+ * Routes to the right provider based on capability:
+ *   - Text-to-image (no reference): full fallback chain
+ *   - Image-to-image (with reference): only img2img-capable providers
+ *   - IP-Adapter (avatar consistency): only IP-Adapter-capable providers
+ *
+ * Providers:
+ *   1. GeminiGen (nano-banana-pro) — text-to-image only
+ *   2. Fal.ai (flux/dev) — text-to-image + img2img + IP-Adapter
+ *   3. SiliconFlow (FLUX.1-schnell) — text-to-image only
+ *   4. NVIDIA (SDXL) — text-to-image only
+ *   5. Google Gemini — text-to-image + img2img (multimodal context)
  *   → Demo fallback (category-matched placeholders)
  */
 
 import { logger } from '@/utils/logger';
 import { CircuitBreaker } from './circuit-breaker.service';
+import { ContentAnalysisService } from './content-analysis.service';
+import { WatermarkService } from './watermark.service';
 import { PromptEngine } from '@/config/prompt-engine';
 import { AIPromptOptimizer } from './ai-prompt-optimizer.service';
 import axios from 'axios';
 import FormData from 'form-data';
+import * as fs from 'fs';
 
 // ── Provider API keys (shared with video providers where applicable) ──
 const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || '';
 const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
 
 const FALAI_API_KEY = process.env.FALAI_API_KEY || '';
+const LAOZHANG_API_KEY = process.env.LAOZHANG_API_KEY || '';
+const EVOLINK_API_KEY = process.env.EVOLINK_API_KEY || '';
+const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || '';
+const SEGMIND_API_KEY = process.env.SEGMIND_API_KEY || '';
 const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || '';
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 
-const DEMO_MODE = process.env.DEMO_MODE === 'true';
+// Read dynamically so tests can toggle it
+function isDemoMode(): boolean {
+  return process.env.DEMO_MODE === 'true';
+}
+
+export type ImageGenerationMode = 'text2img' | 'img2img' | 'ip_adapter';
 
 export interface ImageGenerationResult {
   success: boolean;
@@ -34,6 +51,7 @@ export interface ImageGenerationResult {
   thumbnailUrl?: string;
   error?: string;
   provider?: string;
+  mode?: ImageGenerationMode;
 }
 
 export interface ImageGenerationParams {
@@ -41,6 +59,11 @@ export interface ImageGenerationParams {
   style?: string;
   aspectRatio?: string;
   category: string;
+  referenceImageUrl?: string;
+  referenceImagePath?: string;
+  avatarImageUrl?: string;
+  avatarImagePath?: string;
+  mode?: ImageGenerationMode;
 }
 
 // Category-specific demo images — last-resort fallback
@@ -79,10 +102,14 @@ interface ImageProvider {
   key: string;
   name: string;
   enabled: boolean;
+  supportsImg2Img: boolean;
+  supportsIPAdapter: boolean;
   generate: ProviderFn;
+  generateImg2Img?: ProviderFn;
+  generateIPAdapter?: ProviderFn;
 }
 
-/** Tier 1: GeminiGen — nano-banana-pro */
+/** Tier 1: GeminiGen — nano-banana-pro (text-to-image only) */
 async function generateViaGeminiGen(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const formData = new FormData();
   formData.append('prompt', prompt);
@@ -111,6 +138,7 @@ async function generateViaGeminiGen(prompt: string, params: ImageGenerationParam
           imageUrl: generated_image[0].image_url || '',
           thumbnailUrl: thumbnail_url || generated_image[0].thumbnails?.[0]?.url || '',
           provider: 'geminigen',
+          mode: 'text2img',
         };
       }
       if (s === 3) throw new Error('GeminiGen: generation failed');
@@ -121,7 +149,7 @@ async function generateViaGeminiGen(prompt: string, params: ImageGenerationParam
   throw new Error(`GeminiGen: unexpected status ${status}`);
 }
 
-/** Tier 2: Fal.ai — flux/dev (same FALAI_API_KEY as video) */
+/** Tier 2: Fal.ai — flux/dev text-to-image */
 async function generateViaFalai(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post(
     'https://fal.run/fal-ai/flux/dev',
@@ -140,12 +168,74 @@ async function generateViaFalai(prompt: string, params: ImageGenerationParams): 
 
   const images = response.data?.images;
   if (images?.length > 0 && images[0].url) {
-    return { success: true, imageUrl: images[0].url, provider: 'falai' };
+    return { success: true, imageUrl: images[0].url, provider: 'falai', mode: 'text2img' };
   }
   throw new Error('Fal.ai: no images returned');
 }
 
-/** Tier 3: SiliconFlow — Flux/SDXL (same SILICONFLOW_API_KEY as video) */
+/** Fal.ai — flux/dev/image-to-image (reference image → styled output) */
+async function generateViaFalaiImg2Img(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const imageUrl = params.referenceImageUrl;
+  if (!imageUrl) throw new Error('Fal.ai img2img: no reference image URL provided');
+
+  const response = await axios.post(
+    'https://fal.run/fal-ai/flux/dev/image-to-image',
+    {
+      prompt,
+      image_url: imageUrl,
+      strength: 0.75,
+      image_size: params.aspectRatio === '16:9' ? 'landscape_16_9'
+        : params.aspectRatio === '9:16' ? 'portrait_16_9'
+        : 'square_hd',
+      num_images: 1,
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
+    },
+    {
+      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 90000,
+    }
+  );
+
+  const images = response.data?.images;
+  if (images?.length > 0 && images[0].url) {
+    return { success: true, imageUrl: images[0].url, provider: 'falai_img2img', mode: 'img2img' };
+  }
+  throw new Error('Fal.ai img2img: no images returned');
+}
+
+/** Fal.ai — IP-Adapter (preserves face/identity from avatar across generations) */
+async function generateViaFalaiIPAdapter(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const avatarUrl = params.avatarImageUrl;
+  if (!avatarUrl) throw new Error('Fal.ai IP-Adapter: no avatar image URL provided');
+
+  const response = await axios.post(
+    'https://fal.run/fal-ai/flux/dev/ip-adapter',
+    {
+      prompt,
+      ip_adapter_image_url: avatarUrl,
+      ip_adapter_scale: 0.7,
+      image_size: params.aspectRatio === '16:9' ? 'landscape_16_9'
+        : params.aspectRatio === '9:16' ? 'portrait_16_9'
+        : 'square_hd',
+      num_images: 1,
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
+    },
+    {
+      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 90000,
+    }
+  );
+
+  const images = response.data?.images;
+  if (images?.length > 0 && images[0].url) {
+    return { success: true, imageUrl: images[0].url, provider: 'falai_ip_adapter', mode: 'ip_adapter' };
+  }
+  throw new Error('Fal.ai IP-Adapter: no images returned');
+}
+
+/** Tier 3: SiliconFlow — Flux/SDXL (text-to-image only) */
 async function generateViaSiliconFlow(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post(
     'https://api.siliconflow.cn/v1/images/generations',
@@ -168,13 +258,13 @@ async function generateViaSiliconFlow(prompt: string, params: ImageGenerationPar
     const url = images[0].url || images[0].b64_json;
     if (url) {
       const imageUrl = url.startsWith('data:') || url.startsWith('http') ? url : `data:image/png;base64,${url}`;
-      return { success: true, imageUrl, provider: 'siliconflow' };
+      return { success: true, imageUrl, provider: 'siliconflow', mode: 'text2img' };
     }
   }
   throw new Error('SiliconFlow: no images returned');
 }
 
-/** Tier 4: NVIDIA — SDXL (same NVIDIA_API_KEY as workspace) */
+/** Tier 4: NVIDIA — SDXL (text-to-image only) */
 async function generateViaNvidia(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post(
     'https://ai.api.nvidia.com/v1/genai/stabilityai/stable-diffusion-xl',
@@ -198,15 +288,15 @@ async function generateViaNvidia(prompt: string, params: ImageGenerationParams):
 
   const artifacts = response.data?.artifacts;
   if (artifacts?.length > 0 && artifacts[0].base64) {
-    return { success: true, imageUrl: `data:image/png;base64,${artifacts[0].base64}`, provider: 'nvidia' };
+    return { success: true, imageUrl: `data:image/png;base64,${artifacts[0].base64}`, provider: 'nvidia', mode: 'text2img' };
   }
   throw new Error('NVIDIA: no artifacts returned');
 }
 
-/** Tier 5: Google Gemini — Imagen (via Gemini API) */
+/** Tier 5: Google Gemini — text-to-image */
 async function generateViaGemini(prompt: string, _params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
     {
       contents: [{
         parts: [{ text: `Generate a high-quality image: ${prompt}` }],
@@ -223,34 +313,414 @@ async function generateViaGemini(prompt: string, _params: ImageGenerationParams)
         success: true,
         imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
         provider: 'gemini',
+        mode: 'text2img',
       };
     }
   }
   throw new Error('Gemini: no image in response');
 }
 
+/** Google Gemini — img2img (multimodal: reference image + prompt → new image) */
+async function generateViaGeminiImg2Img(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  // Read reference image as base64
+  let imageBase64: string;
+  let mimeType = 'image/jpeg';
+
+  if (params.referenceImagePath && fs.existsSync(params.referenceImagePath)) {
+    const imgBuffer = fs.readFileSync(params.referenceImagePath);
+    imageBase64 = imgBuffer.toString('base64');
+    if (params.referenceImagePath.endsWith('.png')) mimeType = 'image/png';
+  } else if (params.referenceImageUrl) {
+    const imgResponse = await axios.get(params.referenceImageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+    });
+    imageBase64 = Buffer.from(imgResponse.data).toString('base64');
+    const ct = imgResponse.headers['content-type'] || 'image/jpeg';
+    if (ct.includes('png')) mimeType = 'image/png';
+  } else {
+    throw new Error('Gemini img2img: no reference image');
+  }
+
+  const response = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      contents: [{
+        parts: [
+          {
+            inlineData: {
+              mimeType,
+              data: imageBase64,
+            },
+          },
+          {
+            text: `Using this image as a reference, generate a new high-quality marketing image. ` +
+              `Keep the product/subject from the reference but create it in this style: ${prompt}. ` +
+              `Maintain the identity and key features of the original subject.`,
+          },
+        ],
+      }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+    },
+    { headers: { 'Content-Type': 'application/json' }, timeout: 90000 }
+  );
+
+  const parts = response.data?.candidates?.[0]?.content?.parts || [];
+  for (const part of parts) {
+    if (part.inlineData?.mimeType?.startsWith('image/')) {
+      return {
+        success: true,
+        imageUrl: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`,
+        provider: 'gemini_img2img',
+        mode: 'img2img',
+      };
+    }
+  }
+  throw new Error('Gemini img2img: no image in response');
+}
+
+/** LaoZhang — flux-kontext-pro (native img2img via multipart) */
+async function generateViaLaoZhangKontext(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const imageUrl = params.referenceImageUrl;
+  if (!imageUrl) throw new Error('LaoZhang Kontext: no reference image URL');
+
+  const imgResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+  const formData = new FormData();
+  formData.append('image', Buffer.from(imgResponse.data), { filename: 'reference.jpg', contentType: 'image/jpeg' });
+  formData.append('prompt', prompt);
+  formData.append('model', 'flux-kontext-pro');
+
+  const response = await axios.post('https://api.laozhang.ai/v1/images/edits', formData, {
+    headers: { Authorization: `Bearer ${LAOZHANG_API_KEY}`, ...formData.getHeaders() },
+    timeout: 120000,
+  });
+
+  const data = response.data?.data;
+  if (data?.length > 0) {
+    const url = data[0].url || (data[0].b64_json ? `data:image/png;base64,${data[0].b64_json}` : null);
+    if (url) return { success: true, imageUrl: url, provider: 'laozhang_kontext', mode: 'img2img' };
+  }
+  throw new Error('LaoZhang Kontext: no image returned');
+}
+
+/** LaoZhang — text2img with model cascade (cheapest first) */
+async function generateViaLaoZhangGptImage(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  // Try models cheapest first: dall-e-3 ($0.04) → gpt-image-1-mini ($0.005 but lower quality) → gpt-image-1 ($0.05)
+  const models = ['dall-e-3', 'gpt-image-1'];
+  const size = params.aspectRatio === '16:9' ? '1536x1024'
+    : params.aspectRatio === '9:16' ? '1024x1536'
+    : '1024x1024';
+
+  for (const model of models) {
+    try {
+      const response = await axios.post('https://api.laozhang.ai/v1/images/generations', {
+        model,
+        prompt,
+        n: 1,
+        size,
+      }, {
+        headers: { Authorization: `Bearer ${LAOZHANG_API_KEY}`, 'Content-Type': 'application/json' },
+        timeout: 120000,
+      });
+
+      const data = response.data?.data;
+      if (data?.length > 0) {
+        const url = data[0].url || (data[0].b64_json ? `data:image/png;base64,${data[0].b64_json}` : null);
+        if (url) return { success: true, imageUrl: url, provider: `laozhang_${model.replace(/-/g, '_')}`, mode: 'text2img' };
+      }
+    } catch (err: any) {
+      logger.warn(`LaoZhang ${model} failed: ${err.response?.status || err.message}`);
+    }
+  }
+  throw new Error('LaoZhang text2img: all models failed');
+}
+
+/** EvoLink — img2img with model cascade (fastest first) */
+async function generateViaEvoLinkImg2Img(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const imageUrl = params.referenceImageUrl;
+  if (!imageUrl) throw new Error('EvoLink img2img: no reference image URL');
+
+  // Try qwen-image-edit-plus first (11s) then wan2.5-image-to-image (66s)
+  const models = ['qwen-image-edit-plus', 'wan2.5-image-to-image'];
+  for (const model of models) {
+    try {
+      return await evolinkImageGenerate(model, prompt, imageUrl);
+    } catch (err: any) {
+      logger.warn(`EvoLink ${model} failed: ${err.message}`);
+    }
+  }
+  throw new Error('EvoLink img2img: all models failed');
+}
+
+/** EvoLink internal — submit + poll for a single model */
+async function evolinkImageGenerate(model: string, prompt: string, imageUrl?: string): Promise<ImageGenerationResult> {
+  const body: any = { model, prompt };
+  if (imageUrl) body.image_url = imageUrl;
+
+  const response = await axios.post('https://api.evolink.ai/v1/images/generations', body, {
+    headers: { Authorization: `Bearer ${EVOLINK_API_KEY}`, 'Content-Type': 'application/json' },
+    timeout: 30000,
+  });
+
+  const taskId = response.data?.id;
+  if (!taskId) throw new Error(`EvoLink img2img: no task ID`);
+
+  // Poll for completion (same pattern as video-fallback.service.ts)
+  for (let i = 0; i < 60; i++) {
+    const poll = await axios.get(`https://api.evolink.ai/v1/tasks/${taskId}`, {
+      headers: { Authorization: `Bearer ${EVOLINK_API_KEY}` },
+      timeout: 10000,
+    });
+    const status = poll.data?.status;
+    if (status === 'completed') {
+      const results = poll.data?.results || poll.data?.data || [];
+      const url = Array.isArray(results) && results.length > 0
+        ? (typeof results[0] === 'object' ? results[0].url : String(results[0]))
+        : (poll.data?.output?.url || poll.data?.output?.image_url || '');
+      if (url) return { success: true, imageUrl: url, provider: `evolink_${model.replace(/[.-]/g, '_')}`, mode: imageUrl ? 'img2img' : 'text2img' };
+      throw new Error('EvoLink img2img: completed but no URL');
+    }
+    if (status === 'failed' || status === 'error') {
+      throw new Error(`EvoLink img2img: ${poll.data?.error || 'generation failed'}`);
+    }
+    await new Promise(r => setTimeout(r, 5000));
+  }
+  throw new Error('EvoLink img2img: poll timeout');
+}
+
+/** Together.ai — FLUX.1 Schnell (cheapest text2img at ~$0.003/img, OpenAI-compatible) */
+async function generateViaTogether(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const response = await axios.post('https://api.together.xyz/v1/images/generations', {
+    model: 'black-forest-labs/FLUX.1-schnell',
+    prompt,
+    n: 1,
+    steps: 4,
+    ...(params.aspectRatio === '16:9' ? { width: 1024, height: 576 }
+      : params.aspectRatio === '9:16' ? { width: 576, height: 1024 }
+      : { width: 1024, height: 1024 }),
+  }, {
+    headers: { Authorization: `Bearer ${TOGETHER_API_KEY}`, 'Content-Type': 'application/json' },
+    timeout: 60000,
+  });
+
+  const data = response.data?.data;
+  if (data?.length > 0) {
+    const url = data[0].url || (data[0].b64_json ? `data:image/png;base64,${data[0].b64_json}` : null);
+    if (url) return { success: true, imageUrl: url, provider: 'together_schnell', mode: 'text2img' };
+  }
+  throw new Error('Together.ai: no image returned');
+}
+
+/** SegMind — Flux IP-Adapter (cheap IP-Adapter at ~$0.01/img) */
+async function generateViaSegmindIPAdapter(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const avatarUrl = params.avatarImageUrl;
+  if (!avatarUrl) throw new Error('SegMind IP-Adapter: no avatar image URL');
+
+  const response = await axios.post('https://api.segmind.com/v1/flux-ipadapter', {
+    prompt,
+    image_url: avatarUrl,
+    cn_strength: 0.7,
+    steps: 28,
+    guidance_scale: 3.5,
+    seed: Math.floor(Math.random() * 2147483647),
+    width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
+    height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
+  }, {
+    headers: { 'x-api-key': SEGMIND_API_KEY, 'Content-Type': 'application/json' },
+    timeout: 90000,
+    responseType: 'arraybuffer',
+  });
+
+  if (response.data && response.headers['content-type']?.includes('image')) {
+    const base64 = Buffer.from(response.data).toString('base64');
+    const mimeType = response.headers['content-type'] || 'image/png';
+    return { success: true, imageUrl: `data:${mimeType};base64,${base64}`, provider: 'segmind_ip_adapter', mode: 'ip_adapter' };
+  }
+  throw new Error('SegMind IP-Adapter: no image returned');
+}
+
+/** SegMind — SDXL img2img (cheap img2img at ~$0.005/img) */
+async function generateViaSegmindImg2Img(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const imageUrl = params.referenceImageUrl;
+  if (!imageUrl) throw new Error('SegMind img2img: no reference image URL');
+
+  const response = await axios.post('https://api.segmind.com/v1/sdxl1.0-img2img', {
+    prompt,
+    image: imageUrl,
+    strength: 0.75,
+    steps: 30,
+    guidance_scale: 7,
+    seed: Math.floor(Math.random() * 2147483647),
+  }, {
+    headers: { 'x-api-key': SEGMIND_API_KEY, 'Content-Type': 'application/json' },
+    timeout: 90000,
+    responseType: 'arraybuffer',
+  });
+
+  if (response.data && response.headers['content-type']?.includes('image')) {
+    const base64 = Buffer.from(response.data).toString('base64');
+    const mimeType = response.headers['content-type'] || 'image/png';
+    return { success: true, imageUrl: `data:${mimeType};base64,${base64}`, provider: 'segmind_img2img', mode: 'img2img' };
+  }
+  throw new Error('SegMind img2img: no image returned');
+}
+
 // ── Provider chain (priority order) ──
 
 function getProviders(): ImageProvider[] {
   return [
-    { key: 'geminigen', name: 'GeminiGen', enabled: !!GEMINIGEN_API_KEY, generate: generateViaGeminiGen },
-    { key: 'falai', name: 'Fal.ai Flux', enabled: !!FALAI_API_KEY, generate: generateViaFalai },
-    { key: 'siliconflow', name: 'SiliconFlow Flux', enabled: !!SILICONFLOW_API_KEY, generate: generateViaSiliconFlow },
-    { key: 'nvidia', name: 'NVIDIA SDXL', enabled: !!NVIDIA_API_KEY, generate: generateViaNvidia },
-    { key: 'gemini', name: 'Google Gemini', enabled: !!GEMINI_API_KEY, generate: generateViaGemini },
+    // Tier 1: Cheapest text2img ($0.003/img)
+    {
+      key: 'together',
+      name: 'Together.ai (FLUX Schnell)',
+      enabled: !!TOGETHER_API_KEY,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      generate: generateViaTogether,
+    },
+    // Tier 2: Good quality, free tier
+    {
+      key: 'gemini',
+      name: 'Google Gemini',
+      enabled: !!GEMINI_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: false,
+      generate: generateViaGemini,
+      generateImg2Img: generateViaGeminiImg2Img,
+    },
+    // Tier 3: Cheap img2img + IP-Adapter ($0.005-0.01/img)
+    {
+      key: 'segmind',
+      name: 'SegMind (SDXL + IP-Adapter)',
+      enabled: !!SEGMIND_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: true,
+      generate: generateViaSegmindImg2Img,
+      generateImg2Img: generateViaSegmindImg2Img,
+      generateIPAdapter: generateViaSegmindIPAdapter,
+    },
+    // Tier 4: Reliable text2img ($0.01/img)
+    {
+      key: 'siliconflow',
+      name: 'SiliconFlow Flux',
+      enabled: !!SILICONFLOW_API_KEY,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      generate: generateViaSiliconFlow,
+    },
+    // Tier 5: Good quality text2img ($0.02/img)
+    {
+      key: 'geminigen',
+      name: 'GeminiGen',
+      enabled: !!GEMINIGEN_API_KEY,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      generate: generateViaGeminiGen,
+    },
+    // Tier 6: Fal.ai — best img2img + IP-Adapter quality ($0.03/img)
+    {
+      key: 'falai',
+      name: 'Fal.ai Flux',
+      enabled: !!FALAI_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: true,
+      generate: generateViaFalai,
+      generateImg2Img: generateViaFalaiImg2Img,
+      generateIPAdapter: generateViaFalaiIPAdapter,
+    },
+    // Tier 7: LaoZhang — reliable img2img ($0.04-0.05/img)
+    {
+      key: 'laozhang',
+      name: 'LaoZhang (Kontext + GPT-Image)',
+      enabled: !!LAOZHANG_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: false,
+      generate: generateViaLaoZhangGptImage,
+      generateImg2Img: generateViaLaoZhangKontext,
+    },
+    // Tier 8: EvoLink — async img2img ($0.03/img)
+    {
+      key: 'evolink',
+      name: 'EvoLink (Wan2.5 + Qwen)',
+      enabled: !!EVOLINK_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: false,
+      generate: generateViaEvoLinkImg2Img,
+      generateImg2Img: generateViaEvoLinkImg2Img,
+    },
+    // Tier 9: NVIDIA — reliable fallback ($0.01/img)
+    {
+      key: 'nvidia',
+      name: 'NVIDIA SDXL',
+      enabled: !!NVIDIA_API_KEY,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      generate: generateViaNvidia,
+    },
   ];
+}
+
+// ── Mode detection ──
+
+function detectMode(params: ImageGenerationParams): ImageGenerationMode {
+  if (params.mode) return params.mode;
+  if (params.avatarImageUrl || params.avatarImagePath) return 'ip_adapter';
+  if (params.referenceImageUrl || params.referenceImagePath) return 'img2img';
+  return 'text2img';
 }
 
 // ── Main service ──
 
 export class ImageGenerationService {
   static async generateImage(params: ImageGenerationParams): Promise<ImageGenerationResult> {
-    if (DEMO_MODE) {
+    if (isDemoMode()) {
       logger.warn('🖼️ DEMO_MODE forced — returning placeholder');
       return this.generateDemoImage(params);
     }
 
-    const enrichedBase = PromptEngine.enrichForImage(params.prompt, params.category, {
+    const mode = detectMode(params);
+    logger.info(`🖼️ Generation mode: ${mode}`);
+
+    // ── Watermark pre-processing ──
+    // Clean reference images before using them (free: Gemini Vision + FFmpeg)
+    let cleanedRefUrl = params.referenceImageUrl;
+    if (cleanedRefUrl && (mode === 'img2img' || mode === 'ip_adapter')) {
+      try {
+        const cleanedPath = await WatermarkService.cleanImage(cleanedRefUrl);
+        if (cleanedPath) {
+          // Replace URL with local cleaned file path for providers that support it
+          params = { ...params, referenceImagePath: cleanedPath };
+          logger.info('🧹 Reference image cleaned of watermarks');
+        }
+      } catch (err) {
+        logger.warn('🧹 Watermark pre-processing skipped');
+      }
+    }
+
+    // ── Vision-based prompt enrichment ──
+    // When a reference image is provided, analyse it with Gemini Vision
+    // and inject the description into the prompt. This makes the reference
+    // work with ALL providers, even text-only ones.
+    let visionEnrichedPrompt = params.prompt;
+    const refUrl = cleanedRefUrl || params.avatarImageUrl;
+
+    if (refUrl && (mode === 'img2img' || mode === 'ip_adapter')) {
+      try {
+        logger.info('🖼️ Analysing reference image with Vision AI...');
+        const analysis = await ContentAnalysisService.extractPrompt(refUrl, 'image');
+        if (analysis.success && analysis.prompt) {
+          // Prepend the vision description so every provider understands the subject
+          visionEnrichedPrompt =
+            `Reference subject: ${analysis.prompt}. ` +
+            `Now create this scene: ${params.prompt}`;
+          logger.info(`🖼️ Vision enrichment added (${analysis.prompt.length} chars)`);
+        }
+      } catch (err) {
+        logger.warn('🖼️ Vision analysis failed, continuing with original prompt');
+      }
+    }
+
+    const enrichedBase = PromptEngine.enrichForImage(visionEnrichedPrompt, params.category, {
       aspectRatio: params.aspectRatio,
     });
 
@@ -269,17 +739,60 @@ export class ImageGenerationService {
     logger.info(`🖼️ Enriched prompt (${enriched.full.length} chars): ${enriched.full.slice(0, 100)}...`);
 
     const providers = getProviders();
-    const enabledProviders = providers.filter(p => p.enabled);
 
-    if (enabledProviders.length === 0) {
-      logger.warn('🖼️ No image providers configured — returning demo image');
-      return this.generateDemoImage(params);
+    // ── Smart routing: try native providers first, then universal fallback ──
+
+    if (mode === 'ip_adapter') {
+      const nativeProviders = providers.filter(p => p.enabled && p.supportsIPAdapter && p.generateIPAdapter);
+      logger.info(`🖼️ IP-Adapter mode — ${nativeProviders.length} native providers: ${nativeProviders.map(p => p.name).join(', ')}`);
+
+      if (nativeProviders.length > 0) {
+        const result = await this.generateWithProviders(nativeProviders, enriched, params, 'ip_adapter');
+        if (result.success && result.provider !== 'demo') return result;
+      }
+
+      // Native failed → fall through to ALL providers with vision-enriched prompt
+      logger.info('🖼️ Native IP-Adapter failed — using vision-enriched prompt on all providers');
+      const allProviders = providers.filter(p => p.enabled);
+      if (allProviders.length > 0) {
+        return this.generateWithProviders(allProviders, enriched, { ...params, mode: 'text2img' }, 'text2img');
+      }
+    } else if (mode === 'img2img') {
+      const nativeProviders = providers.filter(p => p.enabled && p.supportsImg2Img && p.generateImg2Img);
+      logger.info(`🖼️ Img2Img mode — ${nativeProviders.length} native providers: ${nativeProviders.map(p => p.name).join(', ')}`);
+
+      if (nativeProviders.length > 0) {
+        const result = await this.generateWithProviders(nativeProviders, enriched, params, 'img2img');
+        if (result.success && result.provider !== 'demo') return result;
+      }
+
+      // Native failed → fall through to ALL providers with vision-enriched prompt
+      logger.info('🖼️ Native img2img failed — using vision-enriched prompt on all providers');
+      const allProviders = providers.filter(p => p.enabled);
+      if (allProviders.length > 0) {
+        return this.generateWithProviders(allProviders, enriched, { ...params, mode: 'text2img' }, 'text2img');
+      }
+    } else {
+      // Pure text2img
+      const enabledProviders = providers.filter(p => p.enabled);
+      logger.info(`🖼️ Text2Img mode — ${enabledProviders.length} providers available: ${enabledProviders.map(p => p.name).join(', ')}`);
+
+      if (enabledProviders.length > 0) {
+        return this.generateWithProviders(enabledProviders, enriched, params, 'text2img');
+      }
     }
 
-    logger.info(`🖼️ ${enabledProviders.length} providers available: ${enabledProviders.map(p => p.name).join(', ')}`);
+    logger.warn('🖼️ No image providers configured — returning demo image');
+    return this.generateDemoImage(params);
+  }
 
-    // Try each provider in priority order with circuit breaker
-    for (const provider of enabledProviders) {
+  private static async generateWithProviders(
+    providers: ImageProvider[],
+    enriched: { full: string; provider_hint: string },
+    params: ImageGenerationParams,
+    mode: ImageGenerationMode,
+  ): Promise<ImageGenerationResult> {
+    for (const provider of providers) {
       const canExecute = await CircuitBreaker.canExecute(provider.key).catch(() => true);
       if (!canExecute) {
         logger.info(`🖼️ Circuit breaker OPEN for ${provider.name} — skipping`);
@@ -287,25 +800,33 @@ export class ImageGenerationService {
       }
 
       try {
-        logger.info(`🖼️ Trying ${provider.name}...`);
-        // Use full prompt for capable providers, hint for token-limited
+        logger.info(`🖼️ Trying ${provider.name} (${mode})...`);
         const promptForProvider = ['geminigen', 'falai', 'siliconflow'].includes(provider.key)
           ? enriched.full
           : enriched.provider_hint;
-        const result = await provider.generate(promptForProvider, params);
+
+        let result: ImageGenerationResult;
+
+        if (mode === 'ip_adapter' && provider.generateIPAdapter) {
+          result = await provider.generateIPAdapter(promptForProvider, params);
+        } else if (mode === 'img2img' && provider.generateImg2Img) {
+          result = await provider.generateImg2Img(promptForProvider, params);
+        } else {
+          result = await provider.generate(promptForProvider, params);
+        }
 
         if (result.success) {
           await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
-          logger.info(`🖼️ ${provider.name} succeeded`);
+          logger.info(`🖼️ ${provider.name} succeeded (${mode})`);
           return result;
         }
       } catch (error: any) {
         await CircuitBreaker.recordFailure(provider.key).catch(() => {});
-        logger.warn(`🖼️ ${provider.name} failed: ${error.message}`);
+        logger.warn(`🖼️ ${provider.name} failed (${mode}): ${error.message}`);
       }
     }
 
-    logger.error(`🖼️ All ${enabledProviders.length} providers failed — demo fallback`);
+    logger.error(`🖼️ All ${providers.length} providers failed (${mode}) — demo fallback`);
     return this.generateDemoImage(params);
   }
 
@@ -321,22 +842,63 @@ export class ImageGenerationService {
     };
   }
 
-  // buildPrompt replaced by PromptEngine.enrichForImage() — see config/prompt-engine.ts
+  // ── Convenience methods ──
 
-  static async generateProductImage(description: string): Promise<ImageGenerationResult> {
-    return this.generateImage({ prompt: description, category: 'product', aspectRatio: '1:1', style: 'commercial' });
+  static async generateProductImage(description: string, referenceImageUrl?: string): Promise<ImageGenerationResult> {
+    return this.generateImage({
+      prompt: description,
+      category: 'product',
+      aspectRatio: '1:1',
+      style: 'commercial',
+      referenceImageUrl,
+    });
   }
 
-  static async generateFoodImage(description: string): Promise<ImageGenerationResult> {
-    return this.generateImage({ prompt: description, category: 'fnb', aspectRatio: '4:5', style: 'food photography' });
+  static async generateFoodImage(description: string, referenceImageUrl?: string): Promise<ImageGenerationResult> {
+    return this.generateImage({
+      prompt: description,
+      category: 'fnb',
+      aspectRatio: '4:5',
+      style: 'food photography',
+      referenceImageUrl,
+    });
   }
 
-  static async generateRealEstateImage(description: string): Promise<ImageGenerationResult> {
-    return this.generateImage({ prompt: description, category: 'realestate', aspectRatio: '16:9', style: 'architectural' });
+  static async generateRealEstateImage(description: string, referenceImageUrl?: string): Promise<ImageGenerationResult> {
+    return this.generateImage({
+      prompt: description,
+      category: 'realestate',
+      aspectRatio: '16:9',
+      style: 'architectural',
+      referenceImageUrl,
+    });
   }
 
-  static async generateCarImage(description: string): Promise<ImageGenerationResult> {
-    return this.generateImage({ prompt: description, category: 'car', aspectRatio: '16:9', style: 'automotive' });
+  static async generateCarImage(description: string, referenceImageUrl?: string): Promise<ImageGenerationResult> {
+    return this.generateImage({
+      prompt: description,
+      category: 'car',
+      aspectRatio: '16:9',
+      style: 'automotive',
+      referenceImageUrl,
+    });
+  }
+
+  /** Generate image with avatar consistency (IP-Adapter) */
+  static async generateWithAvatar(
+    description: string,
+    avatarImageUrl: string,
+    category: string = 'product',
+    aspectRatio: string = '1:1',
+  ): Promise<ImageGenerationResult> {
+    return this.generateImage({
+      prompt: description,
+      category,
+      aspectRatio,
+      style: 'commercial',
+      avatarImageUrl,
+      mode: 'ip_adapter',
+    });
   }
 }
 

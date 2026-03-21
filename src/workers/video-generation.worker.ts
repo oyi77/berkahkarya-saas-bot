@@ -28,6 +28,7 @@ import {
 import { VideoPostProcessing } from '@/services/video-post-processing.service';
 import { AudioVOService } from '@/services/audio-vo.service';
 import { QualityCheckService } from '@/services/quality-check.service';
+import { WatermarkService } from '@/services/watermark.service';
 import { prisma } from '@/config/database';
 
 const exec = promisify(execCallback);
@@ -370,8 +371,21 @@ async function processSingleScene(
 
   await notifyProgress(telegram, chatId, '\u2705 Video generated! Downloading and processing...');
 
-  const localPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
+  let localPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
   await downloadVideo(result.videoUrl, localPath);
+
+  // Watermark removal: detect and clean any provider watermarks (free: Gemini + FFmpeg)
+  try {
+    const cleanedPath = await WatermarkService.cleanVideo(localPath);
+    if (cleanedPath !== localPath) {
+      // Replace original with cleaned version
+      fs.unlinkSync(localPath);
+      fs.renameSync(cleanedPath, localPath);
+      logger.info(`🧹 Video watermark removed for ${jobId}`);
+    }
+  } catch (wmErr) {
+    logger.warn(`🧹 Watermark removal skipped: ${(wmErr as Error).message}`);
+  }
 
   // Quality check: score the video before delivery (max 1 retry)
   try {
@@ -541,6 +555,18 @@ async function processExtendedScenes(
   const finalPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
   logger.info(`Concatenating ${scenes} scenes for job ${jobId} (niche: ${niche})...`);
   await concatenateVideos(sceneVideos, rawConcatPath, niche);
+
+  // Watermark removal on raw concatenated video
+  try {
+    const cleanedConcat = await WatermarkService.cleanVideo(rawConcatPath);
+    if (cleanedConcat !== rawConcatPath) {
+      fs.unlinkSync(rawConcatPath);
+      fs.renameSync(cleanedConcat, rawConcatPath);
+      logger.info(`🧹 Multi-scene watermark removed for ${jobId}`);
+    }
+  } catch (wmErr) {
+    logger.warn(`🧹 Multi-scene watermark removal skipped: ${(wmErr as Error).message}`);
+  }
 
   // Post-processing: color grading
   await notifyProgress(telegram, chatId, '\ud83c\udfa8 Applying color grading...');

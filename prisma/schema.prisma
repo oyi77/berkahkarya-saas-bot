@@ -54,6 +54,7 @@ model User {
   commissions       Commission[]
   subscriptions     Subscription[]
   socialAccounts    SocialAccount[]
+  avatars           UserAvatar[]
   
   @@index([telegramId])
   @@index([referralCode])
@@ -314,6 +315,44 @@ model PromptCache {
   @@index([promptHash])
   @@index([expiresAt])
   @@map("prompt_cache")
+}
+
+// =============================================================================
+// USER AVATAR MODEL (Persistent character/identity for consistent generation)
+// =============================================================================
+model UserAvatar {
+  id              Int       @id @default(autoincrement())
+  userId          BigInt    @map("user_id")
+  name            String    @db.VarChar(64)
+  imageUrl        String    @map("image_url")
+  localPath       String?   @map("local_path")
+  description     String?   @db.Text
+  features        Json?
+  isDefault       Boolean   @default(false) @map("is_default")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User      @relation(fields: [userId], references: [telegramId])
+
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@map("user_avatars")
+}
+
+// =============================================================================
+// PRICING CONFIG MODEL (Dynamic pricing — packages, subscriptions, provider costs)
+// =============================================================================
+model PricingConfig {
+  id          Int      @id @default(autoincrement())
+  category    String   @db.VarChar(32)
+  key         String   @db.VarChar(64)
+  value       Json
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  updatedBy   BigInt?  @map("updated_by")
+
+  @@unique([category, key])
+  @@index([category])
+  @@map("pricing_config")
 }
 
 // =============================================================================

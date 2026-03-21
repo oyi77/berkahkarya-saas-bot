@@ -81,3 +81,46 @@ export function getPlanPrice(plan: PlanKey, cycle: BillingCycle): number {
 export function getExtraCreditPackagePrice(credits: number, tier: string): number {
   return credits * getCreditPriceIdr(tier);
 }
+
+// ── Async DB-backed pricing (reads from PricingConfig, falls back to hardcoded) ──
+
+import { PaymentSettingsService } from '@/services/payment-settings.service';
+
+export async function getVideoCreditCostAsync(durationSeconds: number): Promise<number> {
+  const config = await PaymentSettingsService.getPricingConfig('video_credit', String(durationSeconds));
+  if (config && typeof (config as any).credits === 'number') {
+    return (config as any).credits;
+  }
+  return getVideoCreditCost(durationSeconds);
+}
+
+export async function getImageCreditCostAsync(provider?: string): Promise<number> {
+  return PaymentSettingsService.getImageCreditCost(provider);
+}
+
+export async function getPackagesAsync(): Promise<Array<{ id: string; name: string; priceIdr: number; credits: number; bonus: number; description?: string; isPopular?: boolean }>> {
+  const dbPackages = await PaymentSettingsService.getAllPricingByCategory('package');
+  if (Object.keys(dbPackages).length > 0) {
+    return Object.entries(dbPackages).map(([id, config]: [string, any]) => ({
+      id,
+      name: config.name || id,
+      priceIdr: config.priceIdr || 0,
+      credits: config.credits || 0,
+      bonus: config.bonus || 0,
+      description: config.description,
+      isPopular: config.isPopular,
+    }));
+  }
+  // Fallback to hardcoded
+  return [
+    { id: 'starter', name: 'Starter Flow', priceIdr: 49000, credits: 5, bonus: 1 },
+    { id: 'growth', name: 'Growth Machine', priceIdr: 149000, credits: 18, bonus: 4, isPopular: true },
+    { id: 'business', name: 'Business Kingdom', priceIdr: 499000, credits: 70, bonus: 15 },
+  ];
+}
+
+export async function getSubscriptionPlansAsync(): Promise<Record<string, any>> {
+  const dbPlans = await PaymentSettingsService.getAllPricingByCategory('subscription');
+  if (Object.keys(dbPlans).length > 0) return dbPlans;
+  return SUBSCRIPTION_PLANS;
+}
