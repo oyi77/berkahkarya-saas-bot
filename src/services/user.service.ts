@@ -290,6 +290,48 @@ export class UserService {
   }
 
   /**
+   * Get the number of videos the user has generated today (UTC).
+   */
+  static async getDailyGenerationCount(telegramId: bigint): Promise<number> {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    return prisma.video.count({
+      where: {
+        userId: telegramId,
+        createdAt: { gte: startOfDay },
+      },
+    });
+  }
+
+  /**
+   * Check whether the user is allowed to generate another video today.
+   * Returns the allowed flag, remaining count, and daily limit for the tier.
+   */
+  static async canGenerate(telegramId: bigint): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+    const user = await this.findByTelegramId(telegramId);
+    if (!user) {
+      return { allowed: false, remaining: 0, limit: 0 };
+    }
+
+    // Daily limits per tier
+    const DAILY_LIMITS: Record<string, number> = {
+      free: 2,
+      basic: 3,
+      lite: 3,
+      pro: 10,
+      agency: 30,
+    };
+
+    const tier = user.tier || 'free';
+    const limit = DAILY_LIMITS[tier] ?? 2;
+    const used = await this.getDailyGenerationCount(telegramId);
+    const remaining = Math.max(0, limit - used);
+
+    return { allowed: remaining > 0, remaining, limit };
+  }
+
+  /**
    * Get user stats
    */
   static async getStats(telegramId: bigint): Promise<{

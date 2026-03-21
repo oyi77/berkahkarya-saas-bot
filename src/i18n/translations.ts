@@ -92,6 +92,56 @@ const translations: Record<string, Record<Lang, string>> = {
     en: 'scenes',
   },
 
+  // Platform selection
+  'create.select_platform': {
+    id: 'Pilih platform target:',
+    en: 'Select target platform:',
+  },
+  'create.platform_tiktok': {
+    id: '📱 TikTok/Reels (9:16)',
+    en: '📱 TikTok/Reels (9:16)',
+  },
+  'create.platform_youtube': {
+    id: '📺 YouTube (16:9)',
+    en: '📺 YouTube (16:9)',
+  },
+  'create.platform_instagram': {
+    id: '📷 Instagram Feed (4:5)',
+    en: '📷 Instagram Feed (4:5)',
+  },
+  'create.platform_square': {
+    id: '🔲 Square (1:1)',
+    en: '🔲 Square (1:1)',
+  },
+  'create.change_style': {
+    id: '← Ganti Style',
+    en: '← Change Style',
+  },
+  'create.platform_selected': {
+    id: '📱 Platform dipilih!',
+    en: '📱 Platform selected!',
+  },
+
+  // Daily limit
+  'create.daily_limit_reached': {
+    id: 'Batas harian tercapai ({used}/{limit}). Upgrade untuk membuat lebih banyak hari ini.',
+    en: 'Daily limit reached ({used}/{limit}). Upgrade to create more today.',
+  },
+  'create.daily_remaining': {
+    id: 'Sisa hari ini: {remaining}/{limit}',
+    en: 'Remaining today: {remaining}/{limit}',
+  },
+
+  // Feedback
+  'feedback.thanks_good': {
+    id: 'Terima kasih atas feedback-nya! Senang kamu suka.',
+    en: 'Thanks for the feedback! Glad you liked it.',
+  },
+  'feedback.thanks_bad': {
+    id: 'Maaf tentang itu. Kami akan terus meningkatkan kualitas. Coba regenerate?',
+    en: 'Sorry about that. We\'ll improve. Try regenerating?',
+  },
+
   // Duration options
   'create.duration_quick': {
     id: '⚡ Cepat: 15 detik (1 scene)',

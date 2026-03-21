@@ -87,6 +87,8 @@ function getAspectRatio(platform: string): string {
     reels: '9:16',
     facebook: '16:9',
     youtube: '16:9',
+    instagram: '4:5',
+    square: '1:1',
   };
   return ratios[platform] || '9:16';
 }
@@ -405,6 +407,13 @@ async function sendVideoToUser(
   storyboard?: Array<{ scene: number; duration: number; description: string }>
 ): Promise<void> {
   try {
+    // Build download URL
+    const webhookUrl = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
+    const video = await VideoService.getByJobId(jobId);
+    const userId = video?.userId?.toString() || '0';
+    const downloadToken = Buffer.from(`${userId}:${jobId}`).toString('base64');
+    const downloadUrl = `${webhookUrl}/video/${jobId}/download?token=${downloadToken}`;
+
     if (fs.existsSync(localPath)) {
       await telegram.sendVideo(chatId, { source: localPath }, {
         caption:
@@ -414,10 +423,15 @@ async function sendVideoToUser(
           `Platform: ${platform}`,
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'Publish to Social Media', callback_data: `publish_video_${jobId}` }],
+            [{ text: '\u2b07\ufe0f Download HD', url: downloadUrl }],
+            [{ text: '\ud83d\udce4 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
             [
-              { text: 'Create Another', callback_data: 'create_video' },
-              { text: 'My Videos', callback_data: 'videos_list' },
+              { text: '\ud83d\udc4d Good', callback_data: `feedback_good_${jobId}` },
+              { text: '\ud83d\udc4e Needs Work', callback_data: `feedback_bad_${jobId}` },
+            ],
+            [
+              { text: '\ud83c\udfac Create Another', callback_data: 'create_video' },
+              { text: '\ud83d\udcc1 My Videos', callback_data: 'videos_list' },
             ],
           ],
         },

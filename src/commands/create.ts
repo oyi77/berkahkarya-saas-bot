@@ -78,6 +78,24 @@ export async function createCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Check daily generation limit
+    const dailyCheck = await UserService.canGenerate(BigInt(user.id.toString()));
+    if (!dailyCheck.allowed) {
+      await ctx.reply(
+        t('create.daily_limit_reached', lang, { used: String(dailyCheck.limit), limit: String(dailyCheck.limit) }),
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: t('menu.subscribe', lang), callback_data: 'open_subscription' },
+              ],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
     // Show niche picker (Phase 1)
     const nicheKeys = Object.keys(NICHES);
     const nicheButtons: any[][] = [];
@@ -207,7 +225,7 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
 
     const niche = ctx.session.selectedNiche || 'fnb';
     const selectedStyles = ctx.session.selectedStyles || [];
-    const platform = 'tiktok';
+    const platform = (ctx.session.stateData?.selectedPlatform as string) || 'tiktok';
 
     const storyboard = genStoryboardFromService(niche, selectedStyles, duration, scenes);
 
@@ -281,7 +299,7 @@ export async function handleNicheSelection(ctx: BotContext, nicheKey: string): P
 }
 
 /**
- * Handle style selection - then show duration picker
+ * Handle style selection - then show platform picker
  */
 export async function handleStyleSelection(ctx: BotContext, styleKey: string): Promise<void> {
   try {
@@ -293,9 +311,63 @@ export async function handleStyleSelection(ctx: BotContext, styleKey: string): P
     const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
     const lang = getUserLang(dbUser);
 
-    // Show duration picker (reuse existing layout)
+    // Show platform picker (new step between style and duration)
     await ctx.editMessageText(
       `${t('create.style_selected', lang)}\n\n` +
+      t('create.select_platform', lang),
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: t('create.platform_tiktok', lang), callback_data: 'create_platform_tiktok' },
+              { text: t('create.platform_youtube', lang), callback_data: 'create_platform_youtube' },
+            ],
+            [
+              { text: t('create.platform_instagram', lang), callback_data: 'create_platform_instagram' },
+              { text: t('create.platform_square', lang), callback_data: 'create_platform_square' },
+            ],
+            [
+              { text: t('create.change_style', lang), callback_data: `select_niche_${ctx.session.selectedNiche || 'fnb'}` },
+            ],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    logger.error('Error handling style selection:', error);
+    await ctx.answerCbQuery('Error. Please try again.');
+  }
+}
+
+/**
+ * Platform to aspect ratio mapping
+ */
+const PLATFORM_ASPECT_RATIOS: Record<string, string> = {
+  tiktok: '9:16',
+  youtube: '16:9',
+  instagram: '4:5',
+  square: '1:1',
+};
+
+/**
+ * Handle platform selection - then show duration picker
+ */
+export async function handlePlatformSelection(ctx: BotContext, platformKey: string): Promise<void> {
+  try {
+    if (!ctx.session) return;
+
+    // Store selected platform in session
+    ctx.session.stateData = { ...ctx.session.stateData, selectedPlatform: platformKey };
+
+    // Resolve language
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+    const lang = getUserLang(dbUser);
+
+    const aspectRatio = PLATFORM_ASPECT_RATIOS[platformKey] || '9:16';
+
+    // Show duration picker
+    await ctx.editMessageText(
+      `${t('create.platform_selected', lang)} (${aspectRatio})\n\n` +
       `${t('create.extend_mode', lang)}\n\n` +
       t('create.select_duration', lang),
       {
@@ -320,7 +392,7 @@ export async function handleStyleSelection(ctx: BotContext, styleKey: string): P
       }
     );
   } catch (error) {
-    logger.error('Error handling style selection:', error);
+    logger.error('Error handling platform selection:', error);
     await ctx.answerCbQuery('Error. Please try again.');
   }
 }
@@ -571,6 +643,8 @@ function getAspectRatio(platform: string): string {
     'reels': '9:16',
     'facebook': '16:9',
     'youtube': '16:9',
+    'instagram': '4:5',
+    'square': '1:1',
   };
   return ratios[platform] || '9:16';
 }
@@ -673,9 +747,20 @@ async function sendSuccessNotification(
   const video = await VideoService.getByJobId(jobId);
   if (!video?.downloadUrl) return;
 
+  // Build download URL
+  const webhookUrl = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
+  const videoUserId = video.userId.toString();
+  const downloadToken = Buffer.from(`${videoUserId}:${jobId}`).toString('base64');
+  const downloadUrl = `${webhookUrl}/video/${jobId}/download?token=${downloadToken}`;
+
   // Build button rows dynamically based on whether the user has
   // connected social accounts.
-  const keyboard: Array<Array<{ text: string; callback_data: string }>> = [];
+  const keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>> = [];
+
+  // Row 0: Download HD link
+  keyboard.push([
+    { text: '⬇️ Download HD', url: downloadUrl },
+  ]);
 
   // Row 1: manual publish (always shown)
   keyboard.push([
@@ -697,7 +782,13 @@ async function sendSuccessNotification(
     }
   }
 
-  // Row 3: create another / my videos
+  // Row 3: feedback
+  keyboard.push([
+    { text: '👍 Good', callback_data: `feedback_good_${jobId}` },
+    { text: '👎 Needs Work', callback_data: `feedback_bad_${jobId}` },
+  ]);
+
+  // Row 4: create another / my videos
   keyboard.push([
     { text: '🎬 Create Another', callback_data: 'create_video' },
     { text: '📁 My Videos', callback_data: 'videos_list' },
@@ -712,7 +803,7 @@ async function sendSuccessNotification(
         `Platform: ${platform}`,
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: keyboard,
+        inline_keyboard: keyboard as any,
       },
     }
   );

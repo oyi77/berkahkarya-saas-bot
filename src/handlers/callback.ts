@@ -7,6 +7,7 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { prisma } from '@/config/database';
+import { redis } from '@/config/redis';
 import { UserService } from '@/services/user.service';
 import { handleTopupSelection, handlePaymentGateway, checkPayment, handleTopupExtraCredit, topupCommand } from '@/commands/topup';
 import {
@@ -21,6 +22,7 @@ import {
   handleDurationSelection,
   handleNicheSelection,
   handleStyleSelection,
+  handlePlatformSelection,
   createCommand,
   generateCaption,
 } from '@/commands/create';
@@ -36,6 +38,7 @@ import {
   handlePaymentSetDefault
 } from '@/commands/admin/paymentSettings';
 import { SUBSCRIPTION_PLANS, PlanKey, BillingCycle, EXTRA_CREDIT_PACKAGES } from '@/config/pricing';
+import { t } from '@/i18n/translations';
 
 /**
  * Handle storyboard selection
@@ -163,6 +166,44 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith('select_style_')) {
       const styleKey = data.replace('select_style_', '');
       await handleStyleSelection(ctx, styleKey);
+      return;
+    }
+
+    // Platform selection (create flow)
+    if (data.startsWith('create_platform_')) {
+      const platformKey = data.replace('create_platform_', '');
+      await handlePlatformSelection(ctx, platformKey);
+      return;
+    }
+
+    // Video quality feedback
+    if (data.startsWith('feedback_good_')) {
+      const jobId = data.replace('feedback_good_', '');
+      await ctx.answerCbQuery();
+      try {
+        await redis.set(`feedback:${jobId}`, 'good', 'EX', 86400 * 30);
+      } catch (_) { /* Redis optional */ }
+      const feedbackUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+      const feedbackLang = (feedbackUser?.language === 'en' ? 'en' : 'id') as 'id' | 'en';
+      await ctx.reply(t('feedback.thanks_good', feedbackLang));
+      return;
+    }
+
+    if (data.startsWith('feedback_bad_')) {
+      const jobId = data.replace('feedback_bad_', '');
+      await ctx.answerCbQuery();
+      try {
+        await redis.set(`feedback:${jobId}`, 'bad', 'EX', 86400 * 30);
+      } catch (_) { /* Redis optional */ }
+      const feedbackUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
+      const feedbackLang = (feedbackUser?.language === 'en' ? 'en' : 'id') as 'id' | 'en';
+      await ctx.reply(t('feedback.thanks_bad', feedbackLang), {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🔄 Regenerate', callback_data: 'create_video' }],
+          ],
+        },
+      });
       return;
     }
 

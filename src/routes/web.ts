@@ -13,6 +13,8 @@ import { DuitkuService } from '@/services/duitku.service';
 import { TripayService } from '@/services/tripay.service';
 import { checkTelegramHash } from '@/utils/telegram';
 import jwt from 'jsonwebtoken';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'openclaw-secret-change-in-production';
 const BOT_USERNAME = process.env.BOT_USERNAME || 'openclaw_bot';
@@ -526,6 +528,58 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return transactions;
     } catch (error) {
       return reply.status(500).send({ error: 'Failed to fetch transactions' });
+    }
+  });
+
+  // Direct video download (bypasses Telegram compression)
+  server.get('/video/:jobId/download', async (request, reply) => {
+    try {
+      const { jobId } = request.params as { jobId: string };
+      const { token } = request.query as { token?: string };
+
+      if (!token) {
+        return reply.status(401).send({ error: 'Missing token' });
+      }
+
+      // Decode and validate token: base64(userId:jobId)
+      let decoded: string;
+      try {
+        decoded = Buffer.from(token, 'base64').toString('utf-8');
+      } catch (_) {
+        return reply.status(401).send({ error: 'Invalid token' });
+      }
+
+      const [tokenUserId, tokenJobId] = decoded.split(':');
+      if (!tokenUserId || tokenJobId !== jobId) {
+        return reply.status(403).send({ error: 'Token mismatch' });
+      }
+
+      const video = await VideoService.getByJobId(jobId);
+      if (!video) {
+        return reply.status(404).send({ error: 'Video not found' });
+      }
+
+      // Verify the user owns this video
+      if (video.userId.toString() !== tokenUserId) {
+        return reply.status(403).send({ error: 'Access denied' });
+      }
+
+      const localPath = video.downloadUrl;
+      if (!localPath || !fs.existsSync(localPath)) {
+        return reply.status(404).send({ error: 'Video file not found on disk' });
+      }
+
+      const filename = `openclaw-${jobId}.mp4`;
+      const stream = fs.createReadStream(localPath);
+      const stat = fs.statSync(localPath);
+
+      reply.header('Content-Type', 'video/mp4');
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+      reply.header('Content-Length', stat.size);
+      return reply.send(stream);
+    } catch (error) {
+      server.log.error({ error }, 'Video download error');
+      return reply.status(500).send({ error: 'Download failed' });
     }
   });
 
