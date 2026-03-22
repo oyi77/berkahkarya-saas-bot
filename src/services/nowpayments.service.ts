@@ -14,17 +14,18 @@ const BASE_URL = 'https://api.nowpayments.io/v1';
 const API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
 
 // USD pricing per credit package
+// Note: NOWPayments minimum is ~$19 USD, so all packages must meet this threshold
 export const CRYPTO_PACKAGES = [
-  { credits: 1, usd: 0.20 },
-  { credits: 5, usd: 0.90 },
-  { credits: 10, usd: 1.70 },
-  { credits: 25, usd: 3.90 },
+  { credits: 10,  usd: 20.00 },  // ~Rp 320K — Starter crypto
+  { credits: 30,  usd: 50.00 },  // ~Rp 800K — Growth crypto
+  { credits: 75,  usd: 100.00 }, // ~Rp 1.6M — Scale crypto
+  { credits: 200, usd: 250.00 }, // ~Rp 4M   — Enterprise crypto
 ] as const;
 
 export const CRYPTO_COINS = [
   { id: 'usdtbsc', label: 'USDT (BSC)', emoji: '💵' },
   { id: 'bnbbsc', label: 'BNB (BSC)', emoji: '🔶' },
-  { id: 'maticpolygon', label: 'MATIC', emoji: '🟣' },
+  { id: 'matic', label: 'MATIC (Polygon)', emoji: '🟣' },
   { id: 'ton', label: 'TON', emoji: '💎' },
 ] as const;
 
