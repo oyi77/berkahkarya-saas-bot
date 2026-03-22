@@ -16,6 +16,7 @@ import {
   getCreditPriceIdr,
   getExtraCreditPackagePrice,
 } from '@/config/pricing';
+import { NowPaymentsService, CRYPTO_PACKAGES, CRYPTO_COINS } from '@/services/nowpayments.service';
 import { prisma } from '@/config/database';
 import axios from 'axios';
 import crypto from 'crypto';
@@ -99,6 +100,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
 
     const starsRow = [
       [{ text: '⭐ Pay with Telegram Stars', callback_data: 'topup_stars_menu' }],
+      [{ text: '💎 Crypto (USDT/BNB/MATIC/TON)', callback_data: 'topup_crypto_menu' }],
     ];
 
     await ctx.reply(message, {
@@ -380,5 +382,114 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
   } catch (error) {
     logger.error('Error sending stars invoice:', error);
     await ctx.reply('❌ Failed to create Stars invoice. Please try again.');
+  }
+}
+
+/**
+ * Show crypto credit package selection menu
+ */
+export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
+  try {
+    await ctx.answerCbQuery();
+
+    const buttons = CRYPTO_PACKAGES.map(pkg => [{
+      text: `${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)}`,
+      callback_data: `topup_crypto_pkg_${pkg.credits}`,
+    }]);
+    buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
+
+    await ctx.editMessageText(
+      `💎 *Crypto Payment*\n\n` +
+      `Select amount:\n\n` +
+      CRYPTO_PACKAGES.map(pkg =>
+        `• ${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} = $${pkg.usd.toFixed(2)} USD`
+      ).join('\n') +
+      `\n\n_Supported: USDT (BSC), BNB, MATIC, TON_`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons },
+      }
+    );
+  } catch (error) {
+    logger.error('Error showing crypto menu:', error);
+    await ctx.reply('❌ Something went wrong. Please try again.');
+  }
+}
+
+/**
+ * Show coin selector for a given credit amount
+ */
+export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): Promise<void> {
+  try {
+    await ctx.answerCbQuery();
+
+    const pkg = CRYPTO_PACKAGES.find(p => p.credits === credits);
+    if (!pkg) {
+      await ctx.reply('❌ Invalid package.');
+      return;
+    }
+
+    const buttons = CRYPTO_COINS.map(coin => [{
+      text: `${coin.emoji} ${coin.label}`,
+      callback_data: `topup_crypto_pay_${credits}_${coin.id}`,
+    }]);
+    buttons.push([{ text: '◀️ Back', callback_data: 'topup_crypto_menu' }]);
+
+    await ctx.editMessageText(
+      `💎 *${credits} Credit${credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)} USD*\n\n` +
+      `Select cryptocurrency:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons },
+      }
+    );
+  } catch (error) {
+    logger.error('Error showing coin selector:', error);
+    await ctx.reply('❌ Something went wrong. Please try again.');
+  }
+}
+
+/**
+ * Create NOWPayments payment and show address to user
+ */
+export async function handleCryptoPayment(ctx: BotContext, credits: number, coin: string): Promise<void> {
+  try {
+    await ctx.answerCbQuery('Creating crypto payment...');
+
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    const result = await NowPaymentsService.createPayment({
+      userId: BigInt(userId),
+      credits,
+      coin,
+    });
+
+    const coinInfo = CRYPTO_COINS.find(c => c.id === coin);
+    const coinLabel = coinInfo?.label || coin.toUpperCase();
+
+    await ctx.editMessageText(
+      `💎 *Crypto Payment Created*\n\n` +
+      `Send exactly:\n` +
+      `\`${result.payAmount} ${result.payCurrency.toUpperCase()}\`\n\n` +
+      `To address:\n` +
+      `\`${result.payAddress}\`\n\n` +
+      `Network: *${coinLabel}*\n` +
+      `Credits: *${credits}*\n` +
+      `Order: \`${result.orderId}\`\n\n` +
+      `⏱ Payment expires in ~15 minutes.\n\n` +
+      `_Send the exact amount to the address above. Credits will be added automatically once confirmed._`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '◀️ Back to Top Up', callback_data: 'topup' }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    logger.error('Error creating crypto payment:', error);
+    await ctx.editMessageText('❌ Failed to create crypto payment. Please try again.');
   }
 }

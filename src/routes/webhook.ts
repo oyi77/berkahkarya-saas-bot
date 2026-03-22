@@ -4,6 +4,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
+import { NowPaymentsService } from '@/services/nowpayments.service';
 import crypto from 'crypto';
 
 interface WebhookOptions {
@@ -89,6 +90,39 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       return { ok: true };
     } catch (error) {
       logger.error('Tripay webhook error:', error);
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  server.post('/webhook/nowpayments', async (request, reply) => {
+    try {
+      const body = request.body as any;
+      logger.info('NOWPayments webhook received:', body);
+
+      const result = await NowPaymentsService.handleWebhook(body);
+
+      // Send Telegram notification if credits were added
+      if (result.success && result.message === 'Credits added' && body.order_id) {
+        try {
+          // order_id format: CRYPTO-<timestamp>-<telegramId>
+          const orderId = body.order_id as string;
+          const lastDash = orderId.lastIndexOf('-');
+          const telegramId = orderId.substring(lastDash + 1);
+          if (telegramId && bot) {
+            await bot.telegram.sendMessage(
+              telegramId,
+              `✅ *Crypto Payment Confirmed!*\n\nYour credits have been added to your account.\n\nThank you for your purchase! 🎉`,
+              { parse_mode: 'Markdown' }
+            );
+          }
+        } catch (notifyErr) {
+          logger.warn('Failed to notify user about crypto payment:', notifyErr);
+        }
+      }
+
+      return { ok: result.success, message: result.message };
+    } catch (error) {
+      logger.error('NOWPayments webhook error:', error);
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });

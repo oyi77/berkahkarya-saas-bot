@@ -9,7 +9,8 @@ import { logger } from '@/utils/logger';
 import { prisma } from '@/config/database';
 import { redis } from '@/config/redis';
 import { UserService } from '@/services/user.service';
-import { handleTopupSelection, handlePaymentGateway, checkPayment, handleTopupExtraCredit, topupCommand, handleStarsMenu, handleStarsInvoice, STARS_PACKAGES } from '@/commands/topup';
+import { handleTopupSelection, handlePaymentGateway, checkPayment, handleTopupExtraCredit, topupCommand, handleStarsMenu, handleStarsInvoice, STARS_PACKAGES, handleCryptoMenu, handleCryptoCoinSelect, handleCryptoPayment } from '@/commands/topup';
+import { CRYPTO_PACKAGES, CRYPTO_COINS } from '@/services/nowpayments.service';
 import {
   subscriptionCommand,
   handleSubscriptionPurchase,
@@ -241,6 +242,36 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         return;
       }
       await handleStarsInvoice(ctx, credits);
+      return;
+    }
+
+    // Crypto payment handlers
+    if (data === 'topup_crypto_menu') {
+      await handleCryptoMenu(ctx);
+      return;
+    }
+
+    if (data.startsWith('topup_crypto_pkg_')) {
+      const credits = parseInt(data.replace('topup_crypto_pkg_', ''), 10);
+      const validPkg = CRYPTO_PACKAGES.find(p => p.credits === credits);
+      if (!validPkg) {
+        await ctx.answerCbQuery('Invalid crypto package');
+        return;
+      }
+      await handleCryptoCoinSelect(ctx, credits);
+      return;
+    }
+
+    if (data.startsWith('topup_crypto_pay_')) {
+      const parts = data.replace('topup_crypto_pay_', '').split('_');
+      const credits = parseInt(parts[0], 10);
+      const coin = parts.slice(1).join('_'); // coin ids may not have underscore but safe
+      const validCoin = CRYPTO_COINS.find(c => c.id === coin);
+      if (!validCoin) {
+        await ctx.answerCbQuery('Invalid coin');
+        return;
+      }
+      await handleCryptoPayment(ctx, credits, coin);
       return;
     }
 
