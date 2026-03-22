@@ -8,7 +8,43 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { t } from '@/i18n/translations';
-import { LANGUAGE_LIST, LANG_PAGE_SIZE } from '@/config/languages';
+import { LANGUAGE_LIST, LANG_PAGE_SIZE, LANGUAGES } from '@/config/languages';
+
+/**
+ * Map Telegram language_code to our supported language codes.
+ */
+const TELEGRAM_LANG_MAP: Record<string, string> = {
+  id: 'id',
+  en: 'en',
+  ms: 'ms',
+  th: 'th',
+  vi: 'vi',
+  'zh-hans': 'zh',
+  zh: 'zh',
+  ja: 'ja',
+  ko: 'ko',
+  ar: 'ar',
+  ru: 'ru',
+  fr: 'fr',
+  de: 'de',
+  es: 'es',
+  'pt-br': 'pt',
+  pt: 'pt',
+};
+
+function detectLanguage(telegramLangCode?: string): string {
+  if (!telegramLangCode) return 'en';
+  const lower = telegramLangCode.toLowerCase();
+  // Try exact match first, then base language (e.g. "en-us" → "en")
+  if (TELEGRAM_LANG_MAP[lower] && LANGUAGES[TELEGRAM_LANG_MAP[lower]]) {
+    return TELEGRAM_LANG_MAP[lower];
+  }
+  const base = lower.split('-')[0];
+  if (TELEGRAM_LANG_MAP[base] && LANGUAGES[TELEGRAM_LANG_MAP[base]]) {
+    return TELEGRAM_LANG_MAP[base];
+  }
+  return 'en';
+}
 
 /**
  * Handle /start command
@@ -107,21 +143,30 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       const msg = ctx.message as { text?: string } | undefined;
       const startPayload = msg?.text?.split(' ')[1];
 
+      // Detect language from Telegram client settings
+      const detectedLang = detectLanguage(user.language_code);
+
       if (ctx.session) {
         ctx.session.state = 'ONBOARDING_LANGUAGE';
         ctx.session.lastActivity = new Date();
-        ctx.session.stateData = { startPayload: startPayload || null };
+        ctx.session.stateData = { startPayload: startPayload || null, detectedLang };
       }
 
       // Build first page of language buttons (2 per row, first 8 popular)
-      const pageItems = LANGUAGE_LIST.slice(0, LANG_PAGE_SIZE);
+      // Put detected language first with a checkmark indicator
+      const detectedEntry = LANGUAGE_LIST.find(l => l.code === detectedLang);
+      const restItems = LANGUAGE_LIST.filter(l => l.code !== detectedLang);
+      const reordered = detectedEntry ? [detectedEntry, ...restItems] : [...LANGUAGE_LIST];
+      const pageItems = reordered.slice(0, LANG_PAGE_SIZE);
+
       const langButtons: Array<Array<{ text: string; callback_data: string }>> = [];
       for (let i = 0; i < pageItems.length; i += 2) {
         const row: Array<{ text: string; callback_data: string }> = [];
         for (let j = i; j < Math.min(i + 2, pageItems.length); j++) {
           const lang = pageItems[j];
+          const isDetected = lang.code === detectedLang;
           row.push({
-            text: `${lang.flag} ${lang.label}`,
+            text: isDetected ? `${lang.flag} ${lang.label} ✓` : `${lang.flag} ${lang.label}`,
             callback_data: `onboard_lang_${lang.code}`,
           });
         }
@@ -129,12 +174,14 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       }
 
       // "More languages" button if there are more than one page
-      if (LANGUAGE_LIST.length > LANG_PAGE_SIZE) {
+      if (reordered.length > LANG_PAGE_SIZE) {
         langButtons.push([{ text: '🌐 More languages...', callback_data: 'onboard_lang_more_1' }]);
       }
 
+      const detectedLabel = detectedEntry ? `${detectedEntry.flag} ${detectedEntry.label}` : 'English';
       await ctx.reply(
         `🌐 *Welcome to OpenClaw!*\n\n` +
+        `Detected language: *${detectedLabel}*\n\n` +
         `Please select your preferred language.\n` +
         `This will be used for the bot interface, voice over, subtitles, and captions.`,
         {
