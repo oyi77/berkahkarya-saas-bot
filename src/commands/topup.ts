@@ -29,6 +29,14 @@ const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
 const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
 const API_KEY = process.env.DUITKU_API_KEY || '';
 
+// Telegram Stars pricing (1 Star ≈ $0.013 USD)
+export const STARS_PACKAGES = [
+  { credits: 1, stars: 15 },
+  { credits: 5, stars: 70 },
+  { credits: 10, stars: 130 },
+  { credits: 25, stars: 300 },
+] as const;
+
 // Payment gateways are loaded dynamically from PaymentSettingsService.getEnabledGateways()
 // Admin can enable/disable gateways via /admin command
 
@@ -89,10 +97,14 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
 
     message += '\n*Bulk Packages:*';
 
+    const starsRow = [
+      [{ text: '⭐ Pay with Telegram Stars', callback_data: 'topup_stars_menu' }],
+    ];
+
     await ctx.reply(message, {
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [...extraButtons, ...upsellRow, ...packageButtons],
+        inline_keyboard: [...extraButtons, ...upsellRow, ...packageButtons, ...starsRow],
       },
     });
   } catch (error) {
@@ -306,5 +318,67 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
   } catch (error) {
     logger.error('Error creating extra credit payment:', error);
     await ctx.editMessageText('❌ Failed to create payment. Please try again.');
+  }
+}
+
+/**
+ * Show Telegram Stars package selection menu
+ */
+export async function handleStarsMenu(ctx: BotContext): Promise<void> {
+  try {
+    await ctx.answerCbQuery();
+
+    const buttons = STARS_PACKAGES.map(pkg => [{
+      text: `${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} — ${pkg.stars} ⭐`,
+      callback_data: `topup_stars_${pkg.credits}`,
+    }]);
+
+    buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
+
+    await ctx.editMessageText(
+      `⭐ *Pay with Telegram Stars*\n\n` +
+      `Select a package:\n\n` +
+      STARS_PACKAGES.map(pkg =>
+        `• ${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} = ${pkg.stars} Stars`
+      ).join('\n') +
+      `\n\n_Stars are Telegram's native currency. Pay instantly from your Stars balance._`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons },
+      }
+    );
+  } catch (error) {
+    logger.error('Error showing stars menu:', error);
+    await ctx.reply('❌ Something went wrong. Please try again.');
+  }
+}
+
+/**
+ * Send Telegram Stars invoice for a specific credit package
+ */
+export async function handleStarsInvoice(ctx: BotContext, credits: number): Promise<void> {
+  try {
+    await ctx.answerCbQuery('Creating invoice...');
+
+    const pkg = STARS_PACKAGES.find(p => p.credits === credits);
+    if (!pkg) {
+      await ctx.reply('❌ Invalid package.');
+      return;
+    }
+
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    await (ctx as any).replyWithInvoice({
+      title: 'Video Credits',
+      description: `${pkg.credits} AI Video Generation Credit${pkg.credits > 1 ? 's' : ''} for @berkahkarya_saas_bot`,
+      payload: `stars_${pkg.credits}_${userId}`,
+      currency: 'XTR',
+      prices: [{ label: `${pkg.credits} Credit${pkg.credits > 1 ? 's' : ''}`, amount: pkg.stars }],
+      provider_token: '',
+    });
+  } catch (error) {
+    logger.error('Error sending stars invoice:', error);
+    await ctx.reply('❌ Failed to create Stars invoice. Please try again.');
   }
 }

@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger';
 import { prisma } from '@/config/database';
 import { redis } from '@/config/redis';
 import { UserService } from '@/services/user.service';
-import { handleTopupSelection, handlePaymentGateway, checkPayment, handleTopupExtraCredit, topupCommand } from '@/commands/topup';
+import { handleTopupSelection, handlePaymentGateway, checkPayment, handleTopupExtraCredit, topupCommand, handleStarsMenu, handleStarsInvoice, STARS_PACKAGES } from '@/commands/topup';
 import {
   subscriptionCommand,
   handleSubscriptionPurchase,
@@ -224,6 +224,23 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         ctx.session.lastActivity = new Date();
         ctx.session.stateData = {};
       }
+      return;
+    }
+
+    // Telegram Stars handlers
+    if (data === 'topup_stars_menu') {
+      await handleStarsMenu(ctx);
+      return;
+    }
+
+    if (data.startsWith('topup_stars_')) {
+      const credits = parseInt(data.replace('topup_stars_', ''), 10);
+      const validPkg = STARS_PACKAGES.find(p => p.credits === credits);
+      if (!validPkg) {
+        await ctx.answerCbQuery('Invalid Stars package');
+        return;
+      }
+      await handleStarsInvoice(ctx, credits);
       return;
     }
 
