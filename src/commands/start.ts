@@ -8,6 +8,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { t } from '@/i18n/translations';
+import { LANGUAGE_LIST, LANG_PAGE_SIZE } from '@/config/languages';
 
 /**
  * Handle /start command
@@ -101,73 +102,50 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         }
       );
     } else {
-      // Check for referral code in deep link
+      // New user — show language selection before creating account
+      // Check for referral code in deep link and preserve it in session
       const msg = ctx.message as { text?: string } | undefined;
       const startPayload = msg?.text?.split(' ')[1];
-      let referredBy = null;
-      
-      if (startPayload?.startsWith('ref_')) {
-        const refCode = startPayload.replace('ref_', '');
-        const referrer = await UserService.findByReferralCode(refCode);
-        if (referrer) {
-          referredBy = referrer.uuid;
-        }
+
+      if (ctx.session) {
+        ctx.session.state = 'ONBOARDING_LANGUAGE';
+        ctx.session.lastActivity = new Date();
+        ctx.session.stateData = { startPayload: startPayload || null };
       }
 
-      // Create new user
-      const newUser = await UserService.create({
-        telegramId: BigInt(user.id),
-        username: user.username,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        referredBy: referredBy || undefined,
-      });
+      // Build first page of language buttons (2 per row, first 8 popular)
+      const pageItems = LANGUAGE_LIST.slice(0, LANG_PAGE_SIZE);
+      const langButtons: Array<Array<{ text: string; callback_data: string }>> = [];
+      for (let i = 0; i < pageItems.length; i += 2) {
+        const row: Array<{ text: string; callback_data: string }> = [];
+        for (let j = i; j < Math.min(i + 2, pageItems.length); j++) {
+          const lang = pageItems[j];
+          row.push({
+            text: `${lang.flag} ${lang.label}`,
+            callback_data: `onboard_lang_${lang.code}`,
+          });
+        }
+        langButtons.push(row);
+      }
 
-      // Guided onboarding — Message 1 (immediate): welcome + set persistent keyboard
-      const lang = 'id'; // new users default to Indonesian
+      // "More languages" button if there are more than one page
+      if (LANGUAGE_LIST.length > LANG_PAGE_SIZE) {
+        langButtons.push([{ text: '🌐 More languages...', callback_data: 'onboard_lang_more_1' }]);
+      }
+
       await ctx.reply(
-        t('onboarding.welcome', lang),
+        `🌐 *Welcome to OpenClaw!*\n\n` +
+        `Please select your preferred language.\n` +
+        `This will be used for the bot interface, voice over, subtitles, and captions.`,
         {
-          reply_markup: {
-            keyboard: [
-              [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
-              [{ text: '💬 Chat AI' }, { text: '📁 My Videos' }],
-              [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
-              [{ text: '👤 Profile' }, { text: '👥 Referral' }],
-              [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
-            ],
-            resize_keyboard: true,
-          },
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: langButtons },
         }
       );
-
-      // Message 2 (after 2s): feature overview
-      await new Promise((r) => setTimeout(r, 2000));
-      await ctx.reply(t('onboarding.features', lang));
-
-      // Message 3 (after 2s): call-to-action with simplified inline menu
-      await new Promise((r) => setTimeout(r, 2000));
-      await ctx.reply(
-        t('onboarding.cta', lang),
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: t('onboarding.btn_create_video', lang), callback_data: 'create_video' },
-              ],
-              [
-                { text: t('onboarding.btn_try_image', lang), callback_data: 'image_generate' },
-              ],
-              [
-                { text: t('onboarding.btn_chat_ai', lang), callback_data: 'open_chat' },
-              ],
-            ],
-          },
-        }
-      );
+      return;
     }
 
-    // Update session state
+    // Update session state (returning users only — new users handled after language pick)
     if (ctx.session) {
       ctx.session.state = 'DASHBOARD';
       ctx.session.lastActivity = new Date();

@@ -18,6 +18,7 @@ import {
 import { profileCommand } from '@/commands/profile';
 import { referralCommand } from '@/commands/referral';
 import { helpCommand } from '@/commands/help';
+import { getLangConfig, LANGUAGE_LIST, LANG_PAGE_SIZE } from '@/config/languages';
 import {
   handleDurationSelection,
   handleNicheSelection,
@@ -48,9 +49,9 @@ import { t } from '@/i18n/translations';
  */
 async function handleStoryboardRequest(ctx: BotContext, niche: string) {
   try {
-    const storyboard = VideoService.generateStoryboard({ 
-      niche, 
-      duration: 30 
+    const storyboard = await VideoService.generateStoryboard({
+      niche,
+      duration: 30
     });
 
     let message = `📋 *Storyboard: ${niche.toUpperCase()}*\n\n`;
@@ -95,6 +96,136 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     logger.debug('Callback received:', { userId: ctx.from?.id, data });
 
     // Route to appropriate handler based on callback data prefix
+
+    // Onboarding language selection (new users picking language before account creation)
+    if (data.startsWith('onboard_lang_more_')) {
+      // Paginated "more languages" view
+      await ctx.answerCbQuery();
+      const page = parseInt(data.replace('onboard_lang_more_', ''));
+      const start = page * LANG_PAGE_SIZE;
+      const pageItems = LANGUAGE_LIST.slice(start, start + LANG_PAGE_SIZE);
+      const totalPages = Math.ceil(LANGUAGE_LIST.length / LANG_PAGE_SIZE);
+
+      const langButtons: Array<Array<{ text: string; callback_data: string }>> = [];
+      for (let i = 0; i < pageItems.length; i += 2) {
+        const row: Array<{ text: string; callback_data: string }> = [];
+        for (let j = i; j < Math.min(i + 2, pageItems.length); j++) {
+          const lang = pageItems[j];
+          row.push({
+            text: `${lang.flag} ${lang.label}`,
+            callback_data: `onboard_lang_${lang.code}`,
+          });
+        }
+        langButtons.push(row);
+      }
+
+      // Pagination row
+      const navRow: Array<{ text: string; callback_data: string }> = [];
+      if (page > 0) navRow.push({ text: '\u25c0\ufe0f Prev', callback_data: `onboard_lang_more_${page - 1}` });
+      navRow.push({ text: `${page + 1}/${totalPages}`, callback_data: 'noop' });
+      if (page < totalPages - 1) navRow.push({ text: 'Next \u25b6\ufe0f', callback_data: `onboard_lang_more_${page + 1}` });
+      langButtons.push(navRow);
+
+      await ctx.editMessageText(
+        `\ud83c\udf10 *Welcome to OpenClaw!*\n\n` +
+        `Please select your preferred language.\n` +
+        `This will be used for the bot interface, voice over, subtitles, and captions.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: langButtons },
+        }
+      );
+      return;
+    }
+
+    if (data.startsWith('onboard_lang_')) {
+      // User picked a language — create account and run welcome flow
+      const langCode = data.replace('onboard_lang_', '');
+      const langCfg = getLangConfig(langCode);
+      await ctx.answerCbQuery(`${langCfg.flag} ${langCfg.label}`);
+
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      // Resolve referral from session stateData
+      let referredBy: string | undefined;
+      const startPayload = ctx.session?.stateData?.startPayload as string | null;
+      if (startPayload?.startsWith('ref_')) {
+        const refCode = startPayload.replace('ref_', '');
+        const referrer = await UserService.findByReferralCode(refCode);
+        if (referrer) {
+          referredBy = referrer.uuid;
+        }
+      }
+
+      // Create the user with the selected language
+      const user = ctx.from!;
+      const newUser = await UserService.create({
+        telegramId: BigInt(user.id),
+        username: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        language: langCode,
+        referredBy,
+      });
+
+      // Update language selection confirmation on the picker message
+      await ctx.editMessageText(
+        `${langCfg.flag} ${langCfg.label} \u2705`,
+        { parse_mode: 'Markdown' }
+      );
+
+      // Guided onboarding — Message 1: welcome + persistent keyboard
+      const lang = langCode;
+      await ctx.reply(
+        t('onboarding.welcome', lang),
+        {
+          reply_markup: {
+            keyboard: [
+              [{ text: '\ud83c\udfac Create Video' }, { text: '\ud83d\uddbc\ufe0f Generate Image' }],
+              [{ text: '\ud83d\udcac Chat AI' }, { text: '\ud83d\udcc1 My Videos' }],
+              [{ text: '\ud83d\udcb0 Top Up' }, { text: '\u2b50 Subscription' }],
+              [{ text: '\ud83d\udc64 Profile' }, { text: '\ud83d\udc65 Referral' }],
+              [{ text: '\u2699\ufe0f Settings' }, { text: '\ud83c\udd98 Support' }],
+            ],
+            resize_keyboard: true,
+          },
+        }
+      );
+
+      // Message 2 (after 2s): feature overview
+      await new Promise((r) => setTimeout(r, 2000));
+      await ctx.reply(t('onboarding.features', lang));
+
+      // Message 3 (after 2s): call-to-action with inline menu
+      await new Promise((r) => setTimeout(r, 2000));
+      await ctx.reply(
+        t('onboarding.cta', lang),
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: t('onboarding.btn_create_video', lang), callback_data: 'create_video' },
+              ],
+              [
+                { text: t('onboarding.btn_try_image', lang), callback_data: 'image_generate' },
+              ],
+              [
+                { text: t('onboarding.btn_chat_ai', lang), callback_data: 'open_chat' },
+              ],
+            ],
+          },
+        }
+      );
+
+      // Update session to dashboard
+      if (ctx.session) {
+        ctx.session.state = 'DASHBOARD';
+        ctx.session.lastActivity = new Date();
+        ctx.session.stateData = {};
+      }
+      return;
+    }
 
     // Topup handlers
     if (data.startsWith('topup_pkg_')) {
@@ -187,7 +318,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         await redis.set(`feedback:${jobId}`, 'good', 'EX', 86400 * 30);
       } catch (_) { /* Redis optional */ }
       const feedbackUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
-      const feedbackLang = (feedbackUser?.language === 'en' ? 'en' : 'id') as 'id' | 'en';
+      const feedbackLang = feedbackUser?.language || 'id';
       await ctx.reply(t('feedback.thanks_good', feedbackLang));
       return;
     }
@@ -199,7 +330,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         await redis.set(`feedback:${jobId}`, 'bad', 'EX', 86400 * 30);
       } catch (_) { /* Redis optional */ }
       const feedbackUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id.toString())) : null;
-      const feedbackLang = (feedbackUser?.language === 'en' ? 'en' : 'id') as 'id' | 'en';
+      const feedbackLang = feedbackUser?.language || 'id';
       await ctx.reply(t('feedback.thanks_bad', feedbackLang), {
         reply_markup: {
           inline_keyboard: [
@@ -1009,72 +1140,73 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // SETTINGS HANDLERS
     // =========================================================================
 
-    // Show language selection
-    if (data === 'settings_language') {
+    // Show language selection (paginated)
+    if (data === 'settings_language' || data.startsWith('lang_page_')) {
       await ctx.answerCbQuery();
       const userId = ctx.from?.id;
       const user = userId ? await UserService.findByTelegramId(BigInt(userId)) : null;
       const currentLang = user?.language || 'id';
+      const currentConfig = getLangConfig(currentLang);
+
+      const page = data.startsWith('lang_page_') ? parseInt(data.replace('lang_page_', '')) : 0;
+      const start = page * LANG_PAGE_SIZE;
+      const pageItems = LANGUAGE_LIST.slice(start, start + LANG_PAGE_SIZE);
+      const totalPages = Math.ceil(LANGUAGE_LIST.length / LANG_PAGE_SIZE);
+
+      // Build language buttons (2 per row)
+      const langButtons: Array<Array<{ text: string; callback_data: string }>> = [];
+      for (let i = 0; i < pageItems.length; i += 2) {
+        const row: Array<{ text: string; callback_data: string }> = [];
+        for (let j = i; j < Math.min(i + 2, pageItems.length); j++) {
+          const lang = pageItems[j];
+          const check = lang.code === currentLang ? ' \u2705' : '';
+          row.push({
+            text: `${lang.flag} ${lang.label}${check}`,
+            callback_data: `set_language_${lang.code}`,
+          });
+        }
+        langButtons.push(row);
+      }
+
+      // Pagination row
+      const navRow: Array<{ text: string; callback_data: string }> = [];
+      if (page > 0) navRow.push({ text: '\u25c0\ufe0f Prev', callback_data: `lang_page_${page - 1}` });
+      navRow.push({ text: `${page + 1}/${totalPages}`, callback_data: 'noop' });
+      if (page < totalPages - 1) navRow.push({ text: 'Next \u25b6\ufe0f', callback_data: `lang_page_${page + 1}` });
+      langButtons.push(navRow);
+
+      langButtons.push([{ text: '\u25c0\ufe0f Back to Settings', callback_data: 'open_settings' }]);
 
       await ctx.editMessageText(
-        '🌐 *Change Language*\n\n' +
-        `Current: ${currentLang === 'id' ? '🇮🇩 Bahasa Indonesia' : '🇬🇧 English'}\n\n` +
-        'Select your preferred language:',
+        '\ud83c\udf10 *Change Language*\n\n' +
+        `Current: ${currentConfig.flag} ${currentConfig.label}\n\n` +
+        'Select your preferred language.\nThis affects bot UI, voice over, subtitles, and captions.',
         {
           parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: `🇮🇩 Bahasa Indonesia ${currentLang === 'id' ? '✅' : ''}`, callback_data: 'set_language_id' },
-                { text: `🇬🇧 English ${currentLang === 'en' ? '✅' : ''}`, callback_data: 'set_language_en' },
-              ],
-              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
-            ],
-          },
+          reply_markup: { inline_keyboard: langButtons },
         }
       );
       return;
     }
 
-    // Set language to Indonesian
-    if (data === 'set_language_id') {
-      await ctx.answerCbQuery('Language set to Bahasa Indonesia');
+    // Set language (dynamic — any supported code)
+    if (data.startsWith('set_language_')) {
+      const langCode = data.replace('set_language_', '');
+      const langCfg = getLangConfig(langCode);
+      await ctx.answerCbQuery(`Language set to ${langCfg.label}`);
       const userId = ctx.from?.id;
       if (userId) {
-        await UserService.update(BigInt(userId), { language: 'id' });
+        await UserService.update(BigInt(userId), { language: langCode });
       }
       await ctx.editMessageText(
-        '🌐 *Language Updated*\n\n' +
-        '✅ Bahasa Indonesia selected.\n\n' +
-        'All messages will now be in Bahasa Indonesia.',
+        '\ud83c\udf10 *Language Updated*\n\n' +
+        `\u2705 ${langCfg.flag} ${langCfg.label} selected.\n\n` +
+        `Bot messages, voice over, subtitles, and captions will use ${langCfg.label}.`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
-            ],
-          },
-        }
-      );
-      return;
-    }
-
-    // Set language to English
-    if (data === 'set_language_en') {
-      await ctx.answerCbQuery('Language set to English');
-      const userId = ctx.from?.id;
-      if (userId) {
-        await UserService.update(BigInt(userId), { language: 'en' });
-      }
-      await ctx.editMessageText(
-        '🌐 *Language Updated*\n\n' +
-        '✅ English selected.\n\n' +
-        'All messages will now be in English.',
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '◀️ Back to Settings', callback_data: 'open_settings' }],
+              [{ text: '\u25c0\ufe0f Back to Settings', callback_data: 'open_settings' }],
             ],
           },
         }

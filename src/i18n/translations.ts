@@ -9,7 +9,10 @@
  *   const msg = t('create.select_niche', 'id');
  */
 
-type Lang = 'id' | 'en';
+/** Bot UI translations exist for 'id' and 'en'. Other language codes are
+ *  supported at the VO/subtitle/caption level via the language registry,
+ *  and fall back to English for UI strings. */
+type Lang = string;
 
 const translations: Record<string, Record<Lang, string>> = {
   // ---------------------------------------------------------------------------
@@ -416,7 +419,8 @@ export function t(
   lang: Lang = 'id',
   vars?: Record<string, string | number>,
 ): string {
-  let text = translations[key]?.[lang] || translations[key]?.['id'] || key;
+  // Try exact match, then English fallback, then Indonesian fallback
+  let text = translations[key]?.[lang] || translations[key]?.['en'] || translations[key]?.['id'] || key;
 
   if (vars) {
     for (const [k, v] of Object.entries(vars)) {

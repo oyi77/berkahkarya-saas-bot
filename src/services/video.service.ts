@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { Video } from '@prisma/client';
 import { processVideoJob } from './video-generation.service';
 import { getVideoCreditCost } from '@/config/pricing';
+import { getAILabel } from '@/config/languages';
 
 // GeminiGen configuration (for future use)
 // const GEMINIGEN_EMAIL = process.env.GEMINIGEN_EMAIL || 'grahainsanmandiri@gmail.com';
@@ -267,21 +268,21 @@ Visual style: Cinematic, high quality, engaging transitions.
   /**
    * Generate storyboard for niche
    */
-  static generateStoryboard(params: {
+  static async generateStoryboard(params: {
     niche: string;
     duration: number;
     productDescription?: string;
     customScenes?: Array<{ scene: number; duration: number; type: string; description: string }>;
-  }): {
+  }): Promise<{
     scenes: Array<{ scene: number; duration: number; type: string; description: string; prompt: string }>;
     totalDuration: number;
     caption: string;
-  } {
+  }> {
     const nicheTemplate = NICHE_TEMPLATES[params.niche as keyof typeof NICHE_TEMPLATES];
     const baseScenes = params.customScenes || nicheTemplate?.storyboardTemplate || [];
     
-    // Adjust scene count based on duration
-    const scenesNeeded = params.duration <= 15 ? 3 : params.duration <= 30 ? 5 : 8;
+    // Standard 5s per scene
+    const scenesNeeded = Math.ceil(params.duration / 5);
     const adjustedScenes = baseScenes.slice(0, scenesNeeded);
     
     // Generate scene prompts
@@ -297,7 +298,7 @@ Visual style: Cinematic, high quality, engaging transitions.
     }));
 
     // Generate caption
-    const caption = this.generateCaption({
+    const caption = await this.generateCaption({
       niche: params.niche,
       productDescription: params.productDescription,
       sceneCount: scenes.length,
@@ -326,57 +327,150 @@ Visual style: Cinematic, high quality, engaging transitions.
   }
 
   /**
-   * Generate caption for video
+   * Generate caption for video.
+   *
+   * For 'id' and 'en' languages, uses fast hardcoded captions.
+   * For any other language, calls Gemini API to generate a localized caption.
    */
-  static generateCaption(params: {
+  static async generateCaption(params: {
     niche: string;
     productDescription?: string;
     sceneCount: number;
-  }): string {
-    const nicheTemplate = NICHE_TEMPLATES[params.niche as keyof typeof NICHE_TEMPLATES];
-    const _nicheName = nicheTemplate?.name?.replace(/^[^\s]+\s/, '') || 'Professional';
-    
-    const captions: Record<string, string[]> = {
+    language?: string;
+  }): Promise<string> {
+    const lang = params.language || 'id';
+
+    const captionsId: Record<string, string[]> = {
       fnb: [
-        '🔥 Craving satisfied! Who wants a bite? 👇',
-        '😋 Fresh from the kitchen to your screen!',
-        '✨ Taste the difference. Order now!',
+        'Bikin ngiler! Siapa mau coba? 👇',
+        'Fresh dari dapur langsung ke layar kamu!',
+        'Rasakan bedanya. Pesan sekarang!',
       ],
       realestate: [
-        '🏠 Your dream home awaits! DM for tour 📩',
-        '✨ Luxury living at its finest.',
-        '🔑 Ready to move in? Contact us today!',
+        'Rumah impian kamu ada di sini! DM untuk jadwal tour',
+        'Hunian mewah terbaik untuk keluarga.',
+        'Siap huni! Hubungi kami sekarang!',
       ],
       product: [
-        '🛍️ Limited stock! Get yours now! 🔥',
-        '✨ Game-changer alert! Link in bio 👆',
-        '💯 Quality you can trust. Shop now!',
+        'Stok terbatas! Dapatkan sekarang!',
+        'Wajib punya! Link di bio',
+        'Kualitas terjamin. Beli sekarang!',
       ],
       car: [
-        '🚗 Your dream ride is here! 💫',
-        '🔥 Luxury meets performance. Book test drive!',
-        '✨ Turn heads everywhere. Available now!',
+        'Mobil impian kamu ada di sini!',
+        'Performa dan kemewahan dalam satu paket. Book test drive!',
+        'Bikin semua noleh. Ready stock!',
       ],
       beauty: [
-        '✨ Glow up in seconds! Try it yourself 💫',
-        '💕 Self-care essentials. Link in bio!',
-        '🔥 Transform your routine today!',
+        'Glow up dalam sekejap! Coba sendiri',
+        'Self-care wajib. Link di bio!',
+        'Transform rutinitas kamu hari ini!',
       ],
       services: [
-        '💼 Expert solutions for your needs. DM us!',
-        '✨ Professional service, guaranteed results.',
-        '🎯 Let us help you succeed. Book now!',
+        'Solusi profesional untuk kebutuhan kamu. DM kami!',
+        'Layanan profesional, hasil terjamin.',
+        'Yuk konsultasi sekarang. Book now!',
       ],
     };
 
-    const nicheCaptions = captions[params.niche] || captions.services;
-    const baseCaption = nicheCaptions[Math.floor(Math.random() * nicheCaptions.length)];
-    
-    if (params.productDescription) {
-      return `${params.productDescription}\n\n${baseCaption}`;
+    const captionsEn: Record<string, string[]> = {
+      fnb: [
+        'Craving satisfied! Who wants a bite? 👇',
+        'Fresh from the kitchen to your screen!',
+        'Taste the difference. Order now!',
+      ],
+      realestate: [
+        'Your dream home awaits! DM for tour',
+        'Luxury living at its finest.',
+        'Ready to move in? Contact us today!',
+      ],
+      product: [
+        'Limited stock! Get yours now!',
+        'Game-changer alert! Link in bio',
+        'Quality you can trust. Shop now!',
+      ],
+      car: [
+        'Your dream ride is here!',
+        'Luxury meets performance. Book test drive!',
+        'Turn heads everywhere. Available now!',
+      ],
+      beauty: [
+        'Glow up in seconds! Try it yourself',
+        'Self-care essentials. Link in bio!',
+        'Transform your routine today!',
+      ],
+      services: [
+        'Expert solutions for your needs. DM us!',
+        'Professional service, guaranteed results.',
+        'Let us help you succeed. Book now!',
+      ],
+    };
+
+    // For id and en, use fast hardcoded captions
+    if (lang === 'id' || lang === 'en') {
+      const captions = lang === 'en' ? captionsEn : captionsId;
+      const nicheCaptions = captions[params.niche] || captions.services;
+      const baseCaption = nicheCaptions[Math.floor(Math.random() * nicheCaptions.length)];
+
+      if (params.productDescription) {
+        return `${params.productDescription}\n\n${baseCaption}`;
+      }
+      return baseCaption;
     }
-    
-    return baseCaption;
+
+    // For other languages, generate via Gemini API
+    try {
+      const languageLabel = getAILabel(lang);
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error('GEMINI_API_KEY not configured');
+      }
+
+      const prompt = `Generate a short, engaging social media caption for a ${params.niche} marketing video in ${languageLabel}. Keep it under 100 characters. Include 1-2 relevant emojis. Output ONLY the caption text.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              maxOutputTokens: 128,
+              temperature: 0.9,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Gemini API returned ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json() as any;
+      const generatedCaption = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+      if (!generatedCaption) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      logger.info(`Generated ${languageLabel} caption via Gemini: ${generatedCaption}`);
+
+      if (params.productDescription) {
+        return `${params.productDescription}\n\n${generatedCaption}`;
+      }
+      return generatedCaption;
+    } catch (err: any) {
+      logger.warn(`Gemini caption generation failed for lang=${lang}: ${err.message}, falling back to English`);
+      // Fall back to English captions
+      const nicheCaptions = captionsEn[params.niche] || captionsEn.services;
+      const baseCaption = nicheCaptions[Math.floor(Math.random() * nicheCaptions.length)];
+
+      if (params.productDescription) {
+        return `${params.productDescription}\n\n${baseCaption}`;
+      }
+      return baseCaption;
+    }
   }
 
   /**

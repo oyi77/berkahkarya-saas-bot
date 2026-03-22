@@ -83,7 +83,7 @@ export type BotState =
 // =============================================================================
 
 export type UserTier = 'free' | 'basic' | 'pro' | 'agency';
-export type UserLanguage = 'id' | 'en';
+export type UserLanguage = string;
 
 export interface User {
   id: number;

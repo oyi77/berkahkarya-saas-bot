@@ -203,6 +203,80 @@ function getTransitionsForNiche(
 
 export class VideoPostProcessing {
   /**
+   * Normalize all clips to match the resolution of the first clip.
+   *
+   * Uses ffprobe to detect each clip's resolution and re-encodes any clip
+   * whose dimensions differ from the first clip, padding to preserve aspect
+   * ratio. Returns the (potentially replaced) input paths; callers must
+   * clean up any temp files listed in the returned array that differ from
+   * the originals.
+   */
+  private static async normalizeResolutions(inputPaths: string[]): Promise<string[]> {
+    if (inputPaths.length <= 1) return [...inputPaths];
+
+    // Get resolution of the first clip (reference)
+    let refWidth: number;
+    let refHeight: number;
+    try {
+      const { stdout } = await exec(
+        `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${inputPaths[0]}"`,
+        { timeout: 15000 }
+      );
+      const [w, h] = stdout.trim().split('x').map(Number);
+      if (!w || !h || isNaN(w) || isNaN(h)) {
+        throw new Error(`Invalid resolution from ffprobe: ${stdout.trim()}`);
+      }
+      refWidth = w;
+      refHeight = h;
+    } catch (err: any) {
+      logger.warn(`Failed to probe reference resolution, skipping normalization: ${err.message}`);
+      return [...inputPaths];
+    }
+
+    logger.info(`Reference resolution: ${refWidth}x${refHeight} (from first clip)`);
+
+    const normalized: string[] = [inputPaths[0]];
+
+    for (let i = 1; i < inputPaths.length; i++) {
+      try {
+        const { stdout } = await exec(
+          `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "${inputPaths[i]}"`,
+          { timeout: 15000 }
+        );
+        const [w, h] = stdout.trim().split('x').map(Number);
+
+        if (w === refWidth && h === refHeight) {
+          normalized.push(inputPaths[i]);
+          continue;
+        }
+
+        logger.info(`Clip ${i} resolution ${w}x${h} differs from reference ${refWidth}x${refHeight}, re-encoding...`);
+        const ext = path.extname(inputPaths[i]);
+        const normalizedPath = inputPaths[i].replace(ext, `_normalized${ext}`);
+
+        await exec(
+          `ffmpeg -y -i "${inputPaths[i]}" ` +
+          `-vf "scale=${refWidth}:${refHeight}:force_original_aspect_ratio=decrease,pad=${refWidth}:${refHeight}:(ow-iw)/2:(oh-ih)/2" ` +
+          `-c:a copy "${normalizedPath}"`,
+          { timeout: 120000 }
+        );
+
+        if (fs.existsSync(normalizedPath) && fs.statSync(normalizedPath).size > 0) {
+          normalized.push(normalizedPath);
+        } else {
+          logger.warn(`Normalization failed for clip ${i}, using original`);
+          normalized.push(inputPaths[i]);
+        }
+      } catch (err: any) {
+        logger.warn(`Resolution normalization failed for clip ${i}: ${err.message}, using original`);
+        normalized.push(inputPaths[i]);
+      }
+    }
+
+    return normalized;
+  }
+
+  /**
    * Concatenate clips with professional xfade transitions.
    *
    * Dynamically builds an FFmpeg filter chain for ANY number of clips:
@@ -230,68 +304,69 @@ export class VideoPostProcessing {
       return;
     }
 
-    const transitionDuration = options?.transitionDuration ?? 0.5;
-    const numTransitions = inputPaths.length - 1;
-
-    // Get actual durations of all clips via ffprobe
-    logger.info(`Probing durations for ${inputPaths.length} clips...`);
-    const durations = await Promise.all(inputPaths.map(getClipDuration));
-    logger.info(`Clip durations: ${durations.map(d => d.toFixed(2)).join(', ')}s`);
-
-    // Get niche-appropriate transitions
-    const transitions = getTransitionsForNiche(
-      options?.niche,
-      numTransitions,
-      options?.transitionType
-    );
-
-    // Build the FFmpeg input arguments
-    const inputArgs = inputPaths.map(p => `-i "${p}"`).join(' ');
-
-    // Build the xfade filter chain
-    // For each transition i (0 to N-2):
-    //   offset_i = sum(durations[0..i]) - (i * transitionDuration) - transitionDuration
-    //   But more precisely: offset is when the transition starts relative to output timeline
-    //
-    // The offset for transition i is:
-    //   offset_i = (sum of first i+1 clip durations) - (transitionDuration * (i + 1))
-    const filterParts: string[] = [];
-    let cumulativeDuration = 0;
-
-    for (let i = 0; i < numTransitions; i++) {
-      const transition = transitions[i];
-      const inputA = i === 0 ? `[0:v]` : `[v${i}]`;
-      const inputB = `[${i + 1}:v]`;
-      const outputLabel = i === numTransitions - 1 ? `[vout]` : `[v${i + 1}]`;
-
-      // Calculate offset: cumulative duration of clips consumed so far
-      // minus the overlap from previous transitions, minus current transition duration
-      cumulativeDuration += durations[i];
-      const offset = Math.max(0, cumulativeDuration - (transitionDuration * (i + 1)));
-
-      filterParts.push(
-        `${inputA}${inputB}xfade=transition=${transition}:duration=${transitionDuration}:offset=${offset.toFixed(3)}${outputLabel}`
-      );
-    }
-
-    const filterComplex = filterParts.join(';');
-
-    // Build and execute the FFmpeg command
-    const cmd =
-      `ffmpeg -y ${inputArgs} ` +
-      `-filter_complex "${filterComplex}" ` +
-      `-map "[vout]" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p "${outputPath}"`;
-
-    logger.info(`FFmpeg xfade command (${numTransitions} transitions): ${transitions.join(', ')}`);
-    logger.debug(`Full FFmpeg command: ${cmd}`);
+    // Normalize resolutions so all clips match the first clip's dimensions
+    const normalizedPaths = await VideoPostProcessing.normalizeResolutions(inputPaths);
+    const normalizedTempFiles = normalizedPaths.filter((p, i) => p !== inputPaths[i]);
 
     try {
-      await exec(cmd, { timeout: 300000 }); // 5 min timeout for long videos
-    } catch (err: any) {
-      logger.error(`FFmpeg xfade concatenation failed: ${err.message}`);
-      // Fallback: try simple concat without transitions
-      logger.warn('Falling back to simple concat (no transitions)...');
-      await VideoPostProcessing.simpleConcatenate(inputPaths, outputPath);
+      const transitionDuration = options?.transitionDuration ?? 0.5;
+      const numTransitions = normalizedPaths.length - 1;
+
+      // Get actual durations of all clips via ffprobe
+      logger.info(`Probing durations for ${normalizedPaths.length} clips...`);
+      const durations = await Promise.all(normalizedPaths.map(getClipDuration));
+      logger.info(`Clip durations: ${durations.map(d => d.toFixed(2)).join(', ')}s`);
+
+      // Get niche-appropriate transitions
+      const transitions = getTransitionsForNiche(
+        options?.niche,
+        numTransitions,
+        options?.transitionType
+      );
+
+      // Build the FFmpeg input arguments
+      const inputArgs = normalizedPaths.map(p => `-i "${p}"`).join(' ');
+
+      // Build the xfade filter chain
+      const filterParts: string[] = [];
+      let cumulativeDuration = 0;
+
+      for (let i = 0; i < numTransitions; i++) {
+        const transition = transitions[i];
+        const inputA = i === 0 ? `[0:v]` : `[v${i}]`;
+        const inputB = `[${i + 1}:v]`;
+        const outputLabel = i === numTransitions - 1 ? `[vout]` : `[v${i + 1}]`;
+
+        cumulativeDuration += durations[i];
+        const offset = Math.max(0, cumulativeDuration - (transitionDuration * (i + 1)));
+
+        filterParts.push(
+          `${inputA}${inputB}xfade=transition=${transition}:duration=${transitionDuration}:offset=${offset.toFixed(3)}${outputLabel}`
+        );
+      }
+
+      const filterComplex = filterParts.join(';');
+
+      const cmd =
+        `ffmpeg -y ${inputArgs} ` +
+        `-filter_complex "${filterComplex}" ` +
+        `-map "[vout]" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p "${outputPath}"`;
+
+      logger.info(`FFmpeg xfade command (${numTransitions} transitions): ${transitions.join(', ')}`);
+      logger.debug(`Full FFmpeg command: ${cmd}`);
+
+      try {
+        await exec(cmd, { timeout: 300000 });
+      } catch (err: any) {
+        logger.error(`FFmpeg xfade concatenation failed: ${err.message}`);
+        logger.warn('Falling back to simple concat (no transitions)...');
+        await VideoPostProcessing.simpleConcatenate(normalizedPaths, outputPath);
+      }
+    } finally {
+      // Clean up normalized temp files
+      for (const tmp of normalizedTempFiles) {
+        try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+      }
     }
   }
 

@@ -437,10 +437,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Niche and duration required' });
       }
 
-      const storyboard = VideoService.generateStoryboard({ 
-        niche, 
-        duration, 
-        productDescription 
+      const storyboard = await VideoService.generateStoryboard({
+        niche,
+        duration,
+        productDescription
       });
       
       return storyboard;

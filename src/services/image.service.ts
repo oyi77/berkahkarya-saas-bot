@@ -37,6 +37,7 @@ const SEGMIND_API_KEY = process.env.SEGMIND_API_KEY || '';
 const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || '';
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const PIAPI_API_KEY = process.env.PIAPI_API_KEY || '';
 
 // Read dynamically so tests can toggle it
 function isDemoMode(): boolean {
@@ -488,6 +489,124 @@ async function evolinkImageGenerate(model: string, prompt: string, imageUrl?: st
   throw new Error('EvoLink img2img: poll timeout');
 }
 
+/** PiAPI — Flux Pro text2img (high quality, async polling) */
+async function generateViaPiAPI(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const response = await axios.post('https://api.piapi.ai/api/v1/task', {
+    model: 'Qubico/flux1-dev',
+    task_type: 'txt2img',
+    input: {
+      prompt,
+      width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
+      height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
+      guidance_scale: 3.5,
+      num_inference_steps: 28,
+    },
+  }, {
+    headers: { 'x-api-key': PIAPI_API_KEY, 'Content-Type': 'application/json' },
+    timeout: 30000,
+  });
+
+  const taskId = response.data?.data?.task_id;
+  if (!taskId) throw new Error(`PiAPI: no task_id in response: ${JSON.stringify(response.data).slice(0, 200)}`);
+
+  // Poll for completion
+  for (let i = 0; i < 60; i++) {
+    const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${taskId}`, {
+      headers: { 'x-api-key': PIAPI_API_KEY },
+      timeout: 10000,
+    });
+    const pollData = poll.data?.data;
+    const status = pollData?.status;
+
+    // Handle rate limit responses
+    if (poll.status === 429) {
+      logger.warn('PiAPI: rate limited, backing off');
+      await new Promise(r => setTimeout(r, 10000));
+      continue;
+    }
+
+    if (status === 'completed') {
+      const output = pollData?.output;
+      logger.info('PiAPI response: ' + JSON.stringify(pollData).slice(0, 500));
+      const url = output?.image_url
+        || (Array.isArray(output?.images) ? output.images[0] : null)
+        || (Array.isArray(output?.image_urls) ? output.image_urls[0] : null)
+        || output?.result?.image_url
+        || output?.url;
+      if (url) return { success: true, imageUrl: url, provider: 'piapi_flux', mode: 'text2img' };
+      throw new Error('PiAPI: completed but no image URL');
+    }
+    if (status === 'failed') {
+      throw new Error(`PiAPI: task failed: ${pollData?.error || 'Unknown error'}`);
+    }
+    if (status === 'processing') {
+      // Still processing — continue polling
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  throw new Error('PiAPI: poll timeout');
+}
+
+/** PiAPI — Midjourney img2img */
+async function generateViaPiAPIImg2Img(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
+  const imageUrl = params.referenceImageUrl;
+  if (!imageUrl) throw new Error('PiAPI img2img: no reference image URL');
+
+  const response = await axios.post('https://api.piapi.ai/api/v1/task', {
+    model: 'Qubico/flux1-dev',
+    task_type: 'img2img',
+    input: {
+      prompt,
+      image_url: imageUrl,
+      strength: 0.65,
+      guidance_scale: 3.5,
+      num_inference_steps: 28,
+      width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
+      height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
+    },
+  }, {
+    headers: { 'x-api-key': PIAPI_API_KEY, 'Content-Type': 'application/json' },
+    timeout: 30000,
+  });
+
+  const taskId = response.data?.data?.task_id;
+  if (!taskId) throw new Error(`PiAPI img2img: no task_id`);
+
+  for (let i = 0; i < 60; i++) {
+    const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${taskId}`, {
+      headers: { 'x-api-key': PIAPI_API_KEY },
+      timeout: 10000,
+    });
+    const pollData = poll.data?.data;
+    const status = pollData?.status;
+
+    // Handle rate limit responses
+    if (poll.status === 429) {
+      logger.warn('PiAPI img2img: rate limited, backing off');
+      await new Promise(r => setTimeout(r, 10000));
+      continue;
+    }
+
+    if (status === 'completed') {
+      const output = pollData?.output;
+      logger.info('PiAPI img2img response: ' + JSON.stringify(pollData).slice(0, 500));
+      const url = output?.image_url
+        || (Array.isArray(output?.images) ? output.images[0] : null)
+        || (Array.isArray(output?.image_urls) ? output.image_urls[0] : null)
+        || output?.result?.image_url
+        || output?.url;
+      if (url) return { success: true, imageUrl: url, provider: 'piapi_img2img', mode: 'img2img' };
+      throw new Error('PiAPI img2img: completed but no image URL');
+    }
+    if (status === 'failed') throw new Error(`PiAPI img2img: ${pollData?.error || 'failed'}`);
+    if (status === 'processing') {
+      // Still processing — continue polling
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  throw new Error('PiAPI img2img: poll timeout');
+}
+
 /** Together.ai — FLUX.1 Schnell (cheapest text2img at ~$0.003/img, OpenAI-compatible) */
 async function generateViaTogether(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post('https://api.together.xyz/v1/images/generations', {
@@ -578,7 +697,17 @@ function getProviders(): ImageProvider[] {
       supportsIPAdapter: false,
       generate: generateViaTogether,
     },
-    // Tier 2: Good quality, free tier
+    // Tier 2: PiAPI — high quality Flux Dev text2img + img2img
+    {
+      key: 'piapi',
+      name: 'PiAPI (Flux Dev)',
+      enabled: !!PIAPI_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: false,
+      generate: generateViaPiAPI,
+      generateImg2Img: generateViaPiAPIImg2Img,
+    },
+    // Tier 3: Good quality, free tier
     {
       key: 'gemini',
       name: 'Google Gemini',

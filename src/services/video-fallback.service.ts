@@ -39,6 +39,7 @@ const EVOLINK_API_KEY = process.env.EVOLINK_API_KEY || '';
 const HYPEREAL_API_KEY = process.env.HYPEREAL_API_KEY || '';
 const BYTEPLUS_API_KEY = process.env.BYTEPLUS_API_KEY || '';
 const KIE_API_KEY = process.env.KIE_API_KEY || '';
+const PIAPI_API_KEY = process.env.PIAPI_API_KEY || '';
 
 export interface VideoFallbackParams {
   prompt: string;
@@ -112,11 +113,7 @@ async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoF
   formData.append('prompt', params.prompt);
   formData.append('model', 'grok-3');
 
-  const allowedDurations = [6, 10, 15];
-  const duration = allowedDurations.reduce((prev, curr) =>
-    Math.abs(curr - params.duration) < Math.abs(prev - params.duration) ? curr : prev
-  , allowedDurations[0]);
-  formData.append('duration', duration.toString());
+  formData.append('duration', String(Math.min(5, params.duration)));
 
   formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
 
@@ -156,7 +153,7 @@ async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoF
 async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallbackResult> {
   const payload: any = {
     prompt: params.prompt,
-    duration: String(Math.min(10, params.duration)),
+    duration: String(Math.min(5, params.duration)),
     aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
   };
 
@@ -185,6 +182,7 @@ async function generateViaSiliconFlow(params: VideoFallbackParams): Promise<Vide
     model: 'Wan-AI/Wan2.1-T2V-14B',
     prompt: params.prompt,
     image_size: params.aspectRatio === '9:16' ? '480x832' : params.aspectRatio === '1:1' ? '640x640' : '832x480',
+    num_frames: Math.round(params.duration * 16), // ~16fps, controls output duration
   };
 
   if (params.referenceImage && fs.existsSync(params.referenceImage)) {
@@ -225,11 +223,7 @@ async function generateViaXAI(params: VideoFallbackParams): Promise<VideoFallbac
   formData.append('prompt', params.prompt);
   formData.append('model', 'grok-2-1212');
 
-  const allowedDurations = [5, 10];
-  const duration = allowedDurations.reduce((prev, curr) =>
-    Math.abs(curr - params.duration) < Math.abs(prev - params.duration) ? curr : prev
-  , allowedDurations[0]);
-  formData.append('duration', duration.toString());
+  formData.append('duration', String(Math.min(5, params.duration)));
   formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
 
   if (params.referenceImage && fs.existsSync(params.referenceImage) && fs.statSync(params.referenceImage).size > 0) {
@@ -283,12 +277,10 @@ async function generateViaLaoZhang(params: VideoFallbackParams): Promise<VideoFa
     }
   }
 
-  // Choose model variant based on aspect ratio and duration
+  // Choose model variant based on aspect ratio (5s per scene standard)
   let model = 'sora_video2';
   if (params.aspectRatio === '16:9' || params.aspectRatio === 'landscape') {
-    model = params.duration > 10 ? 'sora_video2-landscape-15s' : 'sora_video2-landscape';
-  } else if (params.duration > 10) {
-    model = 'sora_video2-15s';
+    model = 'sora_video2-landscape';
   }
 
   const body = {
@@ -333,6 +325,7 @@ async function generateViaEvoLink(params: VideoFallbackParams): Promise<VideoFal
   const body: any = {
     model: 'wan2.5-text-to-video',
     prompt: params.prompt,
+    duration: params.duration,
   };
 
   if (params.referenceImage && fs.existsSync(params.referenceImage)) {
@@ -409,9 +402,7 @@ async function generateViaHypereal(params: VideoFallbackParams): Promise<VideoFa
     if (imgBase64) input.image = imgBase64;
   }
 
-  if (params.duration) {
-    input.duration = params.duration;
-  }
+  input.duration = Math.min(5, params.duration);
 
   const body = {
     model,
@@ -495,7 +486,7 @@ async function generateViaByteplus(params: VideoFallbackParams): Promise<VideoFa
 async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbackResult> {
   const body: any = {
     prompt: params.prompt,
-    duration: Math.min(10, params.duration),
+    duration: Math.min(5, params.duration),
     quality: '720p',
     waterMark: 'kie.ai',
   };
@@ -563,19 +554,93 @@ async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbac
   throw new Error('Kie.ai poll timeout');
 }
 
+/** Tier 10: PiAPI — Kling video generation (text-to-video + image-to-video) */
+async function generateViaPiAPI(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+  const input: any = {
+    prompt: params.prompt,
+    duration: Math.min(5, params.duration),
+    aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
+  };
+
+  let taskType = 'txt2video';
+  if (params.referenceImage && fs.existsSync(params.referenceImage)) {
+    const imgBase64 = readRefImageBase64(params.referenceImage);
+    if (imgBase64) {
+      input.image_url = imgBase64;
+      taskType = 'img2video';
+    }
+  }
+
+  const response = await axios.post('https://api.piapi.ai/api/v1/task', {
+    model: 'Qubico/kling1.6-standard',
+    task_type: taskType,
+    input,
+  }, {
+    headers: { 'x-api-key': PIAPI_API_KEY, 'Content-Type': 'application/json' },
+    timeout: 30000,
+  });
+
+  const taskId = response.data?.data?.task_id;
+  if (!taskId) throw new Error(`PiAPI video: no task_id: ${JSON.stringify(response.data).slice(0, 200)}`);
+
+  logger.info(`PiAPI video started: ${taskId}`);
+
+  // Poll for completion
+  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
+    const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${taskId}`, {
+      headers: { 'x-api-key': PIAPI_API_KEY },
+      timeout: 10000,
+    });
+
+    const pollData = poll.data?.data;
+    const status = pollData?.status;
+
+    // Handle rate limit responses
+    if (poll.status === 429) {
+      logger.warn('PiAPI video: rate limited, backing off');
+      await sleep(10000);
+      continue;
+    }
+
+    if (status === 'completed') {
+      const output = pollData?.output;
+      logger.info('PiAPI video response: ' + JSON.stringify(pollData).slice(0, 500));
+      const videoUrl = output?.video_url
+        || (Array.isArray(output?.videos) ? output.videos[0] : null)
+        || (Array.isArray(output?.video_urls) ? output.video_urls[0] : null)
+        || output?.result?.video_url
+        || output?.url
+        || output?.works?.[0]?.video?.url;
+      if (videoUrl) {
+        return { success: true, videoUrl, jobId: taskId, provider: 'piapi' };
+      }
+      throw new Error('PiAPI video: completed but no video URL');
+    }
+    if (status === 'failed') {
+      throw new Error(`PiAPI video: ${pollData?.error || 'task failed'}`);
+    }
+    if (status === 'processing') {
+      // Still processing — continue polling
+    }
+    await sleep(POLL_INTERVAL);
+  }
+  throw new Error('PiAPI video: poll timeout');
+}
+
 // ── Provider chain ──
 
 function getProviders(): VideoProvider[] {
   return [
-    { key: 'geminigen', name: 'GeminiGen', enabled: !!GEMINIGEN_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaGeminiGen },
-    { key: 'falai', name: 'Fal.ai Video', enabled: !!FALAI_API_KEY, supportsRefImage: true, maxDuration: 10, generate: generateViaFalai },
-    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!SILICONFLOW_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaSiliconFlow },
-    { key: 'xai', name: 'XAI Grok', enabled: !!(GEMINIGEN_API_KEY || XAI_API_KEY), supportsRefImage: true, maxDuration: 10, generate: generateViaXAI },
-    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!LAOZHANG_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaLaoZhang },
-    { key: 'evolink', name: 'EvoLink Video', enabled: !!EVOLINK_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaEvoLink },
-    { key: 'hypereal', name: 'Hypereal AI', enabled: !!HYPEREAL_API_KEY, supportsRefImage: true, maxDuration: 15, generate: generateViaHypereal },
+    { key: 'geminigen', name: 'GeminiGen', enabled: !!GEMINIGEN_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaGeminiGen },
+    { key: 'falai', name: 'Fal.ai Video', enabled: !!FALAI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaFalai },
+    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!SILICONFLOW_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaSiliconFlow },
+    { key: 'xai', name: 'XAI Grok', enabled: !!(GEMINIGEN_API_KEY || XAI_API_KEY), supportsRefImage: true, maxDuration: 5, generate: generateViaXAI },
+    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!LAOZHANG_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaLaoZhang },
+    { key: 'evolink', name: 'EvoLink Video', enabled: !!EVOLINK_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaEvoLink },
+    { key: 'hypereal', name: 'Hypereal AI', enabled: !!HYPEREAL_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaHypereal },
     { key: 'byteplus', name: 'BytePlus Seedance', enabled: !!BYTEPLUS_API_KEY, supportsRefImage: false, maxDuration: 5, generate: generateViaByteplus },
-    { key: 'kie', name: 'Kie.ai', enabled: !!KIE_API_KEY, supportsRefImage: true, maxDuration: 10, generate: generateViaKie },
+    { key: 'kie', name: 'Kie.ai', enabled: !!KIE_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaKie },
+    { key: 'piapi', name: 'PiAPI (Kling)', enabled: !!PIAPI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaPiAPI },
   ];
 }
 

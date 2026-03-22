@@ -1,110 +1,113 @@
-# OpenClaw Bot — System Status
+# @berkahkarya_saas_bot — System Status
 
-> Real-time system status and operational information
-
----
-
-## Current Status
-
-| Component | Status | Last Updated |
-|-----------|--------|--------------|
-| **OpenClaw Core** | 🟢 Operational | 2024-XX-XX |
-| **Bot Instances** | 🟢 Operational | 2024-XX-XX |
-| **PostgreSQL** | 🟢 Operational | 2024-XX-XX |
-| **Redis** | 🟢 Operational | 2024-XX-XX |
-| **AI Pipeline** | 🟢 Operational | 2024-XX-XX |
-| **Payment Gateway** | 🟢 Operational | 2024-XX-XX |
-| **CDN** | 🟢 Operational | 2024-XX-XX |
+> Last updated: 2026-03-22 23:31 WIB by Vilona
 
 ---
 
-## Status Legend
+## 🟢 Live Status
 
-| Icon | Status | Description |
-|------|--------|-------------|
-| 🟢 | Operational | All systems normal |
-| 🟡 | Degraded | Reduced performance, investigating |
-| 🟠 | Partial Outage | Some features unavailable |
-| 🔴 | Major Outage | Significant disruption |
-| ⚪ | Maintenance | Scheduled maintenance |
-
----
-
-## Current Metrics
-
-### Business Metrics (Last 24h)
-
-| Metric | Value | Change |
-|--------|-------|--------|
-| Active Users | 1,234 | +5% |
-| Videos Generated | 567 | +12% |
-| Revenue (IDR) | Rp 45,678,000 | +8% |
-| New Signups | 89 | +3% |
-
-### Technical Metrics (Last 1h)
-
-| Metric | Value | Threshold |
-|--------|-------|-----------|
-| API Latency (p95) | 245ms | < 500ms ✅ |
-| Error Rate | 0.3% | < 5% ✅ |
-| Queue Depth | 23 | < 100 ✅ |
-| CPU Usage | 45% | < 70% ✅ |
-| Memory Usage | 62% | < 85% ✅ |
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Bot Service** | 🟢 Running | systemd, PID via `/mnt/data/openclaw/projects/openclaw-saas-bot/` |
+| **PostgreSQL** | 🟢 Connected | `localhost:5432/openclaw` |
+| **Redis** | 🟢 Connected | `localhost:6379` |
+| **HTTP Server** | 🟢 Listening | `localhost:3000` |
+| **Webhook** | 🟢 Live | `https://api-saas.aitradepulse.com/webhook/telegram` |
+| **Video Generation** | 🟢 Real Mode | `DEMO_MODE=false`, GeminiGen API key set |
+| **Payment - Duitku** | 🟢 Production | Merchant D1821, aktif |
+| **Payment - Midtrans** | 🔴 Disabled | Sandbox only — belum live |
+| **Payment - Tripay** | 🔴 Disabled | Sandbox only — belum live |
 
 ---
 
-## Recent Incidents
+## 📊 Real Metrics (per 2026-03-22)
 
-### Last 30 Days
-
-| Date | Incident | Severity | Duration | Status |
-|------|----------|----------|----------|--------|
-| 2024-XX-XX | AI API timeout | P2 | 15 min | Resolved |
-| 2024-XX-XX | Payment gateway delay | P3 | 5 min | Resolved |
-
-### Incident Details
-
-#### 2024-XX-XX: AI API Timeout
-- **Severity**: P2 (High)
-- **Duration**: 15 minutes
-- **Impact**: Video generation queue delayed
-- **Root Cause**: GeminiGen API rate limiting
-- **Resolution**: Activated Kling AI fallback
-- **Post-mortem**: [Link](#)
+| Metric | Value |
+|--------|-------|
+| Registered Users | 3 |
+| Total Videos Generated | 10 |
+| Videos Completed | 9 |
+| Videos Processing | 1 |
+| Total Transactions | 0 |
+| Active Subscriptions | 0 |
 
 ---
 
-## Scheduled Maintenance
+## 🔧 Config
 
-| Date | Time (WIB) | Duration | Description |
-|------|------------|----------|-------------|
-| 2024-XX-XX | 02:00 - 04:00 | 2 hours | Database upgrade |
-| 2024-XX-XX | 03:00 - 03:30 | 30 min | Bot version update |
-
----
-
-## Version History
-
-| Version | Date | Status | Notes |
-|---------|------|--------|-------|
-| 3.0.0 | 2024-XX-XX | 🟢 Current | Production release |
-| 2.0.0 | 2024-XX-XX | ⚪ Deprecated | Legacy version |
-| 1.0.0 | 2024-XX-XX | ⚪ Deprecated | MVP |
+| Key | Value |
+|-----|-------|
+| `NODE_ENV` | development |
+| `DEMO_MODE` | false |
+| `GEMINIGEN_API_KEY` | ✅ Set |
+| `DEFAULT_GATEWAY` | duitku |
+| `DUITKU_ENVIRONMENT` | production |
+| `MIDTRANS_ENVIRONMENT` | sandbox (disabled) |
+| `TRIPAY_ENVIRONMENT` | sandbox (disabled) |
+| `SUPER_ADMIN_IDS` | 228956686, 5220170786 |
 
 ---
 
-## Changelog
+## 👥 Registered Users
 
-See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
-
----
-
-## Support
-
-- **Status Page**: [status.openclaw.ai](https://status.openclaw.ai)
-- **Incident Reports**: [incidents.openclaw.ai](https://incidents.openclaw.ai)
-- **Contact**: support@openclaw.ai
+| ID | Telegram | Username | Balance | Tier |
+|----|----------|----------|---------|------|
+| 1 | 5220170786 | codergaboets | 0.00 kr | free |
+| 2 | 157228659 | alwayscuanbos | 0.60 kr | free |
+| 3 | 999999999 | testuser_imgref | 100.00 kr | pro |
 
 ---
 
-*Last updated: 2024-XX-XX HH:MM WIB*
+## 🏗️ Architecture
+
+```
+User → Telegram → webhook POST → api-saas.aitradepulse.com
+  → Cloudflare Tunnel → localhost:3000 (Fastify + Telegraf)
+  → PostgreSQL + Redis + BullMQ
+  → GeminiGen API (video) / Duitku (payment)
+```
+
+**Video Fallback Chain:**
+`GeminiGen → BytePlus → XAI → LaoZhang → EvoLink → Hypereal → SiliconFlow → Fal.ai → Kie.ai`
+
+---
+
+## 📋 Service Files
+
+| File | Path |
+|------|------|
+| Source | `/mnt/data/openclaw/projects/openclaw-saas-bot/` |
+| systemd | `/etc/systemd/system/openclaw-saas-bot.service` |
+| Logs | `journalctl -u openclaw-saas-bot -f` |
+| DB | `postgresql://postgres:postgres@localhost:5432/openclaw` |
+
+---
+
+## ⚠️ Known Issues / Pending
+
+- [ ] Midtrans & Tripay: butuh live keys sebelum bisa diaktifkan
+- [ ] Referral komisi tracking: belum tersambung penuh ke DB
+- [ ] Custom prompt dari user: belum diimplementasi
+- [ ] Subscription auto-renewal: belum diimplementasi
+- [ ] `NODE_ENV` masih `development` — ubah ke `production` saat ready launch
+
+---
+
+## 🚨 Operations
+
+```bash
+# Status
+systemctl status openclaw-saas-bot
+
+# Restart
+systemctl restart openclaw-saas-bot
+
+# Logs live
+journalctl -u openclaw-saas-bot -f
+
+# Health check
+curl http://localhost:3000/health
+
+# DB access
+psql "postgresql://postgres:postgres@localhost:5432/openclaw"
+```

@@ -39,6 +39,7 @@ export class UserService {
     firstName: string;
     lastName?: string;
     referredBy?: string;
+    language?: string;
   }): Promise<User> {
     // Generate referral code
     const referralCode = await this.generateReferralCode(data.username || data.firstName);
@@ -53,7 +54,7 @@ export class UserService {
         creditBalance: 3, // 3 free trial credits
         referralCode,
         referredBy: data.referredBy,
-        language: 'id',
+        language: data.language || 'id',
         notificationsEnabled: true,
       },
     });
@@ -142,7 +143,7 @@ export class UserService {
     // Fire-and-forget low credit warning
     const remaining = Number(updated.creditBalance);
     if (remaining > 0 && remaining < 1) {
-      this.sendLowCreditWarning(telegramId, remaining, (user.language as 'id' | 'en') || 'id').catch(() => {});
+      this.sendLowCreditWarning(telegramId, remaining, user.language || 'id').catch(() => {});
     }
 
     return updated;
@@ -155,7 +156,7 @@ export class UserService {
   private static async sendLowCreditWarning(
     telegramId: bigint,
     remaining: number,
-    lang: 'id' | 'en',
+    lang: string,
   ): Promise<void> {
     if (!this.botInstance) return;
 

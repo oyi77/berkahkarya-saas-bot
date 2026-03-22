@@ -72,16 +72,25 @@ export class AudioVOService {
   static async generateTTS(
     text: string,
     category?: string,
-    jobId?: string
+    jobId?: string,
+    language?: string
   ): Promise<TTSResult> {
     const id = jobId || `tts-${Date.now()}`;
     const audioPath = path.join(AUDIO_DIR, `${id}.mp3`);
     const vttPath = path.join(AUDIO_DIR, `${id}.vtt`);
 
     try {
-      const voiceProfileKey = category ? (CATEGORY_TO_VOICE[category] || 'indonesian_female_soft') : 'indonesian_female_soft';
-      const voiceProfile = AI_VOICE_PROFILES[voiceProfileKey];
-      const edgeVoice = EDGE_TTS_VOICES[voiceProfile?.voice_id] || 'id-ID-GadisNeural';
+      let edgeVoice: string;
+      if (language) {
+        // Use language registry for voice selection
+        const { getTTSVoice } = require('@/config/languages') as typeof import('@/config/languages');
+        edgeVoice = getTTSVoice(language);
+      } else {
+        // Fallback to niche-based voice
+        const voiceProfileKey = category ? (CATEGORY_TO_VOICE[category] || 'indonesian_female_soft') : 'indonesian_female_soft';
+        const voiceProfile = AI_VOICE_PROFILES[voiceProfileKey];
+        edgeVoice = EDGE_TTS_VOICES[voiceProfile?.voice_id] || 'id-ID-GadisNeural';
+      }
 
       logger.info(`🎙️ Generating TTS: voice=${edgeVoice}, text=${text.slice(0, 50)}...`);
 
@@ -233,13 +242,14 @@ export class AudioVOService {
       bgmPath?: string;
       subtitleStyle?: string;
       bgmVolume?: number;
+      language?: string;
     }
   ): Promise<AudioMixResult> {
     try {
       logger.info(`🎬 Starting full VO pipeline for ${jobId}`);
 
       // Step 1: Generate TTS
-      const tts = await this.generateTTS(script, category, jobId);
+      const tts = await this.generateTTS(script, category, jobId, options?.language);
       if (!tts.success || !tts.audioPath) {
         return { success: false, error: `TTS failed: ${tts.error}` };
       }

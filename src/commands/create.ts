@@ -31,9 +31,8 @@ if (!fs.existsSync(VIDEO_DIR)) {
 }
 
 /** Resolve the user's preferred language from the DB record. */
-function getUserLang(dbUser: { language?: string } | null): 'id' | 'en' {
-  const lang = dbUser?.language;
-  return lang === 'en' ? 'en' : 'id';
+function getUserLang(dbUser: { language?: string } | null): string {
+  return dbUser?.language || 'id';
 }
 
 /**
@@ -153,25 +152,12 @@ export async function handleDurationSelection(ctx: BotContext, durationStr: stri
     duration = parseInt(parts[0]);
     scenes = parts[1] ? parseInt(parts[1]) : null;
 
-    // Auto-calculate scenes if not specified
+    // Auto-calculate scenes: standard 5s per scene
     if (!scenes) {
-      // Try to fit into max 15s per scene, then 10s, then 6s
-      // Find the best combination for total duration
-      let bestFit = { scenes: 0, durationPerScene: 0, error: Infinity };
-      
-      for (const durationPerScene of [15, 10, 6]) {
-        const calculatedScenes = Math.ceil(duration / durationPerScene);
-        const totalDuration = calculatedScenes * durationPerScene;
-        const error = Math.abs(totalDuration - duration);
-        
-        if (error < bestFit.error) {
-          bestFit = { scenes: calculatedScenes, durationPerScene, error };
-        }
-      }
-      
-      scenes = bestFit.scenes;
-      duration = scenes * bestFit.durationPerScene;
-      logger.info(`📊 Auto-calculated: ${scenes} scenes × ${bestFit.durationPerScene}s = ${duration}s total`);
+      const SCENE_DURATION = 5;
+      scenes = Math.ceil(duration / SCENE_DURATION);
+      duration = scenes * SCENE_DURATION;
+      logger.info(`📊 Auto-calculated: ${scenes} scenes × ${SCENE_DURATION}s = ${duration}s total`);
     }
 
     // Validate duration

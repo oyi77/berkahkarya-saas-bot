@@ -249,6 +249,7 @@ export async function handleVideoCreationImage(
         chatId: ctx.chat!.id,
         enableVO,
         enableSubtitles,
+        language: user.language || 'id',
       });
       await ctx.reply(
         `Video queued! Position: #${position}. You'll be notified when ready.`
@@ -348,6 +349,7 @@ export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
       chatId: ctx.chat!.id,
       enableVO: skipEnableVO,
       enableSubtitles: skipEnableSubtitles,
+      language: user.language || 'id',
     });
     await ctx.reply(
       `Video queued! Position: #${position}. You'll be notified when ready.`
@@ -398,13 +400,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         return;
       }
 
-      let bestFit = { scenes: 0, durationPerScene: 0, error: Infinity };
-      for (const dps of [15, 10, 6]) {
-        const s = Math.ceil(duration / dps);
-        const total = s * dps;
-        const err = Math.abs(total - duration);
-        if (err < bestFit.error) bestFit = { scenes: s, durationPerScene: dps, error: err };
-      }
+      const SCENE_DURATION = 5;
+      const bestFit = {
+        scenes: Math.ceil(duration / SCENE_DURATION),
+        durationPerScene: SCENE_DURATION,
+      };
 
       const finalDuration = bestFit.scenes * bestFit.durationPerScene;
       const niche = ctx.session.selectedNiche || 'fnb';

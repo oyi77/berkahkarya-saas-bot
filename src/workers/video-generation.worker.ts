@@ -30,6 +30,7 @@ import { AudioVOService } from '@/services/audio-vo.service';
 import { QualityCheckService } from '@/services/quality-check.service';
 import { WatermarkService } from '@/services/watermark.service';
 import { prisma } from '@/config/database';
+import { getAILabel, getLangConfig } from '@/config/languages';
 
 const exec = promisify(execCallback);
 
@@ -80,6 +81,7 @@ export interface VideoGenerationJobData {
   chatId: number;
   enableVO?: boolean;
   enableSubtitles?: boolean;
+  language?: string;
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -145,7 +147,7 @@ async function generateVOScript(
   storyboard: Array<{ scene?: number; duration: number; description: string }>,
   platform: string,
   totalDuration: number,
-  language: 'id' | 'en' = 'id'
+  language: string = 'id'
 ): Promise<string> {
   // Try LLM-based generation first
   try {
@@ -165,7 +167,7 @@ async function generateVOScript(
 async function generateVOScriptWithAI(
   niche: string,
   storyboard: Array<{ scene?: number; duration: number; description: string }>,
-  language: 'id' | 'en',
+  language: string,
   totalDuration: number
 ): Promise<string> {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -175,7 +177,9 @@ async function generateVOScriptWithAI(
     `Scene ${i + 1} (${s.duration}s): ${s.description}`
   ).join('\n');
 
-  const langLabel = language === 'id' ? 'Indonesian (Bahasa Indonesia)' : 'English';
+  const langLabel = getAILabel(language);
+  const wpm = getLangConfig(language).readingSpeedWpm;
+  const wordBudget = Math.round((totalDuration * wpm) / 60);
 
   const prompt = `Generate a ${langLabel} voiceover narration script for a ${niche} marketing video.
 
@@ -186,7 +190,7 @@ Total duration: ${totalDuration} seconds.
 
 Requirements:
 - Write the narration in ${langLabel}, natural and conversational tone
-- Keep it concise — the spoken words must fit within ${totalDuration} seconds (roughly ${Math.round(totalDuration * 2.3)} words for ${langLabel})
+- Keep it concise — the spoken words must fit within ${totalDuration} seconds (roughly ${wordBudget} words)
 - Flow naturally from scene to scene
 - Start with an attention hook
 - End with a soft call-to-action
@@ -213,7 +217,7 @@ Requirements:
 function generateVOScriptTemplate(
   niche: string,
   storyboard: Array<{ scene?: number; duration: number; description: string }>,
-  language: 'id' | 'en'
+  language: string
 ): string {
   const hook = MARKETING_HOOKS[Math.floor(Math.random() * MARKETING_HOOKS.length)];
   const cta = MARKETING_CTAS[Math.floor(Math.random() * MARKETING_CTAS.length)];
@@ -246,15 +250,17 @@ async function applyVOPipeline(
   platform: string,
   storyboard: Array<{ scene: number; duration: number; description: string }>,
   totalDuration: number,
-  options: { enableVO: boolean; enableSubtitles: boolean },
+  options: { enableVO: boolean; enableSubtitles: boolean; language?: string  },
   telegram: Telegram,
   chatId: number
 ): Promise<string> {
   try {
-    // Determine voice language from niche
-    const voiceKey = CATEGORY_TO_VOICE[niche] || 'indonesian_female_soft';
-    const voiceProfile = AI_VOICE_PROFILES[voiceKey];
-    const language: 'id' | 'en' = voiceProfile?.language === 'en' ? 'en' : 'id';
+    // Use user language preference, fallback to niche-based voice
+    const language: string = options.language || (() => {
+      const voiceKey = CATEGORY_TO_VOICE[niche] || 'indonesian_female_soft';
+      const voiceProfile = AI_VOICE_PROFILES[voiceKey];
+      return voiceProfile?.language === 'en' ? 'en' as const : 'id' as const;
+    })();
 
     // Step 1: Generate VO script
     await notifyProgress(telegram, chatId, '\ud83c\udfa4 Generating voice over script...');
@@ -264,7 +270,7 @@ async function applyVOPipeline(
     if (options.enableVO && options.enableSubtitles) {
       // Full pipeline: TTS + merge + subtitles
       await notifyProgress(telegram, chatId, '\ud83c\udf99\ufe0f Recording voice over...');
-      const result = await AudioVOService.fullVOPipeline(videoPath, script, niche, jobId);
+      const result = await AudioVOService.fullVOPipeline(videoPath, script, niche, jobId, { language });
       if (result.success && result.outputPath) {
         await notifyProgress(telegram, chatId, '\ud83c\udfb5 Audio mixing complete!');
         return result.outputPath;
@@ -276,7 +282,7 @@ async function applyVOPipeline(
     if (options.enableVO && !options.enableSubtitles) {
       // VO only: TTS + merge, no subtitle burn
       await notifyProgress(telegram, chatId, '\ud83c\udf99\ufe0f Recording voice over...');
-      const tts = await AudioVOService.generateTTS(script, niche, jobId);
+      const tts = await AudioVOService.generateTTS(script, niche, jobId, language);
       if (!tts.success || !tts.audioPath) {
         logger.warn(`TTS failed for ${jobId}: ${tts.error}. Delivering raw video.`);
         return videoPath;
@@ -294,7 +300,7 @@ async function applyVOPipeline(
     if (!options.enableVO && options.enableSubtitles) {
       // Subtitles only: TTS for timing data, burn subtitles, but don't merge audio
       await notifyProgress(telegram, chatId, '\ud83d\udcdd Generating subtitles...');
-      const tts = await AudioVOService.generateTTS(script, niche, jobId);
+      const tts = await AudioVOService.generateTTS(script, niche, jobId, language);
       if (!tts.success || !tts.subtitleBlocks || tts.subtitleBlocks.length === 0) {
         logger.warn(`TTS/subtitle generation failed for ${jobId}. Delivering raw video.`);
         return videoPath;
@@ -446,7 +452,7 @@ async function processSingleScene(
   if (enableVO || enableSubtitles) {
     deliveryPath = await applyVOPipeline(
       localPath, jobId, niche, platform, storyboard, duration,
-      { enableVO, enableSubtitles },
+      { enableVO, enableSubtitles, language: job.data.language },
       telegram, chatId
     );
   } else {
@@ -471,18 +477,20 @@ async function processExtendedScenes(
 
   const cancelTimeout = startTimeoutWatcher(telegram, chatId);
 
-  const sceneVideos: string[] = [];
-  let lastUuid: string | null = null;
+  const sceneVideos: string[] = new Array(scenes).fill('');
 
-  for (let i = 0; i < scenes; i++) {
-    const scene = storyboard[i];
-    const scenePath = path.join(VIDEO_DIR, `${jobId}_scene_${i + 1}.mp4`);
+  // Helper: generate a single scene with 1 retry on failure
+  async function generateSceneWithRetry(sceneIndex: number, useExtend: boolean, lastUuidRef: string | null): Promise<{ result: any; scenePath: string }> {
+    const scene = storyboard[sceneIndex];
+    const scenePath = path.join(VIDEO_DIR, `${jobId}_scene_${sceneIndex + 1}.mp4`);
     const prompt = buildPrompt(scene.description, platform, scene.duration);
 
-    logger.info(`Generating scene ${i + 1}/${scenes} for job ${jobId}: ${scene.description}`);
+    logger.info(`Generating scene ${sceneIndex + 1}/${scenes} for job ${jobId}: ${scene.description}`);
 
     let result: any;
-    if (i === 0) {
+
+    // First attempt
+    if (sceneIndex === 0) {
       result = await generateVideoWithFallback({
         prompt,
         duration: scene.duration,
@@ -491,11 +499,11 @@ async function processExtendedScenes(
         niche,
         referenceImage,
       });
-    } else if (lastUuid) {
+    } else if (useExtend && lastUuidRef) {
       try {
-        result = await GeminiGenService.generateExtend({ prompt, refHistory: lastUuid });
+        result = await GeminiGenService.generateExtend({ prompt, refHistory: lastUuidRef });
       } catch (extendErr: any) {
-        logger.warn(`Scene ${i + 1} extend failed, falling back to standalone: ${extendErr.message}`);
+        logger.warn(`Scene ${sceneIndex + 1} extend failed, falling back to standalone: ${extendErr.message}`);
         result = await generateVideoWithFallback({
           prompt,
           duration: scene.duration,
@@ -516,40 +524,103 @@ async function processExtendedScenes(
       });
     }
 
+    // If first attempt failed, retry once (skip GeminiGen extend on retry)
     if (!result.success || !result.videoUrl) {
-      cancelTimeout();
-      const creditCost = getVideoCreditCost(duration);
-      await VideoService.updateStatus(jobId, 'failed', `Scene ${i + 1} failed: ${result.error}`);
-      await UserService.refundCredits(telegramId, creditCost, jobId, result.error || 'Generation failed');
-      const sceneUserMessage = actionableError(result.error || 'Generation failed', { jobId });
-      await telegram.sendMessage(
-        chatId,
-        `Video generation failed (scene ${i + 1})\n\nJob ID: ${jobId}\n${sceneUserMessage}\n\nCredits refunded.`,
-      );
-      return;
+      logger.warn(`Scene ${sceneIndex + 1}/${scenes} failed on first attempt: ${result.error}. Retrying...`);
+      result = await generateVideoWithFallback({
+        prompt,
+        duration: scene.duration,
+        aspectRatio: getAspectRatio(platform),
+        style: getStyleForNiche(niche),
+        niche,
+        referenceImage,
+      });
+    }
+
+    if (!result.success || !result.videoUrl) {
+      throw new Error(`Scene ${sceneIndex + 1} failed after 2 attempts: ${result.error}`);
     }
 
     await downloadVideo(result.videoUrl, scenePath);
-    sceneVideos.push(scenePath);
+    return { result, scenePath };
+  }
 
-    if (result.jobId) {
-      lastUuid = result.jobId;
+  // ── Scene 0: generate first (may use referenceImage / GeminiGen extend) ──
+  try {
+    const { result, scenePath } = await generateSceneWithRetry(0, false, null);
+    sceneVideos[0] = scenePath;
+
+    const progress = Math.round((1 / scenes) * 80);
+    await job.updateProgress(progress);
+    await VideoService.updateProgress(jobId, progress);
+    const percent = Math.round((1 / scenes) * 100);
+    await notifyProgress(telegram, chatId, `\ud83c\udfac Scene 1/${scenes} complete (${percent}%)`);
+  } catch (err: any) {
+    cancelTimeout();
+    const creditCost = getVideoCreditCost(duration);
+    await VideoService.updateStatus(jobId, 'failed', err.message);
+    await UserService.refundCredits(telegramId, creditCost, jobId, err.message);
+    const sceneUserMessage = actionableError(err.message, { jobId });
+    await telegram.sendMessage(
+      chatId,
+      `Video generation failed (scene 1)\n\nJob ID: ${jobId}\n${sceneUserMessage}\n\nCredits refunded.`,
+    );
+    return;
+  }
+
+  // ── Remaining scenes: batched parallel (3 concurrent) ──
+  // Skip GeminiGen extend for parallel scenes (requires sequential lastUuid)
+  const BATCH_SIZE = 3;
+  for (let batchStart = 1; batchStart < scenes; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, scenes);
+    const batchPromises: Promise<{ sceneIndex: number; result: any; scenePath: string }>[] = [];
+
+    for (let i = batchStart; i < batchEnd; i++) {
+      batchPromises.push(
+        generateSceneWithRetry(i, false, null).then(({ result, scenePath }) => ({
+          sceneIndex: i,
+          result,
+          scenePath,
+        }))
+      );
     }
 
-    const progress = Math.round(((i + 1) / scenes) * 80);
+    const batchResults = await Promise.allSettled(batchPromises);
+
+    // Process results and check for failures
+    for (const settled of batchResults) {
+      if (settled.status === 'rejected') {
+        cancelTimeout();
+        const errMsg = settled.reason?.message || 'Scene generation failed';
+        const creditCost = getVideoCreditCost(duration);
+        await VideoService.updateStatus(jobId, 'failed', errMsg);
+        await UserService.refundCredits(telegramId, creditCost, jobId, errMsg);
+        const sceneUserMessage = actionableError(errMsg, { jobId });
+        await telegram.sendMessage(
+          chatId,
+          `Video generation failed\n\nJob ID: ${jobId}\n${sceneUserMessage}\n\nCredits refunded.`,
+        );
+        return;
+      }
+
+      const { sceneIndex, scenePath } = settled.value;
+      sceneVideos[sceneIndex] = scenePath;
+    }
+
+    // Notify progress for all scenes completed in this batch
+    const completedCount = batchEnd;
+    const progress = Math.round((completedCount / scenes) * 80);
     await job.updateProgress(progress);
     await VideoService.updateProgress(jobId, progress);
 
-    // Notify user of scene progress
-    await notifyProgress(
-      telegram,
-      chatId,
-      `\ud83c\udfac Scene ${i + 1}/${scenes} complete! ${progress}% done...`
-    );
+    for (let i = batchStart; i < batchEnd; i++) {
+      const percent = Math.round(((i + 1) / scenes) * 100);
+      await notifyProgress(telegram, chatId, `\ud83c\udfac Scene ${i + 1}/${scenes} complete (${percent}%)`);
+    }
   }
 
   // Concatenate scenes with professional niche-aware transitions
-  await notifyProgress(telegram, chatId, '\u2702\ufe0f Combining scenes with transitions...');
+  await notifyProgress(telegram, chatId, `\u2702\ufe0f Combining ${scenes} scenes...`);
 
   const rawConcatPath = path.join(VIDEO_DIR, `${jobId}_raw.mp4`);
   const finalPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
@@ -619,7 +690,7 @@ async function processExtendedScenes(
   if (enableVO || enableSubtitles) {
     deliveryPath = await applyVOPipeline(
       finalPath, jobId, niche, platform, storyboard, duration,
-      { enableVO, enableSubtitles },
+      { enableVO, enableSubtitles, language: job.data.language },
       telegram, chatId
     );
   } else {

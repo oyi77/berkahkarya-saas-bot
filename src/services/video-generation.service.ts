@@ -43,7 +43,7 @@ export const PROVIDERS = {
     name: 'GeminiGen',
     apiKey: GEMINIGEN_API_KEY,
     priority: 1,
-    maxDuration: 15,
+    maxDuration: 5,
   },
   byteplus: {
     name: 'BytePlus Seedance',
@@ -212,7 +212,7 @@ async function generateWithGeminiGen(params: VideoGenerationParams): Promise<Vid
   formData.append('prompt', params.prompt || '');
   formData.append('model', 'grok-3');
   formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio || '9:16'));
-  formData.append('duration', Math.min(15, params.duration).toString());
+  formData.append('duration', Math.min(5, params.duration).toString());
 
   try {
     const response = await axios.post(`${GEMINIGEN_API_BASE}/video-gen/grok`, formData, {
@@ -245,7 +245,7 @@ async function generateWithByteplus(params: VideoGenerationParams): Promise<Vide
     model: 'bytedance/seedance-1-0-lite-t2v',
     prompt: params.prompt || '',
     resolution: '480p',
-    duration: Math.min(5, params.duration),
+    duration: 5,
     aspect_ratio: mapAspectRatio(params.aspectRatio || '9:16'),
     watermark: false,
   };
@@ -456,7 +456,7 @@ export function generateStoryboard(
   duration: number,
   scenes: number
 ): Array<{ scene: number; duration: number; description: string; prompt: string }> {
-  const durationPerScene = Math.floor(duration / scenes);
+  const durationPerScene = 5; // Standard 5s per scene
 
   const templates: Record<string, string[]> = {
     fnb: [

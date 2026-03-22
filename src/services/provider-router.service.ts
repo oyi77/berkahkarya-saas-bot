@@ -18,7 +18,7 @@ import { logger } from '@/utils/logger';
 
 // Redis key prefix for provider history counters
 const HISTORY_PREFIX = 'provider:history:';
-const HISTORY_TTL = 3600; // 1 hour window
+const HISTORY_TTL = 86400; // 24 hour window — scores accumulate over a full day
 
 interface ProviderScore {
   key: string;

@@ -32,10 +32,18 @@ export type PlanKey = keyof typeof SUBSCRIPTION_PLANS;
 export type BillingCycle = 'monthly' | 'annual';
 
 export const VIDEO_CREDIT_COSTS: Record<string, number> = {
+  '5': 0.2,
+  '10': 0.4,
   '15': 0.5,
+  '20': 0.7,
+  '25': 0.9,
   '30': 1.0,
+  '35': 1.2,
+  '40': 1.4,
+  '45': 1.5,
+  '50': 1.7,
+  '55': 1.9,
   '60': 2.0,
-  '120': 4.5,
 };
 
 export const EXTRA_CREDIT_PRICING = {
@@ -60,7 +68,7 @@ export const FREE_TRIAL_CREDITS = 3;
 
 export function getVideoCreditCost(durationSeconds: number): number {
   const key = String(durationSeconds);
-  return VIDEO_CREDIT_COSTS[key] ?? Math.ceil(durationSeconds / 30) * 1.0;
+  return VIDEO_CREDIT_COSTS[key] ?? Math.ceil(durationSeconds / 5) * (2.0 / 12);
 }
 
 export function isSubscriber(tier: string): boolean {
