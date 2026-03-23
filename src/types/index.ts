@@ -79,7 +79,9 @@ export type BotState =
   | 'PROFILE_VIEW'
   | 'SETTINGS_LANGUAGE'
   | 'SETTINGS_NOTIFICATIONS'
-  | 'SUPPORT_CHAT';
+  | 'SUPPORT_CHAT'
+  | 'CUSTOMIZING_PROMPT'
+  | 'CUSTOM_PROMPT_CREATION';
 
 // =============================================================================
 // USER TYPES

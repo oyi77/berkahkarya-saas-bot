@@ -59,7 +59,8 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
       reply_markup: {
         inline_keyboard: [
           ...videoButtons,
-          [{ text: '🎬 Create New Video', callback_data: 'create_video' }],
+          [{ text: '🎬 Buat Video Baru', callback_data: 'create_video' }],
+          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     }

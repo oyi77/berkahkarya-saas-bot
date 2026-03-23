@@ -323,28 +323,28 @@ const translations: Record<string, Record<Lang, string>> = {
   // Onboarding
   // ---------------------------------------------------------------------------
   'onboarding.welcome': {
-    id: '🎉 Selamat datang di OpenClaw!\n\nKamu mendapat 3 kredit gratis untuk mencoba.\n\nIzinkan saya tunjukkan apa yang bisa kamu lakukan:',
-    en: '🎉 Welcome to OpenClaw!\n\nYou received 3 free credits to try.\n\nLet me show you what you can do:',
+    id: '🎉 Selamat datang di Vilona Asisten OpenClaw!\n\n🎁 Kamu dapat *3 kredit GRATIS* — cukup untuk 6 video!\n\n_Kamu tidak perlu bingung mulai dari mana. Saya akan pandu step by step_ 👇',
+    en: '🎉 Welcome to Vilona Asisten OpenClaw!\n\n🎁 You got *3 FREE credits* — enough for 6 videos!\n\n_No need to be confused. I will guide you step by step_ 👇',
   },
   'onboarding.features': {
-    id: '🎬 Buat Video — AI membuat video marketing untuk bisnismu\n🖼️ Generate Gambar — Foto produk, makanan, real estate\n💬 Chat AI — Brainstorm ide, tulis caption\n\nVideo pertamamu hanya 0.5 kredit!',
-    en: '🎬 Create Videos — AI generates marketing videos for your business\n🖼️ Generate Images — Product photos, food shots, real estate\n💬 Chat AI — Brainstorm ideas, write captions\n\nYour first video costs just 0.5 credits!',
+    id: '📚 *Cara termudah untuk mulai:*\n\n1️⃣ Pilih *Prompt Library* → pilih niche bisnis kamu\n2️⃣ Pilih prompt yang cocok → tap *Buat Video*\n3️⃣ Upload foto produk (opsional) → *Generate!*\n\n✅ Template sudah tersedia untuk:\n🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n_Atau langsung ketik kebutuhan kamu — AI saya siap bantu!_',
+    en: '📚 *Easiest way to start:*\n\n1️⃣ Open *Prompt Library* → choose your business niche\n2️⃣ Pick a prompt → tap *Create Video*\n3️⃣ Upload product photo (optional) → *Generate!*\n\n✅ Templates available for:\n🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n_Or just type your need — my AI is ready to help!_',
   },
   'onboarding.cta': {
-    id: 'Siap mencoba? Ketuk "Buat Video" di bawah! 👇',
-    en: 'Ready to try? Tap "Create Video" below! 👇',
+    id: '👇 *Mau mulai dari mana?*',
+    en: '👇 *Where would you like to start?*',
   },
   'onboarding.btn_create_video': {
-    id: '🎬 Buat Video Pertama',
-    en: '🎬 Create First Video',
+    id: '📚 Pilih Prompt & Buat Video',
+    en: '📚 Browse Prompts & Create Video',
   },
   'onboarding.btn_try_image': {
-    id: '🖼️ Coba Generate Gambar',
-    en: '🖼️ Try Image Generation',
+    id: '🎁 Ambil Prompt Gratis Hari Ini',
+    en: '🎁 Get Today\'s Free Prompt',
   },
   'onboarding.btn_chat_ai': {
-    id: '💬 Chat dengan AI',
-    en: '💬 Chat with AI',
+    id: '💬 Tanya AI — Saya Bantu Pilihkan',
+    en: '💬 Ask AI — I\'ll Help You Choose',
   },
 
   // ---------------------------------------------------------------------------

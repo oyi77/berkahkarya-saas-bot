@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { t } from '@/i18n/translations';
 import { LANGUAGE_LIST, LANG_PAGE_SIZE, LANGUAGES } from '@/config/languages';
+import { sendVilonaWelcomeAnimation } from '@/services/vilona-animation.service';
 
 /**
  * Map Telegram language_code to our supported language codes.
@@ -77,61 +78,62 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         return;
       }
 
-      // Set persistent reply keyboard with complete menu
+      // ── Vilona welcome animation (non-blocking) ──────────────────────────
+      await sendVilonaWelcomeAnimation(ctx);
+
+      // ── Single dashboard message: keyboard + inline menu ─────────────────
+      // Telegram requires separate messages for reply_keyboard vs inline_keyboard.
+      // We minimize to 2 msgs: (1) set keyboard silently, (2) main menu.
+      const credBal = Number(existingUser.creditBalance);
+      const credEmoji = credBal === 0 ? '⚠️' : credBal < 3 ? '🟡' : '🟢';
+
+      // Msg 1 — set bottom keyboard (minimized, no clutter)
       await ctx.reply(
-        `👋 Welcome back, ${user.first_name}!\n\n` +
-        `💰 Credits: ${existingUser.creditBalance}\n` +
-        `⭐ Tier: ${existingUser.tier.toUpperCase()}`,
+        `${credEmoji} *${existingUser.creditBalance} kredit* tersisa`,
         {
+          parse_mode: 'Markdown',
           reply_markup: {
             keyboard: [
+              [{ text: '📚 Prompt Library' }, { text: '🔥 Trending' }],
               [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
-              [{ text: '💬 Chat AI' }, { text: '📁 My Videos' }],
+              [{ text: '🎁 Daily Prompt' }, { text: '💬 Chat AI' }],
               [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
-              [{ text: '👤 Profile' }, { text: '👥 Referral' }],
-              [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
+              [{ text: '👤 Profile' }, { text: '🆘 Support' }],
             ],
             resize_keyboard: true,
           },
         }
       );
 
-      // Show inline feature menu (must be separate — Telegram only allows one reply_markup type per message)
+      // Msg 2 — main inline menu
       await ctx.reply(
-        `🎬 *OpenClaw Video Studio*\n\n` +
-        `What would you like to do?`,
+        `👋 Halo, *${user.first_name}!* Mau buat apa hari ini? 👇`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
+              [{ text: '📚 Pilih Prompt & Buat Video', callback_data: 'back_prompts' }],
               [
-                { text: '🎬 Create Video', callback_data: 'create_video' },
-                { text: '🖼️ Generate Image', callback_data: 'image_generate' },
-              ],
-              [{ text: '💬 Chat with AI', callback_data: 'open_chat' }],
-              [
-                { text: '🔄 Clone Video', callback_data: 'clone_video' },
-                { text: '🔄 Clone Image', callback_data: 'clone_image' },
+                { text: '🔥 Trending', callback_data: 'prompts_trending' },
+                { text: '🎁 Prompt Gratis', callback_data: 'daily_open' },
               ],
               [
+                { text: '🎬 Buat Video', callback_data: 'create_video' },
+                { text: '🖼️ Buat Gambar', callback_data: 'image_generate' },
+              ],
+              [
+                { text: '🔄 Clone', callback_data: 'clone_video' },
                 { text: '📋 Storyboard', callback_data: 'storyboard_create' },
-                { text: '📈 Viral Research', callback_data: 'viral_research' },
-              ],
-              [
-                { text: '🔍 Disassemble', callback_data: 'disassemble' },
-                { text: '🔗 Social Accounts', callback_data: 'manage_accounts' },
+                { text: '📈 Viral', callback_data: 'viral_research' },
               ],
               [
                 { text: '💰 Top Up', callback_data: 'topup' },
-                { text: '⭐ Subscription', callback_data: 'open_subscription' },
+                { text: '⭐ Langganan', callback_data: 'open_subscription' },
               ],
               [
-                { text: '📁 My Videos', callback_data: 'videos_list' },
-                { text: '👤 Profile', callback_data: 'open_profile' },
-              ],
-              [
+                { text: '📁 Video Saya', callback_data: 'videos_list' },
                 { text: '👥 Referral', callback_data: 'open_referral' },
-                { text: '🆘 Help', callback_data: 'open_help' },
+                { text: '👤 Profil', callback_data: 'open_profile' },
               ],
             ],
           },
@@ -180,7 +182,7 @@ export async function startCommand(ctx: BotContext): Promise<void> {
 
       const detectedLabel = detectedEntry ? `${detectedEntry.flag} ${detectedEntry.label}` : 'English';
       await ctx.reply(
-        `🌐 *Welcome to OpenClaw!*\n\n` +
+        `🌐 *Selamat datang di Vilona Asisten OpenClaw!*\n\n` +
         `Detected language: *${detectedLabel}*\n\n` +
         `Please select your preferred language.\n` +
         `This will be used for the bot interface, voice over, subtitles, and captions.`,

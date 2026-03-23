@@ -46,6 +46,12 @@ import {
 } from '@/commands/admin/paymentSettings';
 import { SUBSCRIPTION_PLANS, PlanKey, BillingCycle, EXTRA_CREDIT_PACKAGES, getImageCreditCostAsync } from '@/config/pricing';
 import { t } from '@/i18n/translations';
+import { showNichePrompts, showPromptDetail, showCustomizePrompt, promptsCommand, trendingCommand as promptsTrendingCommand, dailyCommand as promptsDailyCommand, PROMPT_LIBRARY, MYSTERY_PROMPTS, TRENDING_PROMPTS, getPromptById, saveLibraryPrompt, showMyPrompts, startAddCustomPrompt } from '@/commands/prompts';
+import { SavedPromptService } from '@/services/saved-prompt.service';
+
+// ── Back button helpers ──────────────────────────────────────────────────────
+const BTN_BACK_MAIN   = { text: '◀️ Menu Utama', callback_data: 'main_menu' };
+const BTN_BACK_PROMPT = { text: '◀️ Prompt Library', callback_data: 'back_prompts' };
 
 /**
  * Handle storyboard selection
@@ -130,7 +136,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       langButtons.push(navRow);
 
       await ctx.editMessageText(
-        `\ud83c\udf10 *Welcome to OpenClaw!*\n\n` +
+        `\ud83c\udf10 *Selamat datang di Vilona Asisten OpenClaw!*\n\n` +
         `Please select your preferred language.\n` +
         `This will be used for the bot interface, voice over, subtitles, and captions.`,
         {
@@ -178,44 +184,45 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         { parse_mode: 'Markdown' }
       );
 
-      // Guided onboarding — Message 1: welcome + persistent keyboard
+      // ── Guided onboarding — step-by-step, friendly ───────────────────────
       const lang = langCode;
+
+      // Message 1: Welcome + keyboard (bottom bar)
       await ctx.reply(
         t('onboarding.welcome', lang),
         {
+          parse_mode: 'Markdown',
           reply_markup: {
             keyboard: [
-              [{ text: '\ud83c\udfac Create Video' }, { text: '\ud83d\uddbc\ufe0f Generate Image' }],
-              [{ text: '\ud83d\udcac Chat AI' }, { text: '\ud83d\udcc1 My Videos' }],
-              [{ text: '\ud83d\udcb0 Top Up' }, { text: '\u2b50 Subscription' }],
-              [{ text: '\ud83d\udc64 Profile' }, { text: '\ud83d\udc65 Referral' }],
-              [{ text: '\u2699\ufe0f Settings' }, { text: '\ud83c\udd98 Support' }],
+              [{ text: '📚 Prompt Library' }, { text: '🔥 Trending' }],
+              [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
+              [{ text: '🎁 Daily Prompt' }, { text: '💬 Chat AI' }],
+              [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
+              [{ text: '👤 Profile' }, { text: '🆘 Support' }],
             ],
             resize_keyboard: true,
           },
         }
       );
 
-      // Message 2 (after 2s): feature overview
-      await new Promise((r) => setTimeout(r, 2000));
-      await ctx.reply(t('onboarding.features', lang));
+      // Message 2 (after 1.5s): how to start guide
+      await new Promise((r) => setTimeout(r, 1500));
+      await ctx.reply(t('onboarding.features', lang), { parse_mode: 'Markdown' });
 
-      // Message 3 (after 2s): call-to-action with inline menu
-      await new Promise((r) => setTimeout(r, 2000));
+      // Message 3 (after 1.5s): CTA with prompt-first flow
+      await new Promise((r) => setTimeout(r, 1500));
       await ctx.reply(
         t('onboarding.cta', lang),
         {
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [
-                { text: t('onboarding.btn_create_video', lang), callback_data: 'create_video' },
-              ],
-              [
-                { text: t('onboarding.btn_try_image', lang), callback_data: 'image_generate' },
-              ],
-              [
-                { text: t('onboarding.btn_chat_ai', lang), callback_data: 'open_chat' },
-              ],
+              // Primary: prompt discovery
+              [{ text: t('onboarding.btn_create_video', lang), callback_data: 'back_prompts' }],
+              // Secondary: daily free prompt
+              [{ text: t('onboarding.btn_try_image', lang), callback_data: 'daily_open' }],
+              // Tertiary: AI chat help
+              [{ text: t('onboarding.btn_chat_ai', lang), callback_data: 'open_chat' }],
             ],
           },
         }
@@ -423,6 +430,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await handleSkipPrompt(ctx);
       return;
     }
+    // Upload reference from VO continue screen
+    if (data === 'create_upload_reference') {
+      await ctx.answerCbQuery();
+      if (ctx.session?.videoCreation) ctx.session.videoCreation.waitingForImage = true;
+      ctx.session!.state = 'CREATE_VIDEO_UPLOAD';
+      await ctx.editMessageText(
+        '📸 *Upload Foto Referensi*\n\n' +
+        'Kirim foto produk kamu sekarang.\n' +
+        'AI akan animasikan foto tersebut menjadi video!\n\n' +
+        '_Atau ketik /skip untuk generate tanpa foto._',
+        { parse_mode: 'Markdown' }
+      );
+      return;
+    }
 
     // Legacy handlers removed for MVP
     // Mode, niche, platform selection now automatic
@@ -511,8 +532,279 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // ─── PROMPT LIBRARY CALLBACKS ──────────────────────────────────────────
+
+    // Browse niche prompts: prompts_fnb, prompts_fashion, etc.
+    if (data.startsWith('prompts_')) {
+      await ctx.answerCbQuery();
+      const nicheKey = data.replace('prompts_', '');
+      if (nicheKey === 'trending') {
+        // Build trending inline (edit in place)
+        const TP = TRENDING_PROMPTS; const PL = PROMPT_LIBRARY;
+        let msg = `🔥 *TRENDING PROMPTS THIS WEEK*\n_Diupdate berdasarkan penggunaan real user!_\n\n`;
+        const buttons: any[][] = [];
+        TP.forEach((t: any, i: number) => {
+          const niche = PL[t.niche];
+          const p = niche.prompts.find((x: any) => x.id === t.promptId)!;
+          msg += `*#${i+1}* ${niche.emoji} ${p.title} — ⭐${p.successRate}% | 📈+${t.usageChange}%\n\n`;
+          buttons.push([{ text: `#${i+1} ${p.title}`, callback_data: `use_prompt_${p.id}` }]);
+        });
+        buttons.push([{ text: '◀️ Kembali ke Niche', callback_data: 'back_prompts' }]);
+        try {
+          await ctx.editMessageText(msg, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: buttons } });
+        } catch {
+          await promptsTrendingCommand(ctx);
+        }
+      } else if (nicheKey === 'custom') {
+        await ctx.editMessageText(
+          '✨ *Custom Prompt Generator*\n\n' +
+          'Ceritakan kebutuhan kamu:\n\n' +
+          '1️⃣ Produk/jasa apa?\n' +
+          '2️⃣ Target audience?\n' +
+          '3️⃣ Mood video: energetic/calm/luxury?\n' +
+          '4️⃣ Platform utama: TikTok/IG/YouTube?\n' +
+          '5️⃣ Durasi: 5-60 detik?\n\n' +
+          'Jawab semuanya dalam satu pesan, saya akan generate prompt optimal! 🎯',
+          { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '◀️ Kembali', callback_data: 'back_prompts' }]] } }
+        );
+        if (ctx.session) ctx.session.state = 'CUSTOM_PROMPT_CREATION';
+      } else {
+        await showNichePrompts(ctx, nicheKey, true);
+      }
+      return;
+    }
+
+    // Use a specific prompt: use_prompt_fnb_1, use_prompt_fashion_2, etc.
+    if (data.startsWith('use_prompt_')) {
+      await ctx.answerCbQuery();
+      const promptId = data.replace('use_prompt_', '');
+      await showPromptDetail(ctx, promptId, true);
+      return;
+    }
+
+    // Customize a prompt: customize_prompt_fnb_1
+    if (data.startsWith('customize_prompt_')) {
+      await ctx.answerCbQuery();
+      const promptId = data.replace('customize_prompt_', '');
+      await showCustomizePrompt(ctx, promptId, true);
+      return;
+    }
+
+    // Customizer style/light quick picks
+    if (data.startsWith('cust_style_') || data.startsWith('cust_light_')) {
+      await ctx.answerCbQuery();
+      const parts = data.split('_');
+      // cust_style_cinematic_fnb_1 → type=style, value=cinematic, id=fnb_1
+      const type = parts[1]; // style or light
+      const value = parts[2];
+      const promptId = parts.slice(3).join('_');
+      const p = getPromptById(promptId);
+      const base = p?.prompt || '';
+      const modifiers: Record<string, string> = {
+        cinematic: 'cinematic style, film-grade quality',
+        dramatic: 'dramatic lighting, high contrast, intense atmosphere',
+        minimal: 'minimalist clean aesthetic, simple background',
+        golden: 'golden hour natural lighting, warm tones',
+        studio: 'professional studio lighting, even illumination',
+        moody: 'moody dark atmosphere, low-key lighting',
+      };
+      const newPrompt = `${base}, ${modifiers[value] || value}`;
+      if (ctx.session) ctx.session.stateData = { ...(ctx.session.stateData || {}), selectedPrompt: newPrompt };
+      await ctx.editMessageText(
+        `✅ *Prompt Updated!*\n\n\`${newPrompt.slice(0, 300)}\`\n\n_${type === 'style' ? 'Style' : 'Lighting'}: *${value}* applied_\n\nMau buat video atau gambar dengan prompt ini?`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🎬 Buat Video', callback_data: 'create_video' },
+                { text: '🖼️ Buat Gambar', callback_data: 'image_generate' },
+              ],
+              [{ text: '🔧 Customize Lagi', callback_data: `customize_prompt_${promptId}` }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // ── Saved Prompt callbacks ─────────────────────────────────────────────
+
+    // Save library prompt: save_prompt_fnb_1
+    if (data.startsWith('save_prompt_')) {
+      const promptId = data.replace('save_prompt_', '');
+      await saveLibraryPrompt(ctx, promptId);
+      return;
+    }
+
+    // Show user's saved prompts for a niche: my_prompts_fnb
+    if (data.startsWith('my_prompts_')) {
+      await ctx.answerCbQuery();
+      const nicheKey = data.replace('my_prompts_', '');
+      await showMyPrompts(ctx, nicheKey, true);
+      return;
+    }
+
+    // Use admin prompt (by DB id): use_admin_prompt_123
+    if (data.startsWith('use_admin_prompt_')) {
+      await ctx.answerCbQuery();
+      const adminPromptId = parseInt(data.replace('use_admin_prompt_', ''));
+      try {
+        const sp = await prisma.savedPrompt.findUnique({ where: { id: adminPromptId } });
+        if (sp && ctx.session) {
+          ctx.session.stateData = { ...(ctx.session.stateData || {}), selectedPrompt: sp.prompt };
+          await SavedPromptService.incrementUsage(adminPromptId);
+          await ctx.editMessageText(
+            `✅ *Prompt dipilih!*\n\n⭐ *${sp.title}*\n\`${sp.prompt.slice(0, 200)}${sp.prompt.length > 200 ? '...' : ''}\`\n\nMau buat apa?`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🚀 Buat Video Sekarang!', callback_data: 'create_video' }],
+                  [{ text: '🖼️ Buat Gambar', callback_data: 'image_generate' }],
+                  [{ text: `◀️ Kembali ke ${sp.niche}`, callback_data: `prompts_${sp.niche}` }],
+                ],
+              },
+            }
+          );
+        }
+      } catch { await ctx.reply('❌ Prompt tidak ditemukan.'); }
+      return;
+    }
+
+    // Use a saved prompt (by DB id): use_saved_123
+    if (data.startsWith('use_saved_')) {
+      await ctx.answerCbQuery();
+      const savedId = parseInt(data.replace('use_saved_', ''));
+      try {
+        // Increment usage
+        await SavedPromptService.incrementUsage(savedId);
+        // Get prompt from DB
+        const sp = await prisma.savedPrompt.findUnique({ where: { id: savedId } });
+        if (sp && ctx.session) {
+          ctx.session.stateData = { ...(ctx.session.stateData || {}), selectedPrompt: sp.prompt };
+          await ctx.editMessageText(
+            `✅ *Prompt dipilih!*\n\n📌 *${sp.title}*\n\`${sp.prompt.slice(0, 200)}${sp.prompt.length > 200 ? '...' : ''}\`\n\nMau buat apa?`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🚀 Buat Video Sekarang!', callback_data: 'create_video' }],
+                  [{ text: '🖼️ Buat Gambar', callback_data: 'image_generate' }],
+                  [{ text: `◀️ Kembali`, callback_data: `my_prompts_${sp.niche}` }],
+                ],
+              },
+            }
+          );
+        }
+      } catch (err) {
+        await ctx.reply('❌ Gagal load prompt. Coba lagi.');
+      }
+      return;
+    }
+
+    // Delete saved prompt: del_saved_123_fnb
+    if (data.startsWith('del_saved_')) {
+      const parts = data.replace('del_saved_', '').split('_');
+      const savedId = parseInt(parts[0]);
+      const nicheKey = parts.slice(1).join('_');
+      const telegramId = ctx.from?.id;
+      if (telegramId) {
+        const dbUser = await UserService.findByTelegramId(BigInt(telegramId));
+        if (dbUser) {
+          await SavedPromptService.delete(savedId, dbUser.id as unknown as bigint);
+          await ctx.answerCbQuery('🗑️ Prompt dihapus!');
+          await showMyPrompts(ctx, nicheKey, true);
+        }
+      }
+      return;
+    }
+
+    // Add custom prompt: add_custom_prompt_fnb
+    if (data.startsWith('add_custom_prompt_')) {
+      await ctx.answerCbQuery();
+      const nicheKey = data.replace('add_custom_prompt_', '');
+      await startAddCustomPrompt(ctx, nicheKey, true);
+      return;
+    }
+
+    // ── END Saved Prompt callbacks ─────────────────────────────────────────
+
+    // Back to prompts main menu — edit current message
+    if (data === 'back_prompts') {
+      await ctx.answerCbQuery();
+      try {
+        await ctx.editMessageText(
+          '📚 *Prompt Library — 40+ Template Siap Pakai*\n\n' +
+          '👇 *Pilih niche bisnis kamu:*\n\n' +
+          '🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n' +
+          '✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n' +
+          '_Setiap niche punya 5 prompt profesional yang sudah ditest ribuan user. Tinggal pilih → buat video!_',
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🍔 F&B', callback_data: 'prompts_fnb' }, { text: '👗 Fashion', callback_data: 'prompts_fashion' }],
+                [{ text: '📱 Tech', callback_data: 'prompts_tech' }, { text: '💪 Health', callback_data: 'prompts_health' }],
+                [{ text: '✈️ Travel', callback_data: 'prompts_travel' }, { text: '📚 Education', callback_data: 'prompts_education' }],
+                [{ text: '💰 Finance', callback_data: 'prompts_finance' }, { text: '🎭 Entertainment', callback_data: 'prompts_entertainment' }],
+                [{ text: '🔥 Trending', callback_data: 'prompts_trending' }, { text: '✨ Custom AI', callback_data: 'prompts_custom' }],
+              ],
+            },
+          }
+        );
+      } catch {
+        await promptsCommand(ctx); // fallback: send new message
+      }
+      return;
+    }
+
+    // Daily prompt save/another
+    if (data.startsWith('daily_save_')) {
+      await ctx.answerCbQuery('💾 Prompt disimpan ke sesi kamu!');
+      const promptId = data.replace('daily_save_', '');
+      const p = getPromptById(promptId);
+      if (p && ctx.session) ctx.session.stateData = { ...(ctx.session.stateData || {}), savedPrompt: p.prompt };
+      return;
+    }
+    if (data === 'daily_another') {
+      await ctx.answerCbQuery();
+      // Rotate to next mystery prompt
+      const dayShift = (new Date().getHours() % MYSTERY_PROMPTS.length);
+      const mystery = MYSTERY_PROMPTS[dayShift];
+      const niche = PROMPT_LIBRARY[mystery.niche];
+      const p = niche?.prompts.find(x => x.id === mystery.promptId);
+      if (p) {
+        await ctx.editMessageText(
+          `🎁 *Another Mystery Prompt!*\n\n${niche.emoji} *${p.title}*\n\`${p.prompt}\`\n\n⭐ ${p.successRate}% success rate`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🚀 Pakai Sekarang', callback_data: `use_prompt_${p.id}` }],
+                [{ text: '📚 Browse Semua', callback_data: 'back_prompts' }],
+              ],
+            },
+          }
+        );
+      }
+      return;
+    }
+
+    // ─── END PROMPT LIBRARY CALLBACKS ──────────────────────────────────────
+
     // Create video - redirect to /create flow
     if (data === 'create_video') {
+      // ── Inject selected prompt from library into session ─────────────────
+      const selectedPrompt = ctx.session?.stateData?.selectedPrompt as string | undefined;
+      if (selectedPrompt && ctx.session) {
+        // Pre-fill videoCreation with the chosen prompt so user skips "add custom prompt" step
+        if (!ctx.session.videoCreation) ctx.session.videoCreation = {} as any;
+        ctx.session.videoCreation!.customPrompt = selectedPrompt;
+        ctx.session.videoCreation!.waitingForCustomPrompt = false;
+        // Clear so it doesn't persist to next session
+        ctx.session.stateData = { ...ctx.session.stateData, selectedPrompt: undefined };
+      }
       await ctx.deleteMessage().catch(() => {});
       await createCommand(ctx);
       return;
@@ -761,12 +1053,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === 'clone_video') {
       await ctx.editMessageText(
         '🔄 *Clone/Remake Video*\n\n' +
-        'Send me a video to recreate with similar style.\n\n' +
-        'Or paste a video URL from:\n' +
-        '• TikTok\n' +
-        '• Instagram Reels\n' +
-        '• YouTube Shorts',
-        { parse_mode: 'Markdown' }
+        'Kirim video yang mau direkreasi, atau paste URL dari:\n' +
+        '• TikTok · Instagram Reels · YouTube Shorts\n\n' +
+        '_AI akan buat video dengan style serupa._',
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] } }
       );
       ctx.session.state = 'CLONE_VIDEO_WAITING';
       return;
@@ -776,9 +1066,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === 'clone_image') {
       await ctx.editMessageText(
         '🔄 *Clone/Remake Image*\n\n' +
-        'Send me an image to recreate with similar style.\n\n' +
-        'I\'ll analyze the image and generate a similar one.',
-        { parse_mode: 'Markdown' }
+        'Kirim gambar yang mau direkreasi.\n' +
+        '_AI akan buat gambar dengan style serupa._',
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] } }
       );
       ctx.session.state = 'CLONE_IMAGE_WAITING';
       return;
@@ -788,8 +1078,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === 'storyboard_create') {
       await ctx.editMessageText(
         '📋 *Storyboard Creator*\n\n' +
-        'I\'ll help you create a video storyboard.\n\n' +
-        'Select your content type:',
+        'Pilih tipe konten kamu:',
         {
           parse_mode: 'Markdown',
           reply_markup: {
@@ -798,7 +1087,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [{ text: '🍔 F&B Content', callback_data: 'sb_fnb' }],
               [{ text: '🏠 Real Estate Tour', callback_data: 'sb_realestate' }],
               [{ text: '🚗 Car Showcase', callback_data: 'sb_car' }],
-              [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+              [BTN_BACK_MAIN],
             ],
           },
         }
@@ -860,9 +1149,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === 'disassemble') {
       await ctx.editMessageText(
         '🔍 *Video/Image to Prompt*\n\n' +
-        'I\'ll analyze your media and extract the prompt used to create it.\n\n' +
-        'Send me a video or image:',
-        { parse_mode: 'Markdown' }
+        'Kirim video atau gambar kamu.\n' +
+        '_AI akan extract prompt yang digunakan untuk membuatnya._',
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] } }
       );
       ctx.session.state = 'DISASSEMBLE_WAITING';
       return;
@@ -870,42 +1159,19 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Main menu
     if (data === 'main_menu') {
+      await ctx.answerCbQuery();
       await ctx.editMessageText(
-        '🎬 *OpenClaw Video Studio*\n\n' +
-        'What would you like to do?',
+        '👋 *Mau buat apa hari ini?* 👇',
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [
-                { text: '🎬 Create Video', callback_data: 'create_video' },
-                { text: '🖼️ Generate Image', callback_data: 'image_generate' },
-              ],
-              [{ text: '💬 Chat with AI', callback_data: 'open_chat' }],
-              [
-                { text: '🔄 Clone Video', callback_data: 'clone_video' },
-                { text: '🔄 Clone Image', callback_data: 'clone_image' },
-              ],
-              [
-                { text: '📋 Storyboard', callback_data: 'storyboard_create' },
-                { text: '📈 Viral Research', callback_data: 'viral_research' },
-              ],
-              [
-                { text: '🔍 Disassemble', callback_data: 'disassemble' },
-                { text: '🔗 Social Accounts', callback_data: 'manage_accounts' },
-              ],
-              [
-                { text: '💰 Top Up', callback_data: 'topup' },
-                { text: '⭐ Subscription', callback_data: 'open_subscription' },
-              ],
-              [
-                { text: '📁 My Videos', callback_data: 'videos_list' },
-                { text: '👤 Profile', callback_data: 'open_profile' },
-              ],
-              [
-                { text: '👥 Referral', callback_data: 'open_referral' },
-                { text: '🆘 Help', callback_data: 'open_help' },
-              ],
+              [{ text: '📚 Pilih Prompt & Buat Video', callback_data: 'back_prompts' }],
+              [{ text: '🔥 Trending', callback_data: 'prompts_trending' }, { text: '🎁 Prompt Gratis', callback_data: 'daily_open' }],
+              [{ text: '🎬 Buat Video', callback_data: 'create_video' }, { text: '🖼️ Buat Gambar', callback_data: 'image_generate' }],
+              [{ text: '🔄 Clone', callback_data: 'clone_video' }, { text: '📋 Storyboard', callback_data: 'storyboard_create' }, { text: '📈 Viral', callback_data: 'viral_research' }],
+              [{ text: '💰 Top Up', callback_data: 'topup' }, { text: '⭐ Langganan', callback_data: 'open_subscription' }],
+              [{ text: '📁 Video Saya', callback_data: 'videos_list' }, { text: '👥 Referral', callback_data: 'open_referral' }, { text: '👤 Profil', callback_data: 'open_profile' }],
             ],
           },
         }
@@ -949,6 +1215,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data === 'videos_back' || data === 'videos_list') {
+      await ctx.deleteMessage().catch(() => {});
       await videosCommand(ctx);
       return;
     }
@@ -1153,43 +1420,92 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Topup from inline menu
     if (data === 'topup') {
       await ctx.answerCbQuery();
+      await ctx.deleteMessage().catch(() => {});
       await topupCommand(ctx);
       return;
     }
 
-    // Open chat from inline menu — show usage help
+    // Open chat from inline menu
     if (data === 'open_chat') {
       await ctx.answerCbQuery();
-      await ctx.reply(
-        '*💬 AI Chat*\n\n' +
-        'Ask me anything!\n\n' +
-        'Usage: `/chat <your question>`\n\n' +
-        '*Examples:*\n' +
-        '`/chat What is the best marketing strategy?`\n' +
-        '`/chat Help me write a product description`\n' +
-        '`/chat Suggest 5 TikTok video ideas for my cafe`',
-        { parse_mode: 'Markdown' }
-      );
+      await ctx.editMessageText(
+        '💬 *AI Assistant aktif!*\n\n' +
+        'Langsung ketik pertanyaan kamu sekarang.\n\n' +
+        '*Contoh:*\n' +
+        '• _"Bikinin prompt untuk produk skincare saya"_\n' +
+        '• _"Tips video TikTok F&B yang viral"_\n' +
+        '• _"Niche mana yang paling bagus buat jualan online?"_\n\n' +
+        'Atau browse template siap pakai:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📚 Lihat Prompt Library', callback_data: 'back_prompts' }],
+              [{ text: '🔥 Trending Prompts', callback_data: 'prompts_trending' }],
+              [{ text: '◀️ Kembali ke Menu', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      ).catch(async () => {
+        // fallback if message can't be edited
+        await ctx.reply('💬 *AI Assistant aktif!*\n\nLangsung ketik pertanyaan kamu!', { parse_mode: 'Markdown' });
+      });
+      if (ctx.session) ctx.session.state = 'DASHBOARD';
       return;
     }
 
-    // Open profile from inline menu
+    // Daily prompt shortcut
+    if (data === 'daily_open') {
+      await ctx.answerCbQuery();
+      // Build daily prompt inline (edit in place)
+      const MP = MYSTERY_PROMPTS; const PL2 = PROMPT_LIBRARY;
+      const dayOfWeek = new Date().getDay();
+      const mystery = MP[dayOfWeek % MP.length];
+      const niche = PL2[mystery.niche];
+      const p = niche?.prompts.find((x: any) => x.id === mystery.promptId);
+      if (p) {
+        const msg =
+          `🎁 *MYSTERY PROMPT BOX*\n\n✨ *PROMPT UNLOCKED!*\n\n` +
+          `${niche.emoji} Niche: *${niche.label}* · ⭐ Rarity: *${mystery.rarity}*\n\n` +
+          `*${p.title}*\n\n\`${p.prompt}\`\n\n` +
+          `⭐ ${p.successRate}% success rate\n\n` +
+          `🆓 Gratis untuk kamu hari ini!`;
+        try {
+          await ctx.editMessageText(msg, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🚀 Pakai Sekarang', callback_data: `use_prompt_${p.id}` }],
+                [{ text: '🔄 Prompt Lain', callback_data: 'daily_another' }],
+                [{ text: '◀️ Kembali ke Menu', callback_data: 'back_prompts' }],
+              ],
+            },
+          });
+        } catch {
+          await ctx.deleteMessage().catch(() => {});
+          await promptsDailyCommand(ctx);
+        }
+      }
+      return;
+    }
+
     if (data === 'open_profile') {
       await ctx.answerCbQuery();
+      await ctx.deleteMessage().catch(() => {});
       await profileCommand(ctx);
       return;
     }
 
-    // Open referral from inline menu
     if (data === 'open_referral') {
       await ctx.answerCbQuery();
+      await ctx.deleteMessage().catch(() => {});
       await referralCommand(ctx);
       return;
     }
 
-    // Open help from inline menu
     if (data === 'open_help') {
       await ctx.answerCbQuery();
+      await ctx.deleteMessage().catch(() => {});
       await helpCommand(ctx);
       return;
     }
@@ -1625,7 +1941,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           message += `1. Contact our support team\n`;
           message += `2. Provide your bank account details\n`;
           message += `3. Withdrawal processed within 1-3 business days\n\n`;
-          message += `Contact: @OpenClawSupport`;
+          message += `Contact: @berkahkarya_support`;
         }
 
         await ctx.editMessageText(message, {

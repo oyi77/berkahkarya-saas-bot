@@ -6,6 +6,7 @@
 import { BotContext } from '@/types';
 import { getOmniRouteService } from '@/services/omniroute.service';
 import { logger } from '@/utils/logger';
+import { sendVilonaLoading } from '@/services/vilona-animation.service';
 
 // Use the default model configured in OmniRoute (env: OMNIROUTE_DEFAULT_MODEL)
 
@@ -38,13 +39,19 @@ export async function chatCommand(ctx: BotContext): Promise<void> {
   const userId = String(ctx.from?.id || 'unknown');
   const omni = getOmniRouteService();
 
-  await ctx.reply('Thinking...');
+  // Vilona thinking animation
+  const loadingMsgId = await sendVilonaLoading(ctx, 'thinking');
 
   try {
     const result = await omni.chat(userId, prompt);
 
+    // Delete loading animation
+    if (loadingMsgId) {
+      await ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsgId).catch(() => {});
+    }
+
     if (!result.success) {
-      await ctx.reply(`Error: ${result.error || 'Unknown error'}`);
+      await ctx.reply(`❌ ${result.error || 'Unknown error'}`);
       return;
     }
 
@@ -61,7 +68,10 @@ export async function chatCommand(ctx: BotContext): Promise<void> {
 
     logger.info(`Chat response (${result.model}): ${result.content?.slice(0, 100)}...`);
   } catch (err) {
+    if (loadingMsgId) {
+      await ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsgId).catch(() => {});
+    }
     logger.error('Chat command error:', err);
-    await ctx.reply('Failed to get AI response. Please try again.');
+    await ctx.reply('❌ Gagal dapat respons AI. Coba lagi ya!');
   }
 }

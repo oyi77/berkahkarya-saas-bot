@@ -26,9 +26,10 @@ export async function supportCommand(ctx: BotContext): Promise<void> {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '💬 Chat Support', url: 'https://t.me/openclaw_support' }],
+          [{ text: '💬 Chat Support', url: 'https://t.me/berkahkarya_support' }],
           [{ text: '📖 View Tutorial', callback_data: 'view_tutorial' }],
           [{ text: '🐛 Report Bug', callback_data: 'report_bug' }],
+          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     }

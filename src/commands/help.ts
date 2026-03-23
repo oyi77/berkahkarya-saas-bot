@@ -11,33 +11,46 @@ import { BotContext } from '@/types';
  */
 export async function helpCommand(ctx: BotContext): Promise<void> {
   await ctx.reply(
-    '🆘 *Help & Support*\n\n' +
-    '*Available Commands:*\n' +
-    '/start - Start the bot\n' +
-    '/menu - Show all features\n' +
-    '/create - Create a new video\n' +
-    '/chat - Chat with AI (just type /chat followed by your question)\n' +
-    '/topup - Top up credits\n' +
-    '/subscription - Subscription plans\n' +
-    '/videos - My videos\n' +
-    '/profile - My profile\n' +
-    '/referral - Referral & affiliate\n' +
-    '/settings - Settings\n' +
-    '/support - Get help\n' +
-    '/help - Show this help\n\n' +
-    '*Creative Tools:*\n' +
-    '🎬 Create Video — AI video generation\n' +
-    '🖼️ Generate Image — AI image generation\n' +
-    '🔄 Clone Video/Image — Recreate similar content\n' +
-    '📋 Storyboard — Plan your video scenes\n' +
-    '📈 Viral Research — Discover trending content\n' +
-    '🔍 Disassemble — Extract prompts from media\n\n' +
-    '*Quick Tips:*\n' +
-    '• Upload a reference image for better video results\n' +
-    '• Use /chat to brainstorm ideas with AI\n' +
-    '• Choose the right niche for best results\n' +
-    '• Refer friends to earn 15% commission!\n\n' +
-    'Need more help? Contact support: @openclaw\\_support',
-    { parse_mode: 'Markdown' }
+    '📖 *BERKAHKARYA AI — PANDUAN LENGKAP*\n' +
+    '─────────────────────────────────────\n\n' +
+    '*📚 PROMPT LIBRARY:*\n' +
+    '/prompts \\[niche\\] — Browse 40\\+ template profesional\n' +
+    '/trending — Prompt paling banyak dipakai minggu ini\n' +
+    '/daily — Mystery prompt gratis hari ini 🎁\n' +
+    '/fingerprint — Lihat style preference kamu\n\n' +
+    '*🎬 GENERATE:*\n' +
+    '/create — Buat video dari prompt atau foto\n' +
+    '/chat \\[pertanyaan\\] — Chat dengan AI assistant\n\n' +
+    '*💳 ACCOUNT:*\n' +
+    '/topup — Top up credits\n' +
+    '/subscription — Paket langganan Lite/Pro/Agency\n' +
+    '/videos — Riwayat video kamu\n' +
+    '/profile — Profil & saldo kredit\n' +
+    '/referral — Referral & komisi 15%\n' +
+    '/settings — Pengaturan akun & bahasa\n' +
+    '/support — Hubungi support\n\n' +
+    '─────────────────────────────────────\n' +
+    '*🎬 Creative Tools \\(via Menu\\):*\n' +
+    '🎬 Create Video — AI video generation \\(8 niche\\)\n' +
+    '🖼️ Generate Image — AI image dari teks\n' +
+    '🔄 Clone Video/Image — Recreate konten serupa\n' +
+    '📋 Storyboard — Plan scene sebelum generate\n' +
+    '📈 Viral Research — Temukan tren konten\n' +
+    '🔍 Disassemble — Extract prompt dari media\n\n' +
+    '─────────────────────────────────────\n' +
+    '*💡 Quick Tips:*\n' +
+    '• Mulai dari /prompts untuk template siap pakai\n' +
+    '• Upload foto referensi untuk hasil video lebih baik\n' +
+    '• /daily setiap hari untuk prompt gratis\n' +
+    '• Refer teman → komisi 15% setiap transaksi\\!\n\n' +
+    'Butuh bantuan? /support atau @berkahkarya\\_support',
+    {
+      parse_mode: 'MarkdownV2',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+        ],
+      },
+    }
   );
 }

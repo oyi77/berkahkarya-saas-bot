@@ -356,6 +356,26 @@ model PricingConfig {
 }
 
 // =============================================================================
+// SAVED PROMPTS — User custom prompt library
+// =============================================================================
+model SavedPrompt {
+  id          Int      @id @default(autoincrement())
+  userId      BigInt   @map("user_id")
+  title       String   @db.VarChar(100)
+  prompt      String   @db.Text
+  niche       String   @db.VarChar(32)        // fnb, fashion, tech, etc
+  source      String   @default("custom") @db.VarChar(16) // custom | library | daily
+  sourceId    String?  @map("source_id") @db.VarChar(32)  // original prompt id if from library
+  usageCount  Int      @default(0) @map("usage_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([userId, niche])
+  @@map("saved_prompts")
+}
+
+// =============================================================================
 // GENERATION ANALYTICS MODEL (Phase 1)
 // =============================================================================
 model GenerationAnalytics {

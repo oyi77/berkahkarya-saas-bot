@@ -106,7 +106,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(message, {
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [...extraButtons, ...upsellRow, ...packageButtons, ...starsRow],
+        inline_keyboard: [...extraButtons, ...upsellRow, ...packageButtons, ...starsRow, [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }]],
       },
     });
   } catch (error) {

@@ -445,7 +445,7 @@ const WEB_APP = `<!DOCTYPE html>
   </style>
 </head>
 <body>
-<div id="loading-overlay" class="loading-overlay"><div class="spinner big-spinner"></div><p>Loading...</p></div>
+<div id="loading-overlay" class="loading-overlay"><div class="spinner big-spinner"></div><p id="loading-text">Memuat...</p></div>
 <div id="toast"></div>
 
 <div class="app" id="app" style="display:none">
@@ -571,25 +571,41 @@ function toast(msg, type = 'info') {
 }
 
 // ── INIT ──────────────────────────────────────────────────
-async function init() {
-  // Try Telegram WebApp login first
+async function tryTwaLogin() {
   const tg = window.Telegram?.WebApp;
-  if (tg && tg.initDataUnsafe?.user && !token) {
-    const u = tg.initDataUnsafe.user;
-    try {
-      const r = await fetch('/auth/telegram', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ id: u.id, username: u.username, first_name: u.first_name, last_name: u.last_name, hash: 'twa', auth_date: Math.floor(Date.now()/1000) })
-      });
-      const d = await r.json();
-      if (d.token) { token = d.token; localStorage.setItem('token', token); }
-    } catch(_) {}
+  if (!tg || !tg.initDataUnsafe?.user) return;
+  const u = tg.initDataUnsafe.user;
+  try {
+    const r = await fetch('/auth/telegram', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id: u.id, username: u.username, first_name: u.first_name, last_name: u.last_name, hash: 'twa', auth_date: Math.floor(Date.now()/1000) })
+    });
+    const d = await r.json();
+    if (d.token) { token = d.token; localStorage.setItem('token', token); }
+  } catch(_) {}
+}
+
+async function init() {
+  // Safety timeout — kalau init > 8s, redirect ke landing
+  const safetyTimer = setTimeout(() => {
+    if (!token) window.location.href = '/';
+  }, 8000);
+
+  // Try Telegram WebApp login first (wait a tick for SDK to load)
+  if (!token) {
+    await new Promise(r => setTimeout(r, 300));
+    await tryTwaLogin();
   }
 
-  if (!token) { window.location.href = '/'; return; }
+  if (!token) { clearTimeout(safetyTimer); window.location.href = '/'; return; }
+
+  clearTimeout(safetyTimer);
+
+  const loadingText = document.getElementById('loading-text');
+  if (loadingText) loadingText.textContent = 'Menyiapkan dashboard...';
 
   const user = await apiFetch('/api/user');
-  if (!user) return;
+  if (!user) { window.location.href = '/'; return; }
   currentUser = user;
 
   document.getElementById('user-greeting').textContent = 'Halo, ' + (user.firstName || user.username || 'User') + '!';

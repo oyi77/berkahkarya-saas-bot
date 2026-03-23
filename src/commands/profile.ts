@@ -63,10 +63,9 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             [{ text: '💰 Top Up Credits', callback_data: 'open_topup' }],
-            [
-              { text: '📤 Share Referral', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join and create amazing AI videos! Use my referral link:')}` },
-            ],
+            [{ text: '📤 Share Referral', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join and create amazing AI videos! Use my referral link:')}` }],
             [{ text: '⚙️ Settings', callback_data: 'settings' }],
+            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
           ],
         },
       }

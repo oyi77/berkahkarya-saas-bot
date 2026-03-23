@@ -22,6 +22,7 @@ import { supportCommand } from './support';
 import { reportTodayCommand, creativeIdeasCommand } from './ads';
 import { chatCommand } from './grok';
 import { socialCommand } from './social';
+import { promptsCommand, dailyCommand, trendingCommand, fingerprintCommand } from './prompts';
 
 // Admin commands
 import { adminBroadcastCommand } from './admin/broadcast';
@@ -52,6 +53,12 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command('chat', chatCommand);
   bot.command('ask', chatCommand);  // Alias
   bot.command('social', socialCommand);  // Social media accounts & publish
+  // Prompt library commands
+  bot.command('prompts', promptsCommand);
+  bot.command('prompt', promptsCommand);   // Alias
+  bot.command('daily', dailyCommand);
+  bot.command('trending', trendingCommand);
+  bot.command('fingerprint', fingerprintCommand);
   // Ads commands - disabled for now, focus on content generation
   // bot.command('report_today', reportTodayCommand);
   // bot.command('creative_ideas', creativeIdeasCommand);
@@ -65,18 +72,21 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
 
   // Set bot commands menu - show all features accessible
   bot.telegram.setMyCommands([
-    { command: 'start', description: 'Start bot' },
-    { command: 'menu', description: 'Show all features' },
-    { command: 'create', description: 'Create a new video' },
-    { command: 'videos', description: 'My videos' },
-    { command: 'topup', description: 'Top up credits' },
-    { command: 'referral', description: 'Referral & affiliate' },
-    { command: 'profile', description: 'My profile' },
-    { command: 'subscription', description: 'Subscription plans' },
-    { command: 'settings', description: 'Settings' },
-    { command: 'support', description: 'Get help' },
-    { command: 'chat', description: 'Chat with AI' },
-    { command: 'help', description: 'Show help' },
+    { command: 'start', description: '🏠 Start bot & main menu' },
+    { command: 'prompts', description: '📚 Browse 40+ prompt templates' },
+    { command: 'trending', description: '🔥 Prompt trending minggu ini' },
+    { command: 'daily', description: '🎁 Mystery prompt gratis harian' },
+    { command: 'create', description: '🎬 Buat video baru' },
+    { command: 'chat', description: '💬 Chat dengan AI' },
+    { command: 'fingerprint', description: '🧬 Lihat style preference kamu' },
+    { command: 'videos', description: '📁 My videos' },
+    { command: 'topup', description: '💰 Top up credits' },
+    { command: 'subscription', description: '⭐ Subscription plans' },
+    { command: 'referral', description: '👥 Referral & affiliate' },
+    { command: 'profile', description: '👤 My profile' },
+    { command: 'settings', description: '⚙️ Settings' },
+    { command: 'support', description: '🆘 Get help' },
+    { command: 'help', description: '📖 Panduan lengkap' },
   ]);
 
   logger.info('Bot commands registered successfully');

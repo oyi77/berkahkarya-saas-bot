@@ -95,7 +95,43 @@ export async function createCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Show niche picker (Phase 1)
+    // ── If prompt already selected from library → skip niche/style/platform ──
+    const preselectedPrompt = ctx.session?.stateData?.selectedPrompt as string | undefined;
+    if (preselectedPrompt) {
+      // Auto-set defaults for niche/style/platform from session or use 'fnb' default
+      const autoNiche = ctx.session?.selectedNiche || 'fnb';
+      const autoStyle = ctx.session?.selectedStyles?.[0] || 'appetizing';
+      ctx.session.selectedNiche = autoNiche;
+      ctx.session.selectedStyles = [autoStyle];
+      ctx.session.stateData = { ...ctx.session.stateData, selectedPlatform: 'tiktok' };
+
+      // Jump straight to duration picker
+      await ctx.reply(
+        `✅ *Prompt aktif!*\n` +
+        `\`${preselectedPrompt.slice(0, 100)}${preselectedPrompt.length > 100 ? '...' : ''}\`\n\n` +
+        `⏱️ *Pilih durasi video:*\n` +
+        `💰 Saldo: *${dbUser.creditBalance}* kredit`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '⚡ 15 detik (0.5 cr)', callback_data: 'duration_15_1' },
+                { text: '🎬 30 detik (1.0 cr)', callback_data: 'duration_30_2' },
+              ],
+              [
+                { text: '📽️ 60 detik (2.0 cr)', callback_data: 'duration_60_4' },
+                { text: '🎞️ Custom', callback_data: 'custom_duration' },
+              ],
+              [{ text: '◀️ Kembali ke Prompt', callback_data: 'back_prompts' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // ── Normal flow: Show niche picker ──────────────────────────────────────
     const nicheKeys = Object.keys(NICHES);
     const nicheButtons: any[][] = [];
     for (let i = 0; i < nicheKeys.length; i += 2) {
@@ -928,14 +964,36 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // If prompt already set from library — skip prompt step entirely
+    if (ctx.session.videoCreation.customPrompt) {
+      await ctx.editMessageText(
+        `✅ *Prompt dari library sudah aktif!*\n\n` +
+        `\`${ctx.session.videoCreation.customPrompt.slice(0, 150)}${ctx.session.videoCreation.customPrompt.length > 150 ? '...' : ''}\`\n\n` +
+        `📸 Upload foto referensi (opsional) atau langsung generate:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚀 Generate Sekarang!', callback_data: 'create_skip_prompt' }],
+              [{ text: '📸 Upload Foto Referensi', callback_data: 'create_upload_reference' }],
+              [{ text: '✍️ Ganti Prompt', callback_data: 'create_custom_prompt' }],
+            ],
+          },
+        }
+      );
+      await ctx.answerCbQuery();
+      return;
+    }
+
     await ctx.editMessageText(
-      `🎯 Add custom prompt? (optional)\n\n` +
-      `Describe what you want in your video, or skip to use our AI-generated storyboard.`,
+      `🎯 *Tambahkan custom prompt?* (opsional)\n\n` +
+      `Deskripsikan apa yang kamu mau, atau langsung skip biar AI generate otomatis.`,
       {
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '✍️ Add custom prompt', callback_data: 'create_custom_prompt' }],
-            [{ text: '⚡ Skip - Use AI storyboard', callback_data: 'create_skip_prompt' }],
+            [{ text: '✍️ Tulis Prompt Sendiri', callback_data: 'create_custom_prompt' }],
+            [{ text: '⚡ Skip — Pakai AI Storyboard', callback_data: 'create_skip_prompt' }],
           ],
         },
       }

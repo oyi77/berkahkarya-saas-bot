@@ -82,6 +82,7 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
           ...(isActive
             ? [[{ text: '❌ Cancel Subscription', callback_data: 'cancel_subscription' }]]
             : []),
+          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     });

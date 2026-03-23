@@ -46,11 +46,13 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.addHook('onRequest', async (request, reply) => {
     const url = request.url;
     const isAdminRoute = url === '/admin' || url === '/admin/dashboard' || url === '/admin/pricing' ||
+      url === '/admin/prompts' ||
       url.startsWith('/api/stats') || url.startsWith('/api/analytics') ||
       url.startsWith('/api/users') || url.startsWith('/api/transactions') ||
       url.startsWith('/api/videos') || url.startsWith('/api/broadcast') ||
       url.startsWith('/api/config') || url.startsWith('/api/payment-settings') ||
-      url.startsWith('/api/pricing') || url.startsWith('/api/provider-costs');
+      url.startsWith('/api/pricing') || url.startsWith('/api/provider-costs') ||
+      url.startsWith('/api/admin-prompts');
     if (isAdminRoute) {
       await verifyAdmin(request, reply);
     }
@@ -342,6 +344,76 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return reply.type('text/html').send(generatePricingDashboardHTML());
   });
 
+  // ── Prompt Management Dashboard ──
+
+  server.get('/admin/prompts', async (request, reply) => {
+    return reply.type('text/html').send(generatePromptManagementHTML());
+  });
+
+  // API: Get all admin prompts (global, visible to all users)
+  server.get('/api/admin-prompts', async (request: any) => {
+    const niche = (request.query as any).niche;
+    const prompts = await prisma.savedPrompt.findMany({
+      where: {
+        userId: BigInt(0), // userId=0 means admin/global prompt
+        ...(niche ? { niche } : {}),
+      },
+      orderBy: [{ niche: 'asc' }, { usageCount: 'desc' }, { createdAt: 'desc' }],
+    });
+    return prompts.map((p: any) => ({
+      id: p.id,
+      niche: p.niche,
+      title: p.title,
+      prompt: p.prompt,
+      successRate: p.usageCount,
+      createdAt: p.createdAt,
+    }));
+  });
+
+  // API: Create admin prompt
+  server.post('/api/admin-prompts', async (request: any, reply) => {
+    const { niche, title, prompt } = request.body as any;
+    if (!niche || !title || !prompt) {
+      return reply.status(400).send({ error: 'niche, title, prompt required' });
+    }
+    const created = await prisma.savedPrompt.create({
+      data: {
+        userId: BigInt(0),
+        niche: niche.toLowerCase(),
+        title: title.slice(0, 100),
+        prompt,
+        source: 'admin',
+      },
+    });
+    return { ok: true, id: Number(created.id) };
+  });
+
+  // API: Update admin prompt
+  server.put('/api/admin-prompts/:id', async (request: any, reply) => {
+    const id = parseInt(request.params.id);
+    const { title, prompt, niche } = request.body as any;
+    try {
+      await prisma.savedPrompt.update({
+        where: { id },
+        data: { ...(title ? { title } : {}), ...(prompt ? { prompt } : {}), ...(niche ? { niche } : {}) },
+      });
+      return { ok: true };
+    } catch {
+      return reply.status(404).send({ error: 'Not found' });
+    }
+  });
+
+  // API: Delete admin prompt
+  server.delete('/api/admin-prompts/:id', async (request: any, reply) => {
+    const id = parseInt(request.params.id);
+    try {
+      await prisma.savedPrompt.delete({ where: { id } });
+      return { ok: true };
+    } catch {
+      return reply.status(404).send({ error: 'Not found' });
+    }
+  });
+
   // ── Analytics Dashboard ──
 
   server.get('/admin/dashboard', async (request, reply) => {
@@ -516,6 +588,299 @@ function generateDashboardHTML(): string {
  * provider health, top niches, and recent errors.
  * Protected by the same admin password as the rest of admin routes.
  */
+function generatePromptManagementHTML(): string {
+  const niches = ['fnb','fashion','tech','health','travel','education','finance','entertainment'];
+  const nicheEmoji: Record<string,string> = {
+    fnb:'🍔', fashion:'👗', tech:'📱', health:'💪',
+    travel:'✈️', education:'📚', finance:'💰', entertainment:'🎭',
+  };
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vilona — Prompt Management</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0f172a; color:#e2e8f0; min-height:100vh; }
+    nav { background:#1e293b; border-bottom:1px solid #334155; padding:16px 24px; display:flex; align-items:center; gap:24px; }
+    nav h1 { font-size:18px; font-weight:700; color:#f8fafc; }
+    nav a { color:#94a3b8; text-decoration:none; font-size:14px; padding:6px 12px; border-radius:6px; }
+    nav a:hover, nav a.active { background:#334155; color:#f8fafc; }
+    .container { max-width:1200px; margin:0 auto; padding:24px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .header h2 { font-size:22px; font-weight:700; }
+    .btn { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; }
+    .btn-primary { background:#6366f1; color:#fff; }
+    .btn-primary:hover { background:#4f46e5; }
+    .btn-danger { background:#ef4444; color:#fff; }
+    .btn-danger:hover { background:#dc2626; }
+    .btn-success { background:#22c55e; color:#fff; }
+    .btn-sm { padding:4px 10px; font-size:12px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+    .tab { padding:8px 16px; border-radius:8px; cursor:pointer; font-size:14px; background:#1e293b; border:1px solid #334155; color:#94a3b8; }
+    .tab.active { background:#6366f1; color:#fff; border-color:#6366f1; }
+    .card { background:#1e293b; border:1px solid #334155; border-radius:12px; overflow:hidden; margin-bottom:16px; }
+    .card-header { padding:16px 20px; background:#0f172a; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; }
+    .card-body { padding:20px; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; padding:10px 12px; color:#94a3b8; font-size:12px; text-transform:uppercase; border-bottom:1px solid #334155; }
+    td { padding:10px 12px; border-bottom:1px solid #1e293b; font-size:14px; vertical-align:top; }
+    tr:hover td { background:#0f172a; }
+    .prompt-text { font-family:monospace; font-size:12px; color:#a5b4fc; max-width:400px; word-break:break-word; }
+    .badge { padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; }
+    .badge-niche { background:#1e3a5f; color:#60a5fa; }
+    input[type=text], textarea, select {
+      background:#0f172a; border:1px solid #334155; color:#e2e8f0; border-radius:8px; padding:8px 12px; width:100%; font-size:14px;
+    }
+    textarea { resize:vertical; min-height:80px; }
+    input:focus, textarea:focus, select:focus { outline:none; border-color:#6366f1; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+    .form-full { grid-column:1/-1; }
+    label { font-size:12px; color:#94a3b8; margin-bottom:4px; display:block; }
+    .toast { position:fixed; bottom:24px; right:24px; background:#22c55e; color:#fff; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:600; display:none; z-index:999; }
+    .empty-state { text-align:center; padding:40px; color:#64748b; }
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+    .stat-card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px; }
+    .stat-value { font-size:28px; font-weight:700; color:#6366f1; }
+    .stat-label { font-size:12px; color:#64748b; margin-top:4px; }
+  </style>
+</head>
+<body>
+<nav>
+  <h1>🤖 Vilona Admin</h1>
+  <a href="/admin">Dashboard</a>
+  <a href="/admin/dashboard">Analytics</a>
+  <a href="/admin/prompts" class="active">📚 Prompts</a>
+  <a href="/admin/prompts">📚 Prompts</a>
+      <a href="/admin/pricing">Pricing</a>
+</nav>
+<div class="container">
+  <div class="header">
+    <h2>📚 Prompt Management</h2>
+    <button class="btn btn-primary" onclick="showAddForm()">➕ Tambah Prompt Baru</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card"><div class="stat-value" id="stat-total">-</div><div class="stat-label">Total Prompts</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-niches">8</div><div class="stat-label">Niche Categories</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-custom">-</div><div class="stat-label">Custom (User)</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-admin">-</div><div class="stat-label">Admin Prompts</div></div>
+  </div>
+
+  <!-- Niche Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="filterNiche('all', this)">🌐 Semua</div>
+    ${niches.map(n => `<div class="tab" onclick="filterNiche('${n}', this)">${nicheEmoji[n]} ${n.charAt(0).toUpperCase()+n.slice(1)}</div>`).join('\n    ')}
+  </div>
+
+  <!-- Add Form (hidden by default) -->
+  <div class="card" id="add-form" style="display:none; border-color:#6366f1;">
+    <div class="card-header">
+      <span style="font-weight:700;">➕ Tambah Prompt Baru (Admin)</span>
+      <button class="btn btn-sm" onclick="document.getElementById('add-form').style.display='none'">✕ Tutup</button>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div>
+          <label>Niche *</label>
+          <select id="new-niche">
+            ${niches.map(n => `<option value="${n}">${nicheEmoji[n]} ${n.charAt(0).toUpperCase()+n.slice(1)}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Judul Prompt *</label>
+          <input type="text" id="new-title" placeholder="contoh: Dramatic Food Close-up">
+        </div>
+        <div class="form-full">
+          <label>Teks Prompt * (deskripsi lengkap untuk AI)</label>
+          <textarea id="new-prompt" placeholder="Cinematic food shot dengan steam rising effect, slow zoom in, warm golden hour lighting..."></textarea>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addPrompt()">💾 Simpan ke Bot</button>
+    </div>
+  </div>
+
+  <!-- Prompts Table -->
+  <div class="card">
+    <div class="card-header">
+      <span style="font-weight:700;">Daftar Admin Prompts (langsung aktif di bot)</span>
+      <span id="prompt-count" style="font-size:12px; color:#64748b;"></span>
+    </div>
+    <div class="card-body" style="padding:0;">
+      <table>
+        <thead>
+          <tr>
+            <th>Niche</th>
+            <th>Judul</th>
+            <th>Prompt Text</th>
+            <th>Dipakai</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="prompts-tbody">
+          <tr><td colspan="5" class="empty-state">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center;">
+  <div style="background:#1e293b; border:1px solid #6366f1; border-radius:12px; padding:24px; width:600px; max-width:95vw;">
+    <h3 style="margin-bottom:16px;">✏️ Edit Prompt</h3>
+    <input type="hidden" id="edit-id">
+    <div style="margin-bottom:12px;">
+      <label>Niche</label>
+      <select id="edit-niche">
+        ${niches.map(n => `<option value="${n}">${nicheEmoji[n]} ${n.charAt(0).toUpperCase()+n.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>Judul</label>
+      <input type="text" id="edit-title">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label>Teks Prompt</label>
+      <textarea id="edit-prompt" style="min-height:120px;"></textarea>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Simpan</button>
+      <button class="btn" style="background:#334155;" onclick="closeModal()">Batal</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let allPrompts = [];
+let currentNiche = 'all';
+const NICHE_EMOJI = ${JSON.stringify(nicheEmoji)};
+
+async function loadPrompts() {
+  const url = currentNiche === 'all' ? '/api/admin-prompts' : '/api/admin-prompts?niche=' + currentNiche;
+  const r = await fetch(url, { headers: { 'Authorization': 'Basic ' + btoa(':' + '${ADMIN_PASSWORD}') } });
+  allPrompts = await r.json();
+  renderTable(allPrompts);
+  document.getElementById('prompt-count').textContent = allPrompts.length + ' prompts';
+  document.getElementById('stat-total').textContent = allPrompts.length;
+  document.getElementById('stat-admin').textContent = allPrompts.length;
+}
+
+function renderTable(prompts) {
+  const tbody = document.getElementById('prompts-tbody');
+  if (!prompts.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada prompt admin untuk niche ini.<br>Klik "➕ Tambah Prompt Baru" untuk mulai.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = prompts.map(p => \`
+    <tr>
+      <td><span class="badge badge-niche">\${NICHE_EMOJI[p.niche] || ''} \${p.niche}</span></td>
+      <td style="font-weight:600;">\${esc(p.title)}</td>
+      <td><div class="prompt-text">\${esc(p.prompt.slice(0, 120))}\${p.prompt.length > 120 ? '...' : ''}</div></td>
+      <td style="color:#64748b;">\${p.successRate}x</td>
+      <td>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-sm btn-primary" onclick="openEdit(\${p.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="deletePrompt(\${p.id}, '\${esc(p.title)}')">🗑️</button>
+        </div>
+      </td>
+    </tr>
+  \`).join('');
+}
+
+function filterNiche(niche, el) {
+  currentNiche = niche;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  loadPrompts();
+}
+
+function showAddForm() {
+  document.getElementById('add-form').style.display = 'block';
+  document.getElementById('add-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function addPrompt() {
+  const niche = document.getElementById('new-niche').value;
+  const title = document.getElementById('new-title').value.trim();
+  const prompt = document.getElementById('new-prompt').value.trim();
+  if (!title || !prompt) { showToast('⚠️ Judul dan prompt wajib diisi!', 'error'); return; }
+  const r = await fetch('/api/admin-prompts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(':' + '${ADMIN_PASSWORD}') },
+    body: JSON.stringify({ niche, title, prompt }),
+  });
+  if (r.ok) {
+    showToast('✅ Prompt "' + title + '" berhasil ditambahkan ke bot!');
+    document.getElementById('new-title').value = '';
+    document.getElementById('new-prompt').value = '';
+    document.getElementById('add-form').style.display = 'none';
+    loadPrompts();
+  } else {
+    showToast('❌ Gagal menyimpan', 'error');
+  }
+}
+
+function openEdit(id) {
+  const p = allPrompts.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-niche').value = p.niche;
+  document.getElementById('edit-title').value = p.title;
+  document.getElementById('edit-prompt').value = p.prompt;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+async function saveEdit() {
+  const id = document.getElementById('edit-id').value;
+  const niche = document.getElementById('edit-niche').value;
+  const title = document.getElementById('edit-title').value.trim();
+  const prompt = document.getElementById('edit-prompt').value.trim();
+  const r = await fetch('/api/admin-prompts/' + id, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(':' + '${ADMIN_PASSWORD}') },
+    body: JSON.stringify({ niche, title, prompt }),
+  });
+  if (r.ok) { showToast('✅ Prompt diupdate!'); closeModal(); loadPrompts(); }
+  else showToast('❌ Gagal update', 'error');
+}
+
+async function deletePrompt(id, title) {
+  if (!confirm('Hapus prompt "' + title + '"?')) return;
+  const r = await fetch('/api/admin-prompts/' + id, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Basic ' + btoa(':' + '${ADMIN_PASSWORD}') },
+  });
+  if (r.ok) { showToast('🗑️ Prompt dihapus!'); loadPrompts(); }
+  else showToast('❌ Gagal hapus', 'error');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadPrompts();
+</script>
+</body>
+</html>`;
+}
+
 function generateAnalyticsDashboardHTML(): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -579,6 +944,7 @@ function generateAnalyticsDashboardHTML(): string {
     <div class="nav">
       <a href="/admin">Admin Panel</a>
       <a href="/admin/dashboard">Analytics</a>
+      <a href="/admin/prompts">📚 Prompts</a>
       <a href="/admin/pricing">Pricing</a>
     </div>
 

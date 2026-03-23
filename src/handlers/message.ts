@@ -24,6 +24,11 @@ import { generateStoryboard } from '@/services/video-generation.service';
 import { getVideoCreditCost, getImageCreditCostAsync } from '@/config/pricing';
 import { generateVideoAsync, generateExtendedVideoAsync } from '@/commands/create';
 import { enqueueVideoGeneration } from '@/config/queue';
+import { promptsCommand, dailyCommand, trendingCommand } from '@/commands/prompts';
+import { getOmniRouteService } from '@/services/omniroute.service';
+import { sendVilonaLoading } from '@/services/vilona-animation.service';
+import { SavedPromptService } from '@/services/saved-prompt.service';
+import { PROMPT_LIBRARY as _PL } from '@/commands/prompts';
 import { actionableError } from '@/utils/errors';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -448,6 +453,52 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Handle add-to-library custom prompt input (CUSTOM_PROMPT_CREATION state)
+    if (ctx.session?.state === 'CUSTOM_PROMPT_CREATION' && ctx.session?.stateData?.addingPromptNiche && 'text' in message) {
+      const promptText = message.text.trim();
+      const nicheKey = ctx.session.stateData.addingPromptNiche as string;
+      if (promptText.length < 10) {
+        await ctx.reply('⚠️ Prompt terlalu pendek. Minimal 10 kata. Coba lagi atau tap /start untuk batal.');
+        return;
+      }
+      try {
+        const dbUser = await UserService.findByTelegramId(BigInt(ctx.from!.id));
+        if (dbUser) {
+          // Auto-generate title from first 5 words
+          const title = promptText.split(' ').slice(0, 5).join(' ');
+          await SavedPromptService.save(dbUser.id as unknown as bigint, {
+            title: title.length > 50 ? title.slice(0, 50) + '...' : title,
+            prompt: promptText,
+            niche: nicheKey,
+            source: 'custom',
+          });
+          ctx.session.state = 'DASHBOARD';
+          ctx.session.stateData = { ...ctx.session.stateData, addingPromptNiche: undefined };
+          const niche = _PL[nicheKey];
+          await ctx.reply(
+            `✅ *Prompt tersimpan ke ${niche?.emoji || ''} ${niche?.label || nicheKey}!*\n\n` +
+            `\`${promptText.slice(0, 150)}${promptText.length > 150 ? '...' : ''}\`\n\n` +
+            `Mau langsung pakai prompt ini?`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🚀 Buat Video Sekarang!', callback_data: 'create_video' }],
+                  [{ text: `📌 Lihat Prompt Tersimpan`, callback_data: `my_prompts_${nicheKey}` }],
+                  [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+                ],
+              },
+            }
+          );
+          // Pre-fill session
+          ctx.session.stateData = { ...ctx.session.stateData, selectedPrompt: promptText };
+        }
+      } catch (err) {
+        await ctx.reply('❌ Gagal menyimpan prompt. Coba lagi.');
+      }
+      return;
+    }
+
     // Handle custom prompt text input
     if (ctx.session?.state === 'CUSTOM_PROMPT_INPUT' && ctx.session?.videoCreation?.waitingForCustomPrompt && 'text' in message) {
       const promptText = message.text.trim();
@@ -548,15 +599,16 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
         case '💬 Chat AI':
           await ctx.reply(
-            '*💬 AI Chat*\n\n' +
-            'Ask me anything!\n\n' +
-            'Usage: `/chat <your question>`\n\n' +
-            '*Examples:*\n' +
-            '`/chat What is the best marketing strategy?`\n' +
-            '`/chat Help me write a product description`\n' +
-            '`/chat Suggest 5 TikTok video ideas for my cafe`',
-            { parse_mode: 'Markdown' }
+            '💬 *AI Assistant aktif!*\n\n' +
+            'Langsung ketik pertanyaan kamu sekarang.\n\n' +
+            '*Contoh yang bisa kamu tanya:*\n' +
+            '• _"Bikinin prompt untuk bakso saya"_\n' +
+            '• _"Tips video TikTok F\\&B yang viral"_\n' +
+            '• _"Niche apa yang paling cuan?"_\n\n' +
+            'Atau ketik /prompts untuk template siap pakai 📚',
+            { parse_mode: 'MarkdownV2' }
           );
+          if (ctx.session) ctx.session.state = 'DASHBOARD';
           return;
 
         case '📁 My Videos':
@@ -587,24 +639,62 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           await supportCommand(ctx);
           return;
 
-        default:
-          // Unknown text — show help prompt with full keyboard
+        // ── NEW: Prompt Library keyboard buttons ──────────────────────────
+        case '📚 Prompt Library':
+          await promptsCommand(ctx);
+          return;
+
+        case '🔥 Trending':
+          await trendingCommand(ctx);
+          return;
+
+        case '🎁 Daily Prompt':
+          await dailyCommand(ctx);
+          return;
+
+        default: {
+          // Natural language → route to AI chat assistant
+          const trimmed = text.trim();
+          if (trimmed.length > 2 && !trimmed.startsWith('/')) {
+            const omni = getOmniRouteService();
+            const userId = String(ctx.from?.id || 'unknown');
+            try {
+              const loadingId = await sendVilonaLoading(ctx, 'thinking');
+              const result = await omni.chat(userId, trimmed);
+              if (loadingId) {
+                await ctx.telegram.deleteMessage(ctx.chat!.id, loadingId).catch(() => {});
+              }
+              if (result.success && result.content) {
+                try {
+                  await ctx.reply(result.content, { parse_mode: 'Markdown' });
+                } catch {
+                  await ctx.reply(result.content);
+                }
+                return;
+              }
+            } catch { /* fall through to menu */ }
+          }
+          // Fallback: show menu
           await ctx.reply(
-            '❓ I didn\'t understand that.\n\n' +
-            'Use the menu below or type /help for assistance.',
+            '❓ Ketik pertanyaan kamu atau pilih dari menu:\n\n' +
+            '📚 /prompts — Template prompt siap pakai\n' +
+            '🎬 /create — Buat video baru\n' +
+            '🎁 /daily — Prompt gratis hari ini\n' +
+            '💬 /chat — Chat dengan AI',
             {
               reply_markup: {
                 keyboard: [
+                  [{ text: '📚 Prompt Library' }, { text: '🔥 Trending' }],
                   [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
-                  [{ text: '💬 Chat AI' }, { text: '📁 My Videos' }],
+                  [{ text: '🎁 Daily Prompt' }, { text: '💬 Chat AI' }],
                   [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
-                  [{ text: '👤 Profile' }, { text: '👥 Referral' }],
-                  [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
+                  [{ text: '👤 Profile' }, { text: '🆘 Support' }],
                 ],
                 resize_keyboard: true,
               },
             }
           );
+        }
       }
     }
 

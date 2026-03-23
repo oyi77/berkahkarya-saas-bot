@@ -57,12 +57,8 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [
-              {
-                text: '📤 Share Referral Link',
-                url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join and create amazing AI videos! Use my referral link:')}`,
-              },
-            ],
+            [{ text: '📤 Share Referral Link', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join and create amazing AI videos! Use my referral link:')}` }],
+            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
           ],
         },
       }
