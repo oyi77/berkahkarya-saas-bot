@@ -111,31 +111,24 @@ async function main() {
       logger.error('❌ Failed to start HTTP server:', err);
     });
 
-    // Start bot polling
-    if (process.env.NODE_ENV === 'production') {
-      const webhookUrl = process.env.WEBHOOK_URL;
-      if (webhookUrl) {
-        await bot.launch({
-          webhook: {
-            domain: webhookUrl,
-            port,
-          },
-        });
-        logger.info(`🤖 Bot started with webhook: ${webhookUrl}`);
-      } else {
-        logger.error('WEBHOOK_URL is required in production');
-        process.exit(1);
-      }
+    // Start bot
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (process.env.NODE_ENV === 'production' && webhookUrl) {
+      // In production, set Telegram webhook to point at our Fastify route
+      const webhookSecret = process.env.WEBHOOK_SECRET || '';
+      const fullUrl = `${webhookUrl}/webhook/telegram`;
+      await bot.telegram.setWebhook(fullUrl, {
+        secret_token: webhookSecret,
+      });
+      logger.info(`🤖 Bot webhook set: ${fullUrl}`);
     } else {
       logger.info('🤖 Starting bot with polling...');
 
       try {
-        const botToken = process.env.BOT_TOKEN || '';
-        
         // Delete any existing webhook first
         await bot.telegram.deleteWebhook({ drop_pending_updates: true });
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         await bot.launch();
         logger.info('✅ Bot polling started successfully');
       } catch (error: any) {
