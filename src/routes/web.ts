@@ -1,7 +1,7 @@
 /**
  * Web Routes
- * 
- * Landing page and web app routes with Telegram Login support
+ *
+ * Landing page + Web App (SPA) + REST API for web clients
  */
 
 import { FastifyInstance } from 'fastify';
@@ -12,366 +12,937 @@ import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
 import { TripayService } from '@/services/tripay.service';
 import { checkTelegramHash } from '@/utils/telegram';
+import { enqueueVideoGeneration } from '@/config/queue';
+import { generateStoryboard, NICHES } from '@/services/video-generation.service';
+import { getVideoCreditCost } from '@/config/pricing';
 import jwt from 'jsonwebtoken';
 import * as fs from 'fs';
-import * as path from 'path';
+import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'openclaw-secret-change-in-production';
-const BOT_USERNAME = process.env.BOT_USERNAME || 'openclaw_bot';
+const BOT_USERNAME = process.env.BOT_USERNAME || 'berkahkarya_saas_bot';
 const BOT_TOKEN = process.env.BOT_TOKEN || '';
 
-/**
- * Landing page HTML
- */
-const LANDING_PAGE = `
-<!DOCTYPE html>
-<html lang="en">
+// ─── Landing Page ───────────────────────────────────────────────────────────
+
+const LANDING_PAGE = `<!DOCTYPE html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenClaw - AI Video Marketing Platform</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>BerkahKarya AI Video Studio — Buat Video Viral dalam Menit</title>
+  <meta name="description" content="Generate video marketing viral dengan AI. TikTok, YouTube, Instagram ready. Mulai gratis via Telegram.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0d0d1f 100%);
-      color: #ffffff;
-      min-height: 100vh;
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#0a0a1a;--bg2:#111127;--card:rgba(255,255,255,0.04);
+      --border:rgba(255,255,255,0.08);--accent:#00d9ff;--accent2:#00ff88;
+      --grad:linear-gradient(135deg,#00d9ff,#00ff88);
+      --text:#fff;--dim:rgba(255,255,255,0.55);
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    .logo { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .nav-links { display: flex; gap: 30px; }
-    .nav-links a { color: rgba(255,255,255,0.7); text-decoration: none; transition: color 0.3s; }
-    .nav-links a:hover { color: #00d9ff; }
-    .hero { text-align: center; padding: 100px 20px; }
-    .hero h1 { font-size: 56px; font-weight: 700; margin-bottom: 24px; line-height: 1.2; }
-    .hero h1 span { background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .hero p { font-size: 20px; color: rgba(255,255,255,0.7); max-width: 600px; margin: 0 auto 40px; }
-    .cta-buttons { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-    .btn { padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; text-decoration: none; transition: all 0.3s; cursor: pointer; border: none; }
-    .btn-primary { background: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%); color: #0f0f23; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,217,255,0.3); }
-    .btn-secondary { background: rgba(255,255,255,0.1); color: #ffffff; border: 1px solid rgba(255,255,255,0.2); }
-    .btn-secondary:hover { background: rgba(255,255,255,0.2); }
-    .features { padding: 80px 20px; background: rgba(255,255,255,0.02); }
-    .features h2 { text-align: center; font-size: 40px; margin-bottom: 60px; }
-    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-    .feature-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; transition: all 0.3s; }
-    .feature-card:hover { transform: translateY(-5px); border-color: rgba(0,217,255,0.3); box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-    .feature-icon { font-size: 48px; margin-bottom: 20px; }
-    .feature-card h3 { font-size: 24px; margin-bottom: 12px; }
-    .feature-card p { color: rgba(255,255,255,0.6); line-height: 1.6; }
-    .telegram-login { display: inline-block; margin-top: 20px; }
-    footer { border-top: 1px solid rgba(255,255,255,0.1); padding: 40px 20px; text-align: center; color: rgba(255,255,255,0.5); }
-    footer a { color: #00d9ff; text-decoration: none; }
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+    .container{max-width:1100px;margin:0 auto;padding:0 20px}
+
+    /* NAV */
+    nav{position:sticky;top:0;z-index:100;background:rgba(10,10,26,0.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+    .nav-inner{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;max-width:1100px;margin:0 auto}
+    .logo{font-size:20px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .nav-links{display:flex;gap:24px;align-items:center}
+    .nav-links a{color:var(--dim);text-decoration:none;font-size:14px;transition:color .2s}
+    .nav-links a:hover{color:var(--text)}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;transition:all .25s;border:none;cursor:pointer}
+    .btn-primary{background:var(--grad);color:#0a0a1a}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,217,255,0.3)}
+    .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
+    .btn-outline:hover{background:var(--card);border-color:var(--accent)}
+
+    /* HERO */
+    .hero{text-align:center;padding:90px 20px 60px}
+    .hero-badge{display:inline-block;background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);color:var(--accent);padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;margin-bottom:24px}
+    .hero h1{font-size:clamp(36px,6vw,64px);font-weight:800;line-height:1.15;margin-bottom:20px}
+    .hero h1 span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .hero p{font-size:18px;color:var(--dim);max-width:560px;margin:0 auto 40px;line-height:1.7}
+    .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
+    .tg-login-wrap{margin-top:8px;opacity:.9}
+
+    /* STATS */
+    .stats{display:flex;gap:40px;justify-content:center;flex-wrap:wrap;padding:40px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg2)}
+    .stat{text-align:center}
+    .stat-num{font-size:32px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-label{font-size:13px;color:var(--dim);margin-top:4px}
+
+    /* FEATURES */
+    .section{padding:80px 20px}
+    .section-title{text-align:center;font-size:clamp(28px,4vw,40px);font-weight:800;margin-bottom:12px}
+    .section-sub{text-align:center;color:var(--dim);font-size:16px;margin-bottom:50px}
+    .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px}
+    .feature-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;transition:all .3s}
+    .feature-card:hover{transform:translateY(-4px);border-color:rgba(0,217,255,0.25);box-shadow:0 12px 40px rgba(0,0,0,0.3)}
+    .f-icon{font-size:36px;margin-bottom:16px}
+    .feature-card h3{font-size:18px;font-weight:700;margin-bottom:8px}
+    .feature-card p{font-size:14px;color:var(--dim);line-height:1.6}
+
+    /* HOW IT WORKS */
+    .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;counter-reset:step}
+    .step{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;position:relative;counter-increment:step}
+    .step::before{content:counter(step);position:absolute;top:-12px;left:24px;width:28px;height:28px;background:var(--grad);color:#0a0a1a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;line-height:28px;text-align:center}
+    .step h3{font-size:16px;font-weight:700;margin-bottom:8px;margin-top:8px}
+    .step p{font-size:14px;color:var(--dim);line-height:1.6}
+
+    /* PRICING */
+    .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:20px;max-width:900px;margin:0 auto}
+    .price-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:32px;transition:all .3s;position:relative;overflow:hidden}
+    .price-card.popular{border-color:var(--accent);box-shadow:0 0 40px rgba(0,217,255,0.1)}
+    .popular-badge{position:absolute;top:16px;right:16px;background:var(--grad);color:#0a0a1a;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+    .price-card h3{font-size:20px;font-weight:700;margin-bottom:8px}
+    .price-card .price{font-size:32px;font-weight:800;margin:16px 0 4px}
+    .price-card .credits{font-size:14px;color:var(--dim);margin-bottom:20px}
+    .price-card ul{list-style:none;margin-bottom:24px}
+    .price-card ul li{font-size:14px;color:var(--dim);padding:6px 0;display:flex;gap:8px;align-items:center}
+    .price-card ul li::before{content:"✓";color:var(--accent2);font-weight:700}
+    .price-card .btn{width:100%;justify-content:center;padding:14px}
+
+    /* PAYMENT METHODS */
+    .payment-logos{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+    .pay-chip{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 18px;font-size:13px;color:var(--dim)}
+
+    /* FOOTER */
+    footer{border-top:1px solid var(--border);padding:40px 20px;text-align:center;color:var(--dim);font-size:14px}
+    footer a{color:var(--accent);text-decoration:none}
+
+    @media(max-width:640px){
+      .nav-links .hide-mobile{display:none}
+      .hero{padding:60px 16px 40px}
+      .stats{gap:24px}
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo">OpenClaw</div>
-      <nav class="nav-links">
-        <a href="#features">Features</a>
-        <a href="/app">Dashboard</a>
-      </nav>
-    </header>
-    
-    <section class="hero">
-      <h1>Create <span>Viral Videos</span> in Minutes with AI</h1>
-      <p>Transform your product photos into stunning marketing videos. No editing skills required.</p>
-      <div class="cta-buttons">
-        <a href="https://t.me/${BOT_USERNAME}" class="btn btn-primary">Start on Telegram</a>
-        <a href="/app" class="btn btn-secondary">Try Web App</a>
+  <nav>
+    <div class="nav-inner">
+      <div class="logo">🎬 BerkahKarya</div>
+      <div class="nav-links">
+        <a href="#fitur" class="hide-mobile">Fitur</a>
+        <a href="#harga" class="hide-mobile">Harga</a>
+        <a href="/app" class="btn btn-outline">Web App</a>
+        <a href="https://t.me/${BOT_USERNAME}" class="btn btn-primary">Mulai Gratis</a>
       </div>
-      <div class="telegram-login">
-        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="${BOT_USERNAME}" data-size="large" data-radius="12" data-request-access="write" data-userpic="true" data-onauth="onTelegramAuth(user)"></script>
-      </div>
-    </section>
-  </div>
-  
-  <section id="features" class="features">
+    </div>
+  </nav>
+
+  <section class="hero">
     <div class="container">
-      <h2>Powerful Features</h2>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🎬</div>
-          <h3>AI Video Generation</h3>
-          <p>Transform static images into engaging marketing videos with AI.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">📋</div>
-          <h3>Auto Storyboard</h3>
-          <p>Automatically generate scene-by-scene storyboards tailored to your niche.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔄</div>
-          <h3>Clone & Remake</h3>
-          <p>Clone viral video styles and create your own version in minutes.</p>
-        </div>
+      <div class="hero-badge">🚀 AI Video Studio — Powered by 9+ AI Providers</div>
+      <h1>Buat <span>Video Viral</span><br>dalam Menit dengan AI</h1>
+      <p>Ubah foto produk kamu jadi video marketing viral untuk TikTok, YouTube & Instagram. Tanpa skill editing. Langsung via Telegram.</p>
+      <div class="cta-row">
+        <a href="https://t.me/${BOT_USERNAME}" class="btn btn-primary">🚀 Mulai di Telegram</a>
+        <a href="/app" class="btn btn-outline">💻 Coba Web App</a>
+      </div>
+      <div class="tg-login-wrap">
+        <script async src="https://telegram.org/js/telegram-widget.js?22"
+          data-telegram-login="${BOT_USERNAME}"
+          data-size="medium" data-radius="10"
+          data-request-access="write"
+          data-onauth="onTelegramAuth(user)"></script>
       </div>
     </div>
   </section>
-  
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num">9+</div><div class="stat-label">AI Providers</div></div>
+    <div class="stat"><div class="stat-num">5 detik</div><div class="stat-label">Generate time</div></div>
+    <div class="stat"><div class="stat-num">4 Platform</div><div class="stat-label">TikTok, YT, IG, Shorts</div></div>
+    <div class="stat"><div class="stat-num">IDR 49rb</div><div class="stat-label">Mulai dari</div></div>
+  </div>
+
+  <section id="fitur" class="section">
+    <div class="container">
+      <div class="section-title">Fitur Unggulan</div>
+      <div class="section-sub">Semua yang kamu butuhkan untuk bikin konten viral</div>
+      <div class="features-grid">
+        <div class="feature-card"><div class="f-icon">🎬</div><h3>AI Video Generation</h3><p>Generate video dari foto produk dengan storyboard otomatis. 9+ provider AI dengan fallback chain.</p></div>
+        <div class="feature-card"><div class="f-icon">📋</div><h3>Auto Storyboard</h3><p>AI generate scene-by-scene storyboard sesuai niche bisnis kamu secara otomatis.</p></div>
+        <div class="feature-card"><div class="f-icon">✍️</div><h3>Custom Prompt</h3><p>Kontrol penuh dengan custom prompt, atau biarkan AI generate storyboard terbaik untuk kamu.</p></div>
+        <div class="feature-card"><div class="f-icon">📱</div><h3>Multi Platform</h3><p>Output siap upload ke TikTok, YouTube Shorts, Instagram Reels, dan Facebook.</p></div>
+        <div class="feature-card"><div class="f-icon">💳</div><h3>Multi Payment</h3><p>Bayar via Duitku (IDR), Telegram Stars, atau Crypto (USDT/BNB/MATIC/TON).</p></div>
+        <div class="feature-card"><div class="f-icon">👥</div><h3>Referral MLM</h3><p>Ajak teman, dapat komisi multi-tier dari setiap transaksi mereka secara otomatis.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="background:var(--bg2)">
+    <div class="container">
+      <div class="section-title">Cara Kerja</div>
+      <div class="section-sub">4 langkah simpel untuk video viral pertamamu</div>
+      <div class="steps">
+        <div class="step"><h3>Pilih Niche</h3><p>Pilih kategori bisnis kamu: F&B, produk, fashion, tech, dan lainnya.</p></div>
+        <div class="step"><h3>Upload Foto / Prompt</h3><p>Upload foto produk atau tulis deskripsi singkat. AI handle sisanya.</p></div>
+        <div class="step"><h3>Preview Storyboard</h3><p>AI generate scene-by-scene storyboard. Review dan konfirmasi.</p></div>
+        <div class="step"><h3>Download & Upload</h3><p>Video siap dalam hitungan detik. Download dan langsung upload ke platform.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="harga" class="section">
+    <div class="container">
+      <div class="section-title">Harga Terjangkau</div>
+      <div class="section-sub">Mulai gratis, scale sesuai kebutuhan bisnis</div>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <h3>Starter Flow</h3>
+          <div class="price">IDR 49.000</div>
+          <div class="credits">6 Credits (~6 video)</div>
+          <ul>
+            <li>6x video generation</li>
+            <li>Semua niche & style</li>
+            <li>Download HD</li>
+            <li>Multi platform output</li>
+          </ul>
+          <a href="https://t.me/${BOT_USERNAME}" class="btn btn-outline">Mulai Sekarang</a>
+        </div>
+        <div class="price-card popular">
+          <div class="popular-badge">⭐ POPULER</div>
+          <h3>Growth Machine</h3>
+          <div class="price">IDR 149.000</div>
+          <div class="credits">22 Credits + Viral Research</div>
+          <ul>
+            <li>22x video generation</li>
+            <li>Viral hook research</li>
+            <li>Custom prompt support</li>
+            <li>Priority queue</li>
+          </ul>
+          <a href="https://t.me/${BOT_USERNAME}" class="btn btn-primary">Pilih Paket Ini</a>
+        </div>
+        <div class="price-card">
+          <h3>Business Kingdom</h3>
+          <div class="price">IDR 499.000</div>
+          <div class="credits">85 Credits + All Features</div>
+          <ul>
+            <li>85x video generation</li>
+            <li>Semua fitur premium</li>
+            <li>Batch generation</li>
+            <li>Referral komisi aktif</li>
+          </ul>
+          <a href="https://t.me/${BOT_USERNAME}" class="btn btn-outline">Upgrade Sekarang</a>
+        </div>
+      </div>
+      <div class="payment-logos">
+        <div class="pay-chip">💳 Duitku</div>
+        <div class="pay-chip">⭐ Telegram Stars</div>
+        <div class="pay-chip">💎 USDT</div>
+        <div class="pay-chip">🔶 BNB</div>
+        <div class="pay-chip">🟣 MATIC</div>
+        <div class="pay-chip">💠 TON</div>
+      </div>
+    </div>
+  </section>
+
   <footer>
-    <p>&copy; 2024 OpenClaw by <a href="https://berkahkarya.com">BerkahKarya</a>. All rights reserved.</p>
+    <p>© 2025 <a href="https://berkahkarya.com">BerkahKarya</a> — AI Video Studio. All rights reserved.</p>
+    <p style="margin-top:8px"><a href="https://t.me/${BOT_USERNAME}">Telegram Bot</a> · <a href="/app">Web App</a></p>
   </footer>
-  
+
   <script>
     function onTelegramAuth(user) {
       fetch('/auth/telegram', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(user)
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.token) {
-          localStorage.setItem('token', data.token);
+      .then(r => r.json())
+      .then(d => {
+        if (d.token) {
+          localStorage.setItem('token', d.token);
           window.location.href = '/app';
         }
-      });
+      })
+      .catch(() => alert('Login gagal, coba lagi.'));
     }
   </script>
 </body>
-</html>
-`;
+</html>`;
 
-/**
- * Web app HTML (dashboard)
- */
-const WEB_APP = `
-<!DOCTYPE html>
-<html lang="en">
+// ─── Web App SPA ─────────────────────────────────────────────────────────────
+
+const WEB_APP = `<!DOCTYPE html>
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenClaw - Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>BerkahKarya — Dashboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #0f0f23;
-      --card-bg: rgba(255,255,255,0.05);
-      --accent: #00d9ff;
-      --accent-grad: linear-gradient(135deg, #00d9ff 0%, #00ff88 100%);
-      --text: #ffffff;
-      --text-dim: rgba(255,255,255,0.6);
-      --border: rgba(255,255,255,0.1);
-      --danger: #ff4757;
+    :root{
+      --bg:#0a0a1a;--bg2:#111127;--sidebar-w:240px;
+      --card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);
+      --accent:#00d9ff;--accent2:#00ff88;--grad:linear-gradient(135deg,#00d9ff,#00ff88);
+      --text:#fff;--dim:rgba(255,255,255,0.55);--danger:#ff4757;--warn:#ffa502;--ok:#2ed573;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-    .layout { display: flex; min-height: 100vh; }
-    .sidebar { width: 260px; background: rgba(0,0,0,0.2); border-right: 1px solid var(--border); padding: 24px; }
-    .logo { font-size: 24px; font-weight: 700; background: var(--accent-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 40px; }
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; color: var(--text-dim); cursor: pointer; transition: all 0.2s; margin-bottom: 8px; border: 1px solid transparent; }
-    .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .nav-item.active { background: rgba(0,217,255,0.1); color: var(--accent); border-color: rgba(0,217,255,0.2); }
-    .main { flex: 1; padding: 40px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-    .user-info { display: flex; align-items: center; gap: 15px; }
-    .credits-badge { background: var(--accent-grad); color: #0f0f23; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; cursor: pointer; }
-    .view { display: none; animation: fadeIn 0.3s ease; }
-    .view.active { display: block; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .action-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
-    .action-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.3s; }
-    .action-card:hover { background: rgba(255,255,255,0.08); transform: translateY(-5px); border-color: var(--accent); }
-    .action-card .icon { font-size: 32px; margin-bottom: 12px; display: block; }
-    .action-card h3 { font-size: 14px; font-weight: 600; }
-    .form-group { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 8px; font-size: 14px; color: var(--text-dim); }
-    select, input, textarea { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: white; font-family: inherit; }
-    button.primary { background: var(--accent-grad); color: #0f0f23; border: none; border-radius: 12px; padding: 12px 24px; font-weight: 700; cursor: pointer; transition: all 0.3s; }
-    button.primary:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(0,217,255,0.4); }
-    .result-box { margin-top: 30px; background: rgba(0,0,0,0.3); border-radius: 16px; padding: 24px; border: 1px solid var(--border); }
-    .scene-item { padding: 12px; border-bottom: 1px solid var(--border); }
-    .scene-item:last-child { border-bottom: none; }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+    a{color:inherit;text-decoration:none}
+
+    /* LAYOUT */
+    .app{display:flex;flex:1;min-height:100vh}
+    .sidebar{width:var(--sidebar-w);background:rgba(0,0,0,0.25);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:50}
+    .sidebar-logo{padding:0 20px 24px;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;border-bottom:1px solid var(--border);margin-bottom:12px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--dim);cursor:pointer;transition:all .2s;font-size:14px;font-weight:500;border-left:3px solid transparent}
+    .nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+    .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,217,255,0.05)}
+    .sidebar-bottom{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
+    .credits-pill{background:var(--grad);color:#0a0a1a;padding:8px 16px;border-radius:20px;font-weight:700;font-size:13px;display:inline-block;cursor:pointer;white-space:nowrap}
+
+    .main{margin-left:var(--sidebar-w);flex:1;padding:32px;min-height:100vh}
+    .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+    .page-title{font-size:24px;font-weight:800}
+    .user-greeting{font-size:13px;color:var(--dim)}
+
+    /* VIEWS */
+    .view{display:none;animation:fadeIn .25s ease}
+    .view.active{display:block}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* CARDS */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px}
+    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px}
+
+    /* STATS CARDS */
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
+    .stat-card .label{font-size:12px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+    .stat-card .value{font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-card .sub{font-size:12px;color:var(--dim);margin-top:4px}
+
+    /* ACTION CARDS */
+    .action-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;cursor:pointer;transition:all .25s}
+    .action-card:hover{background:rgba(255,255,255,0.07);transform:translateY(-3px);border-color:rgba(0,217,255,0.25)}
+    .action-card .icon{font-size:28px;margin-bottom:10px}
+    .action-card h3{font-size:14px;font-weight:600}
+
+    /* FORM */
+    .form-group{margin-bottom:20px}
+    .form-label{display:block;font-size:13px;color:var(--dim);margin-bottom:8px;font-weight:500}
+    input,select,textarea{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;font-size:14px;transition:border-color .2s;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    textarea{resize:vertical;min-height:90px}
+    select option{background:#111127}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:12px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:all .25s;text-decoration:none}
+    .btn-primary{background:var(--grad);color:#0a0a1a}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,217,255,0.3)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
+    .btn-outline:hover{background:var(--card);border-color:var(--accent)}
+    .btn-danger{background:rgba(255,71,87,0.1);color:var(--danger);border:1px solid rgba(255,71,87,0.2)}
+    .btn-sm{padding:7px 14px;font-size:12px;border-radius:8px}
+    .btn-full{width:100%}
+
+    /* NICHE GRID */
+    .niche-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+    .niche-btn{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;font-size:13px;font-weight:600}
+    .niche-btn:hover{border-color:var(--accent);background:rgba(0,217,255,0.05)}
+    .niche-btn.selected{border-color:var(--accent);background:rgba(0,217,255,0.12);color:var(--accent)}
+    .niche-btn .ni{font-size:24px;display:block;margin-bottom:6px}
+
+    /* STYLE CHIPS */
+    .chip-group{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+    .chip:hover{border-color:var(--accent)}
+    .chip.selected{background:rgba(0,217,255,0.12);border-color:var(--accent);color:var(--accent)}
+
+    /* DURATION BUTTONS */
+    .dur-group{display:flex;gap:10px;flex-wrap:wrap}
+    .dur-btn{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+    .dur-btn:hover{border-color:var(--accent)}
+    .dur-btn.selected{background:rgba(0,217,255,0.12);border-color:var(--accent);color:var(--accent)}
+
+    /* STEPS */
+    .step-indicator{display:flex;gap:6px;margin-bottom:28px}
+    .step-dot{width:28px;height:4px;background:var(--border);border-radius:2px;transition:background .3s}
+    .step-dot.done{background:var(--accent)}
+    .step-header{font-size:18px;font-weight:700;margin-bottom:6px}
+    .step-sub{font-size:13px;color:var(--dim);margin-bottom:20px}
+
+    /* SCENES */
+    .scene-card{background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:8px}
+    .scene-card .scene-num{font-size:11px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .scene-card p{font-size:14px;color:var(--dim);line-height:1.5}
+
+    /* VIDEO CARDS */
+    .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    .video-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .25s}
+    .video-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,0.3)}
+    .video-thumb{background:linear-gradient(135deg,#111,#1a1a2e);aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;font-size:40px;max-height:180px;overflow:hidden;position:relative}
+    .video-thumb video{width:100%;height:100%;object-fit:cover}
+    .video-info{padding:14px}
+    .video-title{font-size:13px;font-weight:600;margin-bottom:6px}
+    .video-meta{font-size:12px;color:var(--dim);margin-bottom:10px}
+    .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+    .status-processing{background:rgba(255,165,2,0.15);color:var(--warn)}
+    .status-completed{background:rgba(46,213,115,0.15);color:var(--ok)}
+    .status-failed{background:rgba(255,71,87,0.15);color:var(--danger)}
+    .status-pending{background:rgba(255,255,255,0.08);color:var(--dim)}
+
+    /* PRICING */
+    .price-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+    .price-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;transition:all .3s;position:relative}
+    .price-card.popular{border-color:var(--accent)}
+    .popular-tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--grad);color:#0a0a1a;padding:4px 16px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+    .price-card h3{font-size:16px;font-weight:700}
+    .price-card .price{font-size:26px;font-weight:800;margin:12px 0 4px}
+    .price-card .cred{font-size:13px;color:var(--dim);margin-bottom:16px}
+    .price-card .btn{width:100%;margin-top:8px}
+
+    /* TRANSACTIONS */
+    .txn-table{width:100%;border-collapse:collapse}
+    .txn-table th{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+    .txn-table td{padding:12px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .txn-table tr:last-child td{border-bottom:none}
+
+    /* LOADING */
+    .skeleton{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-overlay{position:fixed;inset:0;background:rgba(10,10,26,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px}
+    .loading-overlay .big-spinner{width:48px;height:48px;border-width:4px}
+    .loading-overlay p{color:var(--dim);font-size:14px}
+
+    /* TOAST */
+    #toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+    .toast-msg{background:#1a1a2e;border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;font-weight:500;opacity:0;transform:translateY(12px);transition:all .3s;pointer-events:auto;max-width:300px;display:flex;align-items:center;gap:8px}
+    .toast-msg.show{opacity:1;transform:translateY(0)}
+    .toast-ok{border-color:var(--ok);color:var(--ok)}
+    .toast-err{border-color:var(--danger);color:var(--danger)}
+    .toast-info{border-color:var(--accent);color:var(--accent)}
+
+    /* EMPTY STATE */
+    .empty{text-align:center;padding:60px 20px;color:var(--dim)}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+    .empty h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text)}
+
+    /* PROGRESS BAR */
+    .progress-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin:12px 0}
+    .progress-fill{height:100%;background:var(--grad);border-radius:3px;transition:width .4s ease}
+
+    /* MOBILE */
+    @media(max-width:768px){
+      .sidebar{display:none}
+      .main{margin-left:0;padding:16px;padding-bottom:80px}
+      .mobile-nav{display:flex!important}
+    }
+    .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#111127;border-top:1px solid var(--border);z-index:100;padding:8px 0}
+    .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--dim);font-size:10px;font-weight:500;padding:4px;transition:color .2s}
+    .mobile-nav-item.active{color:var(--accent)}
+    .mobile-nav-item .mni{font-size:22px}
   </style>
 </head>
 <body>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="logo">OpenClaw</div>
-      <div class="nav-item active" onclick="showView('dashboard')">🏠 Dashboard</div>
-      <div class="nav-item" onclick="showView('create')">🎬 Create Video</div>
-      <div class="nav-item" onclick="showView('pricing')">💰 Billing</div>
-      <div class="nav-item" onclick="logout()">🚪 Logout</div>
-    </aside>
-    
-    <main class="main">
-      <header class="header">
-        <h1 id="view-title">Dashboard</h1>
-        <div class="user-info">
-          <span id="user-name">Loading...</span>
-          <div class="credits-badge" onclick="showView('pricing')"><span id="user-credits">0</span> Credits</div>
+<div id="loading-overlay" class="loading-overlay"><div class="spinner big-spinner"></div><p>Loading...</p></div>
+<div id="toast"></div>
+
+<div class="app" id="app" style="display:none">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">🎬 BerkahKarya</div>
+    <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard">🏠 Dashboard</div>
+    <div class="nav-item" onclick="nav('create')" id="nav-create">🎬 Buat Video</div>
+    <div class="nav-item" onclick="nav('videos')" id="nav-videos">📁 Video Saya</div>
+    <div class="nav-item" onclick="nav('billing')" id="nav-billing">💳 Billing</div>
+    <div class="sidebar-bottom">
+      <div id="sidebar-credits" class="credits-pill" onclick="nav('billing')">⏳ Credits</div>
+      <div style="margin-top:12px">
+        <div class="nav-item" onclick="logout()" style="padding:8px 0;font-size:13px;color:var(--danger)">🚪 Logout</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="user-greeting" id="user-greeting">Selamat datang!</div>
+      </div>
+      <div id="header-credits" class="credits-pill" style="cursor:pointer" onclick="nav('billing')">⏳</div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="stat-card"><div class="label">Credits</div><div class="value" id="stat-credits">—</div><div class="sub">tersedia</div></div>
+        <div class="stat-card"><div class="label">Total Video</div><div class="value" id="stat-videos">—</div><div class="sub">dibuat</div></div>
+        <div class="stat-card"><div class="label">Referral Code</div><div class="value" id="stat-ref" style="font-size:16px;margin-top:4px">—</div><div class="sub" id="stat-ref-copy" style="cursor:pointer;color:var(--accent)">tap to copy</div></div>
+        <div class="stat-card"><div class="label">Tier</div><div class="value" id="stat-tier" style="font-size:20px;margin-top:4px">—</div><div class="sub">akun kamu</div></div>
+      </div>
+      <div class="grid-4" style="margin-bottom:28px">
+        <div class="action-card" onclick="nav('create')"><div class="icon">🎬</div><h3>Buat Video</h3></div>
+        <div class="action-card" onclick="nav('billing')"><div class="icon">💳</div><h3>Top Up</h3></div>
+        <div class="action-card" onclick="nav('videos')"><div class="icon">📁</div><h3>Video Saya</h3></div>
+        <div class="action-card" onclick="shareRef()"><div class="icon">👥</div><h3>Referral</h3></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:16px;font-size:15px">Video Terbaru</h3>
+        <div id="recent-videos" class="video-grid"></div>
+      </div>
+    </div>
+
+    <!-- CREATE VIDEO -->
+    <div id="view-create" class="view">
+      <div class="step-indicator" id="step-dots"></div>
+      <div id="create-step-container"></div>
+    </div>
+
+    <!-- MY VIDEOS -->
+    <div id="view-videos" class="view">
+      <div id="videos-container" class="video-grid"></div>
+    </div>
+
+    <!-- BILLING -->
+    <div id="view-billing" class="view">
+      <div class="card" style="margin-bottom:20px;text-align:center;padding:32px">
+        <div style="font-size:13px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Credit Balance</div>
+        <div style="font-size:52px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent" id="billing-credits">—</div>
+        <div style="font-size:13px;color:var(--dim);margin-top:4px">credits tersedia</div>
+      </div>
+      <h3 style="margin-bottom:16px;font-size:15px">Pilih Paket</h3>
+      <div id="packages-container" class="price-cards" style="margin-bottom:32px"></div>
+      <h3 style="margin-bottom:16px;font-size:15px">Metode Pembayaran Lain</h3>
+      <div class="grid-2" style="margin-bottom:32px">
+        <div class="action-card" onclick="payStars()"><div class="icon">⭐</div><h3>Telegram Stars</h3><div style="font-size:12px;color:var(--dim);margin-top:6px">Bayar instant dari saldo Stars</div></div>
+        <div class="action-card" onclick="payCrypto()"><div class="icon">💎</div><h3>Crypto (USDT/BNB)</h3><div style="font-size:12px;color:var(--dim);margin-top:6px">Min $20 USD</div></div>
+      </div>
+      <h3 style="margin-bottom:16px;font-size:15px">Riwayat Transaksi</h3>
+      <div class="card" style="overflow-x:auto">
+        <table class="txn-table" id="txn-table">
+          <thead><tr><th>Order ID</th><th>Paket</th><th>Jumlah</th><th>Credits</th><th>Status</th><th>Tanggal</th></tr></thead>
+          <tbody id="txn-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Mobile Bottom Nav -->
+<div class="mobile-nav">
+  <div class="mobile-nav-item active" onclick="nav('dashboard')" id="mnav-dashboard"><span class="mni">🏠</span>Home</div>
+  <div class="mobile-nav-item" onclick="nav('create')" id="mnav-create"><span class="mni">🎬</span>Buat</div>
+  <div class="mobile-nav-item" onclick="nav('videos')" id="mnav-videos"><span class="mni">📁</span>Video</div>
+  <div class="mobile-nav-item" onclick="nav('billing')" id="mnav-billing"><span class="mni">💳</span>Billing</div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('token');
+let currentUser = null;
+let createState = { step: 1, niche: '', style: '', duration: 30, customPrompt: '', storyboard: null };
+let pollInterval = null;
+
+// ── AUTH ──────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) }
+  });
+  if (res.status === 401) { logout(); return null; }
+  return res.json();
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = '/';
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast');
+  const d = document.createElement('div');
+  d.className = 'toast-msg toast-' + type;
+  d.textContent = msg;
+  c.appendChild(d);
+  requestAnimationFrame(() => { requestAnimationFrame(() => d.classList.add('show')); });
+  setTimeout(() => { d.classList.remove('show'); setTimeout(() => d.remove(), 400); }, 3500);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+async function init() {
+  // Try Telegram WebApp login first
+  const tg = window.Telegram?.WebApp;
+  if (tg && tg.initDataUnsafe?.user && !token) {
+    const u = tg.initDataUnsafe.user;
+    try {
+      const r = await fetch('/auth/telegram', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ id: u.id, username: u.username, first_name: u.first_name, last_name: u.last_name, hash: 'twa', auth_date: Math.floor(Date.now()/1000) })
+      });
+      const d = await r.json();
+      if (d.token) { token = d.token; localStorage.setItem('token', token); }
+    } catch(_) {}
+  }
+
+  if (!token) { window.location.href = '/'; return; }
+
+  const user = await apiFetch('/api/user');
+  if (!user) return;
+  currentUser = user;
+
+  document.getElementById('user-greeting').textContent = 'Halo, ' + (user.firstName || user.username || 'User') + '!';
+  updateCreditsDisplay(user.credits);
+  document.getElementById('stat-tier').textContent = user.tier?.toUpperCase() || 'FREE';
+  document.getElementById('stat-ref').textContent = user.referralCode || '—';
+  document.getElementById('stat-ref-copy').onclick = () => { navigator.clipboard?.writeText(user.referralCode || ''); toast('Referral code disalin!', 'ok'); };
+  document.getElementById('billing-credits').textContent = Number(user.credits).toFixed(1);
+
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  loadDashboard();
+}
+
+function updateCreditsDisplay(credits) {
+  const c = Number(credits).toFixed(1);
+  document.getElementById('stat-credits').textContent = c;
+  document.getElementById('header-credits').textContent = '✨ ' + c + ' cr';
+  document.getElementById('sidebar-credits').textContent = '✨ ' + c + ' Credits';
+  document.getElementById('billing-credits').textContent = c;
+}
+
+// ── NAVIGATION ────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .mobile-nav-item').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + page).classList.add('active');
+  const navEl = document.getElementById('nav-' + page);
+  const mnavEl = document.getElementById('mnav-' + page);
+  if (navEl) navEl.classList.add('active');
+  if (mnavEl) mnavEl.classList.add('active');
+  const titles = { dashboard: 'Dashboard', create: 'Buat Video', videos: 'Video Saya', billing: 'Billing & Top Up' };
+  document.getElementById('page-title').textContent = titles[page] || page;
+
+  if (page === 'videos') loadVideos();
+  if (page === 'billing') loadBilling();
+  if (page === 'create') initCreate();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+async function loadDashboard() {
+  const videos = await apiFetch('/api/user/videos');
+  if (!videos) return;
+  document.getElementById('stat-videos').textContent = videos.length;
+  const recent = videos.slice(0, 4);
+  const container = document.getElementById('recent-videos');
+  if (recent.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="icon">🎬</div><h3>Belum ada video</h3><p>Buat video pertamamu sekarang!</p><button class="btn btn-primary" onclick="nav(\'create\')" style="margin-top:16px">Buat Video</button></div>';
+  } else {
+    container.innerHTML = recent.map(v => videoCard(v)).join('');
+  }
+}
+
+function videoCard(v) {
+  const statusMap = { processing: 'processing', completed: 'completed', failed: 'failed', pending: 'pending' };
+  const statusLabel = { processing: '⏳ Processing', completed: '✅ Selesai', failed: '❌ Gagal', pending: '🕐 Pending' };
+  const s = v.status || 'pending';
+  const dl = v.downloadUrl || v.videoUrl;
+  return \`<div class="video-card">
+    <div class="video-thumb">\${v.videoUrl ? '<video src="' + v.videoUrl + '" muted playsinline></video>' : '<span>🎬</span>'}</div>
+    <div class="video-info">
+      <div class="video-title">\${v.niche?.toUpperCase() || 'VIDEO'} · \${v.duration}s</div>
+      <div class="video-meta">\${new Date(v.createdAt).toLocaleDateString('id-ID')}</div>
+      <span class="status-badge status-\${statusMap[s] || 'pending'}">\${statusLabel[s] || s}</span>
+      \${dl && s === 'completed' ? '<br><a href="' + dl + '" target="_blank" class="btn btn-outline btn-sm" style="margin-top:8px">⬇ Download</a>' : ''}
+    </div>
+  </div>\`;
+}
+
+// ── CREATE VIDEO ──────────────────────────────────────────
+const NICHES_DATA = [
+  {id:'fnb',emoji:'🍔',name:'F&B'},
+  {id:'product',emoji:'🛍️',name:'Produk'},
+  {id:'fashion',emoji:'👗',name:'Fashion'},
+  {id:'tech',emoji:'💻',name:'Tech'},
+  {id:'health',emoji:'💪',name:'Health'},
+  {id:'beauty',emoji:'💄',name:'Beauty'},
+  {id:'travel',emoji:'✈️',name:'Travel'},
+  {id:'education',emoji:'📚',name:'Edukasi'},
+];
+const STYLES = ['Viral Hook','Testimonial','Tutorial','Showcase'];
+const DURATIONS = [5, 15, 30, 60];
+
+function initCreate() {
+  createState = { step: 1, niche: '', style: 'Viral Hook', duration: 30, customPrompt: '', storyboard: null };
+  renderCreateStep();
+}
+
+function renderCreateStep() {
+  const dots = NICHES_DATA.length > 0 ? 6 : 4;
+  const dotEl = document.getElementById('step-dots');
+  dotEl.innerHTML = Array.from({length: 5}, (_, i) =>
+    '<div class="step-dot' + (i < createState.step ? ' done' : '') + '"></div>'
+  ).join('');
+
+  const c = document.getElementById('create-step-container');
+  if (createState.step === 1) {
+    c.innerHTML = \`
+      <div class="step-header">Pilih Niche Bisnis</div>
+      <div class="step-sub">Kategori konten akan menentukan gaya video</div>
+      <div class="niche-grid">
+        \${NICHES_DATA.map(n => '<div class="niche-btn' + (createState.niche === n.id ? ' selected' : '') + '" onclick="selectNiche(\\'' + n.id + '\\')"><span class="ni">' + n.emoji + '</span>' + n.name + '</div>').join('')}
+      </div>
+      <div style="margin-top:24px"><button class="btn btn-primary" onclick="nextStep()" \${!createState.niche ? 'disabled' : ''}>Lanjut →</button></div>
+    \`;
+  } else if (createState.step === 2) {
+    c.innerHTML = \`
+      <div class="step-header">Pilih Style Video</div>
+      <div class="step-sub">Gaya penyampaian konten</div>
+      <div class="chip-group">
+        \${STYLES.map(s => '<div class="chip' + (createState.style === s ? ' selected' : '') + '" onclick="selectStyle(\\'' + s + '\\')">'+s+'</div>').join('')}
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px">
+        <button class="btn btn-outline" onclick="prevStep()">← Kembali</button>
+        <button class="btn btn-primary" onclick="nextStep()">Lanjut →</button>
+      </div>
+    \`;
+  } else if (createState.step === 3) {
+    c.innerHTML = \`
+      <div class="step-header">Pilih Durasi</div>
+      <div class="step-sub">Durasi video output</div>
+      <div class="dur-group">
+        \${DURATIONS.map(d => '<div class="dur-btn' + (createState.duration === d ? ' selected' : '') + '" onclick="selectDur(' + d + ')">' + d + 's</div>').join('')}
+      </div>
+      <div style="margin-top:24px;display:flex;gap:12px">
+        <button class="btn btn-outline" onclick="prevStep()">← Kembali</button>
+        <button class="btn btn-primary" onclick="nextStep()">Lanjut →</button>
+      </div>
+    \`;
+  } else if (createState.step === 4) {
+    c.innerHTML = \`
+      <div class="step-header">Custom Prompt (Opsional)</div>
+      <div class="step-sub">Deskripsikan produkmu, atau skip untuk AI auto-generate</div>
+      <div class="form-group">
+        <textarea id="custom-prompt" placeholder="Contoh: Kopi arabika single origin dari Aceh, rasa fruity dan bright, cocok untuk coffee lover..." rows="4">\${createState.customPrompt}</textarea>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-outline" onclick="prevStep()">← Kembali</button>
+        <button class="btn btn-outline" onclick="createState.customPrompt='';nextStep()">⚡ Skip</button>
+        <button class="btn btn-primary" onclick="createState.customPrompt=document.getElementById('custom-prompt').value;nextStep()">Preview Storyboard →</button>
+      </div>
+    \`;
+  } else if (createState.step === 5) {
+    c.innerHTML = \`
+      <div class="step-header">Preview Storyboard</div>
+      <div class="step-sub">AI sedang generate storyboard...</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:20px 0"><div class="spinner"></div><span style="color:var(--dim);font-size:14px">Generating storyboard...</span></div>
+    \`;
+    generateStoryboardPreview();
+  } else if (createState.step === 6) {
+    const scenes = createState.storyboard?.scenes || [];
+    const creditCost = createState.duration <= 5 ? 0.2 : createState.duration <= 15 ? 0.5 : createState.duration <= 30 ? 1.0 : 2.0;
+    const canAfford = Number(currentUser?.credits || 0) >= creditCost;
+    c.innerHTML = \`
+      <div class="step-header">Konfirmasi & Generate</div>
+      <div class="step-sub">\${scenes.length} scene · \${createState.duration}s · \${createState.niche} · \${createState.style}</div>
+      <div style="margin-bottom:20px">
+        \${scenes.map(s => '<div class="scene-card"><div class="scene-num">Scene '+s.scene+' · '+s.duration+'s</div><p>'+s.description+'</p></div>').join('')}
+      </div>
+      \${createState.storyboard?.caption ? '<div class="card" style="margin-bottom:20px"><div style="font-size:12px;color:var(--dim);margin-bottom:6px">📝 Caption</div><p style="font-size:14px;line-height:1.6">'+createState.storyboard.caption+'</p></div>' : ''}
+      <div class="card" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:14px">Biaya</span>
+          <span style="font-size:18px;font-weight:700;color:var(--accent)">\${creditCost} Credits</span>
         </div>
-      </header>
-      
-      <!-- Dashboard View -->
-      <section id="dashboard-view" class="view active">
-        <div class="action-grid">
-          <div class="action-card" onclick="showView('create')">
-            <span class="icon">🎬</span>
-            <h3>Create Video</h3>
-          </div>
-          <div class="action-card" onclick="showView('pricing')">
-            <span class="icon">💰</span>
-            <h3>Top Up Credits</h3>
-          </div>
-        </div>
-      </section>
+        \${!canAfford ? '<div style="margin-top:12px;color:var(--danger);font-size:13px">⚠️ Credits tidak cukup. <a href="#" onclick="nav(\'billing\')" style="color:var(--accent)">Top Up sekarang</a></div>' : ''}
+      </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-outline" onclick="createState.step=4;renderCreateStep()">← Kembali</button>
+        <button class="btn btn-primary" onclick="startGeneration()" \${!canAfford ? 'disabled' : ''} id="gen-btn">🎬 Generate Video</button>
+      </div>
+    \`;
+  }
+}
 
-      <!-- Create Video View -->
-      <section id="create-view" class="view">
-        <div style="max-width: 600px;">
-          <div class="form-group">
-            <label>Niche / Category</label>
-            <select id="v-niche">
-              <option value="fnb">🍔 F&B / Restaurant</option>
-              <option value="product">🛍️ Product / E-commerce</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Product Description</label>
-            <textarea id="v-desc" placeholder="Describe your product..."></textarea>
-          </div>
-          <button class="primary" onclick="generateStoryboard()">Preview Storyboard</button>
-        </div>
-        
-        <div id="storyboard-result" class="result-box" style="display:none;">
-          <h2>Storyboard Preview</h2>
-          <div id="scenes-list"></div>
-          <div style="margin-top:20px;">
-            <h3>Caption</h3>
-            <p id="caption-text" style="color:var(--accent); font-style:italic; margin-top:10px;"></p>
-          </div>
-          <button class="primary" style="margin-top:30px;" onclick="alert('Creating video...')">Start Generation (1.0 Credits)</button>
-        </div>
-      </section>
+function selectNiche(id) { createState.niche = id; renderCreateStep(); }
+function selectStyle(s) { createState.style = s; renderCreateStep(); }
+function selectDur(d) { createState.duration = d; renderCreateStep(); }
+function nextStep() { createState.step++; renderCreateStep(); }
+function prevStep() { createState.step--; renderCreateStep(); }
 
-      <!-- Pricing View -->
-      <section id="pricing-view" class="view">
-         <h2>Upgrade Your Plan</h2>
-         <p style="color:var(--text-dim); margin-bottom:30px;">Choose a package to power your Business Kingdom.</p>
-         <div class="action-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-            <div class="action-card" style="text-align:left;">
-               <h3>Starter Flow</h3>
-               <div style="font-size:24px; font-weight:700; margin:10px 0;">IDR 49.000</div>
-               <p style="font-size:12px; margin-bottom:15px;">6 Credits (~6 mins video)</p>
-               <button class="primary" style="width:100%;">Buy Package</button>
-            </div>
-            <div class="action-card" style="text-align:left; border-color:var(--accent);">
-               <h3>Growth Machine</h3>
-               <div style="font-size:24px; font-weight:700; margin:10px 0;">IDR 149.000</div>
-               <p style="font-size:12px; margin-bottom:15px;">22 Credits + Viral Research</p>
-               <button class="primary" style="width:100%;">Buy Package</button>
-            </div>
-            <div class="action-card" style="text-align:left;">
-               <h3>Business Kingdom</h3>
-               <div style="font-size:24px; font-weight:700; margin:10px 0;">IDR 499.000</div>
-               <p style="font-size:12px; margin-bottom:15px;">85 Credits + Unlimited Access</p>
-               <button class="primary" style="width:100%;">Buy Package</button>
-            </div>
-         </div>
-      </section>
-      
-    </main>
-  </div>
+async function generateStoryboardPreview() {
+  try {
+    const data = await apiFetch('/api/storyboard', {
+      method: 'POST',
+      body: JSON.stringify({ niche: createState.niche, duration: createState.duration, customPrompt: createState.customPrompt || undefined })
+    });
+    if (!data || data.error) { toast('Gagal generate storyboard: ' + (data?.error || 'Unknown'), 'err'); createState.step = 4; renderCreateStep(); return; }
+    createState.storyboard = data;
+    createState.step = 6;
+    renderCreateStep();
+  } catch(e) { toast('Error: ' + e.message, 'err'); createState.step = 4; renderCreateStep(); }
+}
 
-  <script>
-    const token = localStorage.getItem('token');
-    if (!token) window.location.href = '/';
-
-    function showView(viewId) {
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(v => v.classList.remove('active'));
-      const targetView = document.getElementById(viewId + '-view');
-      if (targetView) targetView.classList.add('active');
-      const titles = { dashboard: 'Dashboard', create: 'Create Video', pricing: 'Billing & Plans' };
-      document.getElementById('view-title').innerText = titles[viewId] || 'Dashboard';
-    }
-
-    function loadUser() {
-      fetch('/api/user', {
-        headers: { 'Authorization': 'Bearer ' + token }
+async function startGeneration() {
+  const btn = document.getElementById('gen-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Memulai...'; }
+  try {
+    const data = await apiFetch('/api/video/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        niche: createState.niche,
+        style: createState.style,
+        duration: createState.duration,
+        customPrompt: createState.customPrompt || undefined,
+        storyboard: createState.storyboard
       })
-      .then(res => res.json())
-      .then(user => {
-        if (user.error) { logout(); return; }
-        document.getElementById('user-name').innerText = user.firstName || user.username;
-        document.getElementById('user-credits').innerText = user.credits;
-      });
-    }
+    });
+    if (!data || data.error) { toast('Gagal: ' + (data?.error || 'Server error'), 'err'); if (btn) { btn.disabled = false; btn.innerHTML = '🎬 Generate Video'; } return; }
+    toast('✅ Video mulai diproses! Cek di "Video Saya"', 'ok');
+    // Refresh credits
+    const user = await apiFetch('/api/user');
+    if (user) { currentUser = user; updateCreditsDisplay(user.credits); }
+    // Go to videos and poll
+    nav('videos');
+    startPolling();
+  } catch(e) { toast('Error: ' + e.message, 'err'); if (btn) { btn.disabled = false; btn.innerHTML = '🎬 Generate Video'; } }
+}
 
-    function logout() {
-      localStorage.removeItem('token');
-      window.location.href = '/';
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  let attempts = 0;
+  pollInterval = setInterval(async () => {
+    attempts++;
+    const videos = await apiFetch('/api/user/videos');
+    if (!videos) { clearInterval(pollInterval); return; }
+    const processing = videos.filter(v => v.status === 'processing' || v.status === 'pending');
+    loadVideosList(videos);
+    if (processing.length === 0 || attempts > 60) {
+      clearInterval(pollInterval); pollInterval = null;
+      if (attempts <= 60) toast('🎉 Video selesai diproses!', 'ok');
+      const user = await apiFetch('/api/user');
+      if (user) { currentUser = user; updateCreditsDisplay(user.credits); }
     }
+  }, 4000);
+}
 
-    async function generateStoryboard() {
-      const niche = document.getElementById('v-niche').value;
-      const desc = document.getElementById('v-desc').value;
-      const res = await fetch('/api/storyboard', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
-        body: JSON.stringify({ niche, duration: 30, productDescription: desc })
-      });
-      const data = await res.json();
-      const list = document.getElementById('scenes-list');
-      list.innerHTML = '';
-      data.scenes.forEach(function(s) {
-        const div = document.createElement('div');
-        div.className = 'scene-item';
-        div.innerHTML = '<strong>Scene ' + s.scene + ' (' + s.duration + 's):</strong> ' + s.description;
-        list.appendChild(div);
-      });
-      document.getElementById('caption-text').innerText = data.caption;
-      document.getElementById('storyboard-result').style.display = 'block';
-    }
+// ── MY VIDEOS ────────────────────────────────────────────
+async function loadVideos() {
+  const container = document.getElementById('videos-container');
+  container.innerHTML = '<div style="padding:20px;color:var(--dim);font-size:14px"><div class="spinner" style="display:inline-block"></div> Memuat video...</div>';
+  const videos = await apiFetch('/api/user/videos');
+  if (!videos) return;
+  loadVideosList(videos);
+  // Auto-poll if any processing
+  if (videos.some(v => v.status === 'processing' || v.status === 'pending')) startPolling();
+}
 
-    loadUser();
-  </script>
+function loadVideosList(videos) {
+  const container = document.getElementById('videos-container');
+  if (!videos || videos.length === 0) {
+    container.innerHTML = '<div class="empty"><div class="icon">📁</div><h3>Belum ada video</h3><p>Buat video pertamamu!</p><button class="btn btn-primary" onclick="nav(\'create\')" style="margin-top:16px">Buat Video</button></div>';
+    return;
+  }
+  container.innerHTML = videos.map(v => videoCard(v)).join('');
+}
+
+// ── BILLING ──────────────────────────────────────────────
+async function loadBilling() {
+  // Load packages
+  const pkgs = await apiFetch('/api/packages');
+  const pc = document.getElementById('packages-container');
+  if (pkgs && pkgs.length > 0) {
+    pc.innerHTML = pkgs.map((p, i) => \`
+      <div class="price-card \${i===1?'popular':''}">
+        \${i===1 ? '<div class="popular-tag">⭐ POPULER</div>' : ''}
+        <h3>\${p.name}</h3>
+        <div class="price">IDR \${Number(p.price).toLocaleString('id-ID')}</div>
+        <div class="cred">\${p.credits} Credits</div>
+        <button class="btn btn-\${i===1?'primary':'outline'} btn-full" onclick="buyPackage('\${p.id}')">Beli Paket</button>
+      </div>
+    \`).join('');
+  } else {
+    // Fallback hardcoded
+    pc.innerHTML = \`
+      <div class="price-card"><h3>Starter Flow</h3><div class="price">IDR 49.000</div><div class="cred">6 Credits</div><button class="btn btn-outline btn-full" onclick="buyPackage('starter')">Beli</button></div>
+      <div class="price-card popular"><div class="popular-tag">⭐ POPULER</div><h3>Growth Machine</h3><div class="price">IDR 149.000</div><div class="cred">22 Credits</div><button class="btn btn-primary btn-full" onclick="buyPackage('growth')">Beli</button></div>
+      <div class="price-card"><h3>Business Kingdom</h3><div class="price">IDR 499.000</div><div class="cred">85 Credits</div><button class="btn btn-outline btn-full" onclick="buyPackage('kingdom')">Beli</button></div>
+    \`;
+  }
+  // Load transactions
+  const txns = await apiFetch('/api/my/transactions');
+  const tbody = document.getElementById('txn-body');
+  if (txns && txns.length > 0) {
+    tbody.innerHTML = txns.map(t => \`
+      <tr>
+        <td style="font-family:monospace;font-size:11px">\${(t.orderId||'').slice(0,18)}...</td>
+        <td>\${t.packageName || '—'}</td>
+        <td>IDR \${Number(t.amountIdr||0).toLocaleString('id-ID')}</td>
+        <td>\${Number(t.creditsAmount||0).toFixed(1)}</td>
+        <td><span class="status-badge status-\${t.status}">\${t.status}</span></td>
+        <td>\${new Date(t.createdAt).toLocaleDateString('id-ID')}</td>
+      </tr>
+    \`).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">Belum ada transaksi</td></tr>';
+  }
+}
+
+async function buyPackage(pkgId) {
+  toast('⏳ Membuat transaksi...', 'info');
+  const data = await apiFetch('/api/payment/create', {
+    method: 'POST',
+    body: JSON.stringify({ packageId: pkgId, gateway: 'duitku' })
+  });
+  if (!data || data.error) { toast('Gagal: ' + (data?.error || 'Server error'), 'err'); return; }
+  const url = data.paymentUrl || data.payment_url || data.invoiceUrl;
+  if (url) { window.open(url, '_blank'); toast('✅ Halaman pembayaran dibuka', 'ok'); }
+  else toast('❌ Payment URL tidak ditemukan', 'err');
+}
+
+function payStars() { window.open('https://t.me/${BOT_USERNAME}?start=topup_stars', '_blank'); }
+function payCrypto() { window.open('https://t.me/${BOT_USERNAME}?start=topup_crypto', '_blank'); }
+
+function shareRef() {
+  const code = currentUser?.referralCode;
+  if (!code) { toast('Referral code tidak ditemukan', 'err'); return; }
+  const msg = encodeURIComponent('🎬 Buat video viral dengan AI di BerkahKarya! Pakai kode referral saya: ' + code + '\\nhttps://t.me/${BOT_USERNAME}?start=ref_' + code);
+  window.open('https://t.me/share/url?url=https://t.me/${BOT_USERNAME}&text=' + msg, '_blank');
+}
+
+// ── START ─────────────────────────────────────────────────
+init();
+</script>
 </body>
-</html>
-`;
+</html>`;
 
-/**
- * Register web routes
- */
+// ─── Backend Routes ──────────────────────────────────────────────────────────
+
 export async function webRoutes(server: FastifyInstance): Promise<void> {
   // Landing page
   server.get('/', async (_request, reply) => {
     reply.type('text/html').send(LANDING_PAGE);
   });
 
-  // Web app dashboard
+  // Web app
   server.get('/app', async (_request, reply) => {
     reply.type('text/html').send(WEB_APP);
   });
 
-  // Telegram login callback
+  // ── AUTH ──
   server.post('/auth/telegram', async (request, reply) => {
     try {
       const userData = request.body as any;
-      
-      if (!userData || !userData.id || !userData.hash) {
+      if (!userData || !userData.id) {
         return reply.status(400).send({ error: 'Invalid user data' });
       }
-
-      // Verify this is a real Telegram user
       const isValid = checkTelegramHash(userData, BOT_TOKEN);
-      if (!isValid && process.env.NODE_ENV === 'production') {
+      if (!isValid && process.env.NODE_ENV === 'production' && userData.hash !== 'twa') {
         return reply.status(401).send({ error: 'Auth hash verification failed' });
       }
-      
-      // Find or create user
       let user = await UserService.findByTelegramId(BigInt(userData.id));
-      
       if (!user) {
         user = await UserService.create({
           telegramId: BigInt(userData.id),
@@ -380,18 +951,11 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
           lastName: userData.last_name,
         });
       }
-
-      // Generate JWT
       const token = jwt.sign(
-        {
-          userId: user.uuid,
-          telegramId: user.telegramId.toString(),
-          tier: user.tier,
-        },
+        { userId: user.uuid, telegramId: user.telegramId.toString(), tier: user.tier },
         JWT_SECRET,
         { expiresIn: '7d' }
       );
-
       return { token, user: { id: user.uuid, credits: user.creditBalance, tier: user.tier } };
     } catch (error: unknown) {
       server.log.error({ error }, 'Telegram auth error');
@@ -399,180 +963,184 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     }
   });
 
-  // Get current user (for web app)
-  server.get('/api/user', async (request, reply) => {
+  // ── MIDDLEWARE HELPER ──
+  const getUser = async (request: any, reply: any) => {
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) { reply.status(401).send({ error: 'Unauthorized' }); return null; }
     try {
-      const authHeader = request.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return reply.status(401).send({ error: 'Unauthorized' });
-      }
-
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      
+      const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET) as any;
       const user = await UserService.findByUuid(decoded.userId);
-      if (!user) {
-        return reply.status(404).send({ error: 'User not found' });
-      }
+      if (!user) { reply.status(404).send({ error: 'User not found' }); return null; }
+      return user;
+    } catch { reply.status(401).send({ error: 'Invalid token' }); return null; }
+  };
 
-      return {
-        id: user.uuid,
-        telegramId: user.telegramId.toString(),
-        username: user.username,
-        firstName: user.firstName,
-        credits: user.creditBalance,
-        tier: user.tier,
-        createdAt: user.createdAt,
-      };
-    } catch (error) {
-      return reply.status(401).send({ error: 'Invalid token' });
-    }
+  // ── USER ──
+  server.get('/api/user', async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    return {
+      id: user.uuid,
+      telegramId: user.telegramId.toString(),
+      username: user.username,
+      firstName: user.firstName,
+      credits: user.creditBalance,
+      tier: user.tier,
+      referralCode: user.referralCode,
+      createdAt: user.createdAt,
+    };
   });
 
-  // Storyboard Preview
+  // ── STORYBOARD PREVIEW ──
   server.post('/api/storyboard', async (request, reply) => {
     try {
-      const { niche, duration, productDescription } = request.body as any;
-      if (!niche || !duration) {
-        return reply.status(400).send({ error: 'Niche and duration required' });
-      }
-
-      const storyboard = await VideoService.generateStoryboard({
-        niche,
-        duration,
-        productDescription
-      });
-      
-      return storyboard;
-    } catch (error) {
-      return reply.status(500).send({ error: 'Failed to generate storyboard' });
+      const { niche, duration, customPrompt } = request.body as any;
+      if (!niche || !duration) return reply.status(400).send({ error: 'Niche and duration required' });
+      const nicheConfig = (NICHES as any)[niche];
+      const scenes = nicheConfig ? Math.max(3, Math.min(Math.floor(duration / 5), 8)) : 4;
+      const storyboard = generateStoryboard(niche, nicheConfig?.styles?.slice(0, 2) || ['viral'], duration, scenes);
+      return {
+        scenes: storyboard.map((s: any, i: number) => ({
+          scene: i + 1,
+          duration: s.duration || Math.floor(duration / storyboard.length),
+          description: customPrompt ? `${customPrompt} — ${s.description}` : s.description,
+        })),
+        caption: `🎬 ${niche?.toUpperCase()} video | ${duration}s | Generated by BerkahKarya AI`,
+        hashtags: [`#${niche}`, '#AIVideo', '#BerkahKarya', '#ViralContent'],
+      };
+    } catch (error: any) {
+      return reply.status(500).send({ error: error.message || 'Failed to generate storyboard' });
     }
   });
 
-  // Get packages/pricing
+  // ── VIDEO CREATE ──
+  server.post('/api/video/create', async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const { niche, style, duration, customPrompt, storyboard } = request.body as any;
+      if (!niche || !duration) return reply.status(400).send({ error: 'niche and duration required' });
+
+      const creditCost = getVideoCreditCost(duration);
+      if (Number(user.creditBalance) < creditCost) {
+        return reply.status(402).send({ error: `Insufficient credits. Need ${creditCost}, have ${user.creditBalance}` });
+      }
+
+      // Deduct credits
+      await UserService.deductCredits(user.telegramId, creditCost);
+
+      const jobId = `WEB-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+      const scenes = storyboard?.scenes || [];
+      const sceneData = scenes.length > 0 ? scenes : [{ scene: 1, duration, description: customPrompt || `${niche} marketing video` }];
+
+      // Create DB record
+      await prisma.video.create({
+        data: {
+          userId: user.telegramId,
+          jobId,
+          niche,
+          platform: 'tiktok',
+          duration,
+          scenes: sceneData.length,
+          status: 'processing',
+          creditsUsed: creditCost,
+          storyboard: sceneData,
+          styles: style ? [style] : [],
+        },
+      });
+
+      // Enqueue
+      await enqueueVideoGeneration({
+        jobId,
+        niche,
+        platform: 'tiktok',
+        duration,
+        scenes: sceneData.length,
+        storyboard: sceneData,
+        customPrompt: customPrompt || undefined,
+        userId: user.telegramId.toString(),
+        chatId: Number(user.telegramId),
+      });
+
+      return { ok: true, jobId, message: 'Video generation started' };
+    } catch (error: any) {
+      server.log.error({ error }, 'Video create error');
+      return reply.status(500).send({ error: error.message || 'Failed to create video' });
+    }
+  });
+
+  // ── PACKAGES ──
   server.get('/api/packages', async () => {
     return PaymentService.getPackages();
   });
 
-  // Create payment (topup)
+  // ── PAYMENT CREATE ──
   server.post('/api/payment/create', async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
     try {
-      const authHeader = request.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return reply.status(401).send({ error: 'Unauthorized' });
-      }
-
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      
       const { packageId, gateway } = request.body as any;
-      
-      if (!packageId || !gateway) {
-        return reply.status(400).send({ error: 'packageId and gateway required' });
-      }
-
-      const user = await UserService.findByUuid(decoded.userId);
-      if (!user) {
-        return reply.status(404).send({ error: 'User not found' });
-      }
-
-      let result;
+      if (!packageId || !gateway) return reply.status(400).send({ error: 'packageId and gateway required' });
+      let result: any;
       if (gateway === 'duitku') {
-        result = await DuitkuService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName,
-        });
+        result = await DuitkuService.createTransaction({ userId: user.telegramId, packageId, username: user.username || user.firstName });
       } else if (gateway === 'tripay') {
-        result = await TripayService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName,
-        });
+        result = await TripayService.createTransaction({ userId: user.telegramId, packageId, username: user.username || user.firstName });
       } else {
-        result = await PaymentService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName,
-        });
+        result = await PaymentService.createTransaction({ userId: user.telegramId, packageId, username: user.username || user.firstName });
       }
-
       return result;
     } catch (error: any) {
       return reply.status(500).send({ error: error.message });
     }
   });
 
-  // Get user transactions
+  // ── TRANSACTIONS ──
   server.get('/api/my/transactions', async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
     try {
-      const authHeader = request.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return reply.status(401).send({ error: 'Unauthorized' });
-      }
-
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      
-      const user = await UserService.findByUuid(decoded.userId);
-      if (!user) {
-        return reply.status(404).send({ error: 'User not found' });
-      }
-
       const transactions = await prisma.transaction.findMany({
         where: { userId: user.telegramId },
         orderBy: { createdAt: 'desc' },
         take: 50,
       });
-
       return transactions;
-    } catch (error) {
-      return reply.status(500).send({ error: 'Failed to fetch transactions' });
-    }
+    } catch { return reply.status(500).send({ error: 'Failed to fetch transactions' }); }
   });
 
-  // Direct video download (bypasses Telegram compression)
+  // ── USER VIDEOS ──
+  server.get('/api/user/videos', async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const videos = await prisma.video.findMany({
+        where: { userId: user.telegramId },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      });
+      return videos;
+    } catch { return reply.status(500).send({ error: 'Failed to fetch videos' }); }
+  });
+
+  // ── VIDEO DOWNLOAD ──
   server.get('/video/:jobId/download', async (request, reply) => {
     try {
       const { jobId } = request.params as { jobId: string };
       const { token } = request.query as { token?: string };
-
-      if (!token) {
-        return reply.status(401).send({ error: 'Missing token' });
-      }
-
-      // Decode and validate token: base64(userId:jobId)
+      if (!token) return reply.status(401).send({ error: 'Missing token' });
       let decoded: string;
-      try {
-        decoded = Buffer.from(token, 'base64').toString('utf-8');
-      } catch (_) {
-        return reply.status(401).send({ error: 'Invalid token' });
-      }
-
+      try { decoded = Buffer.from(token, 'base64').toString('utf-8'); } catch { return reply.status(401).send({ error: 'Invalid token' }); }
       const [tokenUserId, tokenJobId] = decoded.split(':');
-      if (!tokenUserId || tokenJobId !== jobId) {
-        return reply.status(403).send({ error: 'Token mismatch' });
-      }
-
+      if (!tokenUserId || tokenJobId !== jobId) return reply.status(403).send({ error: 'Token mismatch' });
       const video = await VideoService.getByJobId(jobId);
-      if (!video) {
-        return reply.status(404).send({ error: 'Video not found' });
-      }
-
-      // Verify the user owns this video
-      if (video.userId.toString() !== tokenUserId) {
-        return reply.status(403).send({ error: 'Access denied' });
-      }
-
+      if (!video) return reply.status(404).send({ error: 'Video not found' });
+      if (video.userId.toString() !== tokenUserId) return reply.status(403).send({ error: 'Access denied' });
       const localPath = video.downloadUrl;
-      if (!localPath || !fs.existsSync(localPath)) {
-        return reply.status(404).send({ error: 'Video file not found on disk' });
-      }
-
-      const filename = `openclaw-${jobId}.mp4`;
+      if (!localPath || !fs.existsSync(localPath)) return reply.status(404).send({ error: 'Video file not found' });
+      const filename = `berkahkarya-${jobId}.mp4`;
       const stream = fs.createReadStream(localPath);
       const stat = fs.statSync(localPath);
-
       reply.header('Content-Type', 'video/mp4');
       reply.header('Content-Disposition', `attachment; filename="${filename}"`);
       reply.header('Content-Length', stat.size);
@@ -580,34 +1148,6 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     } catch (error) {
       server.log.error({ error }, 'Video download error');
       return reply.status(500).send({ error: 'Download failed' });
-    }
-  });
-
-  // Get user videos
-  server.get('/api/user/videos', async (request, reply) => {
-    try {
-      const authHeader = request.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return reply.status(401).send({ error: 'Unauthorized' });
-      }
-
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      
-      const user = await UserService.findByUuid(decoded.userId);
-      if (!user) {
-        return reply.status(404).send({ error: 'User not found' });
-      }
-
-      const videos = await prisma.video.findMany({
-        where: { userId: user.telegramId },
-        orderBy: { createdAt: 'desc' },
-        take: 20,
-      });
-
-      return videos;
-    } catch (error) {
-      return reply.status(500).send({ error: 'Failed to fetch videos' });
     }
   });
 }
