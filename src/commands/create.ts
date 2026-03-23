@@ -919,9 +919,64 @@ export async function handleVOToggle(ctx: BotContext, toggleKey: 'vo' | 'subtitl
 }
 
 /**
- * Handle "Continue" after VO settings — move to reference image step.
+ * Handle "Continue" after VO settings — show custom prompt step.
  */
 export async function handleVOContinue(ctx: BotContext): Promise<void> {
+  try {
+    if (!ctx.session?.videoCreation) {
+      await ctx.answerCbQuery('No active video creation');
+      return;
+    }
+
+    await ctx.editMessageText(
+      `🎯 Add custom prompt? (optional)\n\n` +
+      `Describe what you want in your video, or skip to use our AI-generated storyboard.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✍️ Add custom prompt', callback_data: 'create_custom_prompt' }],
+            [{ text: '⚡ Skip - Use AI storyboard', callback_data: 'create_skip_prompt' }],
+          ],
+        },
+      }
+    );
+
+    await ctx.answerCbQuery();
+  } catch (error) {
+    logger.error('Error handling VO continue:', error);
+    await ctx.answerCbQuery('Error. Please try again.');
+  }
+}
+
+/**
+ * Handle "Add custom prompt" button — wait for text input.
+ */
+export async function handleCustomPromptRequest(ctx: BotContext): Promise<void> {
+  try {
+    if (!ctx.session?.videoCreation) {
+      await ctx.answerCbQuery('No active video creation');
+      return;
+    }
+
+    ctx.session.videoCreation.waitingForCustomPrompt = true;
+    ctx.session.state = 'CUSTOM_PROMPT_INPUT';
+
+    await ctx.editMessageText(
+      `✍️ Type your custom prompt below:\n\n` +
+      `Describe the scenes, mood, style, or specific content you want in your video.`
+    );
+
+    await ctx.answerCbQuery();
+  } catch (error) {
+    logger.error('Error handling custom prompt request:', error);
+    await ctx.answerCbQuery('Error. Please try again.');
+  }
+}
+
+/**
+ * Handle "Skip prompt" button — proceed to reference image step.
+ */
+export async function handleSkipPrompt(ctx: BotContext): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
       await ctx.answerCbQuery('No active video creation');
@@ -940,7 +995,7 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
 
     await ctx.answerCbQuery();
   } catch (error) {
-    logger.error('Error handling VO continue:', error);
+    logger.error('Error handling skip prompt:', error);
     await ctx.answerCbQuery('Error. Please try again.');
   }
 }

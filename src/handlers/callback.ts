@@ -27,6 +27,8 @@ import {
   handlePlatformSelection,
   handleVOToggle,
   handleVOContinue,
+  handleCustomPromptRequest,
+  handleSkipPrompt,
   createCommand,
   generateCaption,
 } from '@/commands/create';
@@ -411,6 +413,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
     if (data === 'vo_continue') {
       await handleVOContinue(ctx);
+      return;
+    }
+    if (data === 'create_custom_prompt') {
+      await handleCustomPromptRequest(ctx);
+      return;
+    }
+    if (data === 'create_skip_prompt') {
+      await handleSkipPrompt(ctx);
       return;
     }
 

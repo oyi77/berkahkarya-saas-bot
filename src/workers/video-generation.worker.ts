@@ -77,6 +77,7 @@ export interface VideoGenerationJobData {
   scenes: number;
   storyboard: Array<{ scene: number; duration: number; description: string }>;
   referenceImage?: string | null;
+  customPrompt?: string;
   userId: string;   // bigint serialised as string
   chatId: number;
   enableVO?: boolean;
@@ -86,8 +87,11 @@ export interface VideoGenerationJobData {
 
 // ── Helpers (mirrored from create.ts) ──
 
-function buildPrompt(description: string, platform: string, duration: number): string {
-  return `${duration}s ${description}, high quality, ${platform} format, professional style`;
+function buildPrompt(description: string, platform: string, duration: number, customPrompt?: string): string {
+  const base = customPrompt
+    ? `${duration}s ${customPrompt}. Scene context: ${description}`
+    : `${duration}s ${description}`;
+  return `${base}, high quality, ${platform} format, professional style`;
 }
 
 function getAspectRatio(platform: string): string {
@@ -332,7 +336,7 @@ async function processSingleScene(
   job: Job<VideoGenerationJobData>,
   telegram: Telegram
 ): Promise<void> {
-  const { jobId, niche, platform, duration, storyboard, referenceImage, userId, chatId } = job.data;
+  const { jobId, niche, platform, duration, storyboard, referenceImage, customPrompt, userId, chatId } = job.data;
   const telegramId = BigInt(userId);
 
   const cancelTimeout = startTimeoutWatcher(telegram, chatId);
@@ -345,7 +349,7 @@ async function processSingleScene(
   }, 30_000);
 
   const scene = storyboard[0];
-  const prompt = buildPrompt(scene.description, platform, duration);
+  const prompt = buildPrompt(scene.description, platform, duration, customPrompt);
 
   const result = await generateVideoWithFallback({
     prompt,
@@ -421,7 +425,7 @@ async function processSingleScene(
       // Retry generation with enhanced prompt
       await notifyProgress(telegram, chatId, '\ud83d\udd04 Improving quality... Regenerating video.');
       const retryResult = await generateVideoWithFallback({
-        prompt: `High quality commercial ${niche} content. ${buildPrompt(storyboard[0].description, platform, duration)}`,
+        prompt: `High quality commercial ${niche} content. ${buildPrompt(storyboard[0].description, platform, duration, customPrompt)}`,
         duration,
         aspectRatio: getAspectRatio(platform),
         style: getStyleForNiche(niche),
@@ -472,7 +476,7 @@ async function processExtendedScenes(
   job: Job<VideoGenerationJobData>,
   telegram: Telegram
 ): Promise<void> {
-  const { jobId, niche, platform, duration, scenes, storyboard, referenceImage, userId, chatId } = job.data;
+  const { jobId, niche, platform, duration, scenes, storyboard, referenceImage, customPrompt, userId, chatId } = job.data;
   const telegramId = BigInt(userId);
 
   const cancelTimeout = startTimeoutWatcher(telegram, chatId);
@@ -483,7 +487,7 @@ async function processExtendedScenes(
   async function generateSceneWithRetry(sceneIndex: number, useExtend: boolean, lastUuidRef: string | null): Promise<{ result: any; scenePath: string }> {
     const scene = storyboard[sceneIndex];
     const scenePath = path.join(VIDEO_DIR, `${jobId}_scene_${sceneIndex + 1}.mp4`);
-    const prompt = buildPrompt(scene.description, platform, scene.duration);
+    const prompt = buildPrompt(scene.description, platform, scene.duration, customPrompt);
 
     logger.info(`Generating scene ${sceneIndex + 1}/${scenes} for job ${jobId}: ${scene.description}`);
 

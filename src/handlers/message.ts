@@ -245,6 +245,7 @@ export async function handleVideoCreationImage(
         scenes,
         storyboard: enrichedStoryboard,
         referenceImage: imagePath,
+        customPrompt: ctx.session.videoCreation.customPrompt,
         userId: telegramId.toString(),
         chatId: ctx.chat!.id,
         enableVO,
@@ -345,6 +346,7 @@ export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
       scenes,
       storyboard,
       referenceImage: null,
+      customPrompt: ctx.session.videoCreation.customPrompt,
       userId: telegramId.toString(),
       chatId: ctx.chat!.id,
       enableVO: skipEnableVO,
@@ -443,6 +445,28 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         enableVO: true,
         enableSubtitles: true,
       };
+      return;
+    }
+
+    // Handle custom prompt text input
+    if (ctx.session?.state === 'CUSTOM_PROMPT_INPUT' && ctx.session?.videoCreation?.waitingForCustomPrompt && 'text' in message) {
+      const promptText = message.text.trim();
+      if (!promptText) {
+        await ctx.reply('Please enter a prompt or use /create to start over.');
+        return;
+      }
+
+      ctx.session.videoCreation.customPrompt = promptText;
+      ctx.session.videoCreation.waitingForCustomPrompt = false;
+      ctx.session.state = 'DASHBOARD';
+
+      // Proceed to reference image step
+      ctx.session.videoCreation.waitingForImage = true;
+      await ctx.reply(
+        `✅ Custom prompt saved!\n\n` +
+        `📸 Now send a reference image for your video, or type /skip to let AI generate everything.`,
+        { parse_mode: 'Markdown' }
+      );
       return;
     }
 

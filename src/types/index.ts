@@ -32,6 +32,8 @@ export interface SessionData {
     storyboard?: Array<any>;
     jobId?: string;
     waitingForImage?: boolean;
+    waitingForCustomPrompt?: boolean;
+    customPrompt?: string;
     referenceImage?: string | null;
     uploadedPhotos?: Array<{ fileId: string; localPath?: string }>;
     visionAnalysis?: string;
@@ -59,6 +61,7 @@ export type BotState =
   | 'CREATE_VIDEO_CONFIRM'
   | 'CREATE_VIDEO_PROCESSING'
   | 'CUSTOM_DURATION_INPUT'
+  | 'CUSTOM_PROMPT_INPUT'
   | 'CLONE_VIDEO_WAITING'
   | 'CLONE_IMAGE_WAITING'
   | 'DISASSEMBLE_WAITING'
