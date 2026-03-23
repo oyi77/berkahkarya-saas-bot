@@ -5,7 +5,7 @@
  */
 
 import { Queue, Worker, Job } from 'bullmq';
-import { redis } from './redis';
+import { bullmqRedis } from './redis';
 import { logger } from '@/utils/logger';
 import { SubscriptionService } from '@/services/subscription.service';
 import { startCleanupWorker } from '@/workers/cleanup.worker';
@@ -13,7 +13,7 @@ import type { VideoGenerationJobData } from '@/workers/video-generation.worker';
 
 // Queue instances
 export const videoQueue = new Queue('video-generation', {
-  connection: redis,
+  connection: bullmqRedis,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -26,7 +26,7 @@ export const videoQueue = new Queue('video-generation', {
 });
 
 export const paymentQueue = new Queue('payment-processing', {
-  connection: redis,
+  connection: bullmqRedis,
   defaultJobOptions: {
     attempts: 5,
     backoff: {
@@ -39,7 +39,7 @@ export const paymentQueue = new Queue('payment-processing', {
 });
 
 export const notificationQueue = new Queue('notifications', {
-  connection: redis,
+  connection: bullmqRedis,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -52,7 +52,7 @@ export const notificationQueue = new Queue('notifications', {
 });
 
 export const billingQueue = new Queue('billing', {
-  connection: redis,
+  connection: bullmqRedis,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -65,7 +65,7 @@ export const billingQueue = new Queue('billing', {
 });
 
 export const cleanupQueue = new Queue('cleanup-videos', {
-  connection: redis,
+  connection: bullmqRedis,
   defaultJobOptions: {
     attempts: 2,
     backoff: {
@@ -100,7 +100,7 @@ export async function initializeQueue(): Promise<void> {
         return { processed };
       },
       {
-        connection: redis,
+        connection: bullmqRedis,
         concurrency: 1,
       }
     );

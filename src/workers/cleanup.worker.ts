@@ -10,7 +10,7 @@
  */
 
 import { Worker, Job } from 'bullmq';
-import { redis } from '@/config/redis';
+import { bullmqRedis } from '@/config/redis';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import * as fs from 'fs';
@@ -175,7 +175,7 @@ export function startCleanupWorker(): Worker {
     'cleanup-videos',
     processCleanup,
     {
-      connection: redis,
+      connection: bullmqRedis,
       concurrency: 1,
     }
   );

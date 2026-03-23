@@ -8,7 +8,7 @@
  */
 
 import { Worker, Job } from 'bullmq';
-import { redis } from '@/config/redis';
+import { redis, bullmqRedis } from '@/config/redis';
 import { logger } from '@/utils/logger';
 import { VideoService } from '@/services/video.service';
 import { UserService } from '@/services/user.service';
@@ -913,7 +913,7 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
       }
     },
     {
-      connection: redis,
+      connection: bullmqRedis,
       concurrency: 3,
     }
   );
