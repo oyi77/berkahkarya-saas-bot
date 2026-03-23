@@ -6,6 +6,7 @@
  *   2. Hard-delete DB video records with status 'deleted' older than 7 days
  *   3. Clean up orphaned quality-check frames from /tmp/quality_check_frames/
  *   4. Mark stuck "processing" videos (>30 min) as failed, refund credits, notify user
+ *   5. Mark expired pending payment transactions (>2 hours) as failed
  *
  * Safety: never deletes files for videos that are still processing.
  */
@@ -201,16 +202,39 @@ export async function cleanupStuckVideos(telegram?: Telegram | null): Promise<nu
 }
 
 /**
+ * Mark pending payment transactions older than 2 hours as failed.
+ * These are abandoned payments where the user never completed the flow.
+ */
+async function cleanupExpiredTransactions(): Promise<number> {
+  const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours
+
+  const result = await prisma.transaction.updateMany({
+    where: {
+      status: 'pending',
+      createdAt: { lt: cutoff },
+    },
+    data: { status: 'failed' },
+  });
+
+  if (result.count > 0) {
+    logger.info(`[Cleanup] Expired ${result.count} abandoned pending transactions`);
+  }
+
+  return result.count;
+}
+
+/**
  * Main cleanup job processor.
  */
 async function processCleanup(_job: Job): Promise<CleanupResult> {
   logger.info('[Cleanup] Starting scheduled cleanup...');
 
-  const [localResult, dbRecordsDeleted, framesDeleted, stuckCleaned] = await Promise.all([
+  const [localResult, dbRecordsDeleted, framesDeleted, stuckCleaned, expiredTxns] = await Promise.all([
     cleanupLocalFiles(),
     cleanupDatabaseRecords(),
     cleanupFrames(),
     cleanupStuckVideos(),
+    cleanupExpiredTransactions(),
   ]);
 
   const freedMB = Math.round((localResult.freedBytes / (1024 * 1024)) * 100) / 100;
@@ -225,7 +249,7 @@ async function processCleanup(_job: Job): Promise<CleanupResult> {
   logger.info(
     `[Cleanup] Cleaned up ${result.filesDeleted} files, freed ${result.freedMB} MB, ` +
     `hard-deleted ${result.dbRecordsDeleted} DB records, removed ${result.framesDeleted} temp frames, ` +
-    `${stuckCleaned} stuck videos resolved`
+    `${stuckCleaned} stuck videos resolved, ${expiredTxns} expired transactions cleared`
   );
 
   return result;

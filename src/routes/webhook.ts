@@ -97,6 +97,23 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
   server.post('/webhook/nowpayments', async (request, reply) => {
     try {
       const body = request.body as any;
+
+      // Verify IPN signature
+      const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
+      if (ipnSecret) {
+        const signature = request.headers['x-nowpayments-sig'] as string;
+        if (signature) {
+          const sortedBody = JSON.stringify(
+            Object.keys(body).sort().reduce((acc: any, key) => { acc[key] = body[key]; return acc; }, {})
+          );
+          const expectedSig = crypto.createHmac('sha512', ipnSecret).update(sortedBody).digest('hex');
+          if (signature !== expectedSig) {
+            logger.warn('NOWPayments: invalid IPN signature');
+            return reply.status(401).send({ error: 'Invalid signature' });
+          }
+        }
+      }
+
       logger.info('NOWPayments webhook received:', body);
 
       const result = await NowPaymentsService.handleWebhook(body);
@@ -109,9 +126,14 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
           const lastDash = orderId.lastIndexOf('-');
           const telegramId = orderId.substring(lastDash + 1);
           if (telegramId && bot) {
+            const coin = body.pay_currency?.toUpperCase() || 'CRYPTO';
+            const amount = body.price_amount ? `$${body.price_amount}` : '';
             await bot.telegram.sendMessage(
               telegramId,
-              `✅ *Crypto Payment Confirmed!*\n\nYour credits have been added to your account.\n\nThank you for your purchase! 🎉`,
+              `✅ *Crypto Payment Confirmed!*\n\n` +
+              `💰 ${amount} ${coin} received\n` +
+              `🎬 Credits have been added to your account\n\n` +
+              `Use /create to generate your video now! 🚀`,
               { parse_mode: 'Markdown' }
             );
           }

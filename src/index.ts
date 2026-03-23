@@ -161,6 +161,30 @@ async function main() {
     process.once('SIGINT', () => shutdown('SIGINT'));
     process.once('SIGTERM', () => shutdown('SIGTERM'));
 
+    // Admin alert for unhandled errors
+    const adminIds = process.env.ADMIN_TELEGRAM_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+    const sendAdminAlert = async (msg: string) => {
+      for (const adminId of adminIds) {
+        try {
+          await bot.telegram.sendMessage(adminId, `🚨 *Bot Error Alert*\n\n${msg}`, { parse_mode: 'Markdown' });
+        } catch (_) { /* silent */ }
+      }
+    };
+
+    process.on('unhandledRejection', (reason: any) => {
+      const msg = reason?.message || String(reason);
+      logger.error('unhandledRejection:', msg);
+      // Only alert for non-shutdown errors
+      if (!msg.includes('Bot is not running') && !msg.includes('SIGTERM')) {
+        sendAdminAlert(`Unhandled rejection:\n\`${msg.slice(0, 300)}\``);
+      }
+    });
+
+    process.on('uncaughtException', (err) => {
+      logger.error('uncaughtException:', err);
+      sendAdminAlert(`Uncaught exception:\n\`${err.message.slice(0, 300)}\``);
+    });
+
   } catch (error) {
     logger.error('Failed to start bot:', error);
     process.exit(1);

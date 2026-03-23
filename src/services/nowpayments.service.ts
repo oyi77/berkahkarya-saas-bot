@@ -8,6 +8,7 @@
 import axios from 'axios';
 import { prisma } from '@/config/database';
 import { UserService } from '@/services/user.service';
+import { ReferralService } from '@/services/referral.service';
 import { logger } from '@/utils/logger';
 
 const BASE_URL = 'https://api.nowpayments.io/v1';
@@ -145,6 +146,17 @@ export class NowPaymentsService {
 
       const credits = Number(transaction.creditsAmount);
       await UserService.addCredits(transaction.userId, credits);
+
+      // Process referral commissions — read USD amount from metadata
+      const meta = transaction.metadata as any;
+      const amountUsd = meta?.priceUsd ? Number(meta.priceUsd) : 0;
+      if (amountUsd > 0) {
+        try {
+          await ReferralService.processCommissions(order_id, amountUsd, transaction.userId);
+        } catch (refErr) {
+          logger.warn('NOWPayments: referral commission error (non-fatal):', refErr);
+        }
+      }
 
       logger.info(`NOWPayments: ${credits} credits added for user ${transaction.userId} (order ${order_id})`);
       return { success: true, message: 'Credits added' };
