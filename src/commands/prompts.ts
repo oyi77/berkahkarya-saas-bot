@@ -237,10 +237,9 @@ export async function showNichePrompts(ctx: BotContext, nicheKey: string, edit =
   }
 
   // Built-in template prompts
-  msg += `📚 *Template Bawaan (${niche.prompts.length}):*\n`;
+  msg += `📚 *Template Bawaan:*\n`;
   niche.prompts.forEach((p) => {
-    msg += `${rowNum}. *${p.title}* — ⭐ ${p.successRate}%\n`;
-    msg += `_${p.suitable}_\n\n`;
+    msg += `${rowNum}. *${p.title}* ⭐ ${p.successRate}%\n`;
     rows.push([{ text: `${rowNum++}. ${p.title} ⭐${p.successRate}%`, callback_data: `use_prompt_${p.id}` }]);
   });
 

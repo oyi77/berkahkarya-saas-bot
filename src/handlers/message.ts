@@ -889,10 +889,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               `_Description: ${description}_\n\n` +
               `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
               `The actual product will generate images matching your description.`
-            : `✅ *Image Generated!*\n\n` +
-              `_Description: ${description}_${modeInfo}\n` +
-              `_Provider: ${result.provider}_\n\n` +
-              `What would you like to do?`;
+            : `✅ *Gambar Berhasil Dibuat!*\n\n` +
+              `_Deskripsi: ${description}_${modeInfo}\n\n` +
+              `Mau lanjut apa?`;
 
           let photoSource: string | { source: Buffer };
           let isBase64 = false;
@@ -910,17 +909,23 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             reply_markup: {
               inline_keyboard: [
                 ...(isDemo || isBase64 ? [] : [[{ text: '⬇️ Download', url: result.imageUrl! }]]),
-                [{ text: '🔄 Generate Another', callback_data: 'image_generate' }],
-                [{ text: '🎬 Create Video', callback_data: 'create_video' }],
+                [
+                  { text: '🔄 Buat Variasi Lain', callback_data: 'image_generate' },
+                  { text: '🎬 Jadikan Video', callback_data: 'create_video' },
+                ],
+                [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
               ],
             },
           });
         } else {
           await ctx.reply(
-            `❌ *Generation Failed*\n\n` +
-            `Error: ${result.error || 'Unknown error'}\n\n` +
-            `Please try again with a different description.`,
-            { parse_mode: 'Markdown' }
+            `❌ *Generate Gagal*\n\n` +
+            `${result.error || 'Unknown error'}\n\n` +
+            `Coba lagi dengan deskripsi yang berbeda.`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: { inline_keyboard: [[{ text: '🔄 Coba Lagi', callback_data: 'image_generate' }]] },
+            }
           );
         }
 

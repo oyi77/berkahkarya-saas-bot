@@ -964,36 +964,50 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // If prompt already set from library — skip prompt step entirely
+    // ── If prompt from library → SKIP VO screen, go straight to generate ──
     if (ctx.session.videoCreation.customPrompt) {
+      await ctx.answerCbQuery();
+      // Auto-trigger generation immediately
       await ctx.editMessageText(
-        `✅ *Prompt dari library sudah aktif!*\n\n` +
-        `\`${ctx.session.videoCreation.customPrompt.slice(0, 150)}${ctx.session.videoCreation.customPrompt.length > 150 ? '...' : ''}\`\n\n` +
-        `📸 Upload foto referensi (opsional) atau langsung generate:`,
+        `🚀 *Siap generate!*\n\n` +
+        `📋 Prompt: \`${ctx.session.videoCreation.customPrompt.slice(0, 120)}...\`\n` +
+        `⏱️ Durasi: *${ctx.session.videoCreation.totalDuration} detik*\n` +
+        `🎙️ Voice Over: ON · 📝 Subtitles: ON\n\n` +
+        `Tap Generate untuk mulai!`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
               [{ text: '🚀 Generate Sekarang!', callback_data: 'create_skip_prompt' }],
-              [{ text: '📸 Upload Foto Referensi', callback_data: 'create_upload_reference' }],
-              [{ text: '✍️ Ganti Prompt', callback_data: 'create_custom_prompt' }],
+              [{ text: '📸 Upload Foto Referensi Dulu', callback_data: 'create_upload_reference' }],
+              [{ text: '🔇 VO OFF', callback_data: 'vo_toggle_vo' }, { text: '📝 Subs OFF', callback_data: 'vo_toggle_subtitles' }],
+              [{ text: '◀️ Ganti Prompt', callback_data: 'back_prompts' }],
             ],
           },
         }
       );
-      await ctx.answerCbQuery();
       return;
     }
 
+    // ── Normal flow: show VO settings + prompt option ──────────────────────
+    const voOn = ctx.session.videoCreation.enableVO !== false;
+    const subOn = ctx.session.videoCreation.enableSubtitles !== false;
+
     await ctx.editMessageText(
-      `🎯 *Tambahkan custom prompt?* (opsional)\n\n` +
-      `Deskripsikan apa yang kamu mau, atau langsung skip biar AI generate otomatis.`,
+      `🎙️ *Pengaturan Suara & Teks*\n\n` +
+      `Voice Over: *${voOn ? '✅ ON' : '❌ OFF'}*\n` +
+      `Subtitles: *${subOn ? '✅ ON' : '❌ OFF'}*\n\n` +
+      `_Voice Over = narasi otomatis AI\nSubtitles = teks di layar_`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '✍️ Tulis Prompt Sendiri', callback_data: 'create_custom_prompt' }],
-            [{ text: '⚡ Skip — Pakai AI Storyboard', callback_data: 'create_skip_prompt' }],
+            [
+              { text: `🎙️ VO ${voOn ? 'ON ✅' : 'OFF ❌'}`, callback_data: 'vo_toggle_vo' },
+              { text: `📝 Subs ${subOn ? 'ON ✅' : 'OFF ❌'}`, callback_data: 'vo_toggle_subtitles' },
+            ],
+            [{ text: '✍️ Tambah Prompt Custom', callback_data: 'create_custom_prompt' }],
+            [{ text: '⚡ Generate Langsung!', callback_data: 'create_skip_prompt' }],
           ],
         },
       }

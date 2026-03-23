@@ -813,18 +813,19 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Image generation handlers
     if (data === 'image_generate') {
       await ctx.editMessageText(
-        '🖼️ *Image Generation*\n\n' +
-        'Select workflow:',
+        '🖼️ *Generate Gambar AI*\n\n' +
+        '💡 _AI buat foto marketing profesional dari deskripsi atau foto referensi kamu_\n\n' +
+        'Pilih kategori:',
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🛍️ Product Photo', callback_data: 'img_product' }],
-              [{ text: '🍔 F&B Food', callback_data: 'img_fnb' }],
-              [{ text: '🏠 Real Estate', callback_data: 'img_realestate' }],
-              [{ text: '🚗 Car/Automotive', callback_data: 'img_car' }],
-              [{ text: '👤 Manage Avatars', callback_data: 'avatar_manage' }],
-              [{ text: '◀️ Back to Menu', callback_data: 'main_menu' }],
+              [{ text: '🛍️ Foto Produk', callback_data: 'img_product' }],
+              [{ text: '🍔 Makanan & Minuman', callback_data: 'img_fnb' }],
+              [{ text: '🏠 Properti / Real Estate', callback_data: 'img_realestate' }],
+              [{ text: '🚗 Kendaraan / Otomotif', callback_data: 'img_car' }],
+              [{ text: '👤 Kelola Avatar', callback_data: 'avatar_manage' }],
+              [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
             ],
           },
         }
@@ -975,18 +976,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Upload reference image for image generation
     if (data === 'imgref_upload') {
       ctx.session.state = 'IMAGE_REFERENCE_WAITING';
-      // Keep category in stateData
       await ctx.editMessageText(
-        `📸 *Upload Reference Image*\n\n` +
-        `Send a photo of your product/subject.\n\n` +
-        `AI will use it as a reference to generate marketing images that keep your product's identity.\n\n` +
-        `_Supported: Product photos, food shots, property photos, etc._`,
+        `📸 *Upload Foto Referensi*\n\n` +
+        `Kirim foto produk atau subjek kamu.\n\n` +
+        `AI akan gunakan foto ini sebagai referensi untuk buat gambar marketing yang menjaga identitas produk kamu.\n\n` +
+        `_Bisa: foto produk, makanan, properti, kendaraan, dll_`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '⏭️ Skip — Describe Only', callback_data: 'imgref_skip' }],
-              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+              [{ text: '⏭️ Skip — Deskripsikan Saja', callback_data: 'imgref_skip' }],
+              [{ text: '◀️ Kembali', callback_data: 'image_generate' }],
             ],
           },
         }
@@ -994,20 +994,29 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Skip reference image during image generation → generate text2img
+    // Skip reference image → generate text2img
     if (data === 'imgref_skip') {
       ctx.session.state = 'IMAGE_GENERATION_WAITING';
-      // Remove reference-related data, keep category
       const category = ctx.session.stateData?.imageCategory as string;
       ctx.session.stateData = { imageCategory: category };
+
+      const hints: Record<string, string> = {
+        product: 'contoh: _"botol parfum premium di background hitam, lighting studio, close-up detail"_',
+        fnb: 'contoh: _"semangkuk bakso kuah dengan steam, lighting hangat, sudut 45 derajat"_',
+        realestate: 'contoh: _"ruang tamu modern minimalis, natural lighting, sofa abu-abu"_',
+        car: 'contoh: _"mobil SUV warna putih, outdoor sunset lighting, angle 3/4 front"_',
+      };
+      const hint = hints[category] || 'contoh: _"produk saya dengan background putih bersih, lighting profesional"_';
+
       await ctx.editMessageText(
-        `🖼️ *No reference image*\n\n` +
-        `Describe what you want to generate:`,
+        `✏️ *Deskripsikan Gambar yang Kamu Mau*\n\n` +
+        `${hint}\n\n` +
+        `Ketik deskripsi kamu sekarang 👇`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+              [{ text: '◀️ Kembali', callback_data: 'image_generate' }],
             ],
           },
         }
