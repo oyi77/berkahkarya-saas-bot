@@ -22,6 +22,7 @@ import { initializeDatabase } from '@/config/database';
 import { initializeRedis } from '@/config/redis';
 import { initializeQueue } from '@/config/queue';
 import { startVideoWorker } from '@/workers/video-generation.worker';
+import { cleanupStuckVideos, setCleanupTelegram } from '@/workers/cleanup.worker';
 import { UserService } from '@/services/user.service';
 import { PaymentSettingsService } from '@/services/payment-settings.service';
 
@@ -81,6 +82,17 @@ async function main() {
       logger.info('✅ Video generation worker started');
     } catch (workerErr) {
       logger.warn('⚠️ Video worker failed to start, falling back to direct async:', workerErr);
+    }
+
+    // Set telegram instance for cleanup notifications and run startup cleanup
+    setCleanupTelegram(bot.telegram);
+    try {
+      const stuckCount = await cleanupStuckVideos(bot.telegram);
+      if (stuckCount > 0) {
+        logger.info(`✅ Startup cleanup: resolved ${stuckCount} stuck videos`);
+      }
+    } catch (cleanupErr) {
+      logger.warn('⚠️ Startup stuck video cleanup failed:', cleanupErr);
     }
 
     // Setup middleware

@@ -5,6 +5,7 @@
  *   1. Delete local video files older than 7 days from /tmp/videos/
  *   2. Hard-delete DB video records with status 'deleted' older than 7 days
  *   3. Clean up orphaned quality-check frames from /tmp/quality_check_frames/
+ *   4. Mark stuck "processing" videos (>30 min) as failed, refund credits, notify user
  *
  * Safety: never deletes files for videos that are still processing.
  */
@@ -13,8 +14,11 @@ import { Worker, Job } from 'bullmq';
 import { bullmqRedis } from '@/config/redis';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { UserService } from '@/services/user.service';
+import { getVideoCreditCost } from '@/config/pricing';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { Telegram } from 'telegraf';
 
 const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
 const FRAME_DIR = '/tmp/quality_check_frames';
@@ -128,16 +132,85 @@ async function cleanupFrames(): Promise<number> {
   return framesDeleted;
 }
 
+const STUCK_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+
+// Store telegram instance for sending stuck video notifications
+let telegramInstance: Telegram | null = null;
+
+/**
+ * Set the Telegram instance for sending notifications.
+ */
+export function setCleanupTelegram(telegram: Telegram): void {
+  telegramInstance = telegram;
+}
+
+/**
+ * Find videos stuck in "processing" for more than 30 minutes,
+ * mark them as failed, refund credits, and notify the user.
+ */
+export async function cleanupStuckVideos(telegram?: Telegram | null): Promise<number> {
+  const tg = telegram || telegramInstance;
+  const cutoff = new Date(Date.now() - STUCK_THRESHOLD_MS);
+
+  const stuckVideos = await prisma.video.findMany({
+    where: {
+      status: 'processing',
+      createdAt: { lt: cutoff },
+    },
+  });
+
+  if (stuckVideos.length === 0) return 0;
+
+  logger.info(`[Cleanup] Found ${stuckVideos.length} stuck videos (processing > 30 min)`);
+
+  for (const video of stuckVideos) {
+    try {
+      await prisma.video.update({
+        where: { id: video.id },
+        data: { status: 'failed', errorMessage: 'Timed out after 30 minutes' },
+      });
+
+      const creditCost = Number(video.creditsUsed) || getVideoCreditCost(video.duration);
+      await UserService.refundCredits(
+        BigInt(video.userId.toString()),
+        creditCost,
+        video.jobId,
+        'Video stuck in processing > 30 min'
+      );
+
+      if (tg) {
+        try {
+          await tg.sendMessage(
+            video.userId.toString(),
+            `⚠️ Video generation timed out\n\nJob: ${video.jobId}\n` +
+            `Your ${creditCost} credits have been refunded.\n\n` +
+            `Please try again — if this keeps happening, contact /support.`
+          );
+        } catch (sendErr) {
+          logger.warn(`[Cleanup] Failed to notify user ${video.userId}:`, sendErr);
+        }
+      }
+
+      logger.info(`[Cleanup] Marked video ${video.jobId} as failed, refunded ${creditCost} credits`);
+    } catch (err) {
+      logger.error(`[Cleanup] Failed to clean up stuck video ${video.jobId}:`, err);
+    }
+  }
+
+  return stuckVideos.length;
+}
+
 /**
  * Main cleanup job processor.
  */
 async function processCleanup(_job: Job): Promise<CleanupResult> {
   logger.info('[Cleanup] Starting scheduled cleanup...');
 
-  const [localResult, dbRecordsDeleted, framesDeleted] = await Promise.all([
+  const [localResult, dbRecordsDeleted, framesDeleted, stuckCleaned] = await Promise.all([
     cleanupLocalFiles(),
     cleanupDatabaseRecords(),
     cleanupFrames(),
+    cleanupStuckVideos(),
   ]);
 
   const freedMB = Math.round((localResult.freedBytes / (1024 * 1024)) * 100) / 100;
@@ -151,7 +224,8 @@ async function processCleanup(_job: Job): Promise<CleanupResult> {
 
   logger.info(
     `[Cleanup] Cleaned up ${result.filesDeleted} files, freed ${result.freedMB} MB, ` +
-    `hard-deleted ${result.dbRecordsDeleted} DB records, removed ${result.framesDeleted} temp frames`
+    `hard-deleted ${result.dbRecordsDeleted} DB records, removed ${result.framesDeleted} temp frames, ` +
+    `${stuckCleaned} stuck videos resolved`
   );
 
   return result;
