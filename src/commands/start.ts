@@ -81,67 +81,35 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       // ── Vilona welcome animation (non-blocking) ──────────────────────────
       await sendVilonaWelcomeAnimation(ctx);
 
-      // ── Single dashboard message: keyboard + inline menu ─────────────────
-      // Telegram requires separate messages for reply_keyboard vs inline_keyboard.
-      // We minimize to 2 msgs: (1) set keyboard silently, (2) main menu.
+      // ── NEW: Simplified main menu (5 buttons only) ───────────────────────
       const credBal = Number(existingUser.creditBalance);
       const credEmoji = credBal === 0 ? '⚠️' : credBal < 3 ? '🟡' : '🟢';
 
-      // Msg 1 — set bottom keyboard (minimized, no clutter)
-      await ctx.reply(
-        `${credEmoji} *${existingUser.creditBalance} kredit* tersisa`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            keyboard: [
-              [{ text: '📚 Prompt Library' }, { text: '🔥 Trending' }],
-              [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
-              [{ text: '🎁 Daily Prompt' }, { text: '💬 Chat AI' }],
-              [{ text: '💰 Top Up' }, { text: '⭐ Subscription' }],
-              [{ text: '👤 Profile' }, { text: '🆘 Support' }],
-            ],
-            resize_keyboard: true,
-          },
-        }
-      );
+      // Store credit balance in session for quick access
+      if (ctx.session) {
+        ctx.session.creditBalance = credBal;
+        ctx.session.tier = existingUser.tier || 'free';
+      }
 
-      // Msg 2 — main inline menu
       await ctx.reply(
-        `👋 Halo, *${user.first_name}!* Mau buat apa hari ini? 👇`,
+        `👋 *Halo, ${user.first_name}!*\n\n` +
+        `${credEmoji} Kredit: *${credBal}*\n\n` +
+        `Mau buat apa hari ini?`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📚 Pilih Prompt & Buat Video', callback_data: 'back_prompts' }],
-              [
-                { text: '🔥 Trending', callback_data: 'prompts_trending' },
-                { text: '🎁 Prompt Gratis', callback_data: 'daily_open' },
-              ],
-              [
-                { text: '🎬 Buat Video', callback_data: 'create_video' },
-                { text: '🖼️ Buat Gambar', callback_data: 'image_generate' },
-              ],
-              [
-                { text: '🔄 Clone', callback_data: 'clone_video' },
-                { text: '📋 Storyboard', callback_data: 'storyboard_create' },
-                { text: '📈 Viral', callback_data: 'viral_research' },
-              ],
-              [
-                { text: '💰 Top Up', callback_data: 'topup' },
-                { text: '⭐ Langganan', callback_data: 'open_subscription' },
-              ],
-              [
-                { text: '📁 Video Saya', callback_data: 'videos_list' },
-                { text: '👥 Referral', callback_data: 'open_referral' },
-                { text: '👤 Profil', callback_data: 'open_profile' },
-              ],
+              [{ text: '🎬 Buat Video', callback_data: 'create_video_new' }],
+              [{ text: '🖼 Buat Gambar', callback_data: 'create_image_new' }],
+              [{ text: '💳 Kredit & Paket', callback_data: 'credits_menu' }],
+              [{ text: '🎞 Video Saya', callback_data: 'videos_list' }],
+              [{ text: '👤 Akun', callback_data: 'account_menu' }],
             ],
           },
         }
       );
     } else {
-      // New user — show language selection before creating account
-      // Check for referral code in deep link and preserve it in session
+      // New user — show onboarding with free trial
       const msg = ctx.message as { text?: string } | undefined;
       const startPayload = msg?.text?.split(' ')[1];
 
@@ -154,41 +122,26 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         ctx.session.stateData = { startPayload: startPayload || null, detectedLang };
       }
 
-      // Build first page of language buttons (2 per row, first 8 popular)
-      // Put detected language first with a checkmark indicator
-      const detectedEntry = LANGUAGE_LIST.find(l => l.code === detectedLang);
-      const restItems = LANGUAGE_LIST.filter(l => l.code !== detectedLang);
-      const reordered = detectedEntry ? [detectedEntry, ...restItems] : [...LANGUAGE_LIST];
-      const pageItems = reordered.slice(0, LANG_PAGE_SIZE);
-
-      const langButtons: Array<Array<{ text: string; callback_data: string }>> = [];
-      for (let i = 0; i < pageItems.length; i += 2) {
-        const row: Array<{ text: string; callback_data: string }> = [];
-        for (let j = i; j < Math.min(i + 2, pageItems.length); j++) {
-          const lang = pageItems[j];
-          const isDetected = lang.code === detectedLang;
-          row.push({
-            text: isDetected ? `${lang.flag} ${lang.label} ✓` : `${lang.flag} ${lang.label}`,
-            callback_data: `onboard_lang_${lang.code}`,
-          });
-        }
-        langButtons.push(row);
-      }
-
-      // "More languages" button if there are more than one page
-      if (reordered.length > LANG_PAGE_SIZE) {
-        langButtons.push([{ text: '🌐 More languages...', callback_data: 'onboard_lang_more_1' }]);
-      }
-
-      const detectedLabel = detectedEntry ? `${detectedEntry.flag} ${detectedEntry.label}` : 'English';
+      // ── NEW: Onboarding dengan Free Trial ────────────────────────────────
       await ctx.reply(
-        `🌐 *Selamat datang di Vilona Asisten OpenClaw!*\n\n` +
-        `Detected language: *${detectedLabel}*\n\n` +
-        `Please select your preferred language.\n` +
-        `This will be used for the bot interface, voice over, subtitles, and captions.`,
+        `🎉 *Selamat datang di BerkahKarya AI Video Studio!*\n\n` +
+        `Kami membantu Anda membuat konten visual profesional dengan AI.\n\n` +
+        `✨ *Fitur unggulan:*\n` +
+        `• 🖼 Image Generation - Buat gambar produk, portrait, dll\n` +
+        `• 🎬 Video Generation - Transformasi gambar ke video\n` +
+        `• 🎨 15 Template Siap Pakai - Editorial, Streetwear, Luxury, dll\n` +
+        `• 🌐 Multi-bahasa - 14 bahasa termasuk Indonesia\n\n` +
+        `🎁 *FREE TRIAL untuk Anda!*\n` +
+        `• 1x Image Generation GRATIS (sekali pakai)\n` +
+        `• 1x Daily Free setiap hari (login harian)\n\n` +
+        `Klik tombol di bawah untuk mulai! 👇`,
         {
           parse_mode: 'Markdown',
-          reply_markup: { inline_keyboard: langButtons },
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚀 Mulai Sekarang!', callback_data: 'onboard_start' }],
+            ],
+          },
         }
       );
       return;

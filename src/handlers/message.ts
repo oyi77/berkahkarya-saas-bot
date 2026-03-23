@@ -397,6 +397,54 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // ── NEW VIDEO CREATION FLOW HANDLERS ──────────────────────────────────
+    // Handle VIDEO_CREATE_UPLOAD (photo upload for new flow)
+    if (ctx.session?.state === 'VIDEO_CREATE_UPLOAD' && 'photo' in message) {
+      const photo = message.photo[message.photo.length - 1];
+      const fileId = photo.file_id;
+      
+      if (!ctx.session.videoCreationNew) {
+        ctx.session.videoCreationNew = { step: 2, source: 'photo', contentType: null, theme: null, vibe: null, sceneCount: null, template: null };
+      }
+      
+      if (!ctx.session.videoCreationNew.uploadedPhotos) {
+        ctx.session.videoCreationNew.uploadedPhotos = [];
+      }
+      ctx.session.videoCreationNew.uploadedPhotos.push({ fileId });
+
+      await ctx.reply(
+        `✅ Foto diterima!\n\n` +
+        `Lanjut ke step berikutnya?`,
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '➡️ Lanjut', callback_data: 'vcreate_photo_next' }],
+              [{ text: '📸 Upload Foto Lain', callback_data: 'vcreate_photo_more' }],
+              [{ text: '❌ Batal', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Handle VIDEO_CREATE_TEXT (text input for new flow)
+    if (ctx.session?.state === 'VIDEO_CREATE_TEXT' && 'text' in message) {
+      const textInput = message.text;
+      
+      if (!ctx.session.videoCreationNew) {
+        ctx.session.videoCreationNew = { step: 2, source: 'text', contentType: null, theme: null, vibe: null, sceneCount: null, template: null };
+      }
+      
+      ctx.session.videoCreationNew.textInput = textInput;
+
+      const { showContentTypeSelection } = await import('../commands/create-new.js');
+      await showContentTypeSelection(ctx);
+      return;
+    }
+
+    // ── END NEW VIDEO CREATION FLOW HANDLERS ──────────────────────────────
+
     // Handle custom duration input (must be before switch to catch numeric input)
     if (ctx.session?.state === 'CUSTOM_DURATION_INPUT' && 'text' in message) {
       const durationInput = message.text.trim();
@@ -971,22 +1019,27 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             .replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').replace(/`/g, '')
             .slice(0, 1500);
 
-          await ctx.reply(
-            `✅ Video Style Extracted:\n\n` +
-            `${cleanPrompt}\n\n` +
-            `Style: ${result.style || 'N/A'}\n\n` +
-            `Ready to create a similar video?`,
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '🎬 Create Similar Video', callback_data: 'create_video' }],
-                  [{ text: '❌ Cancel', callback_data: 'main_menu' }],
-                ],
-              },
-            }
-          );
+          // Format structured description
+          const structuredDesc = `📋 *Video Analysis Result*\n\n` +
+            `*Style:* ${result.style || 'Modern/Dynamic'}\n\n` +
+            `*Description:*\n${cleanPrompt}\n\n` +
+            `Ready to create a similar video?`;
 
-          ctx.session.stateData = { clonePrompt: result.prompt };
+          await ctx.reply(structuredDesc, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎬 Create Similar Video', callback_data: 'create_video' }],
+                [{ text: '✏️ Edit Description', callback_data: 'clone_edit_desc' }],
+                [{ text: '❌ Cancel', callback_data: 'main_menu' }],
+              ],
+            },
+          });
+
+          ctx.session.stateData = { 
+            clonePrompt: result.prompt,
+            cloneStyle: result.style,
+          };
         } else {
           await ctx.reply(
             `❌ *Analysis Failed*\n\n` +
@@ -1003,6 +1056,38 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         );
       }
 
+      ctx.session.state = 'DASHBOARD';
+      return;
+    }
+
+    // Handle clone edit description
+    if (ctx.session.state === 'CLONE_EDIT_DESC_WAITING' && 'text' in message) {
+      const newDescription = message.text;
+      
+      if (!ctx.session?.stateData?.clonePrompt) {
+        await ctx.reply('❌ No clone data found. Please start over.');
+        return;
+      }
+      
+      // Update clone prompt with new description
+      ctx.session.stateData.clonePrompt = newDescription;
+      
+      const structuredDesc = `✅ *Description Updated!*\n\n` +
+        `*Style:* ${ctx.session.stateData.cloneStyle || 'Modern/Dynamic'}\n\n` +
+        `*New Description:*\n${newDescription}\n\n` +
+        `Ready to create video?`;
+      
+      await ctx.reply(structuredDesc, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🎬 Create Video', callback_data: 'create_video' }],
+            [{ text: '✏️ Edit Again', callback_data: 'clone_edit_desc' }],
+            [{ text: '❌ Cancel', callback_data: 'main_menu' }],
+          ],
+        },
+      });
+      
       ctx.session.state = 'DASHBOARD';
       return;
     }

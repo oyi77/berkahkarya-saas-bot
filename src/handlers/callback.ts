@@ -106,6 +106,859 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Route to appropriate handler based on callback data prefix
 
+    // ── NEW REDESIGN HANDLERS (2026-03-24) ───────────────────────────────
+    if (data === 'main_menu') {
+      await ctx.answerCbQuery();
+      const user = ctx.from;
+      if (!user) return;
+      const dbUser = await UserService.findByTelegramId(BigInt(user.id));
+      const credBal = dbUser ? Number(dbUser.creditBalance) : 0;
+      const credEmoji = credBal === 0 ? '⚠️' : credBal < 3 ? '🟡' : '🟢';
+      await ctx.editMessageText(
+        `👋 *Halo, ${user.first_name}!*\n\n` +
+        `${credEmoji} Kredit: *${credBal}*\n\n` +
+        `Mau buat apa hari ini?`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎬 Buat Video', callback_data: 'create_video_new' }],
+              [{ text: '🖼 Buat Gambar', callback_data: 'create_image_new' }],
+              [{ text: '💳 Kredit & Paket', callback_data: 'credits_menu' }],
+              [{ text: '🎞 Video Saya', callback_data: 'videos_list' }],
+              [{ text: '👤 Akun', callback_data: 'account_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data === 'credits_menu') {
+      await ctx.answerCbQuery();
+      const user = ctx.from;
+      if (!user) return;
+      const dbUser = await UserService.findByTelegramId(BigInt(user.id));
+      const credBal = dbUser ? Number(dbUser.creditBalance) : 0;
+      const tier = dbUser?.tier || 'free';
+      await ctx.editMessageText(
+        `💳 *Kredit & Paket*\n\n` +
+        `Saldo kredit: *${credBal}*\n` +
+        `Tier: *${tier}*\n\n` +
+        `Pilih aksi:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+              [{ text: '⭐ Upgrade Langganan', callback_data: 'open_subscription' }],
+              [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
+              [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data === 'account_menu') {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `👤 *Akun*\n\n` +
+        `Kelola preferensi dan pengaturan kamu:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '⭐ Workflow Favorit', callback_data: 'account_favorites' }],
+              [{ text: '⚙️ Preferensi Workflow', callback_data: 'account_preferences' }],
+              [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
+              [{ text: '🌐 Bahasa & Notifikasi', callback_data: 'account_settings' }],
+              [{ text: '❓ Bantuan & FAQ', callback_data: 'open_help' }],
+              [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Placeholder handlers for new account submenu
+    if (data === 'account_favorites') {
+      await ctx.answerCbQuery('🚧 Fitur Workflow Favorit segera hadir!');
+      return;
+    }
+    if (data === 'account_preferences') {
+      await ctx.answerCbQuery('🚧 Fitur Preferensi Workflow segera hadir!');
+      return;
+    }
+    if (data === 'account_settings') {
+      await ctx.answerCbQuery('🚧 Pengaturan Bahasa & Notifikasi segera hadir!');
+      return;
+    }
+
+    // ── END NEW REDESIGN HANDLERS ────────────────────────────────────────
+
+    // New video/image creation flow handlers
+    if (data === 'create_video_new') {
+      const { startVideoCreationNew } = await import('../commands/create-new.js');
+      await startVideoCreationNew(ctx);
+      return;
+    }
+
+    if (data.startsWith('vcreate_source_')) {
+      const { handleVideoSourceSelection } = await import('../commands/create-new.js');
+      const source = data.replace('vcreate_source_', '');
+      await handleVideoSourceSelection(ctx, source);
+      return;
+    }
+
+    if (data.startsWith('vcreate_type_')) {
+      const { showTemplateCategorySelection } = await import('../commands/create-new.js');
+      await ctx.answerCbQuery();
+      const type = data.replace('vcreate_type_', '');
+      if (ctx.session?.videoCreationNew) {
+        ctx.session.videoCreationNew.contentType = type;
+      }
+      await showTemplateCategorySelection(ctx);
+      return;
+    }
+
+    if (data.startsWith('vcreate_theme_')) {
+      const { handleTemplateCategorySelection } = await import('../commands/create-new.js');
+      const theme = data.replace('vcreate_theme_', '');
+      await handleTemplateCategorySelection(ctx, theme);
+      return;
+    }
+
+    if (data.startsWith('vcreate_template_')) {
+      const { showTemplatePreview } = await import('../commands/create-new.js');
+      await ctx.answerCbQuery();
+      const templateId = data.replace('vcreate_template_', '');
+      await showTemplatePreview(ctx, templateId);
+      return;
+    }
+
+    if (data === 'vcreate_back_category') {
+      const { showTemplateCategorySelection } = await import('../commands/create-new.js');
+      await ctx.answerCbQuery();
+      await showTemplateCategorySelection(ctx);
+      return;
+    }
+
+    if (data === 'vcreate_customize') {
+      await ctx.answerCbQuery('🚧 Opsi Lanjutan segera hadir! Generate dengan default dulu.');
+      return;
+    }
+
+    if (data === 'vcreate_save_favorite') {
+      await ctx.answerCbQuery('🚧 Simpan Favorit segera hadir!');
+      return;
+    }
+
+    if (data === 'vcreate_photo_next' || data === 'vcreate_photo_more') {
+      if (data === 'vcreate_photo_more') {
+        await ctx.answerCbQuery('📸 Kirim foto lain sekarang');
+        return;
+      }
+      const { showContentTypeSelection } = await import('../commands/create-new.js');
+      await ctx.answerCbQuery();
+      await showContentTypeSelection(ctx);
+      return;
+    }
+
+    if (data === 'vcreate_confirm') {
+      await ctx.answerCbQuery();
+      
+      if (!ctx.session?.videoCreationNew || !ctx.session.videoCreationNew.template) {
+        await ctx.reply('❌ Session expired. Mulai lagi dengan /start');
+        return;
+      }
+
+      const { getTemplateById } = await import('../config/templates.js');
+      const template = getTemplateById(ctx.session.videoCreationNew.template);
+      
+      if (!template) {
+        await ctx.reply('❌ Template tidak ditemukan');
+        return;
+      }
+
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser || Number(dbUser.creditBalance) < template.creditCost) {
+        await ctx.editMessageText(
+          `❌ *Kredit tidak cukup*\n\n` +
+          `Butuh: ${template.creditCost} kredit\n` +
+          `Saldo: ${dbUser?.creditBalance || 0} kredit`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                [{ text: '◀️ Kembali', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+
+      // Deduct credits
+      await UserService.deductCredits(telegramId, template.creditCost);
+
+      // Build prompt from template + user input
+      const textInput = ctx.session.videoCreationNew.textInput || '';
+      const source = ctx.session.videoCreationNew.source || 'text';
+      
+      let prompt = `Create a ${template.name} video with ${template.sceneCount} scenes. `;
+      prompt += `Theme: ${template.theme}, Vibe: ${template.vibe}, Mood: ${template.mood}. `;
+      prompt += `Lighting: ${template.lighting}, Colors: ${template.colors.join(', ')}. `;
+      if (textInput) {
+        prompt += `User description: ${textInput}`;
+      }
+
+      // Trigger video generation (use existing pipeline)
+      const jobId = `job_${Date.now()}_${telegramId}`;
+      const niche = template.theme;
+      const duration = template.sceneCount * 5; // 5 sec per scene
+
+      // Queue video generation job
+      try {
+        const video = await VideoService.createJob({
+          userId: telegramId,
+          niche,
+          platform: 'tiktok',
+          duration,
+          scenes: template.sceneCount,
+          title: `${template.name} - ${new Date().toLocaleDateString('id-ID')}`,
+        });
+
+        const actualJobId = video.jobId;
+
+        // Trigger actual video generation
+        const { generateVideoWithFallback } = await import('../services/video-fallback.service.js');
+        
+        // Download reference image if uploaded
+        let referenceImageUrl: string | null = null;
+        if (ctx.session.videoCreationNew.uploadedPhotos && ctx.session.videoCreationNew.uploadedPhotos.length > 0) {
+          try {
+            const fileId = ctx.session.videoCreationNew.uploadedPhotos[0].fileId;
+            const fileLink = await ctx.telegram.getFileLink(fileId);
+            referenceImageUrl = fileLink.toString();
+            logger.info(`📸 Reference image downloaded: ${referenceImageUrl}`);
+          } catch (err) {
+            logger.error('Failed to download reference image:', err);
+          }
+        }
+        
+        // Start generation in background
+        generateVideoWithFallback({
+          prompt,
+          duration,
+          aspectRatio: '9:16',
+          style: template.vibe,
+          niche: template.theme,
+          referenceImage: referenceImageUrl,
+        }).then(async (result) => {
+          if (result.success && result.videoUrl) {
+            // Update video record
+            await prisma.video.update({
+              where: { jobId: actualJobId },
+              data: {
+                status: 'completed',
+                progress: 100,
+                videoUrl: result.videoUrl,
+                thumbnailUrl: result.thumbnailUrl,
+              },
+            });
+
+            // Send video to user
+            await ctx.telegram.sendVideo(
+              ctx.chat!.id,
+              result.videoUrl,
+              {
+                caption: `✅ *Video Selesai!*\n\n📋 ${template.name}\n🎬 ${template.sceneCount} scene • ${duration} detik`,
+                parse_mode: 'Markdown',
+              }
+            );
+          } else {
+            throw new Error(result.error || 'Generation failed');
+          }
+        }).catch(async (error) => {
+          logger.error('Video generation failed:', error);
+          await UserService.refundCredits(telegramId, template.creditCost, actualJobId, error.message);
+          await ctx.telegram.sendMessage(
+            ctx.chat!.id,
+            `❌ *Generation Failed*\n\n` +
+            `Job: ${actualJobId}\n` +
+            `${error.message}\n\n` +
+            `Kredit kamu sudah di-refund.`,
+            { parse_mode: 'Markdown' }
+          );
+        });
+
+        await ctx.editMessageText(
+          `🚀 *Generating...*\n\n` +
+          `Video kamu sedang dibuat!\n\n` +
+          `📋 Template: ${template.name}\n` +
+          `🎬 ${template.sceneCount} scene • ${duration} detik\n` +
+          `💰 ${template.creditCost} kredit terpakai\n\n` +
+          `⏱️ Estimasi: 2-5 menit\n` +
+          `Kamu akan dapat notifikasi saat selesai.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎞 Video Saya', callback_data: 'videos_list' }],
+                [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+
+        // Clear session
+        if (ctx.session) {
+          ctx.session.videoCreationNew = undefined;
+          ctx.session.state = 'DASHBOARD';
+        }
+      } catch (error: any) {
+        logger.error('Video generation failed:', error);
+        // Refund credits
+        await UserService.refundCredits(telegramId, template.creditCost, jobId, error.message);
+        await ctx.reply(
+          `❌ *Generation Failed*\n\n` +
+          `${error.message}\n\n` +
+          `Kredit kamu sudah di-refund.`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+      return;
+    }
+
+    if (data === 'create_image_new') {
+      await ctx.answerCbQuery('🚧 Alur Buat Gambar baru segera hadir! Gunakan menu lama sementara.');
+      // Fallback to old flow
+      await ctx.editMessageText(
+        '🖼️ *Generate Gambar AI*\n\n' +
+        '💡 _AI buat foto marketing profesional dari deskripsi atau foto referensi kamu_\n\n' +
+        'Pilih kategori konten kamu:',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🛍️ Foto Produk', callback_data: 'img_product' }],
+              [{ text: '🍔 Makanan & Minuman', callback_data: 'img_fnb' }],
+              [{ text: '🏠 Properti / Real Estate', callback_data: 'img_realestate' }],
+              [{ text: '🚗 Kendaraan / Otomotif', callback_data: 'img_car' }],
+              [{ text: '👤 Kelola Avatar', callback_data: 'avatar_manage' }],
+              [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // ── END NEW VIDEO/IMAGE CREATION HANDLERS ─────────────────────────────
+
+    // ── PROMPT LIBRARY HANDLERS ───────────────────────────────────────────
+    if (data.startsWith('prompts_niche_')) {
+      const niche = data.replace('prompts_niche_', '');
+      await ctx.answerCbQuery();
+      
+      const { getPromptsByNiche } = await import('../config/professional-prompts.js');
+      const prompts = getPromptsByNiche(niche);
+      
+      if (prompts.length === 0) {
+        await ctx.editMessageText(
+          `⚠️ Prompt library untuk niche ${niche} belum tersedia.\n\n` +
+          `Silakan pilih niche lain atau hubungi support.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '◀️ Kembali', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      
+      const nicheLabels: Record<string, string> = {
+        fnb: '🍔 F&B',
+        fashion: '👗 Fashion',
+        tech: '💻 Tech',
+        travel: '✈️ Travel',
+        education: '🎓 Education',
+        finance: '💰 Finance',
+        health: '🏥 Health',
+        entertainment: '🎬 Entertainment',
+      };
+      
+      let message = `📚 *Prompt Library: ${nicheLabels[niche] || niche}*\n\n`;
+      message += `Pilih prompt profesional untuk generate image:\n\n`;
+      
+      const buttons: Array<Array<{ text: string; callback_data: string }>> = [];
+      
+      prompts.forEach((prompt, idx) => {
+        message += `${idx + 1}. *${prompt.name}*\n`;
+        message += `   _${prompt.bestFor}_\n\n`;
+        
+        buttons.push([{
+          text: `${idx + 1}. ${prompt.name}`,
+          callback_data: `use_prompt_${prompt.id}`,
+        }]);
+      });
+      
+      buttons.push([{ text: '◀️ Pilih Niche Lain', callback_data: 'onboard_claim_trial' }]);
+      buttons.push([{ text: '🏠 Menu Utama', callback_data: 'main_menu' }]);
+      
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons },
+      });
+      return;
+    }
+
+    if (data.startsWith('use_prompt_')) {
+      const promptId = data.replace('use_prompt_', '');
+      await ctx.answerCbQuery();
+      
+      const { getPromptById } = await import('../config/professional-prompts.js');
+      const prompt = getPromptById(promptId);
+      
+      if (!prompt) {
+        await ctx.reply('❌ Prompt tidak ditemukan.');
+        return;
+      }
+      
+      // Check if user can use free trial
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        await ctx.reply('❌ User tidak ditemukan. Silakan /start ulang.');
+        return;
+      }
+      
+      const { canUseWelcomeBonus, canUseDailyFree } = await import('../config/free-trial.js');
+      
+      const canUseWelcome = canUseWelcomeBonus(dbUser);
+      const canUseDaily = canUseDailyFree(dbUser);
+      
+      if (!canUseWelcome && !canUseDaily) {
+        await ctx.editMessageText(
+          `⚠️ *Free Trial sudah habis!*\n\n` +
+          `Welcome Bonus: ❌ Sudah digunakan\n` +
+          `Daily Free: ❌ Belum reset\n\n` +
+          `Beli kredit untuk melanjutkan.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                [{ text: '◀️ Kembali', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      
+      const bonusType = canUseWelcome ? 'Welcome Bonus' : 'Daily Free';
+      
+      await ctx.editMessageText(
+        `✅ *Prompt Dipilih!*\n\n` +
+        `📋 ${prompt.name}\n` +
+        `🎨 Niche: ${prompt.niche.toUpperCase()}\n` +
+        `🎯 Best For: ${prompt.bestFor}\n\n` +
+        `🎁 Menggunakan: ${bonusType}\n` +
+        `🆓 Provider: Google Gemini (GRATIS)\n\n` +
+        `Siap generate?`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚀 Generate Sekarang!', callback_data: `generate_free_${promptId}` }],
+              [{ text: '◀️ Pilih Prompt Lain', callback_data: `prompts_niche_${prompt.niche}` }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data.startsWith('generate_free_')) {
+      const promptId = data.replace('generate_free_', '');
+      await ctx.answerCbQuery();
+      
+      const { getPromptById } = await import('../config/professional-prompts.js');
+      const prompt = getPromptById(promptId);
+      
+      if (!prompt) {
+        await ctx.reply('❌ Prompt tidak ditemukan.');
+        return;
+      }
+      
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        await ctx.reply('❌ User tidak ditemukan. Silakan /start ulang.');
+        return;
+      }
+      
+      const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
+      
+      const canUseWelcome = canUseWelcomeBonus(dbUser);
+      const canUseDaily = canUseDailyFree(dbUser);
+      
+      if (!canUseWelcome && !canUseDaily) {
+        await ctx.editMessageText(
+          `⚠️ *Free Trial sudah habis!*\n\n` +
+          `Beli kredit untuk melanjutkan.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                [{ text: '◀️ Kembali', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      
+      const bonusType = canUseWelcome ? 'welcome' : 'daily';
+      
+      await ctx.editMessageText(
+        `⏳ *Generating...*\n\n` +
+        `📋 ${prompt.name}\n` +
+        `🎁 Menggunakan: ${bonusType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'}\n\n` +
+        `Mohon tunggu 10-30 detik...`,
+        { parse_mode: 'Markdown' }
+      );
+      
+      try {
+        // Generate image with Google Gemini (free provider)
+        const { ImageGenerationService } = await import('../services/image.service.js');
+        
+        const result = await ImageGenerationService.generateImage({
+          prompt: prompt.prompt,
+          category: prompt.niche,
+          aspectRatio: '1:1',
+          style: 'professional',
+        });
+        
+        if (!result.success || !result.imageUrl) {
+          throw new Error(result.error || 'Generation failed');
+        }
+        
+        // Mark bonus as used
+        if (bonusType === 'welcome') {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { welcomeBonusUsed: true },
+          });
+        } else {
+          await prisma.user.update({
+            where: { id: dbUser.id },
+            data: {
+              dailyFreeUsed: true,
+              dailyFreeResetAt: getNextDailyFreeReset(),
+            },
+          });
+        }
+        
+        // Send image
+        await ctx.replyWithPhoto(result.imageUrl, {
+          caption:
+            `✅ *Image Generated!*\n\n` +
+            `📋 ${prompt.name}\n` +
+            `🎁 ${bonusType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'} digunakan\n\n` +
+            `Suka hasilnya? Beli kredit untuk generate lebih banyak!`,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🔄 Generate Lagi', callback_data: `prompts_niche_${prompt.niche}` }],
+              [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+              [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+            ],
+          },
+        });
+        
+      } catch (error) {
+        console.error('Free trial generation error:', error);
+        
+        await ctx.reply(
+          `❌ *Generation Gagal*\n\n` +
+          `Terjadi error saat generate image.\n` +
+          `Bonus Anda tidak terpakai.\n\n` +
+          `Silakan coba lagi atau hubungi support.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🔄 Coba Lagi', callback_data: `generate_free_${promptId}` }],
+                [{ text: '◀️ Pilih Prompt Lain', callback_data: `prompts_niche_${prompt.niche}` }],
+                [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+      }
+      
+      return;
+    }
+
+    // ── ONBOARDING HANDLERS ───────────────────────────────────────────────
+    if (data === 'onboard_start') {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `💡 *APA ITU KREDIT?*\n\n` +
+        `Kredit adalah mata uang digital di BerkahKarya.\n\n` +
+        `*1 kredit bisa digunakan untuk:*\n` +
+        `• 5 gambar AI berkualitas\n` +
+        `• 1 video pendek (5 detik)\n` +
+        `• Video lebih panjang = lebih banyak kredit\n\n` +
+        `*CONTOH:*\n` +
+        `• 20 kredit = 100 gambar atau 20 video 5 detik\n` +
+        `• 50 kredit = 250 gambar atau 50 video 5 detik\n\n` +
+        `Siap klaim FREE TRIAL? 🎁`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎁 Klaim FREE TRIAL!', callback_data: 'onboard_claim_trial' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data === 'onboard_claim_trial') {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `🎉 *SELAMAT! Anda mendapat FREE TRIAL!*\n\n` +
+        `*Bonus yang Anda dapatkan:*\n` +
+        `• ✅ 1x Image Generation GRATIS (sekali pakai)\n` +
+        `• ✅ 1x Daily Free setiap hari (login harian)\n\n` +
+        `Pilih niche bisnis Anda untuk mulai:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🍔 F&B', callback_data: 'onboard_niche_fnb' }, { text: '👗 Fashion', callback_data: 'onboard_niche_fashion' }],
+              [{ text: '💻 Tech', callback_data: 'onboard_niche_tech' }, { text: '✈️ Travel', callback_data: 'onboard_niche_travel' }],
+              [{ text: '🎓 Education', callback_data: 'onboard_niche_education' }, { text: '💰 Finance', callback_data: 'onboard_niche_finance' }],
+              [{ text: '🏥 Health', callback_data: 'onboard_niche_health' }, { text: '🎬 Entertainment', callback_data: 'onboard_niche_entertainment' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data.startsWith('onboard_niche_')) {
+      const niche = data.replace('onboard_niche_', '');
+      await ctx.answerCbQuery();
+      
+      // Create user account with free trial
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      
+      // Check if user already exists
+      let dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        // Create new user with free trial (0 kredit, tapi ada welcome bonus)
+        dbUser = await UserService.create({
+          telegramId,
+          username: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          language: 'id',
+        });
+        
+        // Set selected niche and welcome bonus
+        await prisma.user.update({
+          where: { telegramId },
+          data: {
+            selectedNiche: niche,
+            welcomeBonusUsed: false,
+            dailyFreeUsed: false,
+            dailyFreeResetAt: null,
+          },
+        });
+        
+        logger.info(`New user created with free trial: ${telegramId}, niche: ${niche}`);
+      }
+      
+      const nicheLabels: Record<string, string> = {
+        fnb: '🍔 F&B',
+        fashion: '👗 Fashion',
+        tech: '💻 Tech',
+        travel: '✈️ Travel',
+        education: '🎓 Education',
+        finance: '💰 Finance',
+        health: '🏥 Health',
+        entertainment: '🎬 Entertainment',
+      };
+      
+      await ctx.editMessageText(
+        `✅ *Akun berhasil dibuat!*\n\n` +
+        `Niche Anda: ${nicheLabels[niche] || niche}\n\n` +
+        `📋 *CARA KERJA BOT:*\n\n` +
+        `1️⃣ Pilih template dari library\n` +
+        `2️⃣ Generate image/video\n` +
+        `3️⃣ Tunggu hasil (30 detik - 2 menit)\n` +
+        `4️⃣ Download dan gunakan!\n\n` +
+        `*FREE TRIAL ANDA:*\n` +
+        `• ✅ 1x Image Generation (Welcome Bonus)\n` +
+        `• ✅ 1x Image Generation per hari (Daily Free)\n` +
+        `• 🎨 Harus pilih dari Prompt Library\n` +
+        `• 🆓 Provider: Google Gemini (GRATIS)\n\n` +
+        `*FITUR PREMIUM (Bayar):*\n` +
+        `• ✍️ Custom prompt sendiri\n` +
+        `• 🎬 Video generation\n` +
+        `• 📸 Upload foto produk\n` +
+        `• 🚀 Priority queue\n\n` +
+        `Siap mulai? 🚀`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎨 Gunakan Welcome Bonus!', callback_data: 'use_welcome_bonus' }],
+              [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data === 'use_welcome_bonus') {
+      await ctx.answerCbQuery();
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        await ctx.reply('❌ User tidak ditemukan. Silakan /start ulang.');
+        return;
+      }
+      
+      // Check if welcome bonus already used
+      if (dbUser.welcomeBonusUsed) {
+        await ctx.editMessageText(
+          `⚠️ *Welcome Bonus sudah digunakan!*\n\n` +
+          `Gunakan Daily Free Anda atau beli kredit.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎁 Gunakan Daily Free', callback_data: 'use_daily_free' }],
+                [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      
+      // Redirect to prompt library for selected niche
+      const niche = dbUser.selectedNiche || 'fnb';
+      await ctx.editMessageText(
+        `🎨 *Welcome Bonus: 1x Image Generation*\n\n` +
+        `Pilih prompt dari library ${niche.toUpperCase()}:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📚 Lihat Prompt Library', callback_data: `prompts_niche_${niche}` }],
+              [{ text: '◀️ Kembali', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data === 'use_daily_free') {
+      await ctx.answerCbQuery();
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        await ctx.reply('❌ User tidak ditemukan. Silakan /start ulang.');
+        return;
+      }
+      
+      const { canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
+      
+      // Check if daily free can be used
+      if (!canUseDailyFree(dbUser)) {
+        const resetAt = dbUser.dailyFreeResetAt || getNextDailyFreeReset();
+        const hoursLeft = Math.ceil((resetAt.getTime() - Date.now()) / (1000 * 60 * 60));
+        
+        await ctx.editMessageText(
+          `⏰ *Daily Free belum reset!*\n\n` +
+          `Reset dalam: ${hoursLeft} jam\n` +
+          `Reset time: 00:00 WIB setiap hari\n\n` +
+          `Gunakan Welcome Bonus atau beli kredit.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🎁 Gunakan Welcome Bonus', callback_data: 'use_welcome_bonus' }],
+                [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      
+      // Redirect to prompt library
+      const niche = dbUser.selectedNiche || 'fnb';
+      await ctx.editMessageText(
+        `🎁 *Daily Free: 1x Image Generation*\n\n` +
+        `Pilih prompt dari library ${niche.toUpperCase()}:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📚 Lihat Prompt Library', callback_data: `prompts_niche_${niche}` }],
+              [{ text: '◀️ Kembali', callback_data: 'main_menu' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
     // Onboarding language selection (new users picking language before account creation)
     if (data.startsWith('onboard_lang_more_')) {
       // Paginated "more languages" view
@@ -391,7 +1244,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.reply(t('feedback.thanks_bad', feedbackLang), {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🔄 Regenerate', callback_data: 'create_video' }],
+            [{ text: '🔄 Coba Lagi', callback_data: 'back_prompts' }],
           ],
         },
       });
@@ -618,7 +1471,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             inline_keyboard: [
               [
                 { text: '🎬 Buat Video', callback_data: 'create_video' },
-                { text: '🖼️ Buat Gambar', callback_data: 'image_generate' },
+                { text: '🖼️ Buat Gambar', callback_data: 'image_from_prompt' },
               ],
               [{ text: '🔧 Customize Lagi', callback_data: `customize_prompt_${promptId}` }],
             ],
@@ -661,7 +1514,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               reply_markup: {
                 inline_keyboard: [
                   [{ text: '🚀 Buat Video Sekarang!', callback_data: 'create_video' }],
-                  [{ text: '🖼️ Buat Gambar', callback_data: 'image_generate' }],
+                  [{ text: '🖼️ Buat Gambar', callback_data: 'image_from_prompt' }],
                   [{ text: `◀️ Kembali ke ${sp.niche}`, callback_data: `prompts_${sp.niche}` }],
                 ],
               },
@@ -690,7 +1543,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               reply_markup: {
                 inline_keyboard: [
                   [{ text: '🚀 Buat Video Sekarang!', callback_data: 'create_video' }],
-                  [{ text: '🖼️ Buat Gambar', callback_data: 'image_generate' }],
+                  [{ text: '🖼️ Buat Gambar', callback_data: 'image_from_prompt' }],
                   [{ text: `◀️ Kembali`, callback_data: `my_prompts_${sp.niche}` }],
                 ],
               },
@@ -731,6 +1584,246 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // ── END Saved Prompt callbacks ─────────────────────────────────────────
 
     // Back to prompts main menu — edit current message
+    // ── PROFESSIONAL PROMPT LIBRARY HANDLERS ──────────────────────────────
+    if (data.startsWith('prompts_niche_')) {
+      await ctx.answerCbQuery();
+      const niche = data.replace('prompts_niche_', '');
+      
+      const { getPromptsByNiche } = await import('../config/professional-prompts.js');
+      const prompts = getPromptsByNiche(niche);
+      
+      if (prompts.length === 0) {
+        await ctx.editMessageText(
+          `❌ Prompt library untuk niche ${niche} belum tersedia.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [[{ text: '◀️ Kembali', callback_data: 'main_menu' }]],
+            },
+          }
+        );
+        return;
+      }
+      
+      const nicheLabels: Record<string, string> = {
+        fnb: '🍔 F&B',
+        fashion: '👗 Fashion',
+        tech: '💻 Tech',
+        travel: '✈️ Travel',
+        education: '🎓 Education',
+        finance: '💰 Finance',
+        health: '🏥 Health',
+        entertainment: '🎬 Entertainment',
+      };
+      
+      let message = `📚 *Prompt Library: ${nicheLabels[niche] || niche}*\n\n`;
+      message += `${prompts.length} prompt profesional tersedia:\n\n`;
+      
+      const buttons: Array<Array<{ text: string; callback_data: string }>> = [];
+      
+      prompts.forEach((prompt, idx) => {
+        message += `${idx + 1}. *${prompt.name}*\n`;
+        message += `   _${prompt.bestFor}_\n\n`;
+        
+        buttons.push([{
+          text: `${idx + 1}. ${prompt.name}`,
+          callback_data: `use_prof_prompt_${prompt.id}`,
+        }]);
+      });
+      
+      buttons.push([{ text: '◀️ Pilih Niche Lain', callback_data: 'main_menu' }]);
+      
+      await ctx.editMessageText(message, {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons },
+      });
+      return;
+    }
+
+    if (data.startsWith('use_prof_prompt_')) {
+      await ctx.answerCbQuery();
+      const promptId = data.replace('use_prof_prompt_', '');
+      
+      const { getPromptById } = await import('../config/professional-prompts.js');
+      const prompt = getPromptById(promptId);
+      
+      if (!prompt) {
+        await ctx.reply('❌ Prompt tidak ditemukan.');
+        return;
+      }
+      
+      // Check if user can use free trial
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        await ctx.reply('❌ User tidak ditemukan. Silakan /start ulang.');
+        return;
+      }
+      
+      const { canUseWelcomeBonus, canUseDailyFree } = await import('../config/free-trial.js');
+      const hasWelcome = canUseWelcomeBonus(dbUser);
+      const hasDaily = canUseDailyFree(dbUser);
+      const hasCredits = Number(dbUser.creditBalance) >= 0.2;
+      
+      if (!hasWelcome && !hasDaily && !hasCredits) {
+        await ctx.editMessageText(
+          `⚠️ *Tidak ada kredit tersedia!*\n\n` +
+          `Welcome Bonus: ${hasWelcome ? '✅' : '❌'}\n` +
+          `Daily Free: ${hasDaily ? '✅' : '❌'}\n` +
+          `Kredit: ${dbUser.creditBalance}\n\n` +
+          `Beli kredit untuk melanjutkan.`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                [{ text: '◀️ Kembali', callback_data: `prompts_niche_${prompt.niche}` }],
+              ],
+            },
+          }
+        );
+        return;
+      }
+      
+      // Show prompt preview and generate
+      await ctx.editMessageText(
+        `✅ *${prompt.name}*\n\n` +
+        `📋 Prompt:\n_${prompt.prompt.substring(0, 200)}..._\n\n` +
+        `🎯 Best For: ${prompt.bestFor}\n\n` +
+        `Siap generate dengan ${hasWelcome ? 'Welcome Bonus' : hasDaily ? 'Daily Free' : 'kredit'}?`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🚀 Generate Sekarang!', callback_data: `gen_free_${promptId}` }],
+              [{ text: '◀️ Pilih Prompt Lain', callback_data: `prompts_niche_${prompt.niche}` }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    if (data.startsWith('gen_free_')) {
+      await ctx.answerCbQuery();
+      const promptId = data.replace('gen_free_', '');
+      
+      const { getPromptById } = await import('../config/professional-prompts.js');
+      const prompt = getPromptById(promptId);
+      
+      if (!prompt) {
+        await ctx.reply('❌ Prompt tidak ditemukan.');
+        return;
+      }
+      
+      const user = ctx.from;
+      if (!user) return;
+      
+      const telegramId = BigInt(user.id);
+      const dbUser = await UserService.findByTelegramId(telegramId);
+      
+      if (!dbUser) {
+        await ctx.reply('❌ User tidak ditemukan.');
+        return;
+      }
+      
+      const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
+      const hasWelcome = canUseWelcomeBonus(dbUser);
+      const hasDaily = canUseDailyFree(dbUser);
+      
+      let usedType = '';
+      if (hasWelcome) {
+        usedType = 'welcome';
+        // Mark welcome bonus as used
+        await prisma.user.update({
+          where: { telegramId },
+          data: { welcomeBonusUsed: true },
+        });
+      } else if (hasDaily) {
+        usedType = 'daily';
+        // Mark daily free as used and set reset time
+        await prisma.user.update({
+          where: { telegramId },
+          data: {
+            dailyFreeUsed: true,
+            dailyFreeResetAt: getNextDailyFreeReset(),
+          },
+        });
+      } else {
+        await ctx.reply('❌ Tidak ada free trial tersedia.');
+        return;
+      }
+      
+      // Trigger image generation with google_gemini (FREE provider)
+      const { generateVideoWithFallback } = await import('../services/video-fallback.service.js');
+      
+      await ctx.editMessageText(
+        `🚀 *Generating...*\n\n` +
+        `Prompt: ${prompt.name}\n` +
+        `Provider: Google Gemini (FREE)\n` +
+        `Type: ${usedType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'}\n\n` +
+        `⏱️ Estimasi: 30-60 detik`,
+        { parse_mode: 'Markdown' }
+      );
+      
+      // Generate image
+      generateVideoWithFallback({
+        prompt: prompt.prompt,
+        duration: 5,
+        aspectRatio: '9:16',
+        style: prompt.niche,
+        niche: prompt.niche,
+        referenceImage: null,
+      }).then(async (result) => {
+        if (result.success && result.videoUrl) {
+          await ctx.telegram.sendPhoto(
+            ctx.chat!.id,
+            result.videoUrl,
+            {
+              caption: `✅ *Image Generated!*\n\n📋 ${prompt.name}\n🎨 ${prompt.bestFor}\n🆓 ${usedType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'} digunakan\n\n_Generated by BerkahKarya_`,
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🔄 Generate Lagi', callback_data: `prompts_niche_${prompt.niche}` }],
+                  [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+                  [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+                ],
+              },
+            }
+          );
+        } else {
+          throw new Error(result.error || 'Generation failed');
+        }
+      }).catch(async (error) => {
+        logger.error('Free trial generation failed:', error);
+        
+        // Refund free trial
+        if (usedType === 'welcome') {
+          await prisma.user.update({
+            where: { telegramId },
+            data: { welcomeBonusUsed: false },
+          });
+        } else if (usedType === 'daily') {
+          await prisma.user.update({
+            where: { telegramId },
+            data: { dailyFreeUsed: false, dailyFreeResetAt: null },
+          });
+        }
+        
+        await ctx.telegram.sendMessage(
+          ctx.chat!.id,
+          `❌ *Generation Failed*\n\n${error.message}\n\nFree trial kamu sudah di-refund.`,
+          { parse_mode: 'Markdown' }
+        );
+      });
+      
+      return;
+    }
+
     if (data === 'back_prompts') {
       await ctx.answerCbQuery();
       try {
@@ -811,11 +1904,31 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     // Image generation handlers
+    // image_from_prompt — auto-detect niche from session selectedPrompt context
+    if (data === 'image_from_prompt') {
+      await ctx.answerCbQuery();
+      // Map niche to image category
+      const nicheToCategory: Record<string, string> = {
+        fnb: 'fnb', food: 'fnb',
+        fashion: 'product', health: 'product',
+        tech: 'product', finance: 'product', education: 'product', entertainment: 'product',
+        travel: 'realestate',
+      };
+      const sessionNiche = (ctx.session?.selectedNiche || ctx.session?.stateData?.addingPromptNiche || 'product') as string;
+      const autoCategory = nicheToCategory[sessionNiche] || 'product';
+      await handleImageGeneration(ctx, autoCategory);
+      return;
+    }
+
     if (data === 'image_generate') {
+      await ctx.answerCbQuery();
+      const telegramId = BigInt(ctx.from!.id);
+      const creditCost = await getImageCreditCostAsync();
+      const avatars = await AvatarService.listAvatars(telegramId);
       await ctx.editMessageText(
         '🖼️ *Generate Gambar AI*\n\n' +
         '💡 _AI buat foto marketing profesional dari deskripsi atau foto referensi kamu_\n\n' +
-        'Pilih kategori:',
+        'Pilih kategori konten kamu:',
         {
           parse_mode: 'Markdown',
           reply_markup: {
@@ -1050,7 +2163,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+              [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
             ],
           },
         }
@@ -1068,6 +2181,25 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] } }
       );
       ctx.session.state = 'CLONE_VIDEO_WAITING';
+      return;
+    }
+
+    if (data === 'clone_edit_desc') {
+      await ctx.answerCbQuery();
+      
+      if (!ctx.session?.stateData?.clonePrompt) {
+        await ctx.reply('❌ No clone data found. Please start over.');
+        return;
+      }
+      
+      await ctx.editMessageText(
+        '✏️ *Edit Video Description*\n\n' +
+        'Kirim deskripsi baru untuk video yang akan dibuat.\n\n' +
+        '_Contoh: "Buat video produk skincare dengan lighting soft, background minimalis putih, close-up detail produk"_',
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'main_menu' }]] } }
+      );
+      
+      ctx.session.state = 'CLONE_EDIT_DESC_WAITING';
       return;
     }
 
@@ -1177,7 +2309,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             inline_keyboard: [
               [{ text: '📚 Pilih Prompt & Buat Video', callback_data: 'back_prompts' }],
               [{ text: '🔥 Trending', callback_data: 'prompts_trending' }, { text: '🎁 Prompt Gratis', callback_data: 'daily_open' }],
-              [{ text: '🎬 Buat Video', callback_data: 'create_video' }, { text: '🖼️ Buat Gambar', callback_data: 'image_generate' }],
+              [{ text: '🎬 Buat Video', callback_data: 'create_video' }, { text: '🖼️ Buat Gambar', callback_data: 'image_from_prompt' }],
               [{ text: '🔄 Clone', callback_data: 'clone_video' }, { text: '📋 Storyboard', callback_data: 'storyboard_create' }, { text: '📈 Viral', callback_data: 'viral_research' }],
               [{ text: '💰 Top Up', callback_data: 'topup' }, { text: '⭐ Langganan', callback_data: 'open_subscription' }],
               [{ text: '📁 Video Saya', callback_data: 'videos_list' }, { text: '👥 Referral', callback_data: 'open_referral' }, { text: '👤 Profil', callback_data: 'open_profile' }],
@@ -2210,7 +3342,7 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
       reply_markup: {
         inline_keyboard: [
           [{ text: '📁 My Videos', callback_data: 'videos_list' }],
-          [{ text: '🎬 Create Another', callback_data: 'create_video' }],
+          [{ text: '🎬 Buat Video Lagi', callback_data: 'back_prompts' }],
         ],
       },
     });
@@ -2313,7 +3445,7 @@ async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🎬 Create Another', callback_data: 'create_video' }],
+          [{ text: '🎬 Buat Video Lagi', callback_data: 'back_prompts' }],
           [{ text: '📁 My Videos', callback_data: 'videos_list' }],
         ],
       },
@@ -2506,7 +3638,7 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
           [{ text: '📸 Upload Reference Photo', callback_data: 'imgref_upload' }],
           ...(avatarButtons.length > 0 ? [avatarButtons] : []),
           [{ text: '✏️ Describe Only (No Reference)', callback_data: 'imgref_skip' }],
-          [{ text: '❌ Cancel', callback_data: 'image_generate' }],
+          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     }

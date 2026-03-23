@@ -298,7 +298,7 @@ export async function showPromptDetail(ctx: BotContext, promptId: string, edit =
     inline_keyboard: [
       // Primary CTA
       [{ text: '🚀 Buat Video Sekarang!', callback_data: 'create_video' }],
-      [{ text: '🖼️ Buat Gambar Saja', callback_data: 'image_generate' }],
+      [{ text: '🖼️ Buat Gambar Saja', callback_data: 'image_from_prompt' }],
       [
         { text: '🔧 Customize', callback_data: `customize_prompt_${promptId}` },
         { text: '💾 Simpan', callback_data: `save_prompt_${promptId}` },

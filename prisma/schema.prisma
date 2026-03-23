@@ -37,6 +37,12 @@ model User {
   notificationsEnabled Boolean @default(true) @map("notifications_enabled")
   autoRenewal       Boolean   @default(false) @map("auto_renewal")
   
+  // Free Trial
+  welcomeBonusUsed  Boolean   @default(false) @map("welcome_bonus_used")
+  dailyFreeUsed     Boolean   @default(false) @map("daily_free_used")
+  dailyFreeResetAt  DateTime? @map("daily_free_reset_at")
+  selectedNiche     String?   @map("selected_niche") @db.VarChar(32)
+  
   // Security
   isBanned          Boolean   @default(false) @map("is_banned")
   banReason         String?   @map("ban_reason")

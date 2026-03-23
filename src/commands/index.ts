@@ -24,6 +24,10 @@ import { chatCommand } from './grok';
 import { socialCommand } from './social';
 import { promptsCommand, dailyCommand, trendingCommand, fingerprintCommand } from './prompts';
 
+// New redesigned flows
+export * from './create-new';
+export * from './main-menu';
+
 // Admin commands
 import { adminBroadcastCommand } from './admin/broadcast';
 import { adminSystemStatusCommand } from './admin/systemStatus';

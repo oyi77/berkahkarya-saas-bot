@@ -23,6 +23,8 @@ export interface SessionData {
   state: BotState;
   stateData: Record<string, unknown>;
   lastActivity: Date;
+  creditBalance?: number;
+  tier?: string;
   videoCreation?: {
     mode?: string;
     niche?: string;
@@ -39,6 +41,18 @@ export interface SessionData {
     visionAnalysis?: string;
     enableVO?: boolean;
     enableSubtitles?: boolean;
+  };
+  videoCreationNew?: {
+    step: number;
+    source: string | null;
+    contentType: string | null;
+    theme: string | null;
+    vibe: string | null;
+    sceneCount: number | null;
+    template: string | null;
+    uploadedPhotos?: Array<{ fileId: string; localPath?: string }>;
+    textInput?: string;
+    cloneUrl?: string;
   };
   selectedNiche?: string;
   selectedStyles?: string[];
@@ -60,9 +74,18 @@ export type BotState =
   | 'CREATE_VIDEO_BRIEF'
   | 'CREATE_VIDEO_CONFIRM'
   | 'CREATE_VIDEO_PROCESSING'
+  | 'VIDEO_CREATE_SOURCE'
+  | 'VIDEO_CREATE_UPLOAD'
+  | 'VIDEO_CREATE_TEXT'
+  | 'VIDEO_CREATE_CONTENT_TYPE'
+  | 'VIDEO_CREATE_CATEGORY'
+  | 'VIDEO_CREATE_TEMPLATE'
+  | 'VIDEO_CREATE_CUSTOMIZE'
+  | 'VIDEO_CREATE_PREVIEW'
   | 'CUSTOM_DURATION_INPUT'
   | 'CUSTOM_PROMPT_INPUT'
   | 'CLONE_VIDEO_WAITING'
+  | 'CLONE_EDIT_DESC_WAITING'
   | 'CLONE_IMAGE_WAITING'
   | 'DISASSEMBLE_WAITING'
   | 'IMAGE_GENERATION_WAITING'
