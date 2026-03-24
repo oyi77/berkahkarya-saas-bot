@@ -785,6 +785,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         // Will be handled by the CLONE_EDIT_DESC_WAITING handler below
       } else if (ctx.session?.state === "VIDEO_CREATE_TEXT") {
         // Will be handled by the VIDEO_CREATE_TEXT handler below
+      } else if (ctx.session?.state === "CUSTOM_PROMPT_CREATION") {
+        // Will be handled by the CUSTOM_PROMPT_CREATION handler below
+      } else if (ctx.session?.state === "CUSTOM_PROMPT_INPUT") {
+        // Will be handled by the CUSTOM_PROMPT_INPUT handler below
+      } else if (ctx.session?.state === "WAITING_ACCOUNT_ID") {
+        // Will be handled by the WAITING_ACCOUNT_ID handler below
       } else {
         // Handle reply keyboard buttons — route to proper command handlers
         switch (text) {
