@@ -114,7 +114,7 @@ export class TripayService {
 
   static async handleCallback(callbackData: any): Promise<{ success: boolean; message: string }> {
     try {
-      const { merchant_ref, status, signature } = callbackData;
+      const { merchant_ref, status, _signature } = callbackData;
       
       const transaction = await prisma.transaction.findUnique({
         where: { orderId: merchant_ref },

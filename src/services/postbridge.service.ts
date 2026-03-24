@@ -5,7 +5,7 @@
  */
 
 import axios from 'axios';
-import { prisma } from '@/config/database';
+// import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 
 const PB_API_KEY = process.env.POSTBRIDGE_API_KEY || '';
@@ -64,7 +64,7 @@ export class PostBridgeService {
   /**
    * Sync accounts from PostBridge
    */
-  static async syncUserAccounts(userId: bigint) {
+  static async syncUserAccounts(_userId: bigint) {
     try {
       // This would normally fetch from PB and update our local SocialAccount table
       // response = await pbClient.get('/social-accounts');

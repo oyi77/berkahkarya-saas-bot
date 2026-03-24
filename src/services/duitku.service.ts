@@ -41,7 +41,7 @@ export class DuitkuService {
     const pkg = PACKAGES[params.packageId as keyof typeof PACKAGES];
     if (!pkg) throw new Error('Invalid package');
 
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const _timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const orderId = `OC-${Date.now()}-${params.userId}`;
     const signature = crypto.createHash('md5')
       .update(MERCHANT_CODE + orderId + pkg.price + API_KEY)

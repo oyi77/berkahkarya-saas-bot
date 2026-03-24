@@ -192,7 +192,7 @@ export class UserService {
   /**
    * Refund credits to user
    */
-  static async refundCredits(telegramId: bigint, amount: number, jobId: string, reason: string): Promise<void> {
+  static async refundCredits(telegramId: bigint, amount: number, jobId: string, _reason: string): Promise<void> {
     await prisma.$transaction([
       prisma.user.update({
         where: { telegramId },

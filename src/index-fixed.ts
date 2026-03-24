@@ -35,8 +35,6 @@ for (const envVar of requiredEnvVars) {
 const bot = new Telegraf(process.env.BOT_TOKEN!);
 
 async function main() {
-  const port = parseInt(process.env.PORT || '3000');
-
   try {
     logger.info('🚀 Starting OpenClaw Bot v3.0.0 (FIXED VERSION)...');
 

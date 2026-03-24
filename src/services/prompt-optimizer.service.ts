@@ -8,9 +8,9 @@
 import { PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
 import { logger } from '@/utils/logger.js';
-import { PROVIDER_CONFIG, VideoProviderConfig } from '@/config/providers.js';
-import { STYLE_PRESETS, StylePreset } from '@/config/styles.js';
-import { NICHE_CONFIG, NicheConfig } from '@/config/niches.js';
+import { PROVIDER_CONFIG, VideoProviderConfig } from '@/config/providers';
+import { STYLE_PRESETS, StylePreset } from '@/config/styles';
+import { NICHE_CONFIG, NicheConfig } from '@/config/niches';
 
 const prisma = new PrismaClient();
 

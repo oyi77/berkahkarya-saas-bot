@@ -385,10 +385,10 @@ async function pollByteplus(jobId: string, maxAttempts: number): Promise<VideoGe
  * Generate demo video for testing
  */
 function generateDemoVideo(
-  params: VideoGenerationParams,
-  duration: number,
-  niche: string,
-  styles: string[]
+  _params: VideoGenerationParams,
+  _duration: number,
+  _niche: string,
+  _styles: string[]
 ): VideoGenerationResult {
   const sampleVideos = [
     'https://media.giphy.com/media/RJ8SJ3dIKdCf2/giphy.mp4',
@@ -430,7 +430,7 @@ function mapAspectRatio(aspectRatio: string): string {
  */
 export function generatePromptFromNiche(niche: string, styles: string[], duration: number): string {
   const nicheKey = niche as keyof typeof NICHES;
-  const nicheConfig = NICHES[nicheKey] || NICHES.fnb;
+  const _nicheConfig = NICHES[nicheKey] || NICHES.fnb;
   const styleStr = styles.join(', ');
 
   const templates: Record<string, string> = {

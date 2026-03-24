@@ -60,8 +60,20 @@ export class ReferralService {
    * Must have a transaction/activity within the last 30 days
    */
   static async isEligible(telegramId: bigint): Promise<boolean> {
+    const user = await prisma.user.findUnique({
+      where: { telegramId }
+    });
+
+    if (!user) return false;
+
+    // Grace period: users are eligible for X days after registration even without transactions
+    const accountExpiry = addDays(new Date(user.createdAt), COMMISSIONS.ACTIVITY_WINDOW_DAYS);
+    if (isAfter(accountExpiry, new Date())) {
+      return true;
+    }
+
     const lastTransaction = await prisma.transaction.findFirst({
-      where: { 
+      where: {
         userId: telegramId,
         status: 'success'
       },
@@ -88,7 +100,7 @@ export class ReferralService {
         availableAt: new Date(),
       }
     });
-    
+
     logger.info(`Commission issued: IDR ${amount} to ${referrerId} (Tier ${tier})`);
   }
 }

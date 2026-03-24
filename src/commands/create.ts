@@ -68,12 +68,12 @@ export async function createCommand(ctx: BotContext): Promise<void> {
       const maxPlan = SUBSCRIPTION_PLANS.agency;
       await ctx.reply(
         `${t("error.insufficient_credits", lang)}\n\n` +
-          t("error.insufficient_credits_detail", lang, {
-            balance: String(dbUser.creditBalance),
-            min: "0.5",
-          }) +
-          `\n\n${t("menu.top_up", lang)} -- ${lang === "id" ? "Beli kredit langsung" : "Buy credits instantly"}\n` +
-          `${t("menu.subscribe", lang)} -- ${lang === "id" ? `Dapatkan ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} kredit/bulan` : `Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month`}`,
+        t("error.insufficient_credits_detail", lang, {
+          balance: String(dbUser.creditBalance),
+          min: "0.5",
+        }) +
+        `\n\n${t("menu.top_up", lang)} -- ${lang === "id" ? "Beli kredit langsung" : "Buy credits instantly"}\n` +
+        `${t("menu.subscribe", lang)} -- ${lang === "id" ? `Dapatkan ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} kredit/bulan` : `Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month`}`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -135,9 +135,9 @@ export async function createCommand(ctx: BotContext): Promise<void> {
       // Jump straight to duration picker
       await ctx.reply(
         `✅ *Prompt aktif!*\n` +
-          `\`${preselectedPrompt.slice(0, 100)}${preselectedPrompt.length > 100 ? "..." : ""}\`\n\n` +
-          `⏱️ *Pilih durasi video:*\n` +
-          `💰 Saldo: *${dbUser.creditBalance}* kredit`,
+        `\`${preselectedPrompt.slice(0, 100)}${preselectedPrompt.length > 100 ? "..." : ""}\`\n\n` +
+        `⏱️ *Pilih durasi video:*\n` +
+        `💰 Saldo: *${dbUser.creditBalance}* kredit`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -195,8 +195,8 @@ export async function createCommand(ctx: BotContext): Promise<void> {
 
     await ctx.reply(
       `${t("create.title", lang)}\n\n` +
-        `${t("create.current_credits", lang)}: ${dbUser.creditBalance}\n\n` +
-        t("create.select_niche", lang),
+      `${t("create.current_credits", lang)}: ${dbUser.creditBalance}\n\n` +
+      t("create.select_niche", lang),
       {
         reply_markup: {
           inline_keyboard: nicheButtons,
@@ -279,10 +279,10 @@ export async function handleDurationSelection(
       const maxPlan = SUBSCRIPTION_PLANS.agency;
       await ctx.reply(
         `Insufficient credits.\n\n` +
-          `Current: ${dbUser.creditBalance} | Needed: ${creditCost}\n\n` +
-          `Top Up -- Buy credits instantly\n` +
-          `Subscribe -- Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month (better value!)\n\n` +
-          `Which would you like?`,
+        `Current: ${dbUser.creditBalance} | Needed: ${creditCost}\n\n` +
+        `Top Up -- Buy credits instantly\n` +
+        `Subscribe -- Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month (better value!)\n\n` +
+        `Which would you like?`,
         {
           reply_markup: {
             inline_keyboard: [
@@ -332,11 +332,11 @@ export async function handleDurationSelection(
 
     await ctx.editMessageText(
       `${t("create.almost_ready", lang)}\n\n` +
-        `${t("create.niche_label", lang)}: ${niche}\n` +
-        `${t("create.duration_label", lang)}: ${duration}s (${scenes} ${sceneLabel})\n` +
-        `${t("create.credit_cost_label", lang)}: ${creditCost}\n\n` +
-        `\ud83c\udf99\ufe0f Voice Over: ${voLabel}\n` +
-        `\ud83d\udcdd Subtitles: ${subLabel}\n`,
+      `${t("create.niche_label", lang)}: ${niche}\n` +
+      `${t("create.duration_label", lang)}: ${duration}s (${scenes} ${sceneLabel})\n` +
+      `${t("create.credit_cost_label", lang)}: ${creditCost}\n\n` +
+      `\ud83c\udf99\ufe0f Voice Over: ${voLabel}\n` +
+      `\ud83d\udcdd Subtitles: ${subLabel}\n`,
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -410,7 +410,7 @@ export async function handleNicheSelection(
 
     await ctx.editMessageText(
       `✅ ${nicheConfig.emoji} ${nicheConfig.name} ${t("create.niche_selected", lang)}\n\n` +
-        t("create.select_style", lang),
+      t("create.select_style", lang),
       {
         reply_markup: {
           inline_keyboard: styleButtons,
@@ -444,7 +444,7 @@ export async function handleStyleSelection(
     // Show platform picker (new step between style and duration)
     await ctx.editMessageText(
       `${t("create.style_selected", lang)}\n\n` +
-        t("create.select_platform", lang),
+      t("create.select_platform", lang),
       {
         reply_markup: {
           inline_keyboard: [
@@ -521,8 +521,8 @@ export async function handlePlatformSelection(
     // Show duration picker
     await ctx.editMessageText(
       `${t("create.platform_selected", lang)} (${aspectRatio})\n\n` +
-        `${t("create.extend_mode", lang)}\n\n` +
-        t("create.select_duration", lang),
+      `${t("create.extend_mode", lang)}\n\n` +
+      t("create.select_duration", lang),
       {
         reply_markup: {
           inline_keyboard: [
@@ -584,7 +584,8 @@ async function generateVideoAsync(
     logger.info(`🎬 Starting single-scene video generation for job ${jobId}`);
 
     const scene = storyboard[0];
-    const prompt = buildPrompt(scene.description, platform, duration);
+    const customPrompt = ctx.session?.videoCreation?.customPrompt;
+    const prompt = buildPrompt(scene.description, platform, duration, customPrompt);
 
     // Use multi-provider fallback chain
     const result = await generateVideoWithFallback({
@@ -675,7 +676,8 @@ async function generateExtendedVideoAsync(
       logger.info(
         `🎬 Generating scene ${i + 1}/${scenes}: ${scene.description}`,
       );
-      let prompt = buildPrompt(scene.description, platform, scene.duration);
+      const customPrompt = ctx.session?.videoCreation?.customPrompt;
+      let prompt = buildPrompt(scene.description, platform, scene.duration, customPrompt);
 
       // Apply scene consistency: create memory from scene 1, enrich scene 2+
       if (i === 0) {
@@ -859,8 +861,10 @@ function buildPrompt(
   description: string,
   platform: string,
   duration: number,
+  customPrompt?: string | null
 ): string {
-  return `${duration}s ${description}, high quality, ${platform} format, professional style`;
+  const baseDescription = customPrompt ? `${customPrompt} - ${description}` : description;
+  return `${duration}s ${baseDescription}, high quality, ${platform} format, professional style`;
 }
 
 /**
@@ -956,7 +960,7 @@ export function generateCaption(
   const sceneText =
     sceneDescriptions.length > 0
       ? sceneDescriptions[0].charAt(0).toUpperCase() +
-        sceneDescriptions[0].slice(1)
+      sceneDescriptions[0].slice(1)
       : "";
 
   const captionText = sceneText
@@ -1149,11 +1153,11 @@ export async function handleVOToggle(
 
     await ctx.editMessageText(
       `${t("create.almost_ready", lang)}\n\n` +
-        `${t("create.niche_label", lang)}: ${niche}\n` +
-        `${t("create.duration_label", lang)}: ${totalDuration}s (${scenes} ${sceneLabel})\n` +
-        `${t("create.credit_cost_label", lang)}: ${creditCost}\n\n` +
-        `\ud83c\udf99\ufe0f Voice Over: ${voLabel}\n` +
-        `\ud83d\udcdd Subtitles: ${subLabel}\n`,
+      `${t("create.niche_label", lang)}: ${niche}\n` +
+      `${t("create.duration_label", lang)}: ${totalDuration}s (${scenes} ${sceneLabel})\n` +
+      `${t("create.credit_cost_label", lang)}: ${creditCost}\n\n` +
+      `\ud83c\udf99\ufe0f Voice Over: ${voLabel}\n` +
+      `\ud83d\udcdd Subtitles: ${subLabel}\n`,
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -1197,10 +1201,10 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
       // Auto-trigger generation immediately
       await ctx.editMessageText(
         `🚀 *Siap generate!*\n\n` +
-          `📋 Prompt: \`${ctx.session.videoCreation.customPrompt.slice(0, 120)}...\`\n` +
-          `⏱️ Durasi: *${ctx.session.videoCreation.totalDuration} detik*\n` +
-          `🎙️ Voice Over: ON · 📝 Subtitles: ON\n\n` +
-          `Tap Generate untuk mulai!`,
+        `📋 Prompt: \`${ctx.session.videoCreation.customPrompt.slice(0, 120)}...\`\n` +
+        `⏱️ Durasi: *${ctx.session.videoCreation.totalDuration} detik*\n` +
+        `🎙️ Voice Over: ON · 📝 Subtitles: ON\n\n` +
+        `Tap Generate untuk mulai!`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -1235,9 +1239,9 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
 
     await ctx.editMessageText(
       `🎙️ *Pengaturan Suara & Teks*\n\n` +
-        `Voice Over: *${voOn ? "✅ ON" : "❌ OFF"}*\n` +
-        `Subtitles: *${subOn ? "✅ ON" : "❌ OFF"}*\n\n` +
-        `_Voice Over = narasi otomatis AI\nSubtitles = teks di layar_`,
+      `Voice Over: *${voOn ? "✅ ON" : "❌ OFF"}*\n` +
+      `Subtitles: *${subOn ? "✅ ON" : "❌ OFF"}*\n\n` +
+      `_Voice Over = narasi otomatis AI\nSubtitles = teks di layar_`,
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -1293,7 +1297,7 @@ export async function handleCustomPromptRequest(
 
     await ctx.editMessageText(
       `✍️ Type your custom prompt below:\n\n` +
-        `Describe the scenes, mood, style, or specific content you want in your video.`,
+      `Describe the scenes, mood, style, or specific content you want in your video.`,
     );
 
     await ctx.answerCbQuery();

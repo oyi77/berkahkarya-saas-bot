@@ -1,6 +1,4 @@
-import fs from 'fs';
 import path from 'path';
-import { logger } from '@/utils/logger';
 
 export interface FunnelData {
   date: string;
@@ -19,7 +17,7 @@ export class AdsService {
   /**
    * Process and get funnel analytics
    */
-  static async getDailyFunnel(userId: string): Promise<FunnelData[]> {
+  static async getDailyFunnel(_userId: string): Promise<FunnelData[]> {
     // Mocking based on the provided sample data
     return [
       {
@@ -59,21 +57,21 @@ export class AdsService {
    * Generate creative ideas
    */
   static async generateIdeas(count: number = 20): Promise<any[]> {
-      const hooks = [
-          "Rahasia {topic} yang tidak pernah dibahas",
-          "Cara hemat {topic} tanpa ribet",
-          "Kenapa 90% orang gagal di {topic}?",
-          "Fakta {topic} yang bikin mindblown",
-          "#1 kesalahan saat {topic}"
-      ];
-      const topics = ["Tas Wanita", "Smartwatch", "Parfum Anak", "Gorden Minimalis"];
-      
-      const ideas = [];
-      for (let i = 0; i < count; i++) {
-          const topic = topics[Math.floor(Math.random() * topics.length)];
-          const hook = hooks[Math.floor(Math.random() * hooks.length)].replace("{topic}", topic);
-          ideas.push({ topic, hook });
-      }
-      return ideas;
+    const hooks = [
+      "Rahasia {topic} yang tidak pernah dibahas",
+      "Cara hemat {topic} tanpa ribet",
+      "Kenapa 90% orang gagal di {topic}?",
+      "Fakta {topic} yang bikin mindblown",
+      "#1 kesalahan saat {topic}"
+    ];
+    const topics = ["Tas Wanita", "Smartwatch", "Parfum Anak", "Gorden Minimalis"];
+
+    const ideas = [];
+    for (let i = 0; i < count; i++) {
+      const topic = topics[Math.floor(Math.random() * topics.length)];
+      const hook = hooks[Math.floor(Math.random() * hooks.length)].replace("{topic}", topic);
+      ideas.push({ topic, hook });
+    }
+    return ideas;
   }
 }

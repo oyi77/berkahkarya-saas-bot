@@ -97,7 +97,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // API: List users
-  server.get('/api/users', async (request, reply) => {
+  server.get('/api/users', async (request, _reply) => {
     const query = request.query as { limit?: string; offset?: string };
     const limit = parseInt(query.limit || '50');
     const offset = parseInt(query.offset || '0');
@@ -159,7 +159,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // API: Ban/Unban user
-  server.post('/api/users/:id/ban', async (request, reply) => {
+  server.post('/api/users/:id/ban', async (request, _reply) => {
     const params = request.params as { id: string };
     const body = request.body as { banned: boolean; reason?: string };
 
@@ -176,7 +176,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // API: List transactions
-  server.get('/api/transactions', async (request, reply) => {
+  server.get('/api/transactions', async (request, _reply) => {
     const query = request.query as { status?: string; limit?: string };
     const limit = parseInt(query.limit || '50');
 
@@ -200,7 +200,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // API: List videos
-  server.get('/api/videos', async (request, reply) => {
+  server.get('/api/videos', async (request, _reply) => {
     const query = request.query as { status?: string; limit?: string };
     const limit = parseInt(query.limit || '50');
 
@@ -1415,7 +1415,7 @@ function generatePricingDashboardHTML(): string {
         + '<td><select class="pk-popular"><option value="false"' + (!p.popular ? ' selected' : '') + '>No</option><option value="true"' + (p.popular ? ' selected' : '') + '>Yes</option></select></td>'
         + '<td><div class="btn-group">'
         + '<button class="btn btn-primary" onclick="savePackage(this)">Save</button>'
-        + '<button class="btn btn-danger" onclick="deleteRow(this, \'package\')">Delete</button>'
+        + '<button class="btn btn-danger" onclick="deleteRow(this, 'package')">Delete</button>'
         + '</div></td></tr>';
     }
 
@@ -1460,7 +1460,7 @@ function generatePricingDashboardHTML(): string {
         + '<td><input type="number" class="sub-daily" value="' + (s.dailyLimit || 0) + '" /></td>'
         + '<td><div class="btn-group">'
         + '<button class="btn btn-primary" onclick="saveSubscription(this)">Save</button>'
-        + '<button class="btn btn-danger" onclick="deleteRow(this, \'subscription\')">Delete</button>'
+        + '<button class="btn btn-danger" onclick="deleteRow(this, 'subscription')">Delete</button>'
         + '</div></td></tr>';
     }
 
@@ -1497,7 +1497,7 @@ function generatePricingDashboardHTML(): string {
           + '<td class="pc-calc" style="color:#facc15">' + creditCost.toFixed(2) + '</td>'
           + '<td><div class="btn-group">'
           + '<button class="btn btn-primary" onclick="saveProviderCost(this)">Save</button>'
-          + '<button class="btn btn-danger" onclick="deleteRow(this, \'provider_cost\')">Delete</button>'
+          + '<button class="btn btn-danger" onclick="deleteRow(this, 'provider_cost')">Delete</button>'
           + '</div></td></tr>';
       }
       tbody.innerHTML = rows;
@@ -1519,7 +1519,7 @@ function generatePricingDashboardHTML(): string {
         + '<td class="pc-calc" style="color:#facc15">0.00</td>'
         + '<td><div class="btn-group">'
         + '<button class="btn btn-primary" onclick="saveProviderCost(this)">Save</button>'
-        + '<button class="btn btn-danger" onclick="deleteRow(this, \'provider_cost\')">Delete</button>'
+        + '<button class="btn btn-danger" onclick="deleteRow(this, 'provider_cost')">Delete</button>'
         + '</div></td></tr>'
       );
     }

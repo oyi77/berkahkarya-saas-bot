@@ -19,7 +19,7 @@ import { settingsCommand } from "./settings";
 import { videosCommand } from "./videos";
 import { subscriptionCommand } from "./subscription";
 import { supportCommand } from "./support";
-import { reportTodayCommand, creativeIdeasCommand } from "./ads";
+
 import { chatCommand } from "./grok";
 import { socialCommand } from "./social";
 import {
@@ -29,6 +29,7 @@ import {
   fingerprintCommand,
 } from "./prompts";
 import { cancelCommand } from "./cancel";
+import { sendCommand } from "./send";
 
 // New redesigned flows
 export * from "./create-new";
@@ -60,6 +61,7 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("subscription", subscriptionCommand);
   bot.command("support", supportCommand);
   bot.command("cancel", cancelCommand);
+  bot.command("send", sendCommand);
   // AI chat (OmniRoute — cheapest/free model)
   bot.command("chat", chatCommand);
   bot.command("ask", chatCommand); // Alias

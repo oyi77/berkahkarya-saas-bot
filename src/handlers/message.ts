@@ -85,10 +85,10 @@ async function handleDisassemble(ctx: BotContext): Promise<void> {
     if (result.success && result.prompt) {
       await ctx.reply(
         `✅ *Prompt Extracted:*\n\n` +
-          `\`\`\`\n${result.prompt.slice(0, 1000)}\n\`\`\`\n\n` +
-          `*Style:* ${result.style || "N/A"}\n` +
-          `*Elements:* ${result.elements?.slice(0, 5).join(", ") || "N/A"}\n\n` +
-          `_Use this prompt to create similar content!_`,
+        `\`\`\`\n${result.prompt.slice(0, 1000)}\n\`\`\`\n\n` +
+        `*Style:* ${result.style || "N/A"}\n` +
+        `*Elements:* ${result.elements?.slice(0, 5).join(", ") || "N/A"}\n\n` +
+        `_Use this prompt to create similar content!_`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -114,8 +114,8 @@ async function handleDisassemble(ctx: BotContext): Promise<void> {
     } else {
       await ctx.reply(
         `❌ *Extraction Failed*\n\n` +
-          `Error: ${result.error || "Unknown error"}\n\n` +
-          `Please try again with a different image or video.`,
+        `Error: ${result.error || "Unknown error"}\n\n` +
+        `Please try again with a different image or video.`,
         { parse_mode: "Markdown" },
       );
     }
@@ -263,13 +263,13 @@ export async function handleVideoCreationImage(
 
     await ctx.reply(
       `*Video Job Created!*\n\n` +
-        `Job ID: \`${jobId}\`\n` +
-        `Credits used: ${creditCost}\n\n` +
-        `\ud83d\udcf8 ${photos.length} reference photo(s) received!\n` +
-        (visionInsights ? `\ud83d\udd0d AI Vision analysis complete\n` : "") +
-        `\ud83c\udfac Starting generation...\n\n` +
-        `Scenes: ${scenes} | Duration: ${totalDuration}s\n` +
-        `ETA: ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes`,
+      `Job ID: \`${jobId}\`\n` +
+      `Credits used: ${creditCost}\n\n` +
+      `\ud83d\udcf8 ${photos.length} reference photo(s) received!\n` +
+      (visionInsights ? `\ud83d\udd0d AI Vision analysis complete\n` : "") +
+      `\ud83c\udfac Starting generation...\n\n` +
+      `Scenes: ${scenes} | Duration: ${totalDuration}s\n` +
+      `ETA: ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes`,
       { parse_mode: "Markdown" },
     );
 
@@ -359,8 +359,8 @@ export async function handleVideoCreationImage(
     const userMessage = actionableError(error.message || String(error));
     await ctx.reply(
       `${userMessage}\n\n` +
-        `${creditsDeducted ? "Credits have been refunded." : ""}\n\n` +
-        `Please send the image again or type /skip to generate without a reference.`,
+      `${creditsDeducted ? "Credits have been refunded." : ""}\n\n` +
+      `Please send the image again or type /skip to generate without a reference.`,
       { parse_mode: "Markdown" },
     );
   }
@@ -399,12 +399,12 @@ export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
 
   await ctx.reply(
     `✅ **Video Job Created!**\n\n` +
-      `Job ID: \`${jobId}\`\n` +
-      `Credits used: ${creditCost}\n\n` +
-      `⏭️ No reference image — AI will generate everything.\n` +
-      `🎬 Starting generation...\n\n` +
-      `Scenes: ${scenes} | Duration: ${totalDuration}s\n` +
-      `⏳ ETA: ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes`,
+    `Job ID: \`${jobId}\`\n` +
+    `Credits used: ${creditCost}\n\n` +
+    `⏭️ No reference image — AI will generate everything.\n` +
+    `🎬 Starting generation...\n\n` +
+    `Scenes: ${scenes} | Duration: ${totalDuration}s\n` +
+    `⏳ ETA: ${Math.ceil(scenes * 2)}-${Math.ceil(scenes * 5)} minutes`,
     { parse_mode: "Markdown" },
   );
 
@@ -600,10 +600,10 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         `🎬 **Almost Ready!**\n\n` +
-          `Requested: ${duration}s → Optimized: ${finalDuration}s (${bestFit.scenes} × ${bestFit.durationPerScene}s)\n` +
-          `💰 Credit cost: ${creditCost}\n\n` +
-          `📸 **Send a reference image** for your video,\n` +
-          `or type /skip to let AI generate everything.`,
+        `Requested: ${duration}s → Optimized: ${finalDuration}s (${bestFit.scenes} × ${bestFit.durationPerScene}s)\n` +
+        `💰 Credit cost: ${creditCost}\n\n` +
+        `📸 **Send a reference image** for your video,\n` +
+        `or type /skip to let AI generate everything.`,
         { parse_mode: "Markdown" },
       );
 
@@ -660,8 +660,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           const niche = _PL[nicheKey];
           await ctx.reply(
             `✅ *Prompt tersimpan ke ${niche?.emoji || ""} ${niche?.label || nicheKey}!*\n\n` +
-              `\`${promptText.slice(0, 150)}${promptText.length > 150 ? "..." : ""}\`\n\n` +
-              `Mau langsung pakai prompt ini?`,
+            `\`${promptText.slice(0, 150)}${promptText.length > 150 ? "..." : ""}\`\n\n` +
+            `Mau langsung pakai prompt ini?`,
             {
               parse_mode: "Markdown",
               reply_markup: {
@@ -715,7 +715,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       ctx.session.videoCreation.waitingForImage = true;
       await ctx.reply(
         `✅ Custom prompt saved!\n\n` +
-          `📸 Now send a reference image for your video, or type /skip to let AI generate everything.`,
+        `📸 Now send a reference image for your video, or type /skip to let AI generate everything.`,
         { parse_mode: "Markdown" },
       );
       return;
@@ -741,9 +741,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
         await ctx.reply(
           `✅ *Account Connected!*\n\n` +
-            `Platform: ${platform.toUpperCase()}\n` +
-            `Account ID: \`${accountId}\`\n\n` +
-            `You can now publish videos to this account.`,
+          `Platform: ${platform.toUpperCase()}\n` +
+          `Account ID: \`${accountId}\`\n\n` +
+          `You can now publish videos to this account.`,
           {
             parse_mode: "Markdown",
             reply_markup: {
@@ -763,8 +763,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         logger.error("Failed to connect account:", error);
         await ctx.reply(
           `❌ Failed to connect account.\n\n` +
-            `Error: ${error.message || "Unknown error"}\n\n` +
-            `Please try again or contact support.`,
+          `Error: ${error.message || "Unknown error"}\n\n` +
+          `Please try again or contact support.`,
         );
       }
 
@@ -794,126 +794,127 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       } else {
         // Handle reply keyboard buttons — route to proper command handlers
         switch (text) {
-        case "🎬 Create Video":
-        case "🚀 Get Started":
-          await createCommand(ctx);
-          return;
+          case "🎬 Create Video":
+          case "🚀 Get Started":
+            await createCommand(ctx);
+            return;
 
-        case "🖼️ Generate Image":
-          await ctx.reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
-                [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
-                [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
-                [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
-              ],
-            },
-          });
-          return;
+          case "🖼️ Generate Image":
+            await ctx.reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
+              parse_mode: "Markdown",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
+                  [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
+                  [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
+                  [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
+                ],
+              },
+            });
+            return;
 
-        case "💬 Chat AI":
-          await ctx.reply(
-            "💬 *AI Assistant aktif!*\n\n" +
+          case "💬 Chat AI":
+            await ctx.reply(
+              "💬 *AI Assistant aktif!*\n\n" +
               "Langsung ketik pertanyaan kamu sekarang.\n\n" +
               "*Contoh yang bisa kamu tanya:*\n" +
               '• _"Bikinin prompt untuk bakso saya"_\n' +
               '• _"Tips video TikTok F\\&B yang viral"_\n' +
               '• _"Niche apa yang paling cuan?"_\n\n' +
               "Atau ketik /prompts untuk template siap pakai 📚",
-            { parse_mode: "MarkdownV2" },
-          );
-          if (ctx.session) ctx.session.state = "DASHBOARD";
-          return;
+              { parse_mode: "MarkdownV2" },
+            );
+            if (ctx.session) ctx.session.state = "DASHBOARD";
+            return;
 
-        case "📁 My Videos":
-          await videosCommand(ctx);
-          return;
+          case "📁 My Videos":
+            await videosCommand(ctx);
+            return;
 
-        case "💰 Top Up":
-          await topupCommand(ctx);
-          return;
+          case "💰 Top Up":
+            await topupCommand(ctx);
+            return;
 
-        case "⭐ Subscription":
-          await subscriptionCommand(ctx);
-          return;
+          case "⭐ Subscription":
+            await subscriptionCommand(ctx);
+            return;
 
-        case "👤 Profile":
-          await profileCommand(ctx);
-          return;
+          case "👤 Profile":
+            await profileCommand(ctx);
+            return;
 
-        case "👥 Referral":
-          await referralCommand(ctx);
-          return;
+          case "👥 Referral":
+            await referralCommand(ctx);
+            return;
 
-        case "⚙️ Settings":
-          await settingsCommand(ctx);
-          return;
+          case "⚙️ Settings":
+            await settingsCommand(ctx);
+            return;
 
-        case "🆘 Support":
-          await supportCommand(ctx);
-          return;
+          case "🆘 Support":
+            await supportCommand(ctx);
+            return;
 
-        // ── NEW: Prompt Library keyboard buttons ──────────────────────────
-        case "📚 Prompt Library":
-          await promptsCommand(ctx);
-          return;
+          // ── NEW: Prompt Library keyboard buttons ──────────────────────────
+          case "📚 Prompt Library":
+            await promptsCommand(ctx);
+            return;
 
-        case "🔥 Trending":
-          await trendingCommand(ctx);
-          return;
+          case "🔥 Trending":
+            await trendingCommand(ctx);
+            return;
 
-        case "🎁 Daily Prompt":
-          await dailyCommand(ctx);
-          return;
+          case "🎁 Daily Prompt":
+            await dailyCommand(ctx);
+            return;
 
-        default: {
-          // Natural language → route to AI chat assistant
-          const trimmed = text.trim();
-          if (trimmed.length > 2 && !trimmed.startsWith("/")) {
-            const omni = getOmniRouteService();
-            const userId = String(ctx.from?.id || "unknown");
-            try {
-              const loadingId = await sendVilonaLoading(ctx, "thinking");
-              const result = await omni.chat(userId, trimmed);
-              if (loadingId) {
-                await ctx.telegram
-                  .deleteMessage(ctx.chat!.id, loadingId)
-                  .catch(() => {});
-              }
-              if (result.success && result.content) {
-                try {
-                  await ctx.reply(result.content, { parse_mode: "Markdown" });
-                } catch {
-                  await ctx.reply(result.content);
+          default: {
+            // Natural language → route to AI chat assistant
+            const trimmed = text.trim();
+            if (trimmed.length > 2 && !trimmed.startsWith("/")) {
+              const omni = getOmniRouteService();
+              const userId = String(ctx.from?.id || "unknown");
+              try {
+                const loadingId = await sendVilonaLoading(ctx, "thinking");
+                const result = await omni.chat(userId, trimmed);
+                if (loadingId) {
+                  await ctx.telegram
+                    .deleteMessage(ctx.chat!.id, loadingId)
+                    .catch(() => { });
                 }
-                return;
+                if (result.success && result.content) {
+                  try {
+                    await ctx.reply(result.content, { parse_mode: "Markdown" });
+                  } catch {
+                    await ctx.reply(result.content);
+                  }
+                  return;
+                }
+              } catch {
+                /* fall through to menu */
               }
-            } catch {
-              /* fall through to menu */
             }
-          }
-          // Fallback: show menu
-          await ctx.reply(
-            "❓ Ketik pertanyaan kamu atau pilih dari menu:\n\n" +
+            // Fallback: show menu
+            await ctx.reply(
+              "❓ Ketik pertanyaan kamu atau pilih dari menu:\n\n" +
               "📚 /prompts — Template prompt siap pakai\n" +
               "🎬 /create — Buat video baru\n" +
               "🎁 /daily — Prompt gratis hari ini\n" +
               "💬 /chat — Chat dengan AI",
-            {
-              reply_markup: {
-                keyboard: [
-                  [{ text: "📚 Prompt Library" }, { text: "🔥 Trending" }],
-                  [{ text: "🎬 Create Video" }, { text: "🖼️ Generate Image" }],
-                  [{ text: "🎁 Daily Prompt" }, { text: "💬 Chat AI" }],
-                  [{ text: "💰 Top Up" }, { text: "⭐ Subscription" }],
-                  [{ text: "👤 Profile" }, { text: "🆘 Support" }],
-                ],
-                resize_keyboard: true,
+              {
+                reply_markup: {
+                  keyboard: [
+                    [{ text: "📚 Prompt Library" }, { text: "🔥 Trending" }],
+                    [{ text: "🎬 Create Video" }, { text: "🖼️ Generate Image" }],
+                    [{ text: "🎁 Daily Prompt" }, { text: "💬 Chat AI" }],
+                    [{ text: "💰 Top Up" }, { text: "⭐ Subscription" }],
+                    [{ text: "👤 Profile" }, { text: "🆘 Support" }],
+                  ],
+                  resize_keyboard: true,
+                },
               },
-            },
-          );
+            );
+          }
         }
       }
     }
@@ -969,8 +970,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         `📸 *Reference image received!*\n\n` +
-          `Now describe what you want to generate:\n\n` +
-          `_Example: "Product on marble table with soft studio lighting, marketing photo"_`,
+        `Now describe what you want to generate:\n\n` +
+        `_Example: "Product on marble table with soft studio lighting, marketing photo"_`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -995,7 +996,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         `📸 *Photo received!*\n\n` +
-          `Give this avatar a name (e.g., "Sarah", "Product Model", "Brand Mascot"):`,
+        `Give this avatar a name (e.g., "Sarah", "Product Model", "Brand Mascot"):`,
         { parse_mode: "Markdown" },
       );
       return;
@@ -1024,9 +1025,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
         await ctx.reply(
           `✅ *Avatar "${avatar.name}" saved!*\n` +
-            `${avatar.isDefault ? "⭐ Set as default avatar\n" : ""}\n` +
-            `${avatar.description ? `_${avatar.description.slice(0, 200)}_\n\n` : ""}` +
-            `You can now use this avatar when generating images to keep consistent characters.`,
+          `${avatar.isDefault ? "⭐ Set as default avatar\n" : ""}\n` +
+          `${avatar.description ? `_${avatar.description.slice(0, 200)}_\n\n` : ""}` +
+          `You can now use this avatar when generating images to keep consistent characters.`,
           {
             parse_mode: "Markdown",
             reply_markup: {
@@ -1082,9 +1083,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       if (!userImg || Number(userImg.creditBalance) < estimatedCost) {
         await ctx.reply(
           `❌ *Kredit tidak cukup*\n\n` +
-            `Image generation: ${estimatedCost} kredit\n` +
-            `Saldo kamu: ${userImg?.creditBalance || 0} kredit\n\n` +
-            `Gunakan /topup untuk menambah kredit.`,
+          `Image generation: ${estimatedCost} kredit\n` +
+          `Saldo kamu: ${userImg?.creditBalance || 0} kredit\n\n` +
+          `Gunakan /topup untuk menambah kredit.`,
           { parse_mode: "Markdown" },
         );
         ctx.session.state = "DASHBOARD";
@@ -1093,7 +1094,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         `⏳ *Generating image${modeLabel}...*\n\n` +
-          "This may take 30-60 seconds.",
+        "This may take 30-60 seconds.",
         { parse_mode: "Markdown" },
       );
 
@@ -1141,12 +1142,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
           const caption = isDemo
             ? `🖼️ *Sample Image (Demo)*\n\n` +
-              `_Description: ${description}_\n\n` +
-              `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
-              `The actual product will generate images matching your description.`
+            `_Description: ${description}_\n\n` +
+            `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
+            `The actual product will generate images matching your description.`
             : `✅ *Gambar Berhasil Dibuat!*\n\n` +
-              `_Deskripsi: ${description}_${modeInfo}\n\n` +
-              `Mau lanjut apa?`;
+            `_Deskripsi: ${description}_${modeInfo}\n\n` +
+            `Mau lanjut apa?`;
 
           let photoSource: string | { source: Buffer };
           let isBase64 = false;
@@ -1180,8 +1181,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         } else {
           await ctx.reply(
             `❌ *Generate Gagal*\n\n` +
-              `${result.error || "Unknown error"}\n\n` +
-              `Coba lagi dengan deskripsi yang berbeda.`,
+            `${result.error || "Unknown error"}\n\n` +
+            `Coba lagi dengan deskripsi yang berbeda.`,
             {
               parse_mode: "Markdown",
               reply_markup: {
@@ -1221,7 +1222,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         "⏳ *Analyzing video...*\n\n" +
-          "Extracting style and creating prompt...",
+        "Extracting style and creating prompt...",
         { parse_mode: "Markdown" },
       );
 
@@ -1271,7 +1272,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         } else {
           await ctx.reply(
             `❌ *Analysis Failed*\n\n` +
-              `Error: ${result.error || "Unknown error"}`,
+            `Error: ${result.error || "Unknown error"}`,
             { parse_mode: "Markdown" },
           );
         }
@@ -1338,7 +1339,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         "⏳ *Analyzing image...*\n\n" +
-          "Extracting style and creating prompt...",
+        "Extracting style and creating prompt...",
         { parse_mode: "Markdown" },
       );
 
@@ -1356,9 +1357,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
           await ctx.reply(
             `✅ Image Style Extracted:\n\n` +
-              `${cleanPrompt}\n\n` +
-              `Style: ${result.style || "N/A"}\n\n` +
-              `Ready to generate a similar image?`,
+            `${cleanPrompt}\n\n` +
+            `Style: ${result.style || "N/A"}\n\n` +
+            `Ready to generate a similar image?`,
             {
               reply_markup: {
                 inline_keyboard: [
@@ -1378,7 +1379,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         } else {
           await ctx.reply(
             `❌ *Analysis Failed*\n\n` +
-              `Error: ${result.error || "Unknown error"}`,
+            `Error: ${result.error || "Unknown error"}`,
             { parse_mode: "Markdown" },
           );
         }
@@ -1417,7 +1418,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       if (currentPhotos.length >= MAX_PHOTOS) {
         await ctx.reply(
           `You have already uploaded ${MAX_PHOTOS} photos (maximum).\n\n` +
-            `Tap "Generate Now" to start video creation, or /skip to generate without references.`,
+          `Tap "Generate Now" to start video creation, or /skip to generate without references.`,
           {
             reply_markup: {
               inline_keyboard: [
@@ -1468,21 +1469,21 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
         await ctx.reply(
           `📸 ${finalCount} photo(s) received!` +
-            (finalCount < MAX_PHOTOS
-              ? " Send more or tap Generate."
-              : " Maximum reached — tap Generate."),
+          (finalCount < MAX_PHOTOS
+            ? " Send more or tap Generate."
+            : " Maximum reached — tap Generate."),
           {
             reply_markup: {
               inline_keyboard: [
                 ...(finalCount < MAX_PHOTOS
                   ? [
-                      [
-                        {
-                          text: "📸 Add More",
-                          callback_data: "add_more_photos",
-                        },
-                      ],
-                    ]
+                    [
+                      {
+                        text: "📸 Add More",
+                        callback_data: "add_more_photos",
+                      },
+                    ],
+                  ]
                   : []),
                 [
                   {
@@ -1506,9 +1507,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       // Single photo upload (no media group) — reply immediately
       await ctx.reply(
         `📸 Photo ${count}/${MAX_PHOTOS} received!` +
-          (count < MAX_PHOTOS
-            ? " Send more photos or tap Generate."
-            : " Maximum reached — tap Generate."),
+        (count < MAX_PHOTOS
+          ? " Send more photos or tap Generate."
+          : " Maximum reached — tap Generate."),
         {
           reply_markup: {
             inline_keyboard: [

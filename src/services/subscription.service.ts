@@ -9,7 +9,7 @@ export class SubscriptionService {
     telegramId: bigint,
     plan: PlanKey,
     billingCycle: BillingCycle,
-    transactionId: string
+    _transactionId: string
   ): Promise<Subscription> {
     const planConfig = SUBSCRIPTION_PLANS[plan];
     const now = new Date();
@@ -138,10 +138,20 @@ export class SubscriptionService {
     });
 
     for (const sub of dueForRenewal) {
-      await this.renewSubscription(sub.id);
+      // Auto-renewal requires user payment gateway config (e.g., Midtrans/Duitku recurring API).
+      // Since it's not implemented, we degrade to manual renewal: expire the subscription.
+      await prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: 'expired' },
+      });
+      await prisma.user.update({
+        where: { telegramId: sub.userId },
+        data: { tier: 'free', creditBalance: 0, creditExpiresAt: null },
+      });
+      logger.info(`Subscription expired (requires manual renewal) for user ${sub.userId}`);
     }
 
-    logger.info(`Processed ${expiredCancelled.length} expired + ${dueForRenewal.length} renewed subscriptions`);
+    logger.info(`Processed ${expiredCancelled.length} cancelled + ${dueForRenewal.length} manual-renewal subscriptions`);
     return expiredCancelled.length + dueForRenewal.length;
   }
 

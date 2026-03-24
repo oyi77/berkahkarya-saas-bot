@@ -773,7 +773,7 @@ async function loadDashboard() {
   const recent = videos.slice(0, 4);
   const container = document.getElementById('recent-videos');
   if (recent.length === 0) {
-    container.innerHTML = '<div class="empty"><div class="icon">🎬</div><h3>Belum ada video</h3><p>Buat video pertamamu sekarang!</p><button class="btn btn-primary" onclick="nav(\'create\')" style="margin-top:16px">Buat Video</button></div>';
+    container.innerHTML = '<div class="empty"><div class="icon">🎬</div><h3>Belum ada video</h3><p>Buat video pertamamu sekarang!</p><button class="btn btn-primary" onclick="nav('create')" style="margin-top:16px">Buat Video</button></div>';
   } else {
     container.innerHTML = recent.map(v => videoCard(v)).join('');
   }
@@ -891,7 +891,7 @@ function renderCreateStep() {
           <span style="font-size:14px">Biaya</span>
           <span style="font-size:18px;font-weight:700;color:var(--accent)">\${creditCost} Credits</span>
         </div>
-        \${!canAfford ? '<div style="margin-top:12px;color:var(--danger);font-size:13px">⚠️ Credits tidak cukup. <a href="#" onclick="nav(\'billing\')" style="color:var(--accent)">Top Up sekarang</a></div>' : ''}
+        \${!canAfford ? '<div style="margin-top:12px;color:var(--danger);font-size:13px">⚠️ Credits tidak cukup. <a href="#" onclick="nav('billing')" style="color:var(--accent)">Top Up sekarang</a></div>' : ''}
       </div>
       <div style="display:flex;gap:12px">
         <button class="btn btn-outline" onclick="createState.step=4;renderCreateStep()">← Kembali</button>
@@ -977,7 +977,7 @@ async function loadVideos() {
 function loadVideosList(videos) {
   const container = document.getElementById('videos-container');
   if (!videos || videos.length === 0) {
-    container.innerHTML = '<div class="empty"><div class="icon">📁</div><h3>Belum ada video</h3><p>Buat video pertamamu!</p><button class="btn btn-primary" onclick="nav(\'create\')" style="margin-top:16px">Buat Video</button></div>';
+    container.innerHTML = '<div class="empty"><div class="icon">📁</div><h3>Belum ada video</h3><p>Buat video pertamamu!</p><button class="btn btn-primary" onclick="nav('create')" style="margin-top:16px">Buat Video</button></div>';
     return;
   }
   container.innerHTML = videos.map(v => videoCard(v)).join('');

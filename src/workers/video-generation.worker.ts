@@ -254,7 +254,7 @@ async function applyVOPipeline(
   platform: string,
   storyboard: Array<{ scene: number; duration: number; description: string }>,
   totalDuration: number,
-  options: { enableVO: boolean; enableSubtitles: boolean; language?: string  },
+  options: { enableVO: boolean; enableSubtitles: boolean; language?: string },
   telegram: Telegram,
   chatId: number
 ): Promise<string> {
@@ -381,7 +381,7 @@ async function processSingleScene(
 
   await notifyProgress(telegram, chatId, '\u2705 Video generated! Downloading and processing...');
 
-  let localPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
+  const localPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
   await downloadVideo(result.videoUrl, localPath);
 
   // Watermark removal: detect and clean any provider watermarks (free: Gemini + FFmpeg)
@@ -551,7 +551,7 @@ async function processExtendedScenes(
 
   // ── Scene 0: generate first (may use referenceImage / GeminiGen extend) ──
   try {
-    const { result, scenePath } = await generateSceneWithRetry(0, false, null);
+    const { result: _result, scenePath } = await generateSceneWithRetry(0, false, null);
     sceneVideos[0] = scenePath;
 
     const progress = Math.round((1 / scenes) * 80);

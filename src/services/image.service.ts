@@ -812,7 +812,7 @@ export class ImageGenerationService {
 
     // ── Watermark pre-processing ──
     // Clean reference images before using them (free: Gemini Vision + FFmpeg)
-    let cleanedRefUrl = params.referenceImageUrl;
+    const cleanedRefUrl = params.referenceImageUrl;
     if (cleanedRefUrl && (mode === 'img2img' || mode === 'ip_adapter')) {
       try {
         const cleanedPath = await WatermarkService.cleanImage(cleanedRefUrl);

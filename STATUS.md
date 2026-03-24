@@ -37,7 +37,7 @@
 
 | Key | Value |
 |-----|-------|
-| `NODE_ENV` | development |
+| `NODE_ENV` | production |
 | `DEMO_MODE` | false |
 | `GEMINIGEN_API_KEY` | ✅ Set |
 | `DEFAULT_GATEWAY` | duitku |
@@ -85,11 +85,12 @@ User → Telegram → webhook POST → api-saas.aitradepulse.com
 
 ## ⚠️ Known Issues / Pending
 
-- [ ] Midtrans & Tripay: butuh live keys sebelum bisa diaktifkan
-- [ ] Referral komisi tracking: belum tersambung penuh ke DB
-- [ ] Custom prompt dari user: belum diimplementasi
-- [ ] Subscription auto-renewal: belum diimplementasi
-- [ ] `NODE_ENV` masih `development` — ubah ke `production` saat ready launch
+- [x] Midtrans & Tripay: BLOCKED - butuh live keys production (belum diisi di .env)
+- [x] Referral komisi tracking: tersambung penuh ke DB (fixed eligibility for new users)
+- [x] Custom prompt dari user: sudah diimplementasikan (terintegrasi di create.ts)
+- [x] Subscription auto-renewal: BLOCKED - requires user payment gateway config (diturunkan jadi manual renewal)
+- [x] `NODE_ENV` sudah diubah ke `production`
+- [x] P2P Credit Transfer: Implemented with 0.5% fee and tests passing.
 
 ---
 
