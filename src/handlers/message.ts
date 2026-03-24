@@ -777,8 +777,17 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     if ("text" in message) {
       const text = message.text;
 
-      // Handle reply keyboard buttons — route to proper command handlers
-      switch (text) {
+      // Check for active workflow states FIRST — before routing to menu/AI chat
+      // This ensures prompts typed during image/video creation are captured correctly
+      if (ctx.session?.state === "IMAGE_GENERATION_WAITING") {
+        // Will be handled by the IMAGE_GENERATION_WAITING handler below
+      } else if (ctx.session?.state === "CLONE_EDIT_DESC_WAITING") {
+        // Will be handled by the CLONE_EDIT_DESC_WAITING handler below
+      } else if (ctx.session?.state === "VIDEO_CREATE_TEXT") {
+        // Will be handled by the VIDEO_CREATE_TEXT handler below
+      } else {
+        // Handle reply keyboard buttons — route to proper command handlers
+        switch (text) {
         case "🎬 Create Video":
         case "🚀 Get Started":
           await createCommand(ctx);
