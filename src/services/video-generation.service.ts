@@ -12,7 +12,7 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { CircuitBreaker } from '@/services/circuit-breaker.service';
 import { PromptOptimizer } from '@/services/prompt-optimizer.service';
-import { PROVIDER_CONFIG, VIDEO_PROVIDERS_SORTED } from '@/config/providers';
+import { VIDEO_PROVIDERS_SORTED } from '@/config/providers';
 import { getVideoCreditCost } from '@/config/pricing';
 
 // Configuration

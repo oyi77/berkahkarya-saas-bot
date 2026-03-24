@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BerkahKarya — Dashboard</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0a0a1a;--bg2:#111127;--sidebar-w:240px;
+      --card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);
+      --accent:#00d9ff;--accent2:#00ff88;--grad:linear-gradient(135deg,#00d9ff,#00ff88);
+      --text:#fff;--dim:rgba(255,255,255,0.55);--danger:#ff4757;--warn:#ffa502;--ok:#2ed573;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+    a{color:inherit;text-decoration:none}
+
+    /* LAYOUT */
+    .app{display:flex;flex:1;min-height:100vh}
+    .sidebar{width:var(--sidebar-w);background:rgba(0,0,0,0.25);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:50}
+    .sidebar-logo{padding:0 20px 24px;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;border-bottom:1px solid var(--border);margin-bottom:12px}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--dim);cursor:pointer;transition:all .2s;font-size:14px;font-weight:500;border-left:3px solid transparent}
+    .nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+    .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,217,255,0.05)}
+    .sidebar-bottom{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
+    .credits-pill{background:var(--grad);color:#0a0a1a;padding:8px 16px;border-radius:20px;font-weight:700;font-size:13px;display:inline-block;cursor:pointer;white-space:nowrap}
+
+    .main{margin-left:var(--sidebar-w);flex:1;padding:32px;min-height:100vh}
+    .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+    .page-title{font-size:24px;font-weight:800}
+    .user-greeting{font-size:13px;color:var(--dim)}
+
+    /* VIEWS */
+    .view{display:none;animation:fadeIn .25s ease}
+    .view.active{display:block}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* CARDS */
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px}
+    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+    .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
+    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px}
+
+    /* STATS CARDS */
+    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
+    .stat-card .label{font-size:12px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+    .stat-card .value{font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-card .sub{font-size:12px;color:var(--dim);margin-top:4px}
+
+    /* ACTION CARDS */
+    .action-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center;cursor:pointer;transition:all .25s}
+    .action-card:hover{background:rgba(255,255,255,0.07);transform:translateY(-3px);border-color:rgba(0,217,255,0.25)}
+    .action-card .icon{font-size:28px;margin-bottom:10px}
+    .action-card h3{font-size:14px;font-weight:600}
+
+    /* FORM */
+    .form-group{margin-bottom:20px}
+    .form-label{display:block;font-size:13px;color:var(--dim);margin-bottom:8px;font-weight:500}
+    input,select,textarea{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;font-size:14px;transition:border-color .2s;outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    textarea{resize:vertical;min-height:90px}
+    select option{background:#111127}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:12px;font-size:14px;font-weight:600;border:none;cursor:pointer;transition:all .25s;text-decoration:none}
+    .btn-primary{background:var(--grad);color:#0a0a1a}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(0,217,255,0.3)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
+    .btn-outline:hover{background:var(--card);border-color:var(--accent)}
+    .btn-danger{background:rgba(255,71,87,0.1);color:var(--danger);border:1px solid rgba(255,71,87,0.2)}
+    .btn-sm{padding:7px 14px;font-size:12px;border-radius:8px}
+    .btn-full{width:100%}
+
+    /* NICHE GRID */
+    .niche-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+    .niche-btn{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .2s;font-size:13px;font-weight:600}
+    .niche-btn:hover{border-color:var(--accent);background:rgba(0,217,255,0.05)}
+    .niche-btn.selected{border-color:var(--accent);background:rgba(0,217,255,0.12);color:var(--accent)}
+    .niche-btn .ni{font-size:24px;display:block;margin-bottom:6px}
+
+    /* STYLE CHIPS */
+    .chip-group{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s}
+    .chip:hover{border-color:var(--accent)}
+    .chip.selected{background:rgba(0,217,255,0.12);border-color:var(--accent);color:var(--accent)}
+
+    /* DURATION BUTTONS */
+    .dur-group{display:flex;gap:10px;flex-wrap:wrap}
+    .dur-btn{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+    .dur-btn:hover{border-color:var(--accent)}
+    .dur-btn.selected{background:rgba(0,217,255,0.12);border-color:var(--accent);color:var(--accent)}
+
+    /* STEPS */
+    .step-indicator{display:flex;gap:6px;margin-bottom:28px}
+    .step-dot{width:28px;height:4px;background:var(--border);border-radius:2px;transition:background .3s}
+    .step-dot.done{background:var(--accent)}
+    .step-header{font-size:18px;font-weight:700;margin-bottom:6px}
+    .step-sub{font-size:13px;color:var(--dim);margin-bottom:20px}
+
+    /* SCENES */
+    .scene-card{background:rgba(0,0,0,0.2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:8px}
+    .scene-card .scene-num{font-size:11px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .scene-card p{font-size:14px;color:var(--dim);line-height:1.5}
+
+    /* VIDEO CARDS */
+    .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    .video-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .25s}
+    .video-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,0.3)}
+    .video-thumb{background:linear-gradient(135deg,#111,#1a1a2e);aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;font-size:40px;max-height:180px;overflow:hidden;position:relative}
+    .video-thumb video{width:100%;height:100%;object-fit:cover}
+    .video-info{padding:14px}
+    .video-title{font-size:13px;font-weight:600;margin-bottom:6px}
+    .video-meta{font-size:12px;color:var(--dim);margin-bottom:10px}
+    .status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+    .status-processing{background:rgba(255,165,2,0.15);color:var(--warn)}
+    .status-completed{background:rgba(46,213,115,0.15);color:var(--ok)}
+    .status-failed{background:rgba(255,71,87,0.15);color:var(--danger)}
+    .status-pending{background:rgba(255,255,255,0.08);color:var(--dim)}
+
+    /* PRICING */
+    .price-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+    .price-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:24px;transition:all .3s;position:relative}
+    .price-card.popular{border-color:var(--accent)}
+    .popular-tag{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--grad);color:#0a0a1a;padding:4px 16px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+    .price-card h3{font-size:16px;font-weight:700}
+    .price-card .price{font-size:26px;font-weight:800;margin:12px 0 4px}
+    .price-card .cred{font-size:13px;color:var(--dim);margin-bottom:16px}
+    .price-card .btn{width:100%;margin-top:8px}
+
+    /* TRANSACTIONS */
+    .txn-table{width:100%;border-collapse:collapse}
+    .txn-table th{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+    .txn-table td{padding:12px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .txn-table tr:last-child td{border-bottom:none}
+
+    /* LOADING */
+    .skeleton{background:linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,0.2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-overlay{position:fixed;inset:0;background:rgba(10,10,26,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px}
+    .loading-overlay .big-spinner{width:48px;height:48px;border-width:4px}
+    .loading-overlay p{color:var(--dim);font-size:14px}
+
+    /* TOAST */
+    #toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+    .toast-msg{background:#1a1a2e;border:1px solid var(--border);border-radius:12px;padding:12px 18px;font-size:13px;font-weight:500;opacity:0;transform:translateY(12px);transition:all .3s;pointer-events:auto;max-width:300px;display:flex;align-items:center;gap:8px}
+    .toast-msg.show{opacity:1;transform:translateY(0)}
+    .toast-ok{border-color:var(--ok);color:var(--ok)}
+    .toast-err{border-color:var(--danger);color:var(--danger)}
+    .toast-info{border-color:var(--accent);color:var(--accent)}
+
+    /* EMPTY STATE */
+    .empty{text-align:center;padding:60px 20px;color:var(--dim)}
+    .empty .icon{font-size:48px;margin-bottom:16px}
+    .empty h3{font-size:16px;font-weight:600;margin-bottom:8px;color:var(--text)}
+
+    /* PROGRESS BAR */
+    .progress-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin:12px 0}
+    .progress-fill{height:100%;background:var(--grad);border-radius:3px;transition:width .4s ease}
+
+    /* MOBILE */
+    @media(max-width:768px){
+      .sidebar{display:none}
+      .main{margin-left:0;padding:16px;padding-bottom:80px}
+      .mobile-nav{display:flex!important}
+    }
+    .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#111127;border-top:1px solid var(--border);z-index:100;padding:8px 0}
+    .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--dim);font-size:10px;font-weight:500;padding:4px;transition:color .2s}
+    .mobile-nav-item.active{color:var(--accent)}
+    .mobile-nav-item .mni{font-size:22px}
+  </style>
+</head>
+<body>
+<div id="loading-overlay" class="loading-overlay"><div class="spinner big-spinner"></div><p id="loading-text">Memuat...</p></div>
+<div id="toast"></div>
+
+<div class="app" id="app" style="display:none">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">🎬 BerkahKarya</div>
+    <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard">🏠 Dashboard</div>
+    <div class="nav-item" onclick="nav('create')" id="nav-create">🎬 Buat Video</div>
+    <div class="nav-item" onclick="nav('videos')" id="nav-videos">📁 Video Saya</div>
+    <div class="nav-item" onclick="nav('billing')" id="nav-billing">💳 Billing</div>
+    <div class="sidebar-bottom">
+      <div id="sidebar-credits" class="credits-pill" onclick="nav('billing')">⏳ Credits</div>
+      <div style="margin-top:12px">
+        <div class="nav-item" onclick="logout()" style="padding:8px 0;font-size:13px;color:var(--danger)">🚪 Logout</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="user-greeting" id="user-greeting">Selamat datang!</div>
+      </div>
+      <div id="header-credits" class="credits-pill" style="cursor:pointer" onclick="nav('billing')">⏳</div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="stat-card"><div class="label">Credits</div><div class="value" id="stat-credits">—</div><div class="sub">tersedia</div></div>
+        <div class="stat-card"><div class="label">Total Video</div><div class="value" id="stat-videos">—</div><div class="sub">dibuat</div></div>
+        <div class="stat-card"><div class="label">Referral Code</div><div class="value" id="stat-ref" style="font-size:16px;margin-top:4px">—</div><div class="sub" id="stat-ref-copy" style="cursor:pointer;color:var(--accent)">tap to copy</div></div>
+        <div class="stat-card"><div class="label">Tier</div><div class="value" id="stat-tier" style="font-size:20px;margin-top:4px">—</div><div class="sub">akun kamu</div></div>
+      </div>
+      <div class="grid-4" style="margin-bottom:28px">
+        <div class="action-card" onclick="nav('create')"><div class="icon">🎬</div><h3>Buat Video</h3></div>
+        <div class="action-card" onclick="nav('billing')"><div class="icon">💳</div><h3>Top Up</h3></div>
+        <div class="action-card" onclick="nav('videos')"><div class="icon">📁</div><h3>Video Saya</h3></div>
+        <div class="action-card" onclick="shareRef()"><div class="icon">👥</div><h3>Referral</h3></div>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:16px;font-size:15px">Video Terbaru</h3>
+        <div id="recent-videos" class="video-grid"></div>
+      </div>
+    </div>
+
+    <!-- CREATE VIDEO -->
+    <div id="view-create" class="view">
+      <div class="step-indicator" id="step-dots"></div>
+      <div id="create-step-container"></div>
+    </div>
+
+    <!-- MY VIDEOS -->
+    <div id="view-videos" class="view">
+      <div id="videos-container" class="video-grid"></div>
+    </div>
+
+    <!-- BILLING -->
+    <div id="view-billing" class="view">
+      <div class="card" style="margin-bottom:20px;text-align:center;padding:32px">
+        <div style="font-size:13px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Credit Balance</div>
+        <div style="font-size:52px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent" id="billing-credits">—</div>
+        <div style="font-size:13px;color:var(--dim);margin-top:4px">credits tersedia</div>
+      </div>
+      <h3 style="margin-bottom:16px;font-size:15px">Pilih Paket</h3>
+      <div id="packages-container" class="price-cards" style="margin-bottom:32px"></div>
+      <h3 style="margin-bottom:16px;font-size:15px">Metode Pembayaran Lain</h3>
+      <div class="grid-2" style="margin-bottom:32px">
+        <div class="action-card" onclick="payStars()"><div class="icon">⭐</div><h3>Telegram Stars</h3><div style="font-size:12px;color:var(--dim);margin-top:6px">Bayar instant dari saldo Stars</div></div>
+        <div class="action-card" onclick="payCrypto()"><div class="icon">💎</div><h3>Crypto (USDT/BNB)</h3><div style="font-size:12px;color:var(--dim);margin-top:6px">Min $20 USD</div></div>
+      </div>
+      <h3 style="margin-bottom:16px;font-size:15px">Riwayat Transaksi</h3>
+      <div class="card" style="overflow-x:auto">
+        <table class="txn-table" id="txn-table">
+          <thead><tr><th>Order ID</th><th>Paket</th><th>Jumlah</th><th>Credits</th><th>Status</th><th>Tanggal</th></tr></thead>
+          <tbody id="txn-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Mobile Bottom Nav -->
+<div class="mobile-nav">
+  <div class="mobile-nav-item active" onclick="nav('dashboard')" id="mnav-dashboard"><span class="mni">🏠</span>Home</div>
+  <div class="mobile-nav-item" onclick="nav('create')" id="mnav-create"><span class="mni">🎬</span>Buat</div>
+  <div class="mobile-nav-item" onclick="nav('videos')" id="mnav-videos"><span class="mni">📁</span>Video</div>
+  <div class="mobile-nav-item" onclick="nav('billing')" id="mnav-billing"><span class="mni">💳</span>Billing</div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('token');
+let currentUser = null;
+let createState = { step: 1, niche: '', style: '', duration: 30, customPrompt: '', storyboard: null };
+let pollInterval = null;
+
+// ── AUTH ──────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) }
+  });
+  if (res.status === 401) { logout(); return null; }
+  return res.json();
+}
+
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = '/';
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast');
+  const d = document.createElement('div');
+  d.className = 'toast-msg toast-' + type;
+  d.textContent = msg;
+  c.appendChild(d);
+  requestAnimationFrame(() => { requestAnimationFrame(() => d.classList.add('show')); });
+  setTimeout(() => { d.classList.remove('show'); setTimeout(() => d.remove(), 400); }, 3500);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+async function tryTwaLogin() {
+  const tg = window.Telegram?.WebApp;
+  if (!tg || !tg.initDataUnsafe?.user) return;
+  const u = tg.initDataUnsafe.user;
+  try {
+    const r = await fetch('/auth/telegram', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id: u.id, username: u.username, first_name: u.first_name, last_name: u.last_name, hash: 'twa', auth_date: Math.floor(Date.now()/1000) })
+    });
+    const d = await r.json();
+    if (d.token) { token = d.token; localStorage.setItem('token', token); }
+  } catch(_) {}
+}
+
+function showLoginScreen() {
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.body.innerHTML = `
+    <div style="min-height:100vh;background:#0a0a1a;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;padding:20px">
+      <div style="text-align:center;max-width:380px;width:100%">
+        <div style="font-size:48px;margin-bottom:16px">🎬</div>
+        <div style="font-size:26px;font-weight:800;background:linear-gradient(135deg,#00d9ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px">BerkahKarya</div>
+        <div style="color:rgba(255,255,255,0.55);font-size:14px;margin-bottom:32px">AI Video Studio — Login untuk melanjutkan</div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:32px">
+          <p style="color:rgba(255,255,255,0.7);font-size:14px;margin-bottom:24px">Login dengan akun Telegram kamu</p>
+          <script async src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="${BOT_USERNAME}"
+            data-size="large" data-radius="12"
+            data-request-access="write"
+            data-onauth="onTgAuth(user)"></script>
+          <div style="margin-top:20px;color:rgba(255,255,255,0.35);font-size:12px">atau</div>
+          <a href="https://t.me/${BOT_USERNAME}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:linear-gradient(135deg,#00d9ff,#00ff88);color:#0a0a1a;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">🚀 Buka di Telegram</a>
+        </div>
+      </div>
+    </div>
+    <script>
+      function onTgAuth(user) {
+        fetch('/auth/telegram', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(user)
+        }).then(r=>r.json()).then(d=>{
+          if(d.token){ localStorage.setItem('token',d.token); window.location.reload(); }
+          else alert('Login gagal, coba lagi.');
+        }).catch(()=>alert('Login gagal, coba lagi.'));
+      }
+    </script>
+  \

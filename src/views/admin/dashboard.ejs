@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenClaw SaaS Bot - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-8">OpenClaw SaaS Bot - Admin</h1>
+    <p class="mb-4">
+      <a href="/admin/dashboard" class="text-blue-400 underline">Go to Analytics Dashboard</a>
+      &nbsp;|&nbsp;
+      <a href="/admin/pricing" class="text-blue-400 underline">Pricing Management</a>
+    </p>
+
+    <div class="grid grid-cols-4 gap-4 mb-8">
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <div class="text-gray-400 text-sm">Users</div>
+        <div id="stat-users" class="text-3xl font-bold">-</div>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <div class="text-gray-400 text-sm">Revenue</div>
+        <div id="stat-revenue" class="text-3xl font-bold">-</div>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <div class="text-gray-400 text-sm">Videos</div>
+        <div id="stat-videos" class="text-3xl font-bold">-</div>
+      </div>
+      <div class="bg-gray-800 p-6 rounded-lg">
+        <div class="text-gray-400 text-sm">Queue</div>
+        <div id="stat-queue" class="text-3xl font-bold">-</div>
+      </div>
+    </div>
+
+    <div class="bg-gray-800 p-6 rounded-lg">
+      <h2 class="text-xl font-bold mb-4">Recent Users</h2>
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-gray-400">
+            <th class="pb-2">User</th>
+            <th class="pb-2">Tier</th>
+            <th class="pb-2">Credits</th>
+            <th class="pb-2">Status</th>
+          </tr>
+        </thead>
+        <tbody id="users-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    async function loadStats() {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      document.getElementById('stat-users').textContent = data.users;
+      document.getElementById('stat-revenue').textContent = 'Rp ' + data.revenue.toLocaleString('id-ID');
+      document.getElementById('stat-videos').textContent = data.videos;
+      document.getElementById('stat-queue').textContent = data.queue.video.waiting;
+    }
+
+    async function loadUsers() {
+      const res = await fetch('/api/users?limit=10');
+      const users = await res.json();
+      const tbody = document.getElementById('users-table');
+      tbody.innerHTML = users.map(u => '<tr class="border-t border-gray-700"><td class="py-2">' + u.firstName + '</td><td>' + u.tier + '</td><td>' + u.creditBalance + '</td><td>' + (u.isBanned ? 'Banned' : 'Active') + '</td></tr>').join('');
+    }
+
+    loadStats();
+    loadUsers();
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>

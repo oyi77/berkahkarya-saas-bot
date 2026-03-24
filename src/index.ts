@@ -10,6 +10,9 @@ config();
 
 import { Telegraf } from "telegraf";
 import Fastify from "fastify";
+import path from "path";
+import fastifyView from "@fastify/view";
+import ejs from "ejs";
 import { logger } from "@/utils/logger";
 import { setupCommands } from "@/commands";
 import { setupHandlers } from "@/handlers";
@@ -62,7 +65,7 @@ async function main() {
     logger.info("✅ Database connected");
 
     // Seed pricing defaults (first run only)
-    await PaymentSettingsService.initializePricingDefaults().catch(() => {});
+    await PaymentSettingsService.initializePricingDefaults().catch(() => { });
     logger.info("✅ Pricing config ready");
 
     // Initialize Redis
@@ -110,6 +113,13 @@ async function main() {
     setupHandlers(bot);
 
     // Setup routes
+    logger.info("🌟 Setting up view engine...");
+    await server.register(fastifyView, {
+      engine: { ejs },
+      root: path.join(process.cwd(), "src", "views"),
+      viewExt: "ejs",
+    });
+
     logger.info("🌐 Setting up routes...");
     await server.register(healthCheckRoutes);
     await server.register(webhookRoutes, { bot });
