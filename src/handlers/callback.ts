@@ -551,10 +551,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       
       const { canUseWelcomeBonus, canUseDailyFree } = await import('../config/free-trial.js');
       
+      const hasCredits = Number(dbUser.creditBalance) > 0;
       const canUseWelcome = canUseWelcomeBonus(dbUser);
       const canUseDaily = canUseDailyFree(dbUser);
       
-      if (!canUseWelcome && !canUseDaily) {
+      // If user has credits, bypass free trial
+      if (!hasCredits && !canUseWelcome && !canUseDaily) {
         await ctx.editMessageText(
           `⚠️ *Free Trial sudah habis!*\n\n` +
           `Welcome Bonus: ❌ Sudah digunakan\n` +
@@ -573,14 +575,15 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         return;
       }
       
-      const bonusType = canUseWelcome ? 'Welcome Bonus' : 'Daily Free';
+      const bonusType = hasCredits ? 'Kredit' : (canUseWelcome ? 'Welcome Bonus' : 'Daily Free');
+      const costInfo = hasCredits ? `💳 Biaya: 0.2 kredit (sisa: ${dbUser.creditBalance})` : `🎁 Menggunakan: ${bonusType}`;
       
       await ctx.editMessageText(
         `✅ *Prompt Dipilih!*\n\n` +
         `📋 ${prompt.name}\n` +
         `🎨 Niche: ${prompt.niche.toUpperCase()}\n` +
         `🎯 Best For: ${prompt.bestFor}\n\n` +
-        `🎁 Menggunakan: ${bonusType}\n` +
+        `${costInfo}\n` +
         `🆓 Provider: Google Gemini (GRATIS)\n\n` +
         `Siap generate?`,
         {
@@ -621,10 +624,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       
       const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
       
+      const hasCredits = Number(dbUser.creditBalance) > 0;
       const canUseWelcome = canUseWelcomeBonus(dbUser);
       const canUseDaily = canUseDailyFree(dbUser);
       
-      if (!canUseWelcome && !canUseDaily) {
+      // If user has no credits and no free trial, block
+      if (!hasCredits && !canUseWelcome && !canUseDaily) {
         await ctx.editMessageText(
           `⚠️ *Free Trial sudah habis!*\n\n` +
           `Beli kredit untuk melanjutkan.`,
@@ -641,12 +646,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         return;
       }
       
-      const bonusType = canUseWelcome ? 'welcome' : 'daily';
+      const bonusType = hasCredits ? 'credit' : (canUseWelcome ? 'welcome' : 'daily');
+      const costText = hasCredits ? '0.2 kredit' : (bonusType === 'welcome' ? 'Welcome Bonus' : 'Daily Free');
       
       await ctx.editMessageText(
         `⏳ *Generating...*\n\n` +
         `📋 ${prompt.name}\n` +
-        `🎁 Menggunakan: ${bonusType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'}\n\n` +
+        `💳 Menggunakan: ${costText}\n\n` +
         `Mohon tunggu 10-30 detik...`,
         { parse_mode: 'Markdown' }
       );
@@ -666,8 +672,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           throw new Error(result.error || 'Generation failed');
         }
         
-        // Mark bonus as used
-        if (bonusType === 'welcome') {
+        // Deduct credits or mark bonus as used
+        if (bonusType === 'credit') {
+          // Deduct 0.2 credits for paid users
+          await UserService.deductCredits(telegramId, 0.2);
+        } else if (bonusType === 'welcome') {
           await prisma.user.update({
             where: { id: dbUser.id },
             data: { welcomeBonusUsed: true },
@@ -682,13 +691,19 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           });
         }
         
+        // Get updated balance
+        const updatedUser = await UserService.findByTelegramId(telegramId);
+        const balanceText = bonusType === 'credit' 
+          ? `💳 Sisa kredit: ${updatedUser?.creditBalance || 0}`
+          : `🎁 ${bonusType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'} digunakan`;
+        
         // Send image
         await ctx.replyWithPhoto(result.imageUrl, {
           caption:
             `✅ *Image Generated!*\n\n` +
             `📋 ${prompt.name}\n` +
-            `🎁 ${bonusType === 'welcome' ? 'Welcome Bonus' : 'Daily Free'} digunakan\n\n` +
-            `Suka hasilnya? Beli kredit untuk generate lebih banyak!`,
+            `${balanceText}\n\n` +
+            `Suka hasilnya? Generate lebih banyak!`,
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [

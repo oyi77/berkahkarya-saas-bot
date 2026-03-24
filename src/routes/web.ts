@@ -30,6 +30,7 @@ const LANDING_PAGE = `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
+  <meta name="facebook-domain-verification" content="go7u73s641jq2jtd8gfh2ecbl94kmy" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BerkahKarya AI Video Studio — Buat Video Viral Tanpa Skill Editing</title>
   <meta name="description" content="Kompetitor posting 10 video/hari, kamu masih stuck? Buat video marketing viral dengan AI dalam hitungan menit. Mulai GRATIS via Telegram.">
@@ -1031,6 +1032,13 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   server.get('/', async (_request, reply) => {
     reply.type('text/html').send(LANDING_PAGE);
   });
+
+
+  // Facebook domain verification
+  server.get('/go7u73s641jq2jtd8gfh2ecbl94kmy.html', async (_request, reply) => {
+    reply.type('text/html').send('go7u73s641jq2jtd8gfh2ecbl94kmy');
+  });
+
 
   // Web app
   server.get('/app', async (_request, reply) => {
