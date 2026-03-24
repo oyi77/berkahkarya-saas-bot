@@ -676,21 +676,49 @@ async function tryTwaLogin() {
   } catch(_) {}
 }
 
-async function init() {
-  // Safety timeout — kalau init > 8s, redirect ke landing
-  const safetyTimer = setTimeout(() => {
-    if (!token) window.location.href = '/';
-  }, 8000);
+function showLoginScreen() {
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'none';
+  document.body.innerHTML = \`
+    <div style="min-height:100vh;background:#0a0a1a;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;padding:20px">
+      <div style="text-align:center;max-width:380px;width:100%">
+        <div style="font-size:48px;margin-bottom:16px">🎬</div>
+        <div style="font-size:26px;font-weight:800;background:linear-gradient(135deg,#00d9ff,#00ff88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px">BerkahKarya</div>
+        <div style="color:rgba(255,255,255,0.55);font-size:14px;margin-bottom:32px">AI Video Studio — Login untuk melanjutkan</div>
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:32px">
+          <p style="color:rgba(255,255,255,0.7);font-size:14px;margin-bottom:24px">Login dengan akun Telegram kamu</p>
+          <script async src="https://telegram.org/js/telegram-widget.js?22"
+            data-telegram-login="${BOT_USERNAME}"
+            data-size="large" data-radius="12"
+            data-request-access="write"
+            data-onauth="onTgAuth(user)"></script>
+          <div style="margin-top:20px;color:rgba(255,255,255,0.35);font-size:12px">atau</div>
+          <a href="https://t.me/${BOT_USERNAME}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:linear-gradient(135deg,#00d9ff,#00ff88);color:#0a0a1a;border-radius:12px;font-weight:700;text-decoration:none;font-size:14px">🚀 Buka di Telegram</a>
+        </div>
+      </div>
+    </div>
+    <script>
+      function onTgAuth(user) {
+        fetch('/auth/telegram', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(user)
+        }).then(r=>r.json()).then(d=>{
+          if(d.token){ localStorage.setItem('token',d.token); window.location.reload(); }
+          else alert('Login gagal, coba lagi.');
+        }).catch(()=>alert('Login gagal, coba lagi.'));
+      }
+    </script>
+  \`;
+}
 
+async function init() {
   // Try Telegram WebApp login first (wait a tick for SDK to load)
   if (!token) {
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 400));
     await tryTwaLogin();
   }
 
-  if (!token) { clearTimeout(safetyTimer); window.location.href = '/'; return; }
-
-  clearTimeout(safetyTimer);
+  if (!token) { showLoginScreen(); return; }
 
   const loadingText = document.getElementById('loading-text');
   if (loadingText) loadingText.textContent = 'Menyiapkan dashboard...';
