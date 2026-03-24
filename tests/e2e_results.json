@@ -1,0 +1,96 @@
+{
+  "timestamp": "2026-03-24T15:52:07.039341",
+  "user": "codergaboets",
+  "summary": {
+    "total": 21,
+    "passed": 21,
+    "failed": 0,
+    "success_rate": 100.0
+  },
+  "results": [
+    {
+      "test": "Logged in as: Coder (@codergaboets)",
+      "status": "PASS"
+    },
+    {
+      "test": "Found bot: OpenClaw SaaS Bot",
+      "status": "PASS"
+    },
+    {
+      "test": "Landing Page (/) - OK",
+      "status": "PASS"
+    },
+    {
+      "test": "Health Check (/health) - OK",
+      "status": "PASS"
+    },
+    {
+      "test": "WebApp Dashboard (/app) - OK",
+      "status": "PASS"
+    },
+    {
+      "test": "/start command works",
+      "status": "PASS"
+    },
+    {
+      "test": "Main menu has 5 buttons",
+      "status": "PASS"
+    },
+    {
+      "test": "/help command works",
+      "status": "PASS"
+    },
+    {
+      "test": "/profile command works",
+      "status": "PASS"
+    },
+    {
+      "test": "Profile shows balance",
+      "status": "PASS"
+    },
+    {
+      "test": "/create command works",
+      "status": "PASS"
+    },
+    {
+      "test": "Create flow has 9 buttons/options",
+      "status": "PASS"
+    },
+    {
+      "test": "/topup command works",
+      "status": "PASS"
+    },
+    {
+      "test": "/referral command works",
+      "status": "PASS"
+    },
+    {
+      "test": "/videos command works",
+      "status": "PASS"
+    },
+    {
+      "test": "/settings command works",
+      "status": "PASS"
+    },
+    {
+      "test": "/subscription command works",
+      "status": "PASS"
+    },
+    {
+      "test": "/support command works",
+      "status": "PASS"
+    },
+    {
+      "test": "Clicked 'buat' button",
+      "status": "PASS"
+    },
+    {
+      "test": "Selected a niche",
+      "status": "PASS"
+    },
+    {
+      "test": "Video creation flow advancing correctly",
+      "status": "PASS"
+    }
+  ]
+}
