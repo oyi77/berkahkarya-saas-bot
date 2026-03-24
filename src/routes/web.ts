@@ -354,7 +354,7 @@ const LANDING_PAGE = `<!DOCTYPE html>
 
   <footer>
     <p>© 2025 <a href="https://berkahkarya.com">BerkahKarya</a> — AI Video Studio. All rights reserved.</p>
-    <p style="margin-top:8px"><a href="https://t.me/berkahkarya_saas_bot">Telegram Bot</a> · <a href="/app">Web App</a> · <a href="https://t.me/berkahkarya_support">Support</a></p>
+    <p style="margin-top:8px"><a href="https://t.me/berkahkarya_saas_bot">Telegram Bot</a> · <a href="/app">Web App</a> · <a href="https://t.me/codergaboets">Support</a></p>
   </footer>
 </body>
 </html>`;

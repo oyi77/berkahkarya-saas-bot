@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-03-24T17:17:28.528521",
+  "user": "codergaboets",
+  "summary": {
+    "total": 15,
+    "passed": 11,
+    "failed": 4,
+    "success_rate": 73.33333333333333
+  },
+  "issues": [
+    {
+      "type": "WEBAPP",
+      "message": "WebApp (no auth) (/app) - Expected 401, got 200"
+    },
+    {
+      "type": "CANCEL_FLOW",
+      "message": "No cancel/back button found in create flow - users cannot exit!"
+    },
+    {
+      "type": "SUPPORT",
+      "message": "Support contact not found in response"
+    },
+    {
+      "type": "VIDEO_FLOW",
+      "message": "No cancel option in video creation flow! Users cannot exit."
+    }
+  ],
+  "results": [
+    {
+      "test": "Logged in as: Coder (@codergaboets)",
+      "status": "PASS"
+    },
+    {
+      "test": "Found bot: OpenClaw SaaS Bot",
+      "status": "PASS"
+    },
+    {
+      "test": "Landing Page (/) - Status 200",
+      "status": "PASS"
+    },
+    {
+      "test": "Health Check (/health) - Status 200",
+      "status": "PASS"
+    },
+    {
+      "test": "WebApp (no auth) (/app) - Expected 401, got 200",
+      "status": "FAIL"
+    },
+    {
+      "test": "API User (no auth) (/api/user) - Status 401",
+      "status": "PASS"
+    },
+    {
+      "test": "API Packages (/api/packages) - Status 200",
+      "status": "PASS"
+    },
+    {
+      "test": "FB Verification (/go7u73s641jq2jtd8gfh2ecbl94kmy.html) - Status 200",
+      "status": "PASS"
+    },
+    {
+      "test": "Language setting button found",
+      "status": "PASS"
+    },
+    {
+      "test": "Bot responds in Indonesian (default)",
+      "status": "PASS"
+    },
+    {
+      "test": "No cancel/back button found in create flow - users cannot exit!",
+      "status": "FAIL"
+    },
+    {
+      "test": "Support contact not found in response",
+      "status": "FAIL"
+    },
+    {
+      "test": "Support button links to @codergaboets",
+      "status": "PASS"
+    },
+    {
+      "test": "Referral system works",
+      "status": "PASS"
+    },
+    {
+      "test": "No cancel option in video creation flow! Users cannot exit.",
+      "status": "FAIL"
+    }
+  ]
+}

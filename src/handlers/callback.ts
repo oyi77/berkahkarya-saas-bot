@@ -3097,7 +3097,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           message += `1. Contact our support team\n`;
           message += `2. Provide your bank account details\n`;
           message += `3. Withdrawal processed within 1-3 business days\n\n`;
-          message += `Contact: @berkahkarya_support`;
+          message += `Contact: @codergaboets`;
         }
 
         await ctx.editMessageText(message, {

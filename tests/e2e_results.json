@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-03-24T15:52:07.039341",
+  "timestamp": "2026-03-24T17:08:33.378543",
   "user": "codergaboets",
   "summary": {
     "total": 21,
-    "passed": 21,
-    "failed": 0,
-    "success_rate": 100.0
+    "passed": 20,
+    "failed": 1,
+    "success_rate": 95.23809523809523
   },
   "results": [
     {
@@ -37,8 +37,8 @@
       "status": "PASS"
     },
     {
-      "test": "/help command works",
-      "status": "PASS"
+      "test": "/help response: \u23f3 Still processing... Taking longer than usual. We\u2019ll notify you when ready.",
+      "status": "FAIL"
     },
     {
       "test": "/profile command works",
