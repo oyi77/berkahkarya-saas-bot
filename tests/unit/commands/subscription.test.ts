@@ -1,0 +1,333 @@
+import {
+  describe,
+  it,
+  expect,
+  jest,
+  beforeEach,
+  afterEach,
+} from "@jest/globals";
+import {
+  subscriptionCommand,
+  handleSubscriptionPurchase,
+  handleCancelSubscription,
+} from "@/commands/subscription";
+import { createMockContext, mockUser, mockSubscription } from "../../fixtures";
+
+jest.mock("@/services/user.service", () => ({
+  UserService: {
+    findByTelegramId: jest.fn(),
+  },
+}));
+
+jest.mock("@/services/subscription.service", () => ({
+  SubscriptionService: {
+    getActiveSubscription: jest.fn(),
+    cancelSubscription: jest.fn(),
+  },
+}));
+
+jest.mock("@/config/pricing", () => ({
+  SUBSCRIPTION_PLANS: {
+    lite: {
+      name: "Lite",
+      monthlyCredits: 20,
+      monthlyPriceIdr: 99000,
+      annualPriceIdr: 990000,
+      features: ["20 credits/month", "Basic support"],
+    },
+    pro: {
+      name: "Pro",
+      monthlyCredits: 100,
+      monthlyPriceIdr: 299000,
+      annualPriceIdr: 2990000,
+      features: ["100 credits/month", "Priority support", "API access"],
+    },
+  },
+  getPlanPrice: jest.fn((plan: string, cycle: string) => {
+    const prices: Record<string, Record<string, number>> = {
+      lite: { monthly: 99000, annual: 990000 },
+      pro: { monthly: 299000, annual: 2990000 },
+    };
+    return prices[plan]?.[cycle] || 0;
+  }),
+}));
+
+jest.mock("@/config/database", () => ({
+  prisma: {
+    transaction: {
+      create: jest.fn(),
+    },
+  },
+}));
+
+jest.mock("@/utils/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+  },
+}));
+
+jest.mock("axios", () => ({
+  default: {
+    post: jest.fn(),
+  },
+}));
+
+jest.mock("crypto", () => ({
+  createHash: jest.fn(() => ({
+    update: jest.fn().mockReturnThis(),
+    digest: jest.fn(() => "mock_signature"),
+  })),
+}));
+
+describe("Subscription Command", () => {
+  let ctx: ReturnType<typeof createMockContext>;
+  let UserService: any;
+  let SubscriptionService: any;
+  let prisma: any;
+  let axios: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    ctx = createMockContext();
+    ctx.session = {
+      state: "DASHBOARD",
+      lastActivity: new Date(),
+      creditBalance: 10,
+      tier: "free",
+      stateData: {},
+    };
+    UserService = require("@/services/user.service").UserService;
+    SubscriptionService =
+      require("@/services/subscription.service").SubscriptionService;
+    prisma = require("@/config/database").prisma;
+    axios = require("axios").default;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe("subscriptionCommand", () => {
+    it("should handle missing user gracefully", async () => {
+      ctx.from = undefined as any;
+
+      await subscriptionCommand(ctx as any);
+
+      expect(ctx.reply).not.toHaveBeenCalled();
+    });
+
+    it("should show message when user not found", async () => {
+      UserService.findByTelegramId.mockResolvedValue(null);
+
+      await subscriptionCommand(ctx as any);
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        "❌ Please /start first to use this feature.",
+      );
+    });
+
+    it("should show subscription plans for free user", async () => {
+      UserService.findByTelegramId.mockResolvedValue({
+        ...mockUser,
+        creditBalance: 10,
+        tier: "free",
+      });
+      SubscriptionService.getActiveSubscription.mockResolvedValue(null);
+
+      await subscriptionCommand(ctx as any);
+
+      expect(ctx.reply).toHaveBeenCalled();
+      const replyCall = ctx.reply.mock.calls[0];
+      expect(replyCall[0]).toContain("Subscription Plans");
+      expect(replyCall[0]).toContain("Current Plan:");
+      expect(replyCall[0]).toContain("Free");
+      expect(replyCall[0]).toContain("Lite");
+      expect(replyCall[0]).toContain("Pro");
+    });
+
+    it("should show subscription plans for active subscriber", async () => {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+
+      UserService.findByTelegramId.mockResolvedValue({
+        ...mockUser,
+        creditBalance: 50,
+        tier: "pro",
+      });
+      SubscriptionService.getActiveSubscription.mockResolvedValue({
+        ...mockSubscription,
+        plan: "pro",
+        billingCycle: "monthly",
+        currentPeriodEnd: futureDate,
+      });
+
+      await subscriptionCommand(ctx as any);
+
+      const replyCall = ctx.reply.mock.calls[0];
+      expect(replyCall[0]).toContain("Current Plan: Pro");
+      expect(replyCall[0]).toContain("monthly");
+      expect(replyCall[0]).toContain("Renews in:");
+    });
+
+    it("should show cancel button for active subscriber", async () => {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 30);
+
+      UserService.findByTelegramId.mockResolvedValue({
+        ...mockUser,
+        creditBalance: 50,
+        tier: "pro",
+      });
+      SubscriptionService.getActiveSubscription.mockResolvedValue({
+        ...mockSubscription,
+        plan: "pro",
+        currentPeriodEnd: futureDate,
+      });
+
+      await subscriptionCommand(ctx as any);
+
+      const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
+      const cancelButton = keyboard.find((row: any) =>
+        row.some((btn: any) => btn.callback_data === "cancel_subscription"),
+      );
+      expect(cancelButton).toBeDefined();
+    });
+
+    it("should not show cancel button for free user", async () => {
+      UserService.findByTelegramId.mockResolvedValue({
+        ...mockUser,
+        creditBalance: 10,
+        tier: "free",
+      });
+      SubscriptionService.getActiveSubscription.mockResolvedValue(null);
+
+      await subscriptionCommand(ctx as any);
+
+      const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
+      const cancelButton = keyboard.find((row: any) =>
+        row.some((btn: any) => btn.callback_data === "cancel_subscription"),
+      );
+      expect(cancelButton).toBeUndefined();
+    });
+
+    it("should show main menu button", async () => {
+      UserService.findByTelegramId.mockResolvedValue({
+        ...mockUser,
+        creditBalance: 10,
+        tier: "free",
+      });
+      SubscriptionService.getActiveSubscription.mockResolvedValue(null);
+
+      await subscriptionCommand(ctx as any);
+
+      const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
+      const lastRow = keyboard[keyboard.length - 1];
+      expect(lastRow[0].callback_data).toBe("main_menu");
+    });
+
+    it("should handle database errors gracefully", async () => {
+      UserService.findByTelegramId.mockRejectedValue(
+        new Error("Database error"),
+      );
+
+      await subscriptionCommand(ctx as any);
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        "❌ Something went wrong. Please try again.",
+      );
+    });
+  });
+
+  describe("handleSubscriptionPurchase", () => {
+    it("should handle missing user gracefully", async () => {
+      ctx.from = undefined as any;
+
+      await handleSubscriptionPurchase(ctx as any, "lite", "monthly");
+
+      expect(ctx.editMessageText).not.toHaveBeenCalled();
+    });
+
+    it("should create subscription payment", async () => {
+      axios.post.mockResolvedValue({
+        data: {
+          paymentUrl: "https://duitku.example.com/pay",
+        },
+      });
+
+      await handleSubscriptionPurchase(ctx as any, "lite", "monthly");
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith("Creating payment...");
+      expect(prisma.transaction.create).toHaveBeenCalled();
+      expect(axios.post).toHaveBeenCalled();
+      expect(ctx.editMessageText).toHaveBeenCalled();
+      const editCall = ctx.editMessageText.mock.calls[0];
+      expect(editCall[0]).toContain("Lite Subscription");
+      expect(editCall[0]).toContain("Rp 99.000");
+    });
+
+    it("should show pay now and check payment buttons", async () => {
+      axios.post.mockResolvedValue({
+        data: {
+          paymentUrl: "https://duitku.example.com/pay",
+        },
+      });
+
+      await handleSubscriptionPurchase(ctx as any, "pro", "annual");
+
+      const editCall = ctx.editMessageText.mock.calls[0];
+      const keyboard = editCall[1].reply_markup.inline_keyboard;
+      expect(keyboard[0][0].text).toContain("Pay Now");
+      expect(keyboard[0][0].url).toBe("https://duitku.example.com/pay");
+      expect(keyboard[1][0].callback_data).toContain("check_payment_");
+    });
+
+    it("should handle payment creation errors", async () => {
+      axios.post.mockRejectedValue(new Error("Payment error"));
+
+      await handleSubscriptionPurchase(ctx as any, "lite", "monthly");
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "❌ Failed to create payment. Please try again.",
+      );
+    });
+  });
+
+  describe("handleCancelSubscription", () => {
+    it("should handle missing user gracefully", async () => {
+      ctx.from = undefined as any;
+
+      await handleCancelSubscription(ctx as any);
+
+      expect(ctx.editMessageText).not.toHaveBeenCalled();
+    });
+
+    it("should cancel subscription successfully", async () => {
+      SubscriptionService.cancelSubscription.mockResolvedValue(undefined);
+
+      await handleCancelSubscription(ctx as any);
+
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith("Processing...");
+      expect(SubscriptionService.cancelSubscription).toHaveBeenCalledWith(
+        BigInt(ctx.from.id),
+      );
+      expect(ctx.editMessageText).toHaveBeenCalled();
+      const editCall = ctx.editMessageText.mock.calls[0];
+      expect(editCall[0]).toContain("Subscription Cancellation");
+      expect(editCall[0]).toContain("will end at the current billing period");
+    });
+
+    it("should handle cancellation errors", async () => {
+      SubscriptionService.cancelSubscription.mockRejectedValue(
+        new Error("Cancellation error"),
+      );
+
+      await handleCancelSubscription(ctx as any);
+
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        "❌ Failed to cancel. Please try again.",
+      );
+    });
+  });
+});
