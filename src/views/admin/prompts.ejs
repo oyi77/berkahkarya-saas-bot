@@ -173,7 +173,7 @@ const NICHE_EMOJI = ${JSON.stringify(nicheEmoji)};
 
 async function loadPrompts() {
   const url = currentNiche === 'all' ? '/api/admin-prompts' : '/api/admin-prompts?niche=' + currentNiche;
-  const r = await fetch(url, { headers: { 'Authorization': 'Basic ' + btoa(':' + '<%= ADMIN_PASSWORD %>') } });
+  const r = await fetch(url);
   allPrompts = await r.json();
   renderTable(allPrompts);
   document.getElementById('prompt-count').textContent = allPrompts.length + ' prompts';
