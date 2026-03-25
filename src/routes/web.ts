@@ -5,7 +5,6 @@
  */
 
 import { FastifyInstance } from "fastify";
-import rateLimit from "@fastify/rate-limit";
 import { prisma } from "@/config/database";
 import { UserService } from "@/services/user.service";
 import { VideoService } from "@/services/video.service";
@@ -35,13 +34,6 @@ const BOT_TOKEN = process.env.BOT_TOKEN || "";
 // ─── Backend Routes ──────────────────────────────────────────────────────────
 
 export async function webRoutes(server: FastifyInstance): Promise<void> {
-  await server.register(rateLimit, {
-    max: 100,
-    timeWindow: "1 minute",
-    cache: 10000,
-    allowList: ["127.0.0.1"],
-  });
-
   server.get("/", async (_request, reply) => {
     reply.view("web/landing.ejs");
   });

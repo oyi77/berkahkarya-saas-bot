@@ -46,7 +46,6 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
-    "@fastify/rate-limit": "^10.3.0",
     "@fastify/view": "^9.1.0",
     "@prisma/client": "^5.7.0",
     "@sentry/node": "^7.80.0",
