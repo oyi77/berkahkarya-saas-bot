@@ -2172,14 +2172,28 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         { parse_mode: "Markdown" },
       );
 
-      // Generate image
+      // Detect if there's a reference image in session
+      let referenceImageUrl: string | null = null;
+      const sessionPhotos = ctx.session?.videoCreationNew?.uploadedPhotos || ctx.session?.videoCreation?.uploadedPhotos;
+      if (sessionPhotos && sessionPhotos.length > 0) {
+        try {
+          const fileId = sessionPhotos[0].fileId;
+          const fileLink = await ctx.telegram.getFileLink(fileId);
+          referenceImageUrl = fileLink.toString();
+          logger.info(`📸 Using session reference image for free trial: ${referenceImageUrl}`);
+        } catch (err) {
+          logger.error("Failed to get reference image link for free trial:", err);
+        }
+      }
+
+      // Generate image/short video
       generateVideoWithFallback({
         prompt: prompt.prompt,
         duration: 5,
         aspectRatio: "9:16",
         style: prompt.niche,
         niche: prompt.niche,
-        referenceImage: null,
+        referenceImage: referenceImageUrl,
       })
         .then(async (result) => {
           if (result.success && result.videoUrl) {

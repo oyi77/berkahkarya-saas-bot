@@ -657,9 +657,32 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
     return { success: false, error: 'No video providers configured' };
   }
 
-  // Enrich prompt with V3 engine
+  // ── Vision-based prompt enrichment (NEW Mar 25) ──
+  // If reference image exists, analyse it to ensure the prompt matches the visual subject
+  let visionEnrichedPrompt = params.prompt;
+  if (params.referenceImage) {
+    try {
+      const { ContentAnalysisService } = await import('./content-analysis.service.js');
+      // Detect if it's a URL or local file path
+      const refUrl = params.referenceImage.startsWith('http') 
+        ? params.referenceImage 
+        : `file://${params.referenceImage}`;
+      
+      const analysis = await ContentAnalysisService.extractPrompt(refUrl, 'image');
+      if (analysis.success && analysis.prompt) {
+        visionEnrichedPrompt = 
+          `Visual subject: ${analysis.prompt}. ` +
+          `Animation/Style instructions: ${params.prompt}`;
+        logger.info(`🎬 Vision enrichment added to video prompt (${analysis.prompt.length} chars)`);
+      }
+    } catch (err) {
+      logger.warn('🎬 Vision analysis for video failed, continuing with original prompt');
+    }
+  }
+
+  // Enrich prompt with V3 engine (using enriched prompt if vision analysis succeeded)
   const enrichedBase = PromptEngine.enrichForVideo(
-    params.prompt,
+    visionEnrichedPrompt,
     params.niche || 'tech',
     params.style || 'professional',
     params.duration,

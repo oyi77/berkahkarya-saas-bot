@@ -36,18 +36,22 @@ export interface AIPromptOptimizerContext {
 }
 
 function buildMetaPrompt(rawPrompt: string, context: AIPromptOptimizerContext): string {
+  const imageInstruction = context.hasReferenceImage 
+    ? `\nCRITICAL: A reference image IS provided. THE SUBJECT IN THE REFERENCE IMAGE IS THE REAL SUBJECT. If the original prompt mentions a specific subject (e.g., "steak", "burger", "watch") that differs from the visual category of the reference image, IGNORE that specific subject name and replace it with a general description of the reference image's subject while keeping the STYLE, LIGHTING, and VIBE of the original prompt.`
+    : '';
+
   return (
     `You are an expert AI image/video prompt engineer. Your task is to optimize this prompt for maximum quality in AI generation.\n\n` +
     `Original prompt: ${rawPrompt}\n` +
     `Context: niche=${context.niche}, style=${context.style}\n` +
-    `Has reference image: ${context.hasReferenceImage ? 'yes' : 'no'}\n\n` +
+    `Has reference image: ${context.hasReferenceImage ? 'yes' : 'no'}${imageInstruction}\n\n` +
     `Rules:\n` +
-    `1. Keep the core subject and intent unchanged\n` +
-    `2. Add specific technical photography/videography terms\n` +
-    `3. Add lighting, camera, and composition details\n` +
-    `4. If reference image exists, add "maintain exact visual identity from reference image"\n` +
-    `5. Keep under 200 words\n` +
-    `6. Output ONLY the optimized prompt, nothing else\n\n` +
+    `1. Keep the core intent and technical style unchanged.\n` +
+    `2. Add specific technical photography/videography terms.\n` +
+    `3. Add lighting, camera, and composition details.\n` +
+    `4. If reference image exists, add "Maintain exact visual identity and subject from the provided reference image."\n` +
+    `5. Keep under 200 words.\n` +
+    `6. Output ONLY the optimized prompt, nothing else.\n\n` +
     `Optimized prompt:`
   );
 }
@@ -142,6 +146,10 @@ export class AIPromptOptimizer {
     context: AIPromptOptimizerContext
   ): Promise<string> {
     try {
+      // FORCE REDIS CACHE FLUSH FOR THIS CALL (bypass if it's a critical subject fix)
+      // Actually, just add a logger to see what's happening
+      logger.info(`[AIPromptOptimizer] Optimizing: ${rawPrompt.slice(0, 50)}... | hasRef=${context.hasReferenceImage}`);
+
       // Check cache first
       const cacheKey = buildCacheKey(rawPrompt, context);
       const cached = await getFromCache(cacheKey);
