@@ -323,12 +323,12 @@ const translations: Record<string, Record<Lang, string>> = {
   // Onboarding
   // ---------------------------------------------------------------------------
   'onboarding.welcome': {
-    id: '🎉 Selamat datang di Vilona Asisten OpenClaw!\n\n🎁 Kamu dapat *3 kredit GRATIS* — cukup untuk 6 video!\n\n_Kamu tidak perlu bingung mulai dari mana. Saya akan pandu step by step_ 👇',
-    en: '🎉 Welcome to Vilona Asisten OpenClaw!\n\n🎁 You got *3 FREE credits* — enough for 6 videos!\n\n_No need to be confused. I will guide you step by step_ 👇',
+    id: 'Selamat datang di BerkahKarya AI! 🎉\n\n📱 **Platform AI Content Creation Terlengkap di Indonesia**\n\nKamu udah dapat **3 credits GRATIS** yang bisa dipake untuk:\n• 6 video pendek (5 detik)\n• 3 gambar HD\n• Atau kombinasi keduanya!',
+    en: 'Welcome to BerkahKarya AI! 🎉\n\n📱 **The Most Complete AI Content Creation Platform in Indonesia**\n\nYou got **3 FREE credits** which can be used for:\n• 6 short videos (5 seconds)\n• 3 HD images\n• Or a combination of both!',
   },
   'onboarding.features': {
-    id: '📚 *Cara termudah untuk mulai:*\n\n1️⃣ Pilih *Prompt Library* → pilih niche bisnis kamu\n2️⃣ Pilih prompt yang cocok → tap *Buat Video*\n3️⃣ Upload foto produk (opsional) → *Generate!*\n\n✅ Template sudah tersedia untuk:\n🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n_Atau langsung ketik kebutuhan kamu — AI saya siap bantu!_',
-    en: '📚 *Easiest way to start:*\n\n1️⃣ Open *Prompt Library* → choose your business niche\n2️⃣ Pick a prompt → tap *Create Video*\n3️⃣ Upload product photo (optional) → *Generate!*\n\n✅ Templates available for:\n🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n_Or just type your need — my AI is ready to help!_',
+    id: '─────────────────────────────\n**MAU BUAT APA HARI INI?**\n─────────────────────────────\n\n🎬 **Video**\n• Upload foto → jadi video cinematic\n• Deskripsikan → AI bikin video\n• Clone video viral → adaptasi buat brandmu\n\n🖼️ **Gambar**\n• Foto produk profesional\n• Thumbnail YouTube\n• Social media content\n\n📋 **Prompt Templates**\n• 40+ prompt profesional per niche\n• Tinggal pilih → langsung generate\n• Gratis untuk semua user!',
+    en: '─────────────────────────────\n**WHAT DO YOU WANT TO CREATE TODAY?**\n─────────────────────────────\n\n🎬 **Video**\n• Upload photo → cinematic video\n• Describe → AI makes video\n• Clone viral video → adapt for your brand\n\n🖼️ **Image**\n• Professional product photo\n• YouTube Thumbnail\n• Social media content\n\n📋 **Prompt Templates**\n• 40+ professional prompts per niche\n• Just pick → generate instantly\n• Free for all users!',
   },
   'onboarding.cta': {
     id: '👇 *Mau mulai dari mana?*',

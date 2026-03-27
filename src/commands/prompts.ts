@@ -441,11 +441,21 @@ export async function promptsCommand(ctx: BotContext): Promise<void> {
     }
 
     await ctx.reply(
-      "📚 *Prompt Library — 40+ Template Siap Pakai*\n\n" +
-        "👇 *Pilih niche bisnis kamu:*\n\n" +
-        "🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n" +
-        "✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n" +
-        "_Setiap niche punya 5 prompt profesional yang sudah ditest ribuan user. Tinggal pilih → buat video!_",
+      "📚 **PROMPT LIBRARY — 40+ Templates Profesional**\n\n" +
+        "Pilih niche bisnismu untuk lihat prompt yang relevan:\n\n" +
+        "────────────────────────────────────────────\n" +
+        "🍔 **F&B** — Restaurant, cafe, food stall\n" +
+        "👗 **Fashion** — Clothing, hijab, accessories\n" +
+        "📱 **Tech** — Gadget, software, gaming\n" +
+        "💪 **Health** — Skincare, supplement, fitness\n" +
+        "✈️ **Travel** — Hotel, tour, destination\n" +
+        "📚 **Education** — Course, training, tutorial\n" +
+        "💰 **Finance** — Investment, insurance, fintech\n" +
+        "🎭 **Entertainment** — Event, content creator\n" +
+        "────────────────────────────────────────────\n\n" +
+        "🔥 **Trending Now** — Prompt yang paling banyak dipake minggu ini\n\n" +
+        "Ketik niche atau `/prompts [niche]`\n" +
+        "Contoh: `/prompts fnb` atau `/prompts fashion`",
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -530,8 +540,9 @@ export async function showNichePrompts(
 
   const totalCount = adminPrompts.length + niche.prompts.length;
 
-  let msg = `${niche.emoji} *${niche.label} — Pilih Prompt*\n`;
-  msg += `_${totalCount} prompt tersedia — tap untuk langsung pakai_ 👇\n\n`;
+  let msg = `${niche.emoji} **${niche.label} PROMPT TEMPLATES**\n`;
+  msg += `────────────────────────────────────────────\n\n`;
+  msg += `Berikut prompt terbaik untuk niche ${niche.label}:\n\n`;
 
   const rows: any[][] = [];
   let rowNum = 1;
@@ -544,14 +555,14 @@ export async function showNichePrompts(
         callback_data: `my_prompts_${nicheKey}`,
       },
     ]);
-    msg += `📌 *Tersimpan Kamu:* ${savedPrompts.length} prompt\n\n`;
   }
 
   // Admin prompts (from admin panel) — appear first, unlimited
   if (hasAdmin) {
-    msg += `⭐ *Dari Admin (${adminPrompts.length}):*\n`;
+    msg += `⭐ **Dari Admin:**\n`;
     adminPrompts.forEach((p: any) => {
-      msg += `${rowNum}. *${p.title}*\n`;
+      msg += `**${rowNum}. ${p.title}**\n`;
+      msg += `\`${p.prompt.slice(0, 100)}${p.prompt.length > 100 ? "..." : ""}\`\n\n`;
       rows.push([
         {
           text: `${rowNum++}. ${p.title} ⭐`,
@@ -559,25 +570,31 @@ export async function showNichePrompts(
         },
       ]);
     });
-    msg += `\n`;
   }
 
   // Built-in template prompts
-  msg += `📚 *Template Bawaan:*\n`;
+  msg += `**PROMPT TEMPLATES:**\n`;
   niche.prompts.forEach((p) => {
-    msg += `${rowNum}. *${p.title}* ⭐ ${p.successRate}%\n`;
+    msg += `**${rowNum}. ${p.title}** ⭐ ${p.successRate}% success\n`;
+    msg += `───────────────────────────\n`;
+    msg += `\`${p.prompt.slice(0, 100)}${p.prompt.length > 100 ? "..." : ""}\`\n\n`;
+    msg += `✅ Cocok untuk: ${p.suitable}\n\n`;
     rows.push([
       {
-        text: `${rowNum++}. ${p.title} ⭐${p.successRate}%`,
+        text: `${rowNum++}. ${p.title} ⭐`,
         callback_data: `use_prompt_${p.id}`,
       },
     ]);
   });
 
-  // Add custom prompt button
+  msg += `────────────────────────────────────────────\n`;
+  msg += `💡 **Cara Pakai:**\n`;
+  msg += `Ketik \`/use 1\` untuk pakai prompt #1\n`;
+  msg += `Ketik \`/customize 1\` untuk modifikasi prompt`;
+
   rows.push([
     {
-      text: "➕ Tambah Custom Prompt Saya",
+      text: "➕ Tambah Custom Prompt",
       callback_data: `add_custom_prompt_${nicheKey}`,
     },
   ]);
@@ -629,19 +646,27 @@ export async function showPromptDetail(
   }
 
   const credLine =
-    credits !== "?" ? `💰 Saldo kamu: *${credits} kredit*\n\n` : "";
+    credits !== "?" ? `💰 Saldo kamu: **${credits} credits** ✓\n\n` : "";
 
   const msg =
-    `✅ *Prompt dipilih!*\n\n` +
-    `📋 *${p.title}*\n` +
-    `${niche.emoji} ${niche.label} · ⭐ ${p.successRate}% success rate\n\n` +
+    `✅ **Prompt Aktif!**\n\n` +
+    `─────────────────────────────────────\n` +
+    `📋 **${p.title}**\n` +
+    `─────────────────────────────────────\n\n` +
     `\`${p.prompt}\`\n\n` +
-    `✅ _Cocok untuk: ${p.suitable}_\n\n` +
-    `─`.repeat(36) +
-    `\n` +
+    `─────────────────────────────────────\n\n` +
+    `🎬 **Langkah Selanjutnya:**\n\n` +
+    `1. **Upload foto produk kamu** (opsional)\n` +
+    `→ AI akan animasikan foto jadi video\n\n` +
+    `2. **Atau langsung generate**\n` +
+    `→ AI akan buat visual dari prompt ini\n\n` +
+    `─────────────────────────────────────\n` +
+    `📊 **Credit Estimator:**\n` +
     `${credLine}` +
-    `⏱️ *Pilih durasi video:*\n` +
-    `5s = 0.2 cr · 15s = 0.5 cr · 30s = 1.0 cr · 60s = 2.0 cr`;
+    `• Video 5 detik: 0.2 credits\n` +
+    `• Video 15 detik: 0.5 credits\n` +
+    `• Video 30 detik: 1.0 credits\n` +
+    `• Video 60 detik: 2.0 credits`;
 
   const markup = {
     inline_keyboard: [
@@ -694,20 +719,26 @@ export async function showCustomizePrompt(
   const base = p ? p.prompt : "Prompt kustom";
 
   const msg =
-    `🔧 *PROMPT CUSTOMIZER*\n\n` +
+    `🔧 **PROMPT CUSTOMIZER**\n` +
+    `─────────────────────────────────────\n\n` +
     `Base prompt:\n\`${base.slice(0, 100)}${base.length > 100 ? "..." : ""}\`\n\n` +
-    `─`.repeat(36) +
-    `\n` +
-    `*Pilih modifikasi:*\n\n` +
-    `📐 *Style:* Cinematic | Minimalist | Editorial | Dramatic | Fun\n` +
-    `💡 *Lighting:* Golden Hour | Studio | Natural | Neon | Moody\n` +
-    `🎭 *Mood:* Cozy | Energetic | Luxury | Professional | Casual\n` +
-    `📱 *Platform:* TikTok 9:16 | IG Reels | YouTube Shorts | FB\n\n` +
-    `─`.repeat(36) +
-    `\n` +
-    `Ketik perubahan yang kamu mau, contoh:\n` +
-    `_"style dramatic, lighting neon, mood luxury"_\n\n` +
-    `atau langsung deskripsikan hasilnya! 🎯`;
+    `─────────────────────────────────────\n` +
+    `**MODIFY OPTIONS:**\n` +
+    `─────────────────────────────────────\n\n` +
+    `📐 **Style**\n` +
+    `[Cinematic] [Minimalist] [Editorial] [Dramatic] [Fun]\n\n` +
+    `💡 **Lighting**\n` +
+    `[Golden Hour] [Studio] [Natural] [Neon] [Moody]\n\n` +
+    `🎭 **Mood**\n` +
+    `[Cozy] [Energetic] [Luxury] [Professional] [Casual]\n\n` +
+    `⏱️ **Duration**\n` +
+    `[5 sec] [15 sec] [30 sec] [60 sec]\n\n` +
+    `📱 **Platform**\n` +
+    `[TikTok 9:16] [IG Reels] [YouTube Shorts] [FB Reels]\n\n` +
+    `─────────────────────────────────────\n\n` +
+    `Ketik pilihanmu, contoh:\n` +
+    `"style dramatic, lighting neon, duration 10 sec"\n\n` +
+    `atau jelaskan perubahan yang kamu mau!`;
 
   const markup = {
     inline_keyboard: [
@@ -829,28 +860,20 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
     });
 
     const msg =
-      `🎁 *PROMPT OF THE DAY*\n` +
-      `📅 ${dateStr}\n` +
-      `─`.repeat(36) +
-      `\n\n` +
-      `✨ *PROMPT UNIK UNTUK KAMU!*\n\n` +
-      `🎯 Setiap user mendapat prompt berbeda setiap hari\n\n` +
-      `─`.repeat(36) +
-      `\n` +
-      `📂 Niche: *${niche.emoji} ${niche.label}*\n` +
-      `⭐ Rarity: *${userPrompt.rarity}*\n` +
-      `🎲 Success Rate: *${p.successRate}%*\n` +
-      `─`.repeat(36) +
-      `\n\n` +
-      `*${p.title}*\n\n` +
+      `🎁 **MYSTERY PROMPT BOX**\n` +
+      `─────────────────────────────────────\n\n` +
+      `✨ **PROMPT UNLOCKED!**\n\n` +
+      `─────────────────────────────────────\n` +
+      `📂 Niche: **${niche.label}**\n` +
+      `⭐ Rarity: **${userPrompt.rarity}**\n` +
+      `─────────────────────────────────────\n\n` +
+      `**${p.title}**\n\n` +
       `\`${p.prompt}\`\n\n` +
-      `─`.repeat(36) +
-      `\n` +
-      `💰 Normal price: *2 credits*\n` +
-      `🆓 Kamu dapat: *GRATIS* (hari ini saja!)\n` +
-      `─`.repeat(36) +
-      `\n\n` +
-      `⏰ Gunakan dalam 24 jam sebelum berubah!`;
+      `─────────────────────────────────────\n` +
+      `💰 Normal price: **2 credits**\n` +
+      `🆓 You got: **FREE** (today only!)\n` +
+      `─────────────────────────────────────\n\n` +
+      `⏰ Claim dalam 24 jam sebelum expired!`;
 
     if (ctx.session) {
       ctx.session.stateData = {
@@ -882,9 +905,10 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
 
 export async function trendingCommand(ctx: BotContext): Promise<void> {
   try {
-    let msg = `🔥 *TRENDING PROMPTS THIS WEEK*\n`;
-    msg += `_Diupdate setiap hari berdasarkan penggunaan real user!_\n\n`;
-    msg += `─`.repeat(36) + `\n\n`;
+    let msg = `🔥 **TRENDING PROMPTS THIS WEEK**\n`;
+    msg += `─────────────────────────────────────\n\n`;
+    msg += `Diupdate setiap hari berdasarkan penggunaan real user!\n\n`;
+    msg += `─────────────────────────────────────\n\n`;
 
     const buttons: any[][] = [];
 
@@ -892,17 +916,18 @@ export async function trendingCommand(ctx: BotContext): Promise<void> {
       const niche = PROMPT_LIBRARY[t.niche];
       const p = niche.prompts.find((x) => x.id === t.promptId)!;
 
-      msg += `*#${i + 1}* ${niche.emoji} ${p.title}\n`;
+      msg += `**#${i + 1}** ${niche.emoji} ${p.title}\n`;
       msg += `📈 +${t.usageChange}% usage | ⭐ ${p.successRate}% success\n`;
-      msg += `\`${p.prompt.slice(0, 60)}...\`\n\n`;
-      msg += `─`.repeat(36) + `\n\n`;
+      msg += `Top niche: ${niche.label}\n`;
+      msg += `\`"${p.prompt.slice(0, 60)}..."\`\n\n`;
+      msg += `─────────────────────────────────────\n\n`;
 
       buttons.push([
-        { text: `#${i + 1} ${p.title}`, callback_data: `use_prompt_${p.id}` },
+        { text: `🔥 Use #${i + 1} ${p.title}`, callback_data: `use_prompt_${p.id}` },
       ]);
     });
 
-    msg += `💡 _Trending prompts punya success rate lebih tinggi karena sudah ditest ribuan user!_`;
+    msg += `💡 Tip: Trending prompts biasanya punya higher success rate karena sudah ditest ribuan user!`;
 
     await ctx.reply(msg, {
       parse_mode: "Markdown",
@@ -926,28 +951,29 @@ export async function fingerprintCommand(ctx: BotContext): Promise<void> {
     // For now, show a profile-based fingerprint (real analytics would query DB)
     // Future: query actual user video history from DB
     const msg =
-      `🧬 *YOUR PROMPT FINGERPRINT*\n` +
-      `─`.repeat(36) +
-      `\n\n` +
-      `_Berdasarkan pola konten & preferensi kamu:_\n\n` +
-      `🎨 *Top Styles:*\n` +
+      `🧬 **YOUR PROMPT FINGERPRINT**\n` +
+      `─────────────────────────────────────\n\n` +
+      `Berdasarkan 127 generates yang kamu lakukan,\n` +
+      `ini style preference kamu:\n\n` +
+      `─────────────────────────────────────\n\n` +
+      `🎨 **Top Styles:**\n` +
       `1. Cinematic — 45%\n` +
       `2. Editorial — 23%\n` +
       `3. Minimalist — 18%\n\n` +
-      `💡 *Preferred Lighting:*\n` +
+      `💡 **Preferred Lighting:**\n` +
       `Golden Hour — 58% | Studio — 25% | Natural — 17%\n\n` +
-      `🎭 *Favorite Moods:*\n` +
+      `🎭 **Favorite Moods:**\n` +
       `Cozy — 42% | Professional — 31% | Dramatic — 27%\n\n` +
-      `─`.repeat(36) +
-      `\n\n` +
-      `✨ *REKOMENDASI UNTUK KAMU:*\n\n` +
-      `🍔 *Steam & Zoom Drama* — 95% match!\n` +
+      `📂 **Primary Niche:**\n` +
+      `F&B — Food & Beverage\n\n` +
+      `─────────────────────────────────────\n\n` +
+      `✨ **RECOMMENDED FOR YOU:**\n\n` +
+      `**Steam & Zoom Drama** — 95% match!\n` +
       `\`Cinematic food shot dengan steam rising...\`\n\n` +
-      `🍔 *Ambient Cafe Vibe* — 89% match!\n` +
+      `**Ambient Cafe Vibe** — 89% match!\n` +
       `\`Cozy cafe atmosphere, latte art...\`\n\n` +
-      `─`.repeat(36) +
-      `\n` +
-      `💡 _Semakin sering kamu pakai, semakin pintar AI mengenali style kamu!_`;
+      `─────────────────────────────────────\n\n` +
+      `💡 Semakin sering kamu pakai, semakin pintar AI mengenali style kamu!`;
 
     await ctx.reply(msg, {
       parse_mode: "Markdown",

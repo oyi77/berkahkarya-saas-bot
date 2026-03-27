@@ -11,41 +11,37 @@ import { BotContext } from "@/types";
  */
 export async function helpCommand(ctx: BotContext): Promise<void> {
   await ctx.reply(
-    "📖 *BERKAHKARYA AI — PANDUAN LENGKAP*\n" +
+    "📖 **BERKAHKARYA AI — PANDUAN LENGKAP**\n" +
       "─────────────────────────────────────\n\n" +
-      "*📚 PROMPT LIBRARY:*\n" +
-      "/prompts \\[niche\\] — Browse 40\\+ template profesional\n" +
-      "/trending — Prompt paling banyak dipakai minggu ini\n" +
-      "/daily — Mystery prompt gratis hari ini 🎁\n" +
-      "/fingerprint — Lihat style preference kamu\n\n" +
-      "*🎬 GENERATE:*\n" +
-      "/create — Buat video dari prompt atau foto\n" +
-      "/chat \\[pertanyaan\\] — Chat dengan AI assistant\n\n" +
-      "*💳 ACCOUNT:*\n" +
-      "/topup — Top up credits\n" +
-      "/subscription — Paket langganan Lite/Pro/Agency\n" +
-      "/videos — Riwayat video kamu\n" +
-      "/profile — Profil & saldo kredit\n" +
-      "/referral — Referral & komisi 15%\n" +
-      "/settings — Pengaturan akun & bahasa\n" +
-      "/support — Hubungi support\n\n" +
+      "**COMMANDS UTAMA:**\n" +
+      "─────────────────────────────────────\n\n" +
+      "📚 `/prompts [niche]` — Browse prompt library\n" +
+      "🔥 `/trending` — Lihat prompt trending\n" +
+      "🎁 `/daily` — Mystery prompt gratis\n" +
+      "🔧 `/customize [id]` — Modify prompt\n" +
+      "✨ `/create` — Bikin prompt custom via AI\n" +
+      "📊 `/fingerprint` — Lihat style preference kamu\n\n" +
+      "**GENERATE:**\n" +
       "─────────────────────────────────────\n" +
-      "*🎬 Creative Tools \\(via Menu\\):*\n" +
-      "🎬 Create Video — AI video generation \\(8 niche\\)\n" +
-      "🖼️ Generate Image — AI image dari teks\n" +
-      "🔄 Clone Video/Image — Recreate konten serupa\n" +
-      "📋 Storyboard — Plan scene sebelum generate\n" +
-      "📈 Viral Research — Temukan tren konten\n" +
-      "🔍 Disassemble — Extract prompt dari media\n\n" +
+      "🎬 `/video` — Buat video dari deskripsi\n" +
+      "📸 `/imagine` — Generate gambar\n" +
+      "🔄 `/i2v` — Animasikan foto jadi video\n" +
+      "🎭 `/avatar` — Buat talking avatar\n\n" +
+      "**ACCOUNT:**\n" +
       "─────────────────────────────────────\n" +
-      "*💡 Quick Tips:*\n" +
-      "• Mulai dari /prompts untuk template siap pakai\n" +
-      "• Upload foto referensi untuk hasil video lebih baik\n" +
-      "• /daily setiap hari untuk prompt gratis\n" +
-      "• Refer teman → komisi 15% setiap transaksi\\!\n\n" +
-      "Butuh bantuan? /support atau @codergaboets",
+      "💰 `/credits` — Cek saldo kredit\n" +
+      "📈 `/history` — Riwayat generate\n" +
+      "⚙️ `/settings` — Pengaturan akun\n" +
+      "🌐 `/lang [id/en]` — Ganti bahasa\n\n" +
+      "**INFO:**\n" +
+      "─────────────────────────────────────\n" +
+      "❓ `/faq` — Pertanyaan umum\n" +
+      "💬 `/feedback` — Kirim feedback\n" +
+      "📞 `/support` — Hubungi support\n\n" +
+      "─────────────────────────────────────\n\n" +
+      "Butuh bantuan spesifik? Langsung tanya aja! 😊",
     {
-      parse_mode: "MarkdownV2",
+      parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
           [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],

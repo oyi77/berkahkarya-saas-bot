@@ -128,22 +128,36 @@ export async function startCommand(ctx: BotContext): Promise<void> {
 
       // ── NEW: Onboarding dengan Free Trial ────────────────────────────────
       await ctx.reply(
-        `🎉 *Selamat datang di BerkahKarya AI Video Studio!*\n\n` +
-          `Kami membantu Anda membuat konten visual profesional dengan AI.\n\n` +
-          `✨ *Fitur unggulan:*\n` +
-          `• 🖼 Image Generation - Buat gambar produk, portrait, dll\n` +
-          `• 🎬 Video Generation - Transformasi gambar ke video\n` +
-          `• 🎨 15 Template Siap Pakai - Editorial, Streetwear, Luxury, dll\n` +
-          `• 🌐 Multi-bahasa - 14 bahasa termasuk Indonesia\n\n` +
-          `🎁 *FREE TRIAL untuk Anda!*\n` +
-          `• 1x Image Generation GRATIS (sekali pakai)\n` +
-          `• 1x Daily Free setiap hari (login harian)\n\n` +
-          `Klik tombol di bawah untuk mulai! 👇`,
+        `Selamat datang di BerkahKarya AI! 🎉\n\n` +
+          `📱 **Platform AI Content Creation Terlengkap di Indonesia**\n\n` +
+          `Kamu udah dapat **3 credits GRATIS** yang bisa dipake untuk:\n` +
+          `• 6 video pendek (5 detik)\n` +
+          `• 3 gambar HD\n` +
+          `• Atau kombinasi keduanya!\n\n` +
+          `─────────────────────────────\n` +
+          `**MAU BUAT APA HARI INI?**\n` +
+          `─────────────────────────────\n\n` +
+          `🎬 **Video**\n` +
+          `• Upload foto → jadi video cinematic\n` +
+          `• Deskripsikan → AI bikin video\n` +
+          `• Clone video viral → adaptasi buat brandmu\n\n` +
+          `🖼️ **Gambar**\n` +
+          `• Foto produk profesional\n` +
+          `• Thumbnail YouTube\n` +
+          `• Social media content\n\n` +
+          `📋 **Prompt Templates**\n` +
+          `• 40+ prompt profesional per niche\n` +
+          `• Tinggal pilih → langsung generate\n` +
+          `• Gratis untuk semua user!\n\n` +
+          `─────────────────────────────\n\n` +
+          `Ketik \`/prompts\` untuk lihat semua template siap pakai\n` +
+          `atau langsung jelaskan kebutuhanmu! 😊`,
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [{ text: "🚀 Mulai Sekarang!", callback_data: "onboard_start" }],
+              [{ text: "📚 Lihat Prompt Library", callback_data: "prompts_menu" }],
             ],
           },
         },
