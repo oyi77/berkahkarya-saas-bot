@@ -11,6 +11,11 @@ import { PaymentSettingsService } from "@/services/payment-settings.service";
 import { MetricsService } from "@/services/metrics.service";
 import { redis } from "@/config/redis";
 import { PROVIDER_CONFIG } from "@/config/providers";
+import { GamificationService, BADGES } from "@/services/gamification.service";
+import { retentionQueue } from "@/workers/retention.worker";
+import { HOOK_VARIATIONS } from "@/services/campaign.service";
+import { CREDIT_PACKAGES_V3, SUBSCRIPTION_PLANS_V3, UNIT_COSTS, REFERRAL_COMMISSIONS_V3 } from "@/config/pricing";
+import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
@@ -727,21 +732,76 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       queue: queueStats,
     };
   });
+  // ── v3.0 Admin API Endpoints ───────────────────────────────────────────────
+
+  /** GET /api/v3/gamification/leaderboard */
+  server.get('/api/v3/gamification/leaderboard', async () => {
+    const leaderboard = await GamificationService.getWeeklyLeaderboard();
+    return { leaderboard, formattedMessage: GamificationService.formatLeaderboardMessage(leaderboard) };
+  });
+
+  /** GET /api/v3/gamification/badges */
+  server.get('/api/v3/gamification/badges', async () => {
+    const badgeCounts = await (prisma as any).userBadge.groupBy({
+      by: ['badgeId'],
+      _count: { userId: true },
+      orderBy: { _count: { userId: 'desc' } },
+    });
+    return {
+      badges: Object.values(BADGES),
+      stats: badgeCounts,
+    };
+  });
+
+  /** GET /api/v3/retention/stats */
+  server.get('/api/v3/retention/stats', async () => {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const stats = await (prisma as any).retentionLog.groupBy({
+      by: ['triggerType'],
+      _count: { id: true },
+      where: { sentAt: { gte: sevenDaysAgo } },
+      orderBy: { _count: { id: 'desc' } },
+    });
+    const total = await (prisma as any).retentionLog.count({ where: { sentAt: { gte: sevenDaysAgo } } });
+    return { stats, total, period: '7d' };
+  });
+
+  /** POST /api/v3/retention/trigger — Manual trigger for testing */
+  server.post('/api/v3/retention/trigger', async (request: any, reply) => {
+    const { type } = request.body as { type: string };
+    if (!type) return reply.status(400).send({ error: 'type required' });
+    await retentionQueue.add('run_checks', { type });
+    return { queued: true, type };
+  });
+
+  /** GET /api/v3/users/:id/gamification */
+  server.get('/api/v3/users/:id/gamification', async (request: any, reply) => {
+    const userId = BigInt(request.params.id);
+    const [summary, streak, badges] = await Promise.all([
+      GamificationService.getUserGamificationSummary(userId),
+      (prisma as any).userStreak.findUnique({ where: { userId } }),
+      (prisma as any).userBadge.findMany({ where: { userId } }),
+    ]);
+    return { summary, streak, badges };
+  });
+
+  /** GET /api/v3/campaign/hooks — List available hook variations */
+  server.get('/api/v3/campaign/hooks', async () => {
+    return { hooks: HOOK_VARIATIONS };
+  });
+
+  /** GET /api/v3/pricing — v3 pricing info */
+  server.get('/api/v3/pricing', async () => {
+    return { packages: CREDIT_PACKAGES_V3, subscriptions: SUBSCRIPTION_PLANS_V3, unitCosts: UNIT_COSTS, referralRates: REFERRAL_COMMISSIONS_V3 };
+  });
+
+  /** GET /api/v3/hpas/industries — List HPAS industry templates */
+  server.get('/api/v3/hpas/industries', async () => {
+    return {
+      industries: Object.keys(INDUSTRY_TEMPLATES),
+      presets: Object.values(DURATION_PRESETS).map((p) => ({
+        id: p.id, name: p.name, totalSeconds: p.totalSeconds, creditCost: p.creditCost, scenesIncluded: p.scenesIncluded,
+      })),
+    };
+  });
 }
-
-/**
- * Generate dashboard HTML (legacy admin page)
- */
-
-/**
- * Generate the full Analytics Dashboard HTML.
- * Single-page dashboard showing today's metrics, active users,
- * provider health, top niches, and recent errors.
- * Protected by the same admin password as the rest of admin routes.
- */
-
-/**
- * Generate the Pricing Management Dashboard HTML.
- * Admin page for managing credit packages, subscriptions,
- * provider costs, and global pricing settings.
- */
