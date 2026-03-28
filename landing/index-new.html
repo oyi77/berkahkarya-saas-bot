@@ -7,6 +7,69 @@
   <meta name="description" content="Kompetitor posting 10 video/hari, kamu masih stuck? Buat video marketing viral dengan AI dalam hitungan menit. Mulai GRATIS via Telegram.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- ===== BERKAHKARYA FULL FUNNEL TRACKING ===== -->
+  <!-- Meta Pixel (771021905629860) -->
+  <script>
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+    (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init','771021905629860');
+    fbq('track','PageView');
+    // If visitor came from berkahkarya.org → fire AddToCart (pre-lander to landing page = ATC)
+    var _ref = document.referrer || '';
+    if (_ref.includes('berkahkarya.org') || _ref.includes('berkahkarya.com')) {
+      fbq('track','AddToCart',{
+        content_name: 'SaaS Landing Page',
+        content_category: 'saas_product',
+        referrer_domain: 'berkahkarya.org',
+        event_source: 'aitradepulse_landing',
+        currency: 'IDR'
+      });
+    }
+  </script>
+  <!-- TikTok Pixel (D6IA84RC77UCTB9KG9OG) -->
+  <script>
+    !function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
+    ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],
+    ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+    for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
+    ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},
+    ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";
+    ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};
+    var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;
+    var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
+    ttq.load('D6IA84RC77UCTB9KG9OG');ttq.page();
+    var _ref2 = document.referrer || '';
+    if(_ref2.includes('berkahkarya.org') || _ref2.includes('berkahkarya.com')){
+      ttq.track('AddToCart',{content_name:'SaaS Landing Page',content_type:'saas_product'});
+    }
+    }(window,document,'ttq');
+  </script>
+  <!-- GA4 (G-V9C14XZ9SG) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-V9C14XZ9SG"></script>
+  <script>
+    window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+    gtag('js',new Date());gtag('config','G-V9C14XZ9SG');
+    var _ref3 = document.referrer || '';
+    if(_ref3.includes('berkahkarya.org') || _ref3.includes('berkahkarya.com')){
+      gtag('event','add_to_cart',{referrer_domain:'berkahkarya.org',page:'saas_landing',currency:'IDR'});
+    }
+  </script>
+  <!-- UTM + Attribution Capture -->
+  <script>
+    (function(){
+      var params = new URLSearchParams(window.location.search);
+      ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','fbc','fbp','ttclid'].forEach(function(k){
+        var v = params.get(k);
+        if(v) sessionStorage.setItem(k, v);
+      });
+      sessionStorage.setItem('referrer', document.referrer || 'direct');
+      sessionStorage.setItem('landing_url', window.location.href);
+    })();
+  </script>
+  <!-- ===== END TRACKING ===== -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -320,5 +383,53 @@
     <p>© 2025 <a href="https://berkahkarya.com">BerkahKarya</a> — AI Video Studio. All rights reserved.</p>
     <p style="margin-top:8px"><a href="https://t.me/berkahkarya_saas_bot">Telegram Bot</a> · <a href="/app">Web App</a> · <a href="https://t.me/berkahkarya_support">Support</a></p>
   </footer>
+
+  <!-- CTA Click Tracking — fires AddToCart on every CTA click to Telegram bot -->
+  <script>
+    function trackCTA(ctaName) {
+      // AddToCart — user clicking CTA to bot = high intent
+      if(window.fbq) {
+        fbq('track','AddToCart',{
+          content_name: ctaName,
+          content_category: 'cta_telegram',
+          destination: 'telegram_bot',
+          event_source: 'aitradepulse_landing',
+          currency: 'IDR'
+        });
+        fbq('track','Lead',{content_name: ctaName, content_category: 'telegram_cta'});
+      }
+      if(window.ttq) {
+        ttq.track('AddToCart',{content_name: ctaName, content_type:'cta_telegram'});
+      }
+      if(window.gtag) {
+        gtag('event','add_to_cart',{cta_name: ctaName, destination:'telegram_bot', currency:'IDR'});
+      }
+      // Send CAPI server-side (non-blocking)
+      fetch('/api/track',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          event: 'AddToCart',
+          content_name: ctaName,
+          referrer: sessionStorage.getItem('referrer') || document.referrer,
+          utm_source: sessionStorage.getItem('utm_source'),
+          utm_campaign: sessionStorage.getItem('utm_campaign'),
+          landing_url: sessionStorage.getItem('landing_url'),
+          fbc: sessionStorage.getItem('fbc'),
+          fbp: sessionStorage.getItem('fbp')
+        })
+      }).catch(function(){});
+    }
+
+    // Attach trackCTA to all Telegram CTA links
+    document.addEventListener('DOMContentLoaded', function(){
+      var links = document.querySelectorAll('a[href*="t.me/berkahkarya_saas_bot"]');
+      links.forEach(function(link){
+        link.addEventListener('click', function(){
+          trackCTA(link.textContent.trim() || 'CTA Button');
+        });
+      });
+    });
+  </script>
 </body>
 </html>
