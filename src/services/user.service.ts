@@ -40,6 +40,16 @@ export class UserService {
     lastName?: string;
     referredBy?: string;
     language?: string;
+    // UTM Parameters (Full Funnel Tracking)
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    lpVariant?: string;
+    // Attribution IDs
+    fbc?: string;
+    fbp?: string;
+    ttclid?: string;
   }): Promise<User> {
     // Generate referral code
     const referralCode = await this.generateReferralCode(data.username || data.firstName);
@@ -56,10 +66,20 @@ export class UserService {
         referredBy: data.referredBy,
         language: data.language || 'id',
         notificationsEnabled: true,
+        // UTM Parameters
+        utmSource: data.utmSource,
+        utmMedium: data.utmMedium,
+        utmCampaign: data.utmCampaign,
+        utmContent: data.utmContent,
+        lpVariant: data.lpVariant,
+        // Attribution IDs
+        fbc: data.fbc,
+        fbp: data.fbp,
+        ttclid: data.ttclid,
       },
     });
 
-    logger.info(`Created new user: ${user.telegramId} (${user.username || 'no username'})`);
+    logger.info(`Created new user: ${user.telegramId} (${user.username || 'no username'}) [LP: ${data.lpVariant || 'direct'}]`);
     return user;
   }
 

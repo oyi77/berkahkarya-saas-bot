@@ -19,6 +19,7 @@ import axios from 'axios';
 import { createHash } from 'crypto';
 import { logger } from '@/utils/logger.js';
 import { redis } from '@/config/redis.js';
+import { trackTokens } from '@/services/token-tracker.service';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const OMNIROUTE_URL = process.env.OMNIROUTE_URL || 'http://localhost:20128/v1';
@@ -95,6 +96,17 @@ async function tryGemini(metaPrompt: string): Promise<string | null> {
 
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
     if (text && text.trim().length > 10) {
+      // Track token usage from Gemini usageMetadata
+      const usage = response.data?.usageMetadata;
+      if (usage) {
+        trackTokens({
+          provider: 'gemini-direct',
+          model: 'gemini-2.5-flash',
+          service: 'prompt_optimizer',
+          promptTokens: usage.promptTokenCount || 0,
+          completionTokens: usage.candidatesTokenCount || 0,
+        }).catch(() => {});
+      }
       logger.info('[AIPromptOptimizer] Gemini succeeded');
       return text.trim();
     }
@@ -126,6 +138,16 @@ async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
 
     const content = response.data?.choices?.[0]?.message?.content;
     if (content && content.trim().length > 10) {
+      const usage = response.data?.usage;
+      if (usage) {
+        trackTokens({
+          provider: 'omniroute',
+          model: response.data?.model || 'antigravity/gemini-2.5-flash',
+          service: 'prompt_optimizer',
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+        }).catch(() => {});
+      }
       logger.info('[AIPromptOptimizer] OmniRoute succeeded');
       return content.trim();
     }

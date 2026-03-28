@@ -54,6 +54,23 @@ model User {
   updatedAt         DateTime  @updatedAt @map("updated_at")
   lastActivityAt    DateTime  @default(now()) @map("last_activity_at")
   
+  // UTM & Attribution Tracking (Full Funnel)
+  utmSource         String?   @map("utm_source") @db.VarChar(255)
+  utmMedium         String?   @map("utm_medium") @db.VarChar(255)
+  utmCampaign       String?   @map("utm_campaign") @db.VarChar(255)
+  utmContent        String?   @map("utm_content") @db.VarChar(255)
+  lpVariant         String?   @map("lp_variant") @db.VarChar(50)
+  
+  // Attribution IDs (for platform matching)
+  fbc               String?   @map("fbc") @db.VarChar(500) // Facebook Click ID
+  fbp               String?   @map("fbp") @db.VarChar(500) // Facebook Pixel ID
+  ttclid            String?   @map("ttclid") @db.VarChar(500) // TikTok Click ID
+  
+  // LTV Metrics
+  daysToFirstPurchase Int?    @map("days_to_first_purchase")
+  signupToFirstVideoMin Int?  @map("signup_to_first_video_min")
+  totalSpent        Decimal   @default(0) @map("total_spent") @db.Decimal(12, 2)
+  
   // Relations
   transactions      Transaction[]
   videos            Video[]
@@ -102,6 +119,12 @@ model Transaction {
   ipAddress             String?   @map("ip_address") @db.Inet
   userAgent             String?   @map("user_agent")
   metadata              Json?
+  
+  // UTM & Attribution (for LTV tracking)
+  utmCampaign           String?   @map("utm_campaign") @db.VarChar(255)
+  utmContent            String?   @map("utm_content") @db.VarChar(255)
+  lpVariant             String?   @map("lp_variant") @db.VarChar(50)
+  daysToConversion      Int?      @map("days_to_conversion")
   
   // Relations
   user                  User      @relation(fields: [userId], references: [telegramId])
@@ -402,4 +425,68 @@ model GenerationAnalytics {
   @@index([niche])
   @@index([createdAt])
   @@map("generation_analytics")
+}
+
+// Token Usage Tracking
+model TokenUsage {
+  id               Int      @id @default(autoincrement())
+  userId           BigInt?  @map("user_id")
+  provider         String   @db.VarChar(50)
+  model            String   @db.VarChar(100)
+  service          String   @db.VarChar(50)
+  promptTokens     Int      @default(0) @map("prompt_tokens")
+  completionTokens Int      @default(0) @map("completion_tokens")
+  totalTokens      Int      @default(0) @map("total_tokens")
+  costUsd          Float    @default(0) @map("cost_usd")
+  costIdr          Float    @default(0) @map("cost_idr")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("token_usage")
+}
+
+// =============================================================================
+// GAMIFICATION MODELS (v3.0)
+// =============================================================================
+
+model UserStreak {
+  id              BigInt    @id @default(autoincrement())
+  userId          BigInt    @unique @map("user_id")
+  currentStreak   Int       @default(0) @map("current_streak")
+  longestStreak   Int       @default(0) @map("longest_streak")
+  lastGenerateDate DateTime? @map("last_generate_date") @db.Date
+  streakStartDate DateTime? @map("streak_start_date") @db.Date
+  totalGenerates  Int       @default(0) @map("total_generates")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("user_streaks")
+}
+
+model UserBadge {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @map("user_id")
+  badgeId     String    @map("badge_id") @db.VarChar(50)
+  awardedAt   DateTime  @default(now()) @map("awarded_at")
+  notified    Boolean   @default(false)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+model RetentionLog {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt    @map("user_id")
+  triggerType String    @map("trigger_type") @db.VarChar(50)
+  sentAt      DateTime  @default(now()) @map("sent_at")
+  responded   Boolean   @default(false)
+
+  @@index([userId])
+  @@index([triggerType])
+  @@index([sentAt])
+  @@map("retention_logs")
 }

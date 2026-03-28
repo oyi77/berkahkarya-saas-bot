@@ -18,6 +18,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { trackTokens } from '@/services/token-tracker.service';
 import { CircuitBreaker } from './circuit-breaker.service';
 import { ProviderRouter } from './provider-router.service';
 import { PromptEngine } from '@/config/prompt-engine';
@@ -760,6 +761,7 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
           await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
           await ProviderRouter.recordSuccess(provider.key).catch(() => {});
           logger.info(`${provider.name} succeeded!`);
+          trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen', promptTokens: 0, completionTokens: 0 }).catch(() => {});
           return result;
         }
       } catch (error: any) {
@@ -818,6 +820,7 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
             await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
             await ProviderRouter.recordSuccess(provider.key).catch(() => {});
             logger.info(`${provider.name} succeeded via multi-scene: ${scenesNeeded}×${sceneDuration}s = ~${params.duration}s`);
+            trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen_multiscene', promptTokens: 0, completionTokens: 0 }).catch(() => {});
             return { success: true, videoUrl: outputPath, provider: provider.key };
           }
         }

@@ -114,6 +114,29 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       const msg = ctx.message as { text?: string } | undefined;
       const startPayload = msg?.text?.split(" ")[1];
 
+      // Extract UTM parameters from start payload or deep link
+      // Format: /start utm_source=berkahkarya&utm_campaign=lp1&utm_content=cta_click&lp_variant=1
+      const utmParams: any = {};
+      const attributionParams: any = {};
+      
+      if (startPayload) {
+        try {
+          const params = new URLSearchParams(startPayload.replace('?', ''));
+          utmParams.utm_source = params.get('utm_source') || undefined;
+          utmParams.utm_medium = params.get('utm_medium') || undefined;
+          utmParams.utm_campaign = params.get('utm_campaign') || undefined;
+          utmParams.utm_content = params.get('utm_content') || undefined;
+          utmParams.lp_variant = params.get('lp_variant') || undefined;
+          
+          // Attribution IDs
+          attributionParams.fbc = params.get('fbc') || undefined;
+          attributionParams.fbp = params.get('fbp') || undefined;
+          attributionParams.ttclid = params.get('ttclid') || undefined;
+        } catch (e) {
+          logger.warn(`Failed to parse UTM params from start payload: ${startPayload}`);
+        }
+      }
+
       // Detect language from Telegram client settings
       const detectedLang = detectLanguage(user.language_code);
 
@@ -123,6 +146,8 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         ctx.session.stateData = {
           startPayload: startPayload || null,
           detectedLang,
+          utmParams,
+          attributionParams,
         };
       }
 

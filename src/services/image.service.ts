@@ -16,6 +16,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { trackTokens } from '@/services/token-tracker.service';
 import { CircuitBreaker } from './circuit-breaker.service';
 import { ContentAnalysisService } from './content-analysis.service';
 import { WatermarkService } from './watermark.service';
@@ -947,6 +948,14 @@ export class ImageGenerationService {
         if (result.success) {
           await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
           logger.info(`🖼️ ${provider.name} succeeded (${mode})`);
+          // Track image generation (use fixed token estimate — not token-based billing)
+          trackTokens({
+            provider: provider.key,
+            model: provider.key,
+            service: 'image_gen',
+            promptTokens: 0,
+            completionTokens: 0,
+          }).catch(() => {});
           return result;
         }
       } catch (error: any) {

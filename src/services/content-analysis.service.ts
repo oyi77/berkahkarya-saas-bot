@@ -7,6 +7,7 @@
 
 import { logger } from '@/utils/logger';
 import axios from 'axios';
+import { trackTokens } from '@/services/token-tracker.service';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -143,6 +144,11 @@ export class ContentAnalysisService {
       if (!generatedText) {
         logger.warn('Gemini returned empty response');
         return this.getFallbackResult(mediaType);
+      }
+
+      const usageMeta = response.data?.usageMetadata;
+      if (usageMeta) {
+        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'content_analysis', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
       }
 
       return parseGeminiResponse(generatedText);

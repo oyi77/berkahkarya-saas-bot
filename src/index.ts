@@ -29,6 +29,7 @@ import {
   cleanupStuckVideos,
   setCleanupTelegram,
 } from "@/workers/cleanup.worker";
+import { startDailyReportWorker } from "@/workers/daily-report.worker";
 import { UserService } from "@/services/user.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
 
@@ -47,6 +48,9 @@ const bot = new Telegraf(process.env.BOT_TOKEN!);
 
 // Allow UserService to send proactive DMs (low-credit warnings, etc.)
 UserService.setBotInstance(bot);
+
+// Global BigInt serializer patch (Prisma returns BigInt for telegramId)
+(BigInt.prototype as any).toJSON = function () { return this.toString(); };
 
 // Initialize Fastify server
 const server = Fastify({
@@ -87,6 +91,14 @@ async function main() {
         "⚠️ Video worker failed to start, falling back to direct async:",
         workerErr,
       );
+    }
+
+    // Start daily report worker (sends activity report at 00:00 WIB)
+    try {
+      startDailyReportWorker(bot);
+      logger.info("✅ Daily report worker started");
+    } catch (reportErr) {
+      logger.warn("⚠️ Daily report worker failed to start:", reportErr);
     }
 
     // Set telegram instance for cleanup notifications and run startup cleanup

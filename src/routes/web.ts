@@ -46,6 +46,34 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     },
   );
 
+
+  // Static files (images, etc)
+  server.get("/public/:filename", async (request, reply) => {
+    const { filename } = request.params as { filename: string };
+    const filePath = `${process.cwd()}/src/public/${filename}`;
+    
+    if (!fs.existsSync(filePath)) {
+      reply.code(404).send("File not found");
+      return;
+    }
+    
+    const ext = filename.split('.').pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'svg': 'image/svg+xml',
+      'webp': 'image/webp'
+    };
+    
+    const mimeType = mimeTypes[ext || ''] || 'application/octet-stream';
+    const stream = fs.createReadStream(filePath);
+    
+    reply.type(mimeType);
+    return reply.send(stream);
+  });
+
   // Web app
   server.get("/app", async (_request, reply) => {
     reply.view("web/app.ejs");

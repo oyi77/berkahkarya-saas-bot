@@ -5,6 +5,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { logger } from '@/utils/logger';
+import { trackTokens } from '@/services/token-tracker.service';
 
 const OMNIROUTE_URL = process.env.OMNIROUTE_URL || 'http://localhost:20128/v1';
 const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || '';
@@ -223,6 +224,19 @@ export class OmniRouteService {
 
       const content = response.data?.choices?.[0]?.message?.content || '';
       const usedModel = response.data?.model || model || DEFAULT_MODEL;
+
+      // Track token usage (non-blocking, non-fatal)
+      const usage = response.data?.usage;
+      if (usage) {
+        trackTokens({
+          userId,
+          provider: 'omniroute',
+          model: usedModel,
+          service: 'chat',
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+        }).catch(() => {});
+      }
 
       history.push({ role: 'assistant', content });
       this.conversationHistory.set(userId, history);

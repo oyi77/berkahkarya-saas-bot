@@ -5,6 +5,7 @@ import { logger } from '@/utils/logger';
 import { ReferralService } from '@/services/referral.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import { PlanKey, BillingCycle } from '@/config/pricing';
+import { AnalyticsService } from '@/services/analytics.service';
 
 const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
   ? 'https://passport.duitku.com'
@@ -157,6 +158,62 @@ export class DuitkuService {
         Number(transaction.amountIdr),
         transaction.userId
       );
+
+      // Track purchase event to analytics platforms (GA4, Meta, TikTok) with full attribution
+      try {
+        const user = await prisma.user.findUnique({
+          where: { telegramId: transaction.userId },
+          select: { 
+            username: true,
+            utmSource: true,
+            utmCampaign: true,
+            utmContent: true,
+            lpVariant: true,
+            fbc: true,
+            fbp: true,
+            ttclid: true,
+            createdAt: true,
+          },
+        });
+        
+        // Calculate days to conversion
+        const daysToConversion = user?.createdAt 
+          ? Math.floor((Date.now() - user.createdAt.getTime()) / 86400000)
+          : 0;
+        
+        await AnalyticsService.trackPurchase({
+          user_id: transaction.userId.toString(),
+          amount_idr: Number(transaction.amountIdr),
+          transaction_id: params.merchantOrderId,
+          event_source_url: 'https://bot.aitradepulse.com/topup',
+          // UTM Parameters (for attribution)
+          utm_source: user?.utmSource,
+          utm_campaign: user?.utmCampaign,
+          utm_content: user?.utmContent,
+          lp_variant: user?.lpVariant,
+          // Attribution IDs (for platform matching)
+          fbc: user?.fbc,
+          fbp: user?.fbp,
+          ttclid: user?.ttclid,
+          // LTV metrics
+          days_to_conversion: daysToConversion,
+        });
+        
+        // Update transaction with UTM data
+        await prisma.transaction.update({
+          where: { orderId: params.merchantOrderId },
+          data: {
+            utmCampaign: user?.utmCampaign,
+            utmContent: user?.utmContent,
+            lpVariant: user?.lpVariant,
+            daysToConversion,
+          },
+        });
+        
+        logger.info(`✅ Analytics tracked for purchase: ${params.merchantOrderId} [LP: ${user?.lpVariant || 'direct'}]`);
+      } catch (analyticsError) {
+        logger.warn(`⚠️ Analytics tracking failed (non-blocking): ${analyticsError}`);
+      }
     }
 
     return { success: true, message: 'Callback processed' };

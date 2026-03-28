@@ -49,6 +49,10 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
 export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.addHook("onRequest", async (request, reply) => {
     const url = request.url;
+    // Exclude login page and login POST from auth
+    if (url === "/admin/login" || url.startsWith("/admin/login?")) {
+      return;
+    }
     const isAdminRoute =
       url === "/admin" ||
       url === "/admin/dashboard" ||
@@ -64,16 +68,34 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/payment-settings") ||
       url.startsWith("/api/pricing") ||
       url.startsWith("/api/provider-costs") ||
-      url.startsWith("/api/admin-prompts");
+      url.startsWith("/api/admin-prompts") ||
+      url.startsWith("/api/token-stats") ||
+      url.startsWith("/api/token-usage");
     if (isAdminRoute) {
       await verifyAdmin(request, reply);
     }
   });
 
-  server.get("/admin", async (request, reply) => {
-    return reply.view("admin/dashboard.ejs");
+  // Login page (no auth required)
+  server.get("/admin/login", async (request, reply) => {
+    return reply.view("admin/login.ejs");
   });
 
+  // Admin dashboard (with auth) - redirect to dashboard if already logged in
+  server.get("/admin", async (request, reply) => {
+    const cookie = (request.headers.cookie || "")
+      .split(";")
+      .find((c) => c.trim().startsWith("admin_token="));
+    if (cookie) {
+      const token = cookie.split("=")[1]?.trim();
+      if (token === Buffer.from(ADMIN_PASSWORD).toString("base64")) {
+        return reply.redirect("/admin/dashboard");
+      }
+    }
+    return reply.redirect("/admin/login");
+  });
+
+  // Login POST endpoint (no auth required)
   server.post("/admin/login", async (request, reply) => {
     const { password } = request.body as { password: string };
     if (password === ADMIN_PASSWORD) {
@@ -465,6 +487,143 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     } catch {
       return reply.status(404).send({ error: "Not found" });
     }
+  });
+
+  // ── Stats Overview (7-day charts) ──
+
+  server.get("/api/stats/overview", async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const revenueChart: { date: string; revenue: number }[] = [];
+    const usersChart: { date: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(today);
+      dayStart.setDate(dayStart.getDate() - i);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const [rev, newUsers] = await Promise.all([
+        prisma.transaction.aggregate({
+          where: { status: "success", createdAt: { gte: dayStart, lt: dayEnd } },
+          _sum: { amountIdr: true },
+        }),
+        prisma.user.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+      ]);
+      const label = dayStart.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" });
+      revenueChart.push({ date: label, revenue: Number(rev._sum.amountIdr || 0) });
+      usersChart.push({ date: label, count: newUsers });
+    }
+    const [totalUsers, totalRevenue, todayRevenue, totalVideos, queueStats] = await Promise.all([
+      prisma.user.count(),
+      prisma.transaction.aggregate({ where: { status: "success" }, _sum: { amountIdr: true } }),
+      prisma.transaction.aggregate({ where: { status: "success", createdAt: { gte: today } }, _sum: { amountIdr: true } }),
+      prisma.video.count(),
+      getQueueStats(),
+    ]);
+    const usersByTier = await prisma.$queryRaw`SELECT tier, COUNT(*)::int as count FROM users GROUP BY tier` as any[];
+    const videosByStatus = await prisma.$queryRaw`SELECT status, COUNT(*)::int as count FROM videos GROUP BY status` as any[];
+    const tierMap: Record<string, number> = {};
+    for (const t of usersByTier) tierMap[t.tier] = t.count;
+    const statusMap: Record<string, number> = {};
+    for (const v of videosByStatus) statusMap[v.status] = v.count;
+    return {
+      users: { total: totalUsers, byTier: tierMap },
+      revenue: { total: Number(totalRevenue._sum.amountIdr || 0), today: Number(todayRevenue._sum.amountIdr || 0) },
+      videos: { total: totalVideos, byStatus: statusMap },
+      queue: queueStats,
+      charts: { revenue: revenueChart, newUsers: usersChart },
+    };
+  });
+
+  // ── User Search ──
+
+  server.get("/api/users/search", async (request) => {
+    const { q, limit = "20" } = request.query as { q?: string; limit?: string };
+    if (!q) return [];
+    return prisma.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: q, mode: "insensitive" } },
+          { firstName: { contains: q, mode: "insensitive" } },
+        ],
+      },
+      take: parseInt(limit),
+      select: {
+        telegramId: true, username: true, firstName: true,
+        tier: true, creditBalance: true, isBanned: true, createdAt: true, lastActivityAt: true,
+      },
+    });
+  });
+
+  // ── Change User Tier ──
+
+  server.patch("/api/users/:id/tier", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { tier } = request.body as { tier: string };
+    const validTiers = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
+    if (!validTiers.includes(tier)) return reply.status(400).send({ error: "Invalid tier" });
+    const user = await prisma.user.update({
+      where: { telegramId: BigInt(id) },
+      data: { tier: tier as any },
+    });
+    return { success: true, tier: user.tier };
+  });
+
+  // ── System Health ──
+
+  server.get("/api/system/health", async () => {
+    const checks: Record<string, any> = {};
+    try { await prisma.$queryRaw`SELECT 1`; checks.database = { status: "ok" }; }
+    catch (e: any) { checks.database = { status: "error", message: e.message }; }
+    try { await redis.ping(); checks.redis = { status: "ok" }; }
+    catch (e: any) { checks.redis = { status: "error", message: e.message }; }
+    try {
+      const token = process.env.BOT_TOKEN;
+      if (token) {
+        const res = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+        const data = await res.json() as any;
+        checks.webhook = {
+          status: data.ok ? "ok" : "error",
+          url: data.result?.url,
+          pendingUpdates: data.result?.pending_update_count,
+          lastError: data.result?.last_error_message,
+        };
+      }
+    } catch (e: any) { checks.webhook = { status: "error", message: e.message }; }
+    return {
+      status: Object.values(checks).every((c: any) => c.status === "ok") ? "healthy" : "degraded",
+      checks,
+      environment: process.env.NODE_ENV,
+      version: "3.0.0",
+      uptime: process.uptime(),
+    };
+  });
+
+  // ── Token Usage Stats ──
+
+  server.get("/api/token-stats", async (request) => {
+    const { days = "7" } = request.query as { days?: string };
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getTokenStats } = require("../services/token-tracker.service");
+    return getTokenStats(parseInt(days));
+  });
+
+  server.get("/api/token-usage", async (request) => {
+    const { limit = "50", provider, service } = request.query as {
+      limit?: string; provider?: string; service?: string;
+    };
+    const where: any = {};
+    if (provider) where.provider = provider;
+    if (service) where.service = service;
+    return prisma.tokenUsage.findMany({
+      where,
+      take: parseInt(limit),
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true, provider: true, model: true, service: true,
+        promptTokens: true, completionTokens: true, totalTokens: true,
+        costUsd: true, costIdr: true, createdAt: true,
+      },
+    });
   });
 
   // ── Analytics Dashboard ──
