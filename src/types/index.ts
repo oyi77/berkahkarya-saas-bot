@@ -60,6 +60,16 @@ export interface SessionData {
   currentJobId?: string;
   caption?: string;
   connectingPlatform?: string;
+
+  // v3.0 Basic/Smart/Pro mode state
+  v3Mode?: 'basic' | 'smart' | 'pro';
+  v3Action?: 'image_set' | 'video' | 'clone_style' | 'campaign';
+  v3Preset?: 'quick' | 'standard' | 'extended';
+  v3Platform?: 'tiktok' | 'instagram' | 'youtube' | 'square';
+  v3ProductDesc?: string;
+  v3CampaignSize?: 5 | 10;
+  v3Scenes?: Array<{ sceneId: string; prompt: string; durationSeconds: number }>;
+  v3CloneRefUrl?: string;
 }
 
 export type BotState =
@@ -104,7 +114,11 @@ export type BotState =
   | 'SETTINGS_NOTIFICATIONS'
   | 'SUPPORT_CHAT'
   | 'CUSTOMIZING_PROMPT'
-  | 'CUSTOM_PROMPT_CREATION';
+  | 'CUSTOM_PROMPT_CREATION'
+  | 'V3_AWAITING_PRODUCT'
+  | 'V3_AWAITING_CLONE_REF'
+  | 'V3_AWAITING_CLONE_PRODUCT'
+  | 'V3_PROCESSING';
 
 // =============================================================================
 // USER TYPES

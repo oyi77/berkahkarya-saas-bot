@@ -132,3 +132,64 @@ export async function getSubscriptionPlansAsync(): Promise<Record<string, any>> 
   if (Object.keys(dbPlans).length > 0) return dbPlans;
   return SUBSCRIPTION_PLANS;
 }
+
+// ── v3.0 Credit System (1 Credit = 10 Units) ──────────────────────────────────
+// Added: March 2026 — Master Document v3.0
+
+export const CREDIT_TO_UNIT = 10;
+
+export const UNIT_COSTS = {
+  IMAGE_SET_7_SCENE: 1.5,
+  VIDEO_15S: 2.5,
+  VIDEO_30S: 3.5,
+  VIDEO_60S: 6.0,
+  CLONE_STYLE: 0.5,
+  CAMPAIGN_5_VIDEO: 15.0,
+  CAMPAIGN_10_VIDEO: 25.0,
+} as const;
+
+export const CREDIT_PACKAGES_V3 = [
+  { id: 'coba', name: 'Coba Dulu', credits: 1, units: 10, priceIdr: 25_000, pricePerUnit: 2500, savingPct: 0, isPopular: false },
+  { id: 'starter', name: 'Starter', credits: 5, units: 50, priceIdr: 99_000, pricePerUnit: 1980, savingPct: 21, isPopular: false },
+  { id: 'growth', name: 'Growth', credits: 15, units: 150, priceIdr: 249_000, pricePerUnit: 1660, savingPct: 34, isPopular: true },
+  { id: 'business', name: 'Business', credits: 50, units: 500, priceIdr: 699_000, pricePerUnit: 1398, savingPct: 44, isPopular: false },
+  { id: 'agency_pkg', name: 'Agency', credits: 150, units: 1500, priceIdr: 1_799_000, pricePerUnit: 1199, savingPct: 52, isPopular: false },
+] as const;
+
+export const SUBSCRIPTION_PLANS_V3 = {
+  lite: {
+    name: 'Lite',
+    monthlyPriceIdr: 149_000,
+    annualPriceIdr: 1_490_000,
+    monthlyCredits: 10,
+    features: ['Priority queue', 'Basic analytics'],
+  },
+  pro: {
+    name: 'Pro',
+    monthlyPriceIdr: 349_000,
+    annualPriceIdr: 3_490_000,
+    monthlyCredits: 30,
+    features: ['Priority queue 2x', 'Campaign Builder', 'Clone Style', 'No watermark', 'Advanced analytics'],
+  },
+  agency_sub: {
+    name: 'Agency',
+    monthlyPriceIdr: 799_000,
+    annualPriceIdr: 7_990_000,
+    monthlyCredits: 100,
+    features: ['Priority queue 3x', 'White-label', 'API access', 'Batch generation', 'Dedicated support'],
+  },
+} as const;
+
+export function creditsToUnits(credits: number): number { return credits * CREDIT_TO_UNIT; }
+export function unitsToCredits(units: number): number { return units / CREDIT_TO_UNIT; }
+export function getUnitCost(action: keyof typeof UNIT_COSTS): number { return UNIT_COSTS[action]; }
+export function creditCostForAction(action: keyof typeof UNIT_COSTS): number { return UNIT_COSTS[action] / CREDIT_TO_UNIT; }
+
+export const REFERRAL_COMMISSIONS_V3 = {
+  TIER_1: 0.15,
+  TIER_2: 0.05,
+  TIER_3: 0.03,
+  ACTIVITY_WINDOW_DAYS: 30,
+  MIN_PAYOUT_IDR: 50_000,
+  PENDING_DAYS: 7,
+} as const;
