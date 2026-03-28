@@ -48,6 +48,20 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
 
   // Static files (images, etc)
+  // Favicon routes
+  server.get("/favicon.ico", async (_request, reply) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    const ico = fs.readFileSync(`${process.cwd()}/src/public/favicon.ico`);
+    return reply.type("image/x-icon").send(ico);
+  });
+
+  server.get("/favicon.svg", async (_request, reply) => {
+    const fs = require("fs");
+    const svg = fs.readFileSync(`${process.cwd()}/src/public/favicon.svg`, "utf8");
+    return reply.type("image/svg+xml").send(svg);
+  });
+
   server.get("/public/:filename", async (request, reply) => {
     const { filename } = request.params as { filename: string };
     const filePath = `${process.cwd()}/src/public/${filename}`;

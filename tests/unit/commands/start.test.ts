@@ -94,7 +94,7 @@ describe("Start Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain(
-        "Selamat datang di BerkahKarya AI Video Studio",
+        "Selamat datang di BerkahKarya AI!",
       );
       expect(
         replyCall[1].reply_markup.inline_keyboard[0][0].callback_data,

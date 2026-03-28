@@ -8,6 +8,9 @@
 import { config } from "dotenv";
 config();
 
+import { validateEnv } from "@/config/env";
+validateEnv();
+
 import { Telegraf } from "telegraf";
 import Fastify from "fastify";
 import path from "path";
@@ -30,6 +33,8 @@ import {
   setCleanupTelegram,
 } from "@/workers/cleanup.worker";
 import { startDailyReportWorker } from "@/workers/daily-report.worker";
+import cron from "node-cron";
+import { retentionQueue } from "@/workers/retention.worker";
 import { UserService } from "@/services/user.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
 
@@ -99,6 +104,17 @@ async function main() {
       logger.info("✅ Daily report worker started");
     } catch (reportErr) {
       logger.warn("⚠️ Daily report worker failed to start:", reportErr);
+    }
+
+    // Retention cron: push check jobs every 6 hours
+    try {
+      cron.schedule("0 */6 * * *", async () => {
+        logger.info("⏰ Running scheduled retention check...");
+        await retentionQueue.add("scheduled_check", { type: "all", triggeredBy: "cron" });
+      });
+      logger.info("✅ Retention cron scheduled (every 6h)");
+    } catch (cronErr) {
+      logger.warn("⚠️ Retention cron failed to start:", cronErr);
     }
 
     // Set telegram instance for cleanup notifications and run startup cleanup
@@ -187,8 +203,8 @@ async function main() {
     // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
-      bot.stop(signal);
-      await server.close();
+      try { await bot.stop(signal); } catch (_) {}
+      try { await server.close(); } catch (_) {}
       logger.info("👋 Goodbye!");
       process.exit(0);
     };

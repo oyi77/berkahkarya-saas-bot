@@ -302,7 +302,8 @@ describe('Generate with Avatar (IP-Adapter)', () => {
 
 describe('Provider Config Capability Flags', () => {
   it('should have correct capability flags in PROVIDER_CONFIG', async () => {
-    const { PROVIDER_CONFIG } = await import('@/config/providers');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PROVIDER_CONFIG } = require('@/config/providers');
 
     // Text-only providers
     expect(PROVIDER_CONFIG.image.geminigen.supportsImg2Img).toBe(false);

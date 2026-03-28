@@ -61,7 +61,9 @@ export async function adminBroadcastCommand(ctx: BotContext): Promise<void> {
   while (i < args.length) {
     const arg = args[i];
     if (arg.startsWith('--')) {
-      const filterName = arg.slice(2) as keyof typeof filters;
+      // Convert kebab-case to camelCase: --active-since → activeSince
+      const rawName = arg.slice(2);
+      const filterName = rawName.replace(/-([a-z])/g, (_, c) => c.toUpperCase()) as keyof typeof filters;
       if (filterName in filters && i + 1 < args.length) {
         filters[filterName as keyof typeof filters] = args[i + 1];
         i += 2;

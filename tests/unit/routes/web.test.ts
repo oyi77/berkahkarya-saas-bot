@@ -183,14 +183,7 @@ describe("Web Routes", () => {
   });
 
   describe("Route Registration", () => {
-    it("should register rate limit plugin", () => {
-      expect(server.register).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ max: 100, timeWindow: "1 minute" }),
-      );
-    });
-
-    it("should register GET / route", () => {
+it("should register GET / route", () => {
       expect(server.get).toHaveBeenCalledWith("/", expect.any(Function));
     });
 

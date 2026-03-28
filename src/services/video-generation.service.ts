@@ -21,7 +21,8 @@ const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
 const BYTEPLUS_API_KEY = process.env.BYTEPLUS_API_KEY || process.env.AIML_API_KEY || '';
 
 // Demo mode - returns sample video URLs for testing
-const DEMO_MODE = process.env.DEMO_MODE === 'true' || !GEMINIGEN_API_KEY;
+// DEMO_MODE evaluated lazily so tests can override process.env
+function isDemoMode(): boolean { return process.env.DEMO_MODE === 'true' || !process.env.GEMINIGEN_API_KEY; }
 
 // ============================================================================
 // NICHES & STYLES
@@ -167,7 +168,7 @@ export async function generateVideo(params: VideoGenerationParams): Promise<Vide
     }
   }
 
-  if (DEMO_MODE) {
+  if (isDemoMode()) {
     logger.info('📺 Using demo mode - returning sample video');
     return generateDemoVideo(params, duration, niche, styles);
   }

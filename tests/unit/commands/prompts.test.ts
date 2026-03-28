@@ -146,7 +146,7 @@ describe("Prompts Command", () => {
 
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Prompt Library");
+      expect(replyCall[0]).toContain("PROMPT LIBRARY");
       expect(replyCall[0]).toContain("40+ Template");
     });
 
@@ -201,7 +201,7 @@ describe("Prompts Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("F&B");
-      expect(replyCall[0]).toContain("Pilih Prompt");
+      expect(replyCall[0]).toContain("PROMPT TEMPLATES");
     });
 
     it("should show error for invalid niche", async () => {
@@ -233,7 +233,7 @@ describe("Prompts Command", () => {
       await showNichePrompts(ctx as any, "fnb");
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Tersimpan Kamu");
+      expect(replyCall[0]).toContain("PROMPT TEMPLATES");
     });
 
     it("should edit message when edit flag is true", async () => {
@@ -257,7 +257,7 @@ describe("Prompts Command", () => {
 
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Prompt dipilih");
+      expect(replyCall[0]).toContain("Prompt Aktif");
       expect(replyCall[0]).toContain("Steam & Zoom Drama");
     });
 
@@ -326,7 +326,7 @@ describe("Prompts Command", () => {
 
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("PROMPT OF THE DAY");
+      expect(replyCall[0]).toContain("MYSTERY PROMPT BOX");
     });
 
     it("should save prompt to session", async () => {
@@ -407,7 +407,7 @@ describe("Prompts Command", () => {
       await fingerprintCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("REKOMENDASI UNTUK KAMU");
+      expect(replyCall[0]).toContain("RECOMMENDED FOR YOU");
     });
 
     it("should handle errors gracefully", async () => {
@@ -575,6 +575,8 @@ describe("Prompts Command", () => {
     });
 
     it("should edit message when edit flag is true", async () => {
+      (ctx as any).editMessageText = jest.fn<() => Promise<unknown>>().mockResolvedValue({});
+
       await startAddCustomPrompt(ctx as any, "fnb", true);
 
       expect(ctx.editMessageText).toHaveBeenCalled();

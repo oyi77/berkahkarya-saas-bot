@@ -50,7 +50,7 @@ describe("Help Command", () => {
       await helpCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("PROMPT LIBRARY");
+      expect(replyCall[0]).toContain("/prompts");
       expect(replyCall[0]).toContain("GENERATE");
       expect(replyCall[0]).toContain("ACCOUNT");
     });
@@ -61,11 +61,10 @@ describe("Help Command", () => {
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("/prompts");
       expect(replyCall[0]).toContain("/create");
-      expect(replyCall[0]).toContain("/topup");
-      expect(replyCall[0]).toContain("/subscription");
-      expect(replyCall[0]).toContain("/videos");
-      expect(replyCall[0]).toContain("/profile");
-      expect(replyCall[0]).toContain("/referral");
+      expect(replyCall[0]).toContain("/credits");
+      expect(replyCall[0]).toContain("/history");
+      expect(replyCall[0]).toContain("/settings");
+      expect(replyCall[0]).toContain("/feedback");
       expect(replyCall[0]).toContain("/settings");
       expect(replyCall[0]).toContain("/support");
     });
@@ -74,16 +73,16 @@ describe("Help Command", () => {
       await helpCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Creative Tools");
-      expect(replyCall[0]).toContain("Create Video");
-      expect(replyCall[0]).toContain("Generate Image");
+      expect(replyCall[0]).toContain("GENERATE");
+      expect(replyCall[0]).toContain("/video");
+      expect(replyCall[0]).toContain("/imagine");
     });
 
     it("should show quick tips section", async () => {
       await helpCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Quick Tips");
+      expect(replyCall[0]).toContain("INFO");
       expect(replyCall[0]).toContain("/prompts");
       expect(replyCall[0]).toContain("/daily");
     });
@@ -99,7 +98,7 @@ describe("Help Command", () => {
       await helpCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[1].parse_mode).toBe("MarkdownV2");
+      expect(replyCall[1].parse_mode).toBe("Markdown");
     });
   });
 });
