@@ -16,6 +16,7 @@ import { retentionQueue } from "@/workers/retention.worker";
 import { HOOK_VARIATIONS } from "@/services/campaign.service";
 import { CREDIT_PACKAGES_V3, SUBSCRIPTION_PLANS_V3, UNIT_COSTS, REFERRAL_COMMISSIONS_V3 } from "@/config/pricing";
 import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
+import { ProviderSettingsService } from "@/services/provider-settings.service";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
@@ -803,5 +804,46 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
         id: p.id, name: p.name, totalSeconds: p.totalSeconds, creditCost: p.creditCost, scenesIncluded: p.scenesIncluded,
       })),
     };
+  });
+
+  // ── v3.0 Real-time & Management ───────────────────────────────────────────
+
+  /** GET /api/admin/sse — Real-time event stream */
+  server.get("/api/admin/sse", async (request, reply) => {
+    reply.raw.setHeader("Content-Type", "text/event-stream");
+    reply.raw.setHeader("Cache-Control", "no-cache");
+    reply.raw.setHeader("Connection", "keep-alive");
+
+    const subscriber = redis.duplicate();
+    await subscriber.connect();
+
+    // Send initial ping
+    reply.raw.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+    await subscriber.subscribe("admin_events", (message) => {
+      reply.raw.write(`data: ${message}\n\n`);
+    });
+
+    request.raw.on("close", async () => {
+      await subscriber.quit();
+    });
+  });
+
+  /** GET /api/admin/settings/providers — Dynamic provider overrides */
+  server.get("/api/admin/settings/providers", async () => {
+    const overrides = await ProviderSettingsService.getDynamicSettings();
+    return { overrides };
+  });
+
+  /** GET /api/admin/transactions/transfers — P2P Transfer logs */
+  server.get("/api/admin/transactions/transfers", async () => {
+    return prisma.transaction.findMany({
+      where: { type: "transfer" },
+      take: 100,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { username: true, firstName: true } },
+      },
+    });
   });
 }

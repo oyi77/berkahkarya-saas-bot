@@ -44,7 +44,7 @@ describe("Admin Dashboard API Integration Tests", () => {
         image: {},
       });
 
-      const response = await request(app.server).get("/api/settings/providers");
+      const response = await request(app.server).get("/api/admin/settings/providers");
       expect(response.status).toBe(200);
       expect(response.body.overrides.video.xai.priority).toBe(1);
       expect(response.body.overrides.video.byteplus.enabled).toBe(false);
@@ -70,7 +70,7 @@ describe("Admin Dashboard API Integration Tests", () => {
         { id: "tx-123", type: "transfer", creditsAmount: 50, user: { username: "tester" } }
       ]);
       
-      const response = await request(app.server).get("/api/transactions/transfers");
+      const response = await request(app.server).get("/api/admin/transactions/transfers");
       expect(response.status).toBe(200);
       expect(response.body.length).toBe(1);
       expect(response.body[0].creditsAmount).toBe(50);
