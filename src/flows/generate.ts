@@ -12,18 +12,213 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
-import { UNIT_COSTS, CREDIT_PACKAGES_V3, creditsToUnits } from '@/config/pricing';
+import { VideoService } from '@/services/video.service';
+import { UNIT_COSTS, creditsToUnits } from '@/config/pricing';
 import { detectIndustry, generateVideoScenePrompts, HPAS_SCENES, DURATION_PRESETS } from '@/config/hpas-engine';
 import { CampaignService } from '@/services/campaign.service';
-import type { IndustryId, DurationPreset } from '@/config/hpas-engine';
+import { ContentAnalysisService } from '@/services/content-analysis.service';
+import { ImageGenerationService } from '@/services/image.service';
+import { enqueueVideoGeneration } from '@/config/queue';
+import { generateVideoAsync } from '@/commands/create';
+import type { DurationPreset } from '@/config/hpas-engine';
 
 type GenerateMode = 'basic' | 'smart' | 'pro';
 type GenerateAction = 'image_set' | 'video' | 'clone_style' | 'campaign';
 type Platform = 'tiktok' | 'instagram' | 'youtube' | 'square';
 
+// ── Step 3 Handler: Product Input (photo or text) ─────────────────────────────
+
+export async function handleProductInput(ctx: BotContext, message: any): Promise<void> {
+  try {
+    const action = ctx.session?.generateAction as GenerateAction || 'video';
+    let productDesc = '';
+    let photoUrl: string | undefined;
+
+    // Extract input
+    if (message.photo) {
+      const largest = message.photo[message.photo.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(largest.file_id);
+      photoUrl = fileLink.toString();
+
+      await ctx.reply('🔍 *Menganalisis foto produk...*', { parse_mode: 'Markdown' });
+
+      const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
+      productDesc = analysis.success && analysis.prompt ? analysis.prompt : 'produk dari foto yang dikirim';
+    } else if (message.text && !message.text.startsWith('/')) {
+      productDesc = message.text;
+    } else {
+      await ctx.reply('❌ Kirim foto produk atau ketik deskripsi produk.');
+      return;
+    }
+
+    // Save to session
+    if (ctx.session) {
+      ctx.session.generateProductDesc = productDesc;
+      if (photoUrl) ctx.session.generatePhotoUrl = photoUrl;
+      ctx.session.state = 'DASHBOARD';
+    }
+
+    const mode = ctx.session?.generateMode as GenerateMode || 'basic';
+
+    // Basic mode → auto-detect → straight to confirm
+    if (mode === 'basic') {
+      await showConfirmScreen(ctx);
+      return;
+    }
+
+    // Smart mode → show preset selection
+    if (mode === 'smart' && action === 'video') {
+      await showSmartPresetSelection(ctx);
+      return;
+    }
+
+    // Pro mode → show scene review
+    if (mode === 'pro' && action === 'video') {
+      await showProSceneReview(ctx, productDesc);
+      return;
+    }
+
+    // Image set / campaign → go to confirm
+    await showConfirmScreen(ctx);
+  } catch (err) {
+    logger.error('handleProductInput error', err);
+    await ctx.reply('❌ Gagal memproses input. Coba lagi.');
+  }
+}
+
+// ── Execution Engine ──────────────────────────────────────────────────────────
+
+export async function executeGeneration(ctx: BotContext): Promise<void> {
+  const session = ctx.session;
+  if (!session) return;
+
+  const action = session.generateAction as GenerateAction || 'video';
+  const productDesc = session.generateProductDesc as string || '';
+  const photoUrl = session.generatePhotoUrl as string | undefined;
+  const preset = (session.generatePreset as DurationPreset) || 'standard';
+  const platform = session.generatePlatform as Platform || 'tiktok';
+  const telegramId = BigInt(ctx.from!.id);
+
+  const presetConfig = DURATION_PRESETS[preset];
+  const industry = detectIndustry(productDesc);
+
+  try {
+    const user = await UserService.findByTelegramId(telegramId);
+    if (!user) { await ctx.reply('❌ User tidak ditemukan.'); return; }
+
+    const unitBalance = creditsToUnits(Number(user.creditBalance));
+
+    // Cost check
+    let cost = 0;
+    if (action === 'image_set') cost = UNIT_COSTS.IMAGE_SET_7_SCENE;
+    else if (action === 'video') cost = presetConfig.creditCost;
+    else if (action === 'clone_style') cost = UNIT_COSTS.CLONE_STYLE;
+    else if (action === 'campaign') cost = CampaignService.getCampaignCost((session.generateCampaignSize as 5 | 10) || 5);
+
+    if (unitBalance < cost) {
+      await ctx.reply(
+        `❌ *Unit tidak cukup*\n\nDibutuhkan: ${cost} unit\nSaldo: ${unitBalance} unit\n\nGunakan /topup untuk menambah kredit.`,
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Top Up Kredit', callback_data: 'topup' }]] } }
+      );
+      return;
+    }
+
+    await ctx.reply('⏳ *Generating konten...*\n\nMohon tunggu ~30-60 detik 🚀', { parse_mode: 'Markdown' });
+
+    // Image Set (7 scene HPAS)
+    if (action === 'image_set') {
+      const scenes = generateVideoScenePrompts(industry, productDesc, 'standard', 'id');
+      const creditCost = cost / 10;
+      await UserService.deductCredits(telegramId, creditCost);
+
+      const results: string[] = [];
+      for (let i = 0; i < Math.min(scenes.length, 7); i++) {
+        const scene = scenes[i];
+        await ctx.reply(`🎨 Generating scene ${i + 1}/7: *${HPAS_SCENES[scene.sceneId]?.nameId || scene.sceneId}*...`, { parse_mode: 'Markdown' });
+        const result = await ImageGenerationService.generateImage({
+          prompt: scene.prompt,
+          category: industry,
+          aspectRatio: '9:16',
+          style: 'commercial',
+          referenceImageUrl: photoUrl,
+          mode: photoUrl ? 'img2img' : 'text2img',
+        });
+        if (result.success && result.imageUrl) results.push(result.imageUrl);
+      }
+
+      if (results.length > 0) {
+        const mediaGroup = results.map((url, i) => ({
+          type: 'photo' as const,
+          media: url,
+          ...(i === 0 ? { caption: `✅ *${results.length} scene berhasil!*\n🏭 Industri: ${industry}`, parse_mode: 'Markdown' as const } : {}),
+        }));
+        await ctx.replyWithMediaGroup(mediaGroup);
+      }
+      await showPostDelivery(ctx);
+      return;
+    }
+
+    // Video generation
+    if (action === 'video') {
+      const scenes = generateVideoScenePrompts(industry, productDesc, preset, 'id');
+      const creditCost = cost / 10;
+      await UserService.deductCredits(telegramId, creditCost);
+
+      const { VideoService: VS } = await import('../services/video.service.js');
+      const video = await VS.createJob({
+        userId: telegramId,
+        niche: industry,
+        platform,
+        duration: presetConfig.totalSeconds,
+        scenes: scenes.length,
+        title: `Video ${new Date().toLocaleDateString('id-ID')}`,
+      });
+
+      try {
+        const { position } = await enqueueVideoGeneration({
+          jobId: video.jobId,
+          niche: industry,
+          platform,
+          duration: presetConfig.totalSeconds,
+          scenes: scenes.length,
+          storyboard: scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt })),
+          referenceImage: null,
+          userId: telegramId.toString(),
+          chatId: ctx.chat!.id,
+          enableVO: true,
+          enableSubtitles: true,
+          language: user.language || 'id',
+        });
+        await ctx.reply(`✅ Video masuk antrian #${position}\n\nKamu akan dinotifikasi saat selesai.`);
+      } catch {
+        generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(() => {});
+        await ctx.reply('✅ Video sedang diproses. Kamu akan dinotifikasi saat selesai.');
+      }
+      await showPostDelivery(ctx);
+      return;
+    }
+
+    // Campaign
+    if (action === 'campaign') {
+      const campSize = (session.generateCampaignSize as 5 | 10) || 5;
+      const creditCost = cost / 10;
+      await UserService.deductCredits(telegramId, creditCost);
+      // Campaign uses batch video generation specs
+      const specs = CampaignService.generateCampaignSpecs(productDesc, campSize, 'standard');
+      await ctx.reply(`✅ *Campaign ${campSize} video dibuat!*\n\n${specs.length} video specs siap.\nProses berjalan di background.`, { parse_mode: 'Markdown' });
+      await showPostDelivery(ctx);
+      return;
+    }
+
+  } catch (err) {
+    logger.error('executeGeneration error', err);
+    await ctx.reply('❌ Gagal generate. Coba lagi atau hubungi /support.');
+  }
+}
+
 // ── Step 1: Mode Selection ────────────────────────────────────────────────────
 
-export async function showModeSelection(ctx: BotContext): Promise<void> {
+export async function showGenerateMode(ctx: BotContext): Promise<void> {
   try {
     await ctx.answerCbQuery?.();
 
@@ -33,9 +228,9 @@ export async function showModeSelection(ctx: BotContext): Promise<void> {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '⚡ Basic — Full Auto', callback_data: 'v3_mode_basic' }],
-          [{ text: '🎯 Smart — Pilih Preset', callback_data: 'v3_mode_smart' }],
-          [{ text: '👑 Pro — Full Control', callback_data: 'v3_mode_pro' }],
+          [{ text: '⚡ Basic — Full Auto', callback_data: 'mode_basic' }],
+          [{ text: '🎯 Smart — Pilih Preset', callback_data: 'mode_smart' }],
+          [{ text: '👑 Pro — Full Control', callback_data: 'mode_pro' }],
           [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
         ],
       },
@@ -43,28 +238,28 @@ export async function showModeSelection(ctx: BotContext): Promise<void> {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '⚡ Basic — Full Auto', callback_data: 'v3_mode_basic' }],
-          [{ text: '🎯 Smart — Pilih Preset', callback_data: 'v3_mode_smart' }],
-          [{ text: '👑 Pro — Full Control', callback_data: 'v3_mode_pro' }],
+          [{ text: '⚡ Basic — Full Auto', callback_data: 'mode_basic' }],
+          [{ text: '🎯 Smart — Pilih Preset', callback_data: 'mode_smart' }],
+          [{ text: '👑 Pro — Full Control', callback_data: 'mode_pro' }],
           [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     });
   } catch (err) {
-    logger.error('showModeSelection error', err);
+    logger.error('showGenerateMode error', err);
   }
 }
 
 // ── Step 2: Action Selection ──────────────────────────────────────────────────
 
-export async function showActionSelection(ctx: BotContext, mode: GenerateMode): Promise<void> {
+export async function showGenerateAction(ctx: BotContext, mode: GenerateMode): Promise<void> {
   try {
     await ctx.answerCbQuery?.();
 
     const modeLabel = mode === 'basic' ? '⚡ Basic' : mode === 'smart' ? '🎯 Smart' : '👑 Pro';
 
     if (ctx.session) {
-      ctx.session.v3Mode = mode;
+      ctx.session.generateMode = mode;
     }
 
     const text = `${modeLabel} Mode\n\nPilih aksi:`;
@@ -73,16 +268,16 @@ export async function showActionSelection(ctx: BotContext, mode: GenerateMode): 
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE} unit`, callback_data: `v3_action_image_set` }],
-          [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S} unit`, callback_data: `v3_action_video` }],
-          [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE} unit`, callback_data: `v3_action_clone_style` }],
-          [{ text: `📦 Campaign (5/10 video) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO}/${UNIT_COSTS.CAMPAIGN_10_VIDEO} unit`, callback_data: `v3_action_campaign` }],
-          [{ text: '◀️ Kembali', callback_data: 'v3_start' }],
+          [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE} unit`, callback_data: 'action_image_set' }],
+          [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S} unit`, callback_data: 'action_video' }],
+          [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE} unit`, callback_data: 'action_clone_style' }],
+          [{ text: `📦 Campaign (5/10 video) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO}/${UNIT_COSTS.CAMPAIGN_10_VIDEO} unit`, callback_data: 'action_campaign' }],
+          [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
         ],
       },
     }) ?? await ctx.reply(text, { parse_mode: 'Markdown' });
   } catch (err) {
-    logger.error('showActionSelection error', err);
+    logger.error('showGenerateAction error', err);
   }
 }
 
@@ -93,8 +288,8 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
     await ctx.answerCbQuery?.();
 
     if (ctx.session) {
-      ctx.session.v3Action = action;
-      ctx.session.state = 'V3_AWAITING_PRODUCT';
+      ctx.session.generateAction = action;
+      ctx.session.state = 'AWAITING_PRODUCT_INPUT';
     }
 
     const actionLabels: Record<GenerateAction, string> = {
@@ -126,10 +321,10 @@ export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S} unit)`, callback_data: 'v3_preset_quick' }],
-          [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S} unit)`, callback_data: 'v3_preset_standard' }],
-          [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S} unit)`, callback_data: 'v3_preset_extended' }],
-          [{ text: '◀️ Kembali', callback_data: 'v3_action_video' }],
+          [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S} unit)`, callback_data: 'preset_quick' }],
+          [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S} unit)`, callback_data: 'preset_standard' }],
+          [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S} unit)`, callback_data: 'preset_extended' }],
+          [{ text: '◀️ Kembali', callback_data: 'action_video' }],
         ],
       },
     }) ?? await ctx.reply(text, { parse_mode: 'Markdown' });
@@ -143,7 +338,7 @@ export async function showSmartPlatformSelection(ctx: BotContext, preset: Durati
     await ctx.answerCbQuery?.();
 
     if (ctx.session) {
-      ctx.session.v3Preset = preset;
+      ctx.session.generatePreset = preset;
     }
 
     const text = `Platform tujuan:`;
@@ -152,11 +347,11 @@ export async function showSmartPlatformSelection(ctx: BotContext, preset: Durati
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: '🎵 TikTok (9:16)', callback_data: 'v3_platform_tiktok' }],
-          [{ text: '📸 Instagram (9:16)', callback_data: 'v3_platform_instagram' }],
-          [{ text: '▶️ YouTube (16:9)', callback_data: 'v3_platform_youtube' }],
-          [{ text: '⬛ Square (1:1)', callback_data: 'v3_platform_square' }],
-          [{ text: '◀️ Kembali', callback_data: 'v3_action_video' }],
+          [{ text: '🎵 TikTok (9:16)', callback_data: 'platform_tiktok' }],
+          [{ text: '📸 Instagram (9:16)', callback_data: 'platform_instagram' }],
+          [{ text: '▶️ YouTube (16:9)', callback_data: 'platform_youtube' }],
+          [{ text: '⬛ Square (1:1)', callback_data: 'platform_square' }],
+          [{ text: '◀️ Kembali', callback_data: 'action_video' }],
         ],
       },
     }) ?? await ctx.reply(text, { parse_mode: 'Markdown' });
@@ -176,7 +371,7 @@ export async function showProSceneReview(
     const scenes = generateVideoScenePrompts(industry, productDescription, 'standard', 'id');
 
     if (ctx.session) {
-      ctx.session.v3Scenes = scenes;
+      ctx.session.generateScenes = scenes;
     }
 
     const sceneList = scenes
@@ -189,9 +384,9 @@ export async function showProSceneReview(
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          ...scenes.map((s, i) => [{ text: `✏️ Edit Scene ${i + 1}: ${HPAS_SCENES[s.sceneId].nameId}`, callback_data: `v3_edit_scene_${s.sceneId}` }]),
-          [{ text: '✅ Lanjut ke Pilih Durasi', callback_data: 'v3_pro_select_duration' }],
-          [{ text: '◀️ Kembali', callback_data: 'v3_action_video' }],
+          ...scenes.map((s, i) => [{ text: `✏️ Edit Scene ${i + 1}: ${HPAS_SCENES[s.sceneId].nameId}`, callback_data: `edit_scene_${s.sceneId}` }]),
+          [{ text: '✅ Lanjut ke Pilih Durasi', callback_data: 'pro_select_duration' }],
+          [{ text: '◀️ Kembali', callback_data: 'action_video' }],
         ],
       },
     });
@@ -207,11 +402,11 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     const session = ctx.session;
     if (!session) return;
 
-    const mode = session.v3Mode as GenerateMode || 'basic';
-    const action = session.v3Action as GenerateAction || 'video';
-    const preset = (session.v3Preset as DurationPreset) || 'standard';
-    const platform = session.v3Platform as Platform || 'tiktok';
-    const productDesc = session.v3ProductDesc as string || '';
+    const mode = session.generateMode as GenerateMode || 'basic';
+    const action = session.generateAction as GenerateAction || 'video';
+    const preset = (session.generatePreset as DurationPreset) || 'standard';
+    const platform = session.generatePlatform as Platform || 'tiktok';
+    const productDesc = session.generateProductDesc as string || '';
 
     const presetConfig = DURATION_PRESETS[preset];
     const industry = detectIndustry(productDesc);
@@ -223,7 +418,7 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     else if (action === 'video') { cost = presetConfig.creditCost; actionLabel = `🎥 Video ${presetConfig.totalSeconds}s`; }
     else if (action === 'clone_style') { cost = UNIT_COSTS.CLONE_STYLE; actionLabel = '🔄 Clone Style'; }
     else if (action === 'campaign') {
-      const campSize = (session.v3CampaignSize as 5 | 10) || 5;
+      const campSize = (session.generateCampaignSize as 5 | 10) || 5;
       cost = CampaignService.getCampaignCost(campSize);
       actionLabel = `📦 Campaign ${campSize} Video`;
     }
@@ -243,8 +438,8 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: `✅ Generate Sekarang (${cost} unit)`, callback_data: 'v3_confirm_generate' }],
-          [{ text: '◀️ Kembali', callback_data: 'v3_start' }],
+          [{ text: `✅ Generate Sekarang (${cost} unit)`, callback_data: 'generate_confirm' }],
+          [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
         ],
       },
     });
@@ -264,11 +459,11 @@ export async function showPostDelivery(ctx: BotContext): Promise<void> {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '🔄 Variasi Lain', callback_data: 'v3_start' },
-            { text: '📦 Campaign', callback_data: 'v3_action_campaign' },
+            { text: '🔄 Variasi Lain', callback_data: 'generate_start' },
+            { text: '📦 Campaign', callback_data: 'action_campaign' },
           ],
           [
-            { text: '⭐ Rate Hasil', callback_data: 'v3_rate' },
+            { text: '⭐ Rate Hasil', callback_data: 'generate_rate' },
             { text: '👥 Refer Teman', callback_data: 'referral_menu' },
           ],
           [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
@@ -282,23 +477,23 @@ export async function showPostDelivery(ctx: BotContext): Promise<void> {
 
 // ── Callback Router ───────────────────────────────────────────────────────────
 
-export async function handleV3Callback(ctx: BotContext, data: string): Promise<boolean> {
-  if (!data.startsWith('v3_')) return false;
+export async function handleGenerateCallback(ctx: BotContext, data: string): Promise<boolean> {
+  if (!data.startsWith('generate_') || data.startsWith('mode_') || data.startsWith('action_') || data.startsWith('preset_') || data.startsWith('platform_') || data.startsWith('campaign_size')) return false;
 
   try {
-    if (data === 'v3_start') { await showModeSelection(ctx); return true; }
+    if (data === 'generate_start') { await showGenerateMode(ctx); return true; }
 
     // Mode selection
-    if (data === 'v3_mode_basic') { await showActionSelection(ctx, 'basic'); return true; }
-    if (data === 'v3_mode_smart') { await showActionSelection(ctx, 'smart'); return true; }
-    if (data === 'v3_mode_pro') { await showActionSelection(ctx, 'pro'); return true; }
+    if (data === 'mode_basic') { await showGenerateAction(ctx, 'basic'); return true; }
+    if (data === 'mode_smart') { await showGenerateAction(ctx, 'smart'); return true; }
+    if (data === 'mode_pro') { await showGenerateAction(ctx, 'pro'); return true; }
 
     // Action selection
-    if (data === 'v3_action_image_set') { await requestProductInput(ctx, 'image_set'); return true; }
-    if (data === 'v3_action_clone_style') { await requestProductInput(ctx, 'clone_style'); return true; }
-    if (data === 'v3_action_campaign') { await requestProductInput(ctx, 'campaign'); return true; }
-    if (data === 'v3_action_video') {
-      const mode = ctx.session?.v3Mode as GenerateMode || 'basic';
+    if (data === 'action_image_set') { await requestProductInput(ctx, 'image_set'); return true; }
+    if (data === 'action_clone_style') { await requestProductInput(ctx, 'clone_style'); return true; }
+    if (data === 'action_campaign') { await requestProductInput(ctx, 'campaign'); return true; }
+    if (data === 'action_video') {
+      const mode = ctx.session?.generateMode as GenerateMode || 'basic';
       if (mode === 'smart') { await showSmartPresetSelection(ctx); return true; }
       if (mode === 'basic') { await requestProductInput(ctx, 'video'); return true; }
       await requestProductInput(ctx, 'video');
@@ -306,32 +501,31 @@ export async function handleV3Callback(ctx: BotContext, data: string): Promise<b
     }
 
     // Smart mode
-    if (data.startsWith('v3_preset_')) {
-      const preset = data.replace('v3_preset_', '') as DurationPreset;
+    if (data.startsWith('preset_')) {
+      const preset = data.replace('preset_', '') as DurationPreset;
       await showSmartPlatformSelection(ctx, preset);
       return true;
     }
 
-    if (data.startsWith('v3_platform_')) {
-      const platform = data.replace('v3_platform_', '') as Platform;
-      if (ctx.session) ctx.session.v3Platform = platform;
+    if (data.startsWith('platform_')) {
+      const platform = data.replace('platform_', '') as Platform;
+      if (ctx.session) ctx.session.generatePlatform = platform;
       await requestProductInput(ctx, 'video');
       return true;
     }
 
     // Campaign size
-    if (data === 'v3_campaign_5') { if (ctx.session) ctx.session.v3CampaignSize = 5; await showConfirmScreen(ctx); return true; }
-    if (data === 'v3_campaign_10') { if (ctx.session) ctx.session.v3CampaignSize = 10; await showConfirmScreen(ctx); return true; }
+    if (data === 'campaign_size_5') { if (ctx.session) ctx.session.generateCampaignSize = 5; await showConfirmScreen(ctx); return true; }
+    if (data === 'campaign_size_10') { if (ctx.session) ctx.session.generateCampaignSize = 10; await showConfirmScreen(ctx); return true; }
 
-    // Confirm
-    if (data === 'v3_confirm_generate') {
+    // Confirm → execute
+    if (data === 'generate_confirm') {
       await ctx.answerCbQuery?.('⏳ Memproses...');
-      await ctx.reply('⏳ Generating konten... Mohon tunggu ~30-60 detik');
-      // Actual generation is handled by message handler + existing video/image services
+      await executeGeneration(ctx);
       return true;
     }
   } catch (err) {
-    logger.error('handleV3Callback error', err);
+    logger.error('handleGenerateCallback error', err);
   }
 
   return false;

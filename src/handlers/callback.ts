@@ -322,48 +322,48 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // ── END NEW REDESIGN HANDLERS ────────────────────────────────────────
 
     // ── V3 Flow handlers (Basic/Smart/Pro → HPAS) ────────────────────────────────
-    if (data === "v3_start" || data === "create_video_new") {
-      const { showModeSelection } = await import("../flows/generate.js");
-      await showModeSelection(ctx);
+    if (data === "generate_start" || data === "create_video_new") {
+      const { showGenerateMode } = await import("../flows/generate.js");
+      await showGenerateMode(ctx);
       return;
     }
 
-    if (data.startsWith("v3_mode_")) {
-      const { showActionSelection } = await import("../flows/generate.js");
-      const mode = data.replace("v3_mode_", "") as "basic" | "smart" | "pro";
-      await showActionSelection(ctx, mode);
+    if (data.startsWith("mode_")) {
+      const { showGenerateAction } = await import("../flows/generate.js");
+      const mode = data.replace("mode_", "") as "basic" | "smart" | "pro";
+      await showGenerateAction(ctx, mode);
       return;
     }
 
-    if (data.startsWith("v3_action_")) {
+    if (data.startsWith("action_")) {
       const { requestProductInput } = await import("../flows/generate.js");
-      const action = data.replace("v3_action_", "") as "image_set" | "video" | "clone_style" | "campaign";
+      const action = data.replace("action_", "") as "image_set" | "video" | "clone_style" | "campaign";
       await requestProductInput(ctx, action);
       return;
     }
 
-    if (data.startsWith("v3_template_") || data === "v3_confirm_generate") {
-      const { handleV3Callback } = await import("../flows/generate.js");
-      await handleV3Callback(ctx, data);
+    if (data.startsWith("generate_start_") || data === "generate_confirm") {
+      const { handleGenerateCallback } = await import("../flows/generate.js");
+      await handleGenerateCallback(ctx, data);
       return;
     }
 
-    if (data === "v3_post_variation") {
-      const { showModeSelection } = await import("../flows/generate.js");
-      await showModeSelection(ctx);
+    if (data === "generate_variation") {
+      const { showGenerateMode } = await import("../flows/generate.js");
+      await showGenerateMode(ctx);
       return;
     }
 
-    if (data === "v3_post_new") {
-      const { showModeSelection } = await import("../flows/generate.js");
-      await showModeSelection(ctx);
+    if (data === "generate_new") {
+      const { showGenerateMode } = await import("../flows/generate.js");
+      await showGenerateMode(ctx);
       return;
     }
 
     // ── Legacy vcreate_* → redirect to V3 flow ───────────────────────────────
     if (data.startsWith("vcreate_")) {
-      const { showModeSelection } = await import("../flows/generate.js");
-      await showModeSelection(ctx);
+      const { showGenerateMode } = await import("../flows/generate.js");
+      await showGenerateMode(ctx);
       return;
     }
 

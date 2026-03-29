@@ -499,6 +499,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // ── V3 FLOW: AWAITING PRODUCT INPUT (photo or text) ───────────────────
+    if (ctx.session?.state === 'AWAITING_PRODUCT_INPUT') {
+      const { handleProductInput } = await import('../flows/generate.js');
+      await handleProductInput(ctx, message);
+      return;
+    }
+
     // ── NEW VIDEO CREATION FLOW HANDLERS ──────────────────────────────────
     // Handle VIDEO_CREATE_UPLOAD (photo upload for new flow)
     if (ctx.session?.state === "VIDEO_CREATE_UPLOAD" && "photo" in message) {
@@ -558,8 +565,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       ctx.session.videoCreationNew.textInput = textInput;
 
       // Redirect to V3 flow
-      const { showModeSelection } = await import("../flows/generate.js");
-      await showModeSelection(ctx);
+      const { showGenerateMode } = await import("../flows/generate.js");
+      await showGenerateMode(ctx);
       return;
     }
 

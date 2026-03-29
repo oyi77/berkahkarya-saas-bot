@@ -306,7 +306,7 @@ export class RetentionScheduler {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '🎬 Generate Sekarang', callback_data: 'v3_start' },
+              { text: '🎬 Generate Sekarang', callback_data: 'generate_start' },
               { text: '🔕 Unsubscribe', callback_data: 'notif_unsubscribe' },
             ],
           ],

@@ -27,7 +27,7 @@ export async function showMainMenu(ctx: BotContext, isEdit = false): Promise<voi
 
     const menuButtons = {
       inline_keyboard: [
-        [{ text: '🎬 Generate Konten', callback_data: 'v3_start' }],
+        [{ text: '🎬 Generate Konten', callback_data: 'generate_start' }],
         [{ text: '💳 Kredit & Paket', callback_data: 'credits_menu' }, { text: '🎞 Video Saya', callback_data: 'videos_list' }],
         [{ text: '👤 Profil', callback_data: 'open_profile' }, { text: '📊 Dashboard', callback_data: 'open_dashboard' }],
         [{ text: '👥 Referral', callback_data: 'open_referral' }, { text: '⚙️ Settings', callback_data: 'open_settings' }],

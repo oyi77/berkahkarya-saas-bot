@@ -62,14 +62,15 @@ export interface SessionData {
   connectingPlatform?: string;
 
   // v3.0 Basic/Smart/Pro mode state
-  v3Mode?: 'basic' | 'smart' | 'pro';
-  v3Action?: 'image_set' | 'video' | 'clone_style' | 'campaign';
-  v3Preset?: 'quick' | 'standard' | 'extended';
-  v3Platform?: 'tiktok' | 'instagram' | 'youtube' | 'square';
-  v3ProductDesc?: string;
-  v3CampaignSize?: 5 | 10;
-  v3Scenes?: Array<{ sceneId: string; prompt: string; durationSeconds: number }>;
-  v3CloneRefUrl?: string;
+  generateMode?: 'basic' | 'smart' | 'pro';
+  generateAction?: 'image_set' | 'video' | 'clone_style' | 'campaign';
+  generatePreset?: 'quick' | 'standard' | 'extended';
+  generatePlatform?: 'tiktok' | 'instagram' | 'youtube' | 'square';
+  generateProductDesc?: string;
+  generateCampaignSize?: 5 | 10;
+  generateScenes?: Array<{ sceneId: string; prompt: string; durationSeconds: number }>;
+  generatePhotoUrl?: string;
+  cloneRefUrl?: string;
 }
 
 export type BotState =
@@ -115,10 +116,10 @@ export type BotState =
   | 'SUPPORT_CHAT'
   | 'CUSTOMIZING_PROMPT'
   | 'CUSTOM_PROMPT_CREATION'
-  | 'V3_AWAITING_PRODUCT'
-  | 'V3_AWAITING_CLONE_REF'
-  | 'V3_AWAITING_CLONE_PRODUCT'
-  | 'V3_PROCESSING';
+  | 'AWAITING_PRODUCT_INPUT'
+  | 'AWAITING_CLONE_REF'
+  | 'AWAITING_CLONE_PRODUCT'
+  | 'GENERATE_PROCESSING';
 
 // =============================================================================
 // USER TYPES

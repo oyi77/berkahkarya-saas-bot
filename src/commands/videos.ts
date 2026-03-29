@@ -5,6 +5,7 @@
  */
 
 import { BotContext } from '@/types';
+import { logger } from '@/utils/logger';
 import { VideoService } from '@/services/video.service';
 
 /**
