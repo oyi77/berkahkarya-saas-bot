@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'berkahkarya-saas-bot',
-      script: 'npm',
-      args: 'run start:prod',
+      script: '/home/openclaw/.npm-global/bin/tsx',
+      args: 'src/index.ts',
       cwd: '/mnt/data/openclaw/projects/openclaw-saas-bot',
       interpreter: 'none',
       env: {
