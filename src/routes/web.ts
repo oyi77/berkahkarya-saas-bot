@@ -35,7 +35,13 @@ const BOT_TOKEN = process.env.BOT_TOKEN || "";
 
 export async function webRoutes(server: FastifyInstance): Promise<void> {
   server.get("/", async (_request, reply) => {
-    reply.view("web/landing.ejs");
+    const { redis } = require("../config/redis");
+    let landingConfig = {};
+    try {
+      const data = await redis.get("admin:landing_config");
+      if (data) landingConfig = JSON.parse(data);
+    } catch {}
+    reply.view("web/landing.ejs", { landingConfig });
   });
 
   // Facebook domain verification

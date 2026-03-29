@@ -12,7 +12,8 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { CircuitBreaker } from '@/services/circuit-breaker.service';
 import { PromptOptimizer } from '@/services/prompt-optimizer.service';
-import { VIDEO_PROVIDERS_SORTED } from '@/config/providers';
+import { PROVIDER_CONFIG } from '@/config/providers';
+import { ProviderSettingsService } from '@/services/provider-settings.service';
 import { getVideoCreditCost } from '@/config/pricing';
 
 // Configuration
@@ -126,7 +127,9 @@ export async function generateVideo(params: VideoGenerationParams): Promise<Vide
     }
   }
 
-  for (const provider of VIDEO_PROVIDERS_SORTED) {
+  // Try providers in priority order
+  const sortedProviders = await ProviderSettingsService.getSortedVideoProviders();
+  for (const provider of sortedProviders) {
     const providerKey = provider.key;
 
     if (PromptOptimizer.shouldAvoidProvider(providerKey, styles)) {
