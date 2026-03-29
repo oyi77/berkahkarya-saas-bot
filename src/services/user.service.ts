@@ -361,13 +361,22 @@ export class UserService {
     referralCount: number;
     commissionEarned: number;
   }> {
+    const user = await this.findByTelegramId(telegramId);
+    if (!user) {
+      return { videosCreated: 0, totalSpent: 0, referralCount: 0, commissionEarned: 0 };
+    }
+
     const [videos, transactions, referrals, commissions] = await Promise.all([
       prisma.video.count({ where: { userId: telegramId } }),
       prisma.transaction.aggregate({
         where: { userId: telegramId, status: 'success' },
         _sum: { amountIdr: true },
       }),
-      prisma.user.count({ where: { referredBy: (await this.findByTelegramId(telegramId))?.uuid } }),
+      prisma.user.count({ 
+        where: { 
+          referredBy: user.uuid 
+        } 
+      }),
       prisma.commission.aggregate({
         where: { referrerId: telegramId },
         _sum: { amount: true },

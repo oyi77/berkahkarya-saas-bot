@@ -112,7 +112,9 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   // Web app
   server.get("/app", async (_request, reply) => {
-    reply.view("web/app.ejs");
+    reply.view("web/app.ejs", {
+      botUsername: process.env.BOT_USERNAME || 'berkahkarya_saas_bot'
+    });
   });
 
   // ── AUTH ──

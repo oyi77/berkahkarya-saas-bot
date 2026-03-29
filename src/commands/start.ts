@@ -32,6 +32,10 @@ const TELEGRAM_LANG_MAP: Record<string, string> = {
   pt: "pt",
 };
 
+import {
+  MAIN_MENU_KEYBOARD,
+} from "@/config/pricing";
+
 function detectLanguage(telegramLangCode?: string): string {
   if (!telegramLangCode) return "en";
   const lower = telegramLangCode.toLowerCase();
@@ -99,13 +103,8 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
-              [{ text: "🖼 Buat Gambar", callback_data: "create_image_new" }],
-              [{ text: "💳 Kredit & Paket", callback_data: "credits_menu" }],
-              [{ text: "🎞 Video Saya", callback_data: "videos_list" }],
-              [{ text: "👤 Akun", callback_data: "account_menu" }],
-            ],
+            keyboard: MAIN_MENU_KEYBOARD,
+            resize_keyboard: true,
           },
         },
       );

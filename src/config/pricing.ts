@@ -165,3 +165,14 @@ export async function getReferralCommissionsAsync(): Promise<Record<string, numb
 
 // Legacy alias for admin route
 export const REFERRAL_COMMISSIONS_V3 = { TIER_1: 0.15, TIER_2: 0.05, TIER_3: 0.02 };
+
+/**
+ * Main persistent keyboard (Reply Keyboard)
+ */
+export const MAIN_MENU_KEYBOARD = [
+  [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
+  [{ text: '📁 My Videos' }, { text: '💰 Top Up' }],
+  [{ text: '👤 Profile' }, { text: '👥 Referral' }],
+  [{ text: '💬 Chat AI' }, { text: '📚 Prompt Library' }],
+  [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
+];
