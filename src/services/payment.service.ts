@@ -1,13 +1,14 @@
 /**
  * Payment Service
  * 
- * Handles Midtrans & Tripay payment gateway integration
+ * Handles Midtrans payment gateway integration with dynamic packages
  */
 
 import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { ReferralService } from '@/services/referral.service';
+import { getPackagesAsync } from '@/config/pricing';
 import crypto from 'crypto';
 
 // Payment gateway configuration
@@ -16,15 +17,6 @@ const MIDTRANS_BASE_URL = process.env.MIDTRANS_ENVIRONMENT === 'production'
   : 'https://app.sandbox.midtrans.com/snap/v1';
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
-// const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || '';
-
-// Credit packages
-const PACKAGES = {
-  starter: { price: 50000, credits: 5, bonus: 1, name: 'Starter' },
-  growth: { price: 150000, credits: 15, bonus: 3, name: 'Growth' },
-  scale: { price: 500000, credits: 60, bonus: 15, name: 'Scale' },
-  enterprise: { price: 1500000, credits: 200, bonus: 60, name: 'Enterprise' },
-};
 
 export class PaymentService {
   /**
@@ -39,10 +31,15 @@ export class PaymentService {
     token: string;
     redirectUrl: string;
   }> {
-    const pkg = PACKAGES[params.packageId as keyof typeof PACKAGES];
+    const packages = await getPackagesAsync();
+    const pkg = packages.find(p => p.id === params.packageId);
+    
     if (!pkg) {
       throw new Error('Invalid package');
     }
+
+    const price = pkg.priceIdr || (pkg as any).price;
+    const credits = pkg.credits + (pkg.bonus || 0);
 
     // Generate order ID
     const timestamp = Date.now();
@@ -56,8 +53,8 @@ export class PaymentService {
         userId: params.userId,
         type: 'topup',
         packageName: params.packageId,
-        amountIdr: pkg.price,
-        creditsAmount: pkg.credits + pkg.bonus,
+        amountIdr: price,
+        creditsAmount: credits,
         gateway: 'midtrans',
         status: 'pending',
       },
@@ -72,7 +69,7 @@ export class PaymentService {
         {
           transaction_details: {
             order_id: orderId,
-            gross_amount: pkg.price,
+            gross_amount: price,
           },
           customer_details: {
             first_name: params.username || 'User',
@@ -80,9 +77,9 @@ export class PaymentService {
           item_details: [
             {
               id: params.packageId,
-              price: pkg.price,
+              price: price,
               quantity: 1,
-              name: `${pkg.name} Package - ${pkg.credits + pkg.bonus} Credits`,
+              name: `${pkg.name} Package - ${credits} Credits`,
             },
           ],
           callbacks: {
@@ -240,14 +237,7 @@ export class PaymentService {
   /**
    * Get available packages
    */
-  static getPackages() {
-    return Object.entries(PACKAGES).map(([id, pkg]) => ({
-      id,
-      name: pkg.name,
-      price: pkg.price,
-      credits: pkg.credits,
-      bonus: pkg.bonus,
-      totalCredits: pkg.credits + pkg.bonus,
-    }));
+  static async getPackages() {
+    return getPackagesAsync();
   }
 }

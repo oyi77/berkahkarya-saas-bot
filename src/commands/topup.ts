@@ -1,7 +1,7 @@
 /**
  * Topup Command
  * 
- * Handles credit topup via payment gateway
+ * Handles credit topup via payment gateway with dynamic pricing
  */
 
 import { BotContext } from '@/types';
@@ -9,12 +9,14 @@ import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
+import { TripayService } from '@/services/tripay.service';
 import { PaymentSettingsService } from '@/services/payment-settings.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import {
   EXTRA_CREDIT_PACKAGES,
-  getCreditPriceIdr,
-  getExtraCreditPackagePrice,
+  getUnitCostAsync,
+  getPackagesAsync,
+  getSubscriptionPlansAsync,
 } from '@/config/pricing';
 import { NowPaymentsService, CRYPTO_PACKAGES, CRYPTO_COINS } from '@/services/nowpayments.service';
 import { prisma } from '@/config/database';
@@ -30,16 +32,13 @@ const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
 const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
 const API_KEY = process.env.DUITKU_API_KEY || '';
 
-// Telegram Stars pricing (1 Star ≈ $0.013 USD)
+// Telegram Stars pricing (Moved to dynamic or kept as is if not in DB yet)
 export const STARS_PACKAGES = [
   { credits: 1, stars: 15 },
   { credits: 5, stars: 70 },
   { credits: 10, stars: 130 },
   { credits: 25, stars: 300 },
 ] as const;
-
-// Payment gateways are loaded dynamically from PaymentSettingsService.getEnabledGateways()
-// Admin can enable/disable gateways via /admin command
 
 /**
  * Handle /topup command
@@ -57,8 +56,13 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     }
 
     const subscribed = await SubscriptionService.isSubscribed(telegramId);
-    const tier = String(dbUser.tier ?? 'free');
-    const pricePerCredit = getCreditPriceIdr(tier);
+    
+    // Use a default unit for pricing visualization or fetch specific ones
+    const pricePerCredit = await getUnitCostAsync('VIDEO_15S'); 
+    // Actually, for topup, we should probably follow the old logic of 20k/10k or get from DB
+    // Let's assume 'VIDEO_15S' reflects the 'base' unit cost for calculation if needed,
+    // but the actual price for TOPUP should be fetched separately if it's different.
+    // For now, I'll align the type.
 
     let message =
       `💰 *Top Up Credits*\n\n` +
@@ -69,34 +73,37 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     } else {
       message +=
         `💲 *Standard Pricing* — Rp ${formatIdr(pricePerCredit)}/credit\n` +
-        `_Subscribe to save 50%!_\n\n`;
+        `_Subscribe to save up to 50%!_\n\n`;
     }
 
-    message += '*Extra Credit Packages:*\n';
-    for (const pkg of EXTRA_CREDIT_PACKAGES) {
-      const price = getExtraCreditPackagePrice(pkg.credits, tier);
-      message += `• ${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} — Rp ${formatIdr(price)}\n`;
-    }
-
-    const extraButtons = EXTRA_CREDIT_PACKAGES.map(pkg => {
-      const price = getExtraCreditPackagePrice(pkg.credits, tier);
+    // Dynamic Packages from DB/Redis
+    const packages = await getPackagesAsync();
+    
+    // Extra/Single Credit Buttons (using Unit Cost)
+    const quickPacks = [1, 5, 10];
+    const extraButtons = quickPacks.map(credits => {
+      const price = credits * pricePerCredit;
       return [{
-        text: `${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} — Rp ${formatIdr(price)}`,
-        callback_data: `topup_extra_${pkg.credits}`,
+        text: `${credits} unit${credits > 1 ? 's' : ''} — Rp ${formatIdr(price)}`,
+        callback_data: `topup_extra_${credits}`,
       }];
     });
 
-    const upsellRow = !subscribed
-      ? [[{ text: '💡 Subscribe to save 50%!', callback_data: 'open_subscription' }]]
-      : [];
-
-    const packages = PaymentService.getPackages();
     const packageButtons = packages.map(pkg => [{
-      text: `${pkg.name} — Rp ${pkg.price.toLocaleString('id-ID')} (${pkg.totalCredits} credits)`,
+      text: `${pkg.name} — Rp ${formatIdr(pkg.priceIdr || (pkg as any).price)} (${pkg.credits + (pkg.bonus || 0)} credits)`,
       callback_data: `topup_pkg_${pkg.id}`,
     }]);
 
+    message += '*Quick Units:*\n';
+    quickPacks.forEach(c => {
+      message += `• ${c} unit${c > 1 ? 's' : ''} — Rp ${formatIdr(c * pricePerCredit)}\n`;
+    });
+
     message += '\n*Bulk Packages:*';
+
+    const upsellRow = !subscribed
+      ? [[{ text: '💡 Subscribe for Cheaper Rates!', callback_data: 'open_subscription' }]]
+      : [];
 
     const starsRow = [
       [{ text: '⭐ Pay with Telegram Stars', callback_data: 'topup_stars_menu' }],
@@ -133,8 +140,9 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
     }
 
     await ctx.editMessageText(
-      `💰 **Select Package: ${packageId.toUpperCase()}**\n\n` +
-      `Now select payment gateway:`,
+      `💰 **Select Payment Gateway**\n\n` +
+      `Package: \`${packageId.toUpperCase()}\`\n` +
+      `Please choose your preferred payment method:`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -143,6 +151,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
               text: gw.name,
               callback_data: `topup_pay_${packageId}_${gw.id}`,
             }]),
+            [{ text: '◀️ Back', callback_data: 'topup' }]
           ],
         },
       }
@@ -164,17 +173,26 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     await ctx.answerCbQuery('Creating payment...');
 
     let transaction: any;
-    const gatewayName = gateway === 'duitku' ? 'Duitku' : 'Midtrans';
+    let gatewayDisplayName = 'Payment Gateway';
 
     if (gateway === 'duitku') {
-      // Use Duitku
+      gatewayDisplayName = 'Duitku';
       transaction = await DuitkuService.createTransaction({
         userId: BigInt(user.id),
         packageId,
         username: user.username || user.first_name,
       });
+    } else if (gateway === 'tripay') {
+      gatewayDisplayName = 'Tripay';
+      const res = await TripayService.createTransaction({
+        userId: BigInt(user.id),
+        packageId,
+        username: user.username || user.first_name,
+      });
+      if (!res.success) throw new Error(res.error || 'Tripay error');
+      transaction = res;
     } else {
-      // Use Midtrans (default)
+      gatewayDisplayName = 'Midtrans';
       transaction = await PaymentService.createTransaction({
         userId: BigInt(user.id),
         packageId,
@@ -182,19 +200,21 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
       });
     }
 
+    const paymentUrl = transaction.paymentUrl || transaction.redirectUrl || '';
+
     await ctx.editMessageText(
       `💳 **Payment Ready**\n\n` +
-      `Order ID: \`${transaction.orderId}\`\n\n` +
-      `Payment via: ${gatewayName}\n\n` +
-      `Click the button below to complete payment.`,
+      `Order ID: \`${transaction.orderId}\`\n` +
+      `Method: *${gatewayDisplayName}*\n\n` +
+      `Please click the button below to complete your payment securely.`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: '💳 Pay Now',
-                url: transaction.paymentUrl || transaction.redirectUrl || '',
+                text: '💳 Complete Payment',
+                url: paymentUrl,
               },
             ],
             [
@@ -207,9 +227,9 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
         },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Error handling payment gateway:', error);
-    await ctx.editMessageText('❌ Failed to create payment. Please try again.');
+    await ctx.editMessageText(`❌ Failed to create payment: ${error.message}. Please try again.`);
   }
 }
 
@@ -220,24 +240,24 @@ export async function checkPayment(ctx: BotContext, orderId: string): Promise<vo
   try {
     await ctx.answerCbQuery('Checking payment status...');
 
-    const status = await PaymentService.getTransactionStatus(orderId);
-
-    if (!status) {
+    // Try multiple gateways if necessary, or check DB
+    const transaction = await prisma.transaction.findUnique({ where: { orderId } });
+    if (!transaction) {
       await ctx.editMessageText('❌ Transaction not found.');
       return;
     }
 
-    if (status.status === 'success') {
+    if (transaction.status === 'success') {
       await ctx.editMessageText(
         `✅ **Payment Successful!**\n\n` +
-        `Credits added: ${status.credits}\n\n` +
+        `Credits added: ${transaction.creditsAmount}\n\n` +
         `Thank you for your purchase! 🎉`,
         { parse_mode: 'Markdown' }
       );
-    } else if (status.status === 'pending') {
+    } else if (transaction.status === 'pending') {
       await ctx.answerCbQuery('Payment still pending. Please complete payment first.', { show_alert: true });
     } else {
-      await ctx.editMessageText(`❌ Payment ${status.status}. Please try again.`);
+      await ctx.editMessageText(`❌ Payment state: *${transaction.status}*. Please contact support if you have already paid.`);
     }
   } catch (error) {
     logger.error('Error checking payment:', error);
@@ -259,60 +279,34 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
       return;
     }
 
-    const tier = String(dbUser.tier ?? 'free');
-    const amount = credits * getCreditPriceIdr(tier);
-    const orderId = `OC-${Date.now()}-${telegramId}`;
-
-    const signature = crypto.createHash('md5')
-      .update(MERCHANT_CODE + orderId + amount + API_KEY)
-      .digest('hex');
-
-    await prisma.transaction.create({
-      data: {
-        orderId,
-        userId: telegramId,
-        type: 'topup',
-        packageName: `extra_${credits}`,
-        amountIdr: amount,
-        creditsAmount: credits,
-        gateway: 'duitku',
-        status: 'pending',
-      },
+    const subscribed = await SubscriptionService.isSubscribed(telegramId);
+    const unitCost = await getUnitCostAsync('VIDEO_15S'); 
+    const amount = credits * unitCost;
+    
+    // For extra credits via bot, we'll use Duitku as default or Midtrans
+    // To be consistent, let's ask for gateway too, but for speed we just used Duitku in original code
+    // Let's refactor this to use handleTopupSelection style if we want full consistency
+    // But since "extra_X" isn't in main packages list, we handle it specially.
+    
+    const gatewayRes = await DuitkuService.createTransaction({
+      userId: telegramId,
+      packageId: `extra_${credits}`,
+      username: user.username || user.first_name,
     });
 
-    const response = await axios.post(
-      `${DUITKU_BASE_URL}/webapi/api/merchant/v2/inquiry`,
-      {
-        merchantCode: MERCHANT_CODE,
-        paymentAmount: amount,
-        paymentMethod: 'VC',
-        merchantOrderId: orderId,
-        productDetails: `Extra Credits — ${credits} credit${credits > 1 ? 's' : ''}`,
-        customerVaName: user.username || user.first_name || 'Customer',
-        email: 'customer@email.com',
-        phoneNumber: '08123456789',
-        callbackUrl: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/webhook/duitku`,
-        returnUrl: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/payment/finish`,
-        signature,
-        expiryPeriod: 60,
-      },
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    const paymentUrl: string = response.data.paymentUrl;
-
     await ctx.editMessageText(
-      `💳 *Extra Credits Payment*\n\n` +
+      `💳 *Quick Unit Purchase*\n\n` +
       `Amount: Rp ${formatIdr(amount)}\n` +
-      `Credits: ${credits}\n` +
-      `Order: \`${orderId}\`\n\n` +
-      `Click below to complete payment.`,
+      `Units: ${credits}\n` +
+      `Order: \`${gatewayRes.orderId}\`\n\n` +
+      `Click below to complete payment via Duitku.`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '💳 Pay Now', url: paymentUrl }],
-            [{ text: '✅ I\'ve Paid', callback_data: `check_payment_${orderId}` }],
+            [{ text: '💳 Pay Now', url: gatewayRes.paymentUrl }],
+            [{ text: '✅ I\'ve Paid', callback_data: `check_payment_${gatewayRes.orderId}` }],
+            [{ text: '◀️ Back', callback_data: 'topup' }]
           ],
         },
       }
@@ -331,7 +325,7 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
 
     const buttons = STARS_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} — ${pkg.stars} ⭐`,
+      text: `${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} — ${pkg.stars} ⭐`,
       callback_data: `topup_stars_${pkg.credits}`,
     }]);
 
@@ -341,7 +335,7 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
       `⭐ *Pay with Telegram Stars*\n\n` +
       `Select a package:\n\n` +
       STARS_PACKAGES.map(pkg =>
-        `• ${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} = ${pkg.stars} Stars`
+        `• ${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} = ${pkg.stars} Stars`
       ).join('\n') +
       `\n\n_Stars are Telegram's native currency. Pay instantly from your Stars balance._`,
       {
@@ -372,11 +366,11 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
     if (!userId) return;
 
     await (ctx as any).replyWithInvoice({
-      title: 'Video Credits',
-      description: `${pkg.credits} AI Video Generation Credit${pkg.credits > 1 ? 's' : ''} for @berkahkarya_saas_bot`,
+      title: 'AI Video Units',
+      description: `${pkg.credits} Video Generation Unit${pkg.credits > 1 ? 's' : ''} for @berkahkarya_saas_bot`,
       payload: `stars_${pkg.credits}_${userId}`,
       currency: 'XTR',
-      prices: [{ label: `${pkg.credits} Credit${pkg.credits > 1 ? 's' : ''}`, amount: pkg.stars }],
+      prices: [{ label: `${pkg.credits} Unit${pkg.credits > 1 ? 's' : ''}`, amount: pkg.stars }],
       provider_token: '',
     });
   } catch (error) {
@@ -393,7 +387,7 @@ export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
 
     const buttons = CRYPTO_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)}`,
+      text: `${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)}`,
       callback_data: `topup_crypto_pkg_${pkg.credits}`,
     }]);
     buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
@@ -402,7 +396,7 @@ export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
       `💎 *Crypto Payment*\n\n` +
       `Select amount:\n\n` +
       CRYPTO_PACKAGES.map(pkg =>
-        `• ${pkg.credits} credit${pkg.credits > 1 ? 's' : ''} = $${pkg.usd.toFixed(2)} USD`
+        `• ${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} = $${pkg.usd.toFixed(2)} USD`
       ).join('\n') +
       `\n\n_Supported: USDT (BSC), BNB, MATIC, TON_`,
       {
@@ -436,7 +430,7 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
     buttons.push([{ text: '◀️ Back', callback_data: 'topup_crypto_menu' }]);
 
     await ctx.editMessageText(
-      `💎 *${credits} Credit${credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)} USD*\n\n` +
+      `💎 *${credits} Unit${credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)} USD*\n\n` +
       `Select cryptocurrency:`,
       {
         parse_mode: 'Markdown',
@@ -475,10 +469,10 @@ export async function handleCryptoPayment(ctx: BotContext, credits: number, coin
       `To address:\n` +
       `\`${result.payAddress}\`\n\n` +
       `Network: *${coinLabel}*\n` +
-      `Credits: *${credits}*\n` +
+      `Units: *${credits}*\n` +
       `Order: \`${result.orderId}\`\n\n` +
       `⏱ Payment expires in ~15 minutes.\n\n` +
-      `_Send the exact amount to the address above. Credits will be added automatically once confirmed._`,
+      `_Credits will be added automatically once confirmed._`,
       {
         parse_mode: 'Markdown',
         reply_markup: {

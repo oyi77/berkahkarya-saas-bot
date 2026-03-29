@@ -1,7 +1,7 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { Subscription } from '@prisma/client';
-import { SUBSCRIPTION_PLANS, PlanKey, BillingCycle } from '@/config/pricing';
+import { getSubscriptionPlansAsync, PlanKey, BillingCycle } from '@/config/pricing';
 
 export class SubscriptionService {
 
@@ -11,7 +11,13 @@ export class SubscriptionService {
     billingCycle: BillingCycle,
     _transactionId: string
   ): Promise<Subscription> {
-    const planConfig = SUBSCRIPTION_PLANS[plan];
+    const plans = await getSubscriptionPlansAsync();
+    const planConfig = plans[plan];
+    
+    if (!planConfig) {
+      throw new Error(`Plan configuration not found for: ${plan}`);
+    }
+
     const now = new Date();
     const periodEnd = new Date(now);
 
@@ -41,7 +47,7 @@ export class SubscriptionService {
     await prisma.user.update({
       where: { telegramId },
       data: {
-        tier: planConfig.tier,
+        tier: planConfig.tier || (plan as string === 'pro' ? 'pro' : (plan as string === 'agency' ? 'agency' : 'basic')),
         creditBalance: { increment: planConfig.monthlyCredits },
         creditExpiresAt: periodEnd,
       },
@@ -64,7 +70,8 @@ export class SubscriptionService {
     if (!sub || sub.status !== 'active') return;
 
     const plan = sub.plan as PlanKey;
-    const planConfig = SUBSCRIPTION_PLANS[plan];
+    const plans = await getSubscriptionPlansAsync();
+    const planConfig = plans[plan];
     if (!planConfig) return;
 
     const newStart = new Date(sub.currentPeriodEnd);
@@ -138,8 +145,7 @@ export class SubscriptionService {
     });
 
     for (const sub of dueForRenewal) {
-      // Auto-renewal requires user payment gateway config (e.g., Midtrans/Duitku recurring API).
-      // Since it's not implemented, we degrade to manual renewal: expire the subscription.
+      // Manual renewal for now
       await prisma.subscription.update({
         where: { id: sub.id },
         data: { status: 'expired' },
@@ -180,14 +186,17 @@ export class SubscriptionService {
     }
 
     const plan = sub.plan as PlanKey;
-    const planConfig = SUBSCRIPTION_PLANS[plan];
+    const plans = await getSubscriptionPlansAsync();
+    const planConfig = plans[plan];
     if (!planConfig) return { allowed: true };
 
     const dailyCount = await this.getDailyGenerationCount(telegramId);
-    if (dailyCount >= planConfig.dailyGenerationLimit) {
+    const dailyLimit = planConfig.dailyGenerationLimit || 10;
+
+    if (dailyCount >= dailyLimit) {
       return {
         allowed: false,
-        reason: `Daily limit reached (${planConfig.dailyGenerationLimit}/${planConfig.name} plan). Try again tomorrow or upgrade.`,
+        reason: `Daily limit reached (${dailyLimit}/${planConfig.name} plan). Try again tomorrow or upgrade.`,
       };
     }
 

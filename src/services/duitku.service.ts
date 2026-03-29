@@ -4,7 +4,7 @@ import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { ReferralService } from '@/services/referral.service';
 import { SubscriptionService } from '@/services/subscription.service';
-import { PlanKey, BillingCycle } from '@/config/pricing';
+import { PlanKey, BillingCycle, getPackagesAsync } from '@/config/pricing';
 import { AnalyticsService } from '@/services/analytics.service';
 
 const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
@@ -13,13 +13,6 @@ const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
 
 const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
 const API_KEY = process.env.DUITKU_API_KEY || '';
-
-const PACKAGES = {
-  starter: { price: 50000, credits: 5, bonus: 1, name: 'Starter' },
-  growth: { price: 150000, credits: 15, bonus: 3, name: 'Growth' },
-  scale: { price: 500000, credits: 60, bonus: 15, name: 'Scale' },
-  enterprise: { price: 1500000, credits: 200, bonus: 60, name: 'Enterprise' },
-};
 
 export interface DuitkuCreateResponse {
   merchantCode: string;
@@ -39,13 +32,19 @@ export class DuitkuService {
     email?: string;
     phone?: string;
   }): Promise<{ orderId: string; paymentUrl: string; vaNumber?: string }> {
-    const pkg = PACKAGES[params.packageId as keyof typeof PACKAGES];
-    if (!pkg) throw new Error('Invalid package');
+    const packages = await getPackagesAsync();
+    const pkg = packages.find(p => p.id === params.packageId);
+    
+    if (!pkg) {
+      throw new Error('Invalid package');
+    }
 
-    const _timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const price = pkg.priceIdr || (pkg as any).price;
+    const credits = pkg.credits + (pkg.bonus || 0);
+
     const orderId = `OC-${Date.now()}-${params.userId}`;
     const signature = crypto.createHash('md5')
-      .update(MERCHANT_CODE + orderId + pkg.price + API_KEY)
+      .update(MERCHANT_CODE + orderId + price + API_KEY)
       .digest('hex');
 
     await prisma.transaction.create({
@@ -54,8 +53,8 @@ export class DuitkuService {
         userId: params.userId,
         type: 'topup',
         packageName: params.packageId,
-        amountIdr: pkg.price,
-        creditsAmount: pkg.credits + pkg.bonus,
+        amountIdr: price,
+        creditsAmount: credits,
         gateway: 'duitku',
         status: 'pending',
       },
@@ -66,15 +65,15 @@ export class DuitkuService {
         `${DUITKU_BASE_URL}/webapi/api/merchant/v2/inquiry`,
         {
           merchantCode: MERCHANT_CODE,
-          paymentAmount: pkg.price,
-          paymentMethod: 'VC',
+          paymentAmount: price,
+          paymentMethod: 'VC', // Generic CC/VA
           merchantOrderId: orderId,
-          productDetails: `${pkg.name} Package - ${pkg.credits + pkg.bonus} Credits`,
+          productDetails: `${pkg.name} Package - ${credits} Credits`,
           customerVaName: params.username || 'Customer',
           email: params.email || 'customer@email.com',
           phoneNumber: params.phone || '08123456789',
-          callbackUrl: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/webhook/duitku`,
-          returnUrl: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/payment/finish`,
+          callbackUrl: `${process.env.WEBHOOK_URL}/webhook/duitku`,
+          returnUrl: `${process.env.WEBHOOK_URL}/payment/finish`,
           signature,
           expiryPeriod: 60,
         },
@@ -159,7 +158,7 @@ export class DuitkuService {
         transaction.userId
       );
 
-      // Track purchase event to analytics platforms (GA4, Meta, TikTok) with full attribution
+      // Track purchase event
       try {
         const user = await prisma.user.findUnique({
           where: { telegramId: transaction.userId },
@@ -176,7 +175,6 @@ export class DuitkuService {
           },
         });
         
-        // Calculate days to conversion
         const daysToConversion = user?.createdAt 
           ? Math.floor((Date.now() - user.createdAt.getTime()) / 86400000)
           : 0;
@@ -185,21 +183,17 @@ export class DuitkuService {
           user_id: transaction.userId.toString(),
           amount_idr: Number(transaction.amountIdr),
           transaction_id: params.merchantOrderId,
-          event_source_url: 'https://bot.aitradepulse.com/topup',
-          // UTM Parameters (for attribution)
+          event_source_url: `${process.env.WEBHOOK_URL}/topup`,
           utm_source: user?.utmSource,
           utm_campaign: user?.utmCampaign,
           utm_content: user?.utmContent,
           lp_variant: user?.lpVariant,
-          // Attribution IDs (for platform matching)
           fbc: user?.fbc,
           fbp: user?.fbp,
           ttclid: user?.ttclid,
-          // LTV metrics
           days_to_conversion: daysToConversion,
         });
         
-        // Update transaction with UTM data
         await prisma.transaction.update({
           where: { orderId: params.merchantOrderId },
           data: {
@@ -210,7 +204,7 @@ export class DuitkuService {
           },
         });
         
-        logger.info(`✅ Analytics tracked for purchase: ${params.merchantOrderId} [LP: ${user?.lpVariant || 'direct'}]`);
+        logger.info(`✅ Analytics tracked for Duitku purchase: ${params.merchantOrderId}`);
       } catch (analyticsError) {
         logger.warn(`⚠️ Analytics tracking failed (non-blocking): ${analyticsError}`);
       }
@@ -242,10 +236,7 @@ export class DuitkuService {
     }
   }
 
-  static getPackages() {
-    return Object.entries(PACKAGES).map(([id, pkg]) => ({
-      id, name: pkg.name, price: pkg.price, credits: pkg.credits, bonus: pkg.bonus,
-      totalCredits: pkg.credits + pkg.bonus,
-    }));
+  static async getPackages() {
+    return getPackagesAsync();
   }
 }

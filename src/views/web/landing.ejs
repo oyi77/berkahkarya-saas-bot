@@ -530,59 +530,32 @@
       <div class="section-title">Harga Terjangkau untuk UMKM Indonesia</div>
       <div class="section-sub">Mulai gratis (1 video), scale sesuai kebutuhan bisnis. Bayar pakai VA/e-wallet, bukan kartu kredit.</div>
       <div class="pricing-grid">
-        <div class="price-card">
-          <h3>🎬 Starter</h3>
-          <div class="price">IDR 59K</div>
-          <div class="credits">5 Credits (50 Unit)</div>
+        <% packages.forEach(pkg => { %>
+        <div class="price-card <%= pkg.isPopular ? 'popular' : '' %>">
+          <% if (pkg.isPopular) { %>
+            <div class="popular-badge">⭐ PALING LARIS</div>
+          <% } %>
+          <h3><%= pkg.name %></h3>
+          <div class="price">IDR <%= (pkg.priceIdr / 1000).toFixed(0) %>K</div>
+          <div class="credits"><%= pkg.credits + (pkg.bonus || 0) %> Credits (<%= (pkg.credits + (pkg.bonus || 0)) * 10 %> Unit)</div>
           <ul>
-            <li>~5 video 30 detik</li>
-            <li>Semua mode (Basic/Smart/Pro)</li>
-            <li>HPAS Framework</li>
-            <li>Download HD</li>
-            <li>Multi platform output</li>
+            <% if (pkg.description) { %>
+              <% pkg.description.split(',').forEach(feat => { %>
+                <li><%= feat.trim() %></li>
+              <% }) %>
+            <% } else { %>
+              <li>~<%= pkg.credits + (pkg.bonus || 0) %> video 30 detik</li>
+              <li>Semua mode (Basic/Smart/Pro)</li>
+              <li>HPAS Framework</li>
+              <li>Download HD</li>
+              <li>Multi platform output</li>
+            <% } %>
           </ul>
-          <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-outline" onclick="trackCTA('cta_starter_click')">Mulai Sekarang</a>
+          <a href="https://t.me/berkahkarya_saas_bot" class="btn <%= pkg.isPopular ? 'btn-primary' : 'btn-outline' %>" onclick="trackCTA('cta_<%= pkg.id %>_click')">
+            <%= pkg.id === 'agency_pkg' ? 'Hubungi Sales' : 'Mulai Sekarang' %>
+          </a>
         </div>
-        <div class="price-card popular">
-          <div class="popular-badge">⭐ PALING LARIS</div>
-          <h3>🚀 Growth</h3>
-          <div class="price">IDR 149K</div>
-          <div class="credits">15 Credits (150 Unit)</div>
-          <ul>
-            <li>~15 video 30 detik</li>
-            <li>Clone Style unlimited</li>
-            <li>Campaign Builder</li>
-            <li>Priority queue</li>
-            <li>Referral komisi 15%</li>
-          </ul>
-          <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_growth_click')">Pilih Paket Ini</a>
-        </div>
-        <div class="price-card">
-          <h3>💼 Business</h3>
-          <div class="price">IDR 399K</div>
-          <div class="credits">50 Credits (500 Unit)</div>
-          <ul>
-            <li>~50 video 30 detik</li>
-            <li>Semua fitur premium</li>
-            <li>Batch generation</li>
-            <li>No watermark</li>
-            <li>Dedicated support</li>
-          </ul>
-          <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-outline" onclick="trackCTA('cta_business_click')">Upgrade Sekarang</a>
-        </div>
-        <div class="price-card">
-          <h3>👑 Agency</h3>
-          <div class="price">IDR 999K</div>
-          <div class="credits">150 Credits (1500 Unit)</div>
-          <ul>
-            <li>~150 video 30 detik</li>
-            <li>White-label option</li>
-            <li>API access</li>
-            <li>Multi-client management</li>
-            <li>Priority support 24/7</li>
-          </ul>
-          <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-outline" onclick="trackCTA('cta_agency_click')">Hubungi Sales</a>
-        </div>
+        <% }) %>
       </div>
       <p style="text-align:center; margin-top:32px; color:var(--dim); font-size:14px;">
         💳 Metode Pembayaran: VA BCA/Mandiri/BNI • GoPay • OVO • DANA • Telegram Stars • Crypto (BTC/USDT/ETH/BNB/MATIC/TON)

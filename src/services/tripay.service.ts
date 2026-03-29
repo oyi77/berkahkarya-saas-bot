@@ -1,12 +1,13 @@
 /**
  * Tripay Payment Gateway Service
  * 
- * Handles payment transactions via Tripay
+ * Handles payment transactions via Tripay with dynamic packages
  */
 
 import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getPackagesAsync } from '@/config/pricing';
 import crypto from 'crypto';
 
 const TRIPAY_API_KEY = process.env.TRIPAY_API_KEY || '';
@@ -14,9 +15,9 @@ const TRIPAY_PRIVATE_KEY = process.env.TRIPAY_PRIVATE_KEY || '';
 const TRIPAY_MERCHANT_CODE = process.env.TRIPAY_MERCHANT_CODE || '';
 const TRIPAY_ENVIRONMENT = process.env.TRIPAY_ENVIRONMENT || 'sandbox';
 
-const BASE_URL = TRIPAY_ENVIRONMENT === 'sandbox'
-  ? 'https://tripay.co.id/api-sandbox'
-  : 'https://tripay.co.id/api';
+const BASE_URL = TRIPAY_ENVIRONMENT === 'production'
+  ? 'https://tripay.co.id/api/v1'
+  : 'https://tripay.co.id/api-sandbox';
 
 interface TripayCreatePaymentParams {
   userId: bigint;
@@ -42,31 +43,35 @@ export class TripayService {
 
   static async createTransaction(params: TripayCreatePaymentParams): Promise<TripayPayment> {
     try {
-      const packageDetails = this.getPackageDetails(params.packageId);
+      const packages = await getPackagesAsync();
+      const pkg = packages.find(p => p.id === params.packageId);
       
+      if (!pkg) {
+        throw new Error('Invalid package');
+      }
+
+      const price = pkg.priceIdr || (pkg as any).price;
+      const credits = pkg.credits + (pkg.bonus || 0);
       const orderId = `TRP-${Date.now()}-${params.userId}`;
-      const amount = packageDetails.price;
 
       const payload = {
         method: 'BRIVA',
         merchant_ref: orderId,
-        amount: amount,
-        customer: {
-          name: params.username,
-          email: '',
-          phone: '',
-        },
-        item: [
+        amount: price,
+        customer_name: params.username,
+        customer_email: 'customer@email.com',
+        customer_phone: '08123456789',
+        order_items: [
           {
-            name: packageDetails.name,
-            price: amount,
+            name: pkg.name,
+            price: price,
             quantity: 1,
           },
         ],
-        callback_url: process.env.TRIPAY_CALLBACK_URL || 'https://yourdomain.com/webhook/tripay',
-        return_url: 'https://yourdomain.com/payment/success',
-        expired_time: (new Date(Date.now() + 24 * 60 * 60 * 1000)).toISOString(),
-        signature: this.generateSignature(orderId, amount),
+        callback_url: `${process.env.WEBHOOK_URL}/webhook/tripay`,
+        return_url: `${process.env.WEBHOOK_URL}/payment/finish`,
+        expired_time: Math.floor(Date.now() / 1000) + (24 * 3600), // 24 hours
+        signature: this.generateSignature(orderId, price),
       };
 
       const response = await axios.post(`${BASE_URL}/transaction/create`, payload, {
@@ -82,8 +87,8 @@ export class TripayService {
             userId: params.userId,
             type: 'topup',
             packageName: params.packageId,
-            amountIdr: amount,
-            creditsAmount: packageDetails.totalCredits,
+            amountIdr: price,
+            creditsAmount: credits,
             gateway: 'tripay',
             gatewayTransactionId: data.data.reference,
             paymentMethod: data.data.method,
@@ -94,7 +99,7 @@ export class TripayService {
         return {
           success: true,
           orderId: orderId,
-          paymentUrl: data.data.payment_url,
+          paymentUrl: data.data.checkout_url,
           reference: data.data.reference,
         };
       }
@@ -114,7 +119,7 @@ export class TripayService {
 
   static async handleCallback(callbackData: any): Promise<{ success: boolean; message: string }> {
     try {
-      const { merchant_ref, status, _signature } = callbackData;
+      const { merchant_ref, status } = callbackData;
       
       const transaction = await prisma.transaction.findUnique({
         where: { orderId: merchant_ref },
@@ -125,11 +130,11 @@ export class TripayService {
       }
 
       let newStatus = 'pending';
-      if (status === 'PAID' || status === 'success') {
+      if (status === 'PAID') {
         newStatus = 'success';
       } else if (status === 'EXPIRED') {
         newStatus = 'expired';
-      } else if (status === 'FAILED' || status === 'FAILED') {
+      } else if (status === 'FAILED') {
         newStatus = 'failed';
       }
 
@@ -137,9 +142,10 @@ export class TripayService {
         await prisma.user.update({
           where: { telegramId: transaction.userId },
           data: {
-            creditBalance: { increment: transaction.creditsAmount || 0 },
+            creditBalance: { increment: Number(transaction.creditsAmount) || 0 },
           },
         });
+        logger.info(`Added ${transaction.creditsAmount} credits to user ${transaction.userId} via Tripay`);
       }
 
       await prisma.transaction.update({
@@ -171,22 +177,14 @@ export class TripayService {
     }
   }
 
-  static getPackageDetails(packageId: string): { name: string; price: number; totalCredits: number } {
-    const packages: Record<string, { name: string; price: number; totalCredits: number }> = {
-      starter: { name: 'Starter Flow', price: 49000, totalCredits: 6 },
-      growth: { name: 'Growth Machine', price: 149000, totalCredits: 22 },
-      scale: { name: 'Business Kingdom', price: 499000, totalCredits: 85 },
-      enterprise: { name: 'Enterprise', price: 999000, totalCredits: 200 },
-    };
-
-    return packages[packageId] || packages.starter;
+  private static generateSignature(merchantRef: string, amount: number): string {
+    return crypto
+      .createHmac('sha256', TRIPAY_PRIVATE_KEY)
+      .update(TRIPAY_MERCHANT_CODE + merchantRef + amount)
+      .digest('hex');
   }
 
-  private static generateSignature(merchantRef: string, amount: number): string {
-    const signature = crypto
-      .createHash('sha256')
-      .update(TRIPAY_MERCHANT_CODE + merchantRef + amount + TRIPAY_PRIVATE_KEY)
-      .digest('hex');
-    return signature;
+  static async getPackages() {
+    return getPackagesAsync();
   }
 }

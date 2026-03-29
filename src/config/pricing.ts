@@ -1,130 +1,146 @@
+/**
+ * Static & Dynamic Pricing Engine
+ * 
+ * Centralizing all prices, durations, and credit costs.
+ * v3.0 logic: 1 Credit = 10 Units.
+ */
+
+import { PaymentSettingsService } from "@/services/payment-settings.service";
+
+// ── Shared Constants ──────────────────────────────────────────────────────────
+
+export type PlanKey = 'lite' | 'pro' | 'agency';
+export type BillingCycle = 'monthly' | 'annual';
+
+// Use UNIT_COSTS as the primary source of truth for all modules
+export const UNIT_COSTS = {
+  VIDEO_15S: 5,   // 0.5 Credits
+  VIDEO_30S: 10,  // 1.0 Credits
+  VIDEO_60S: 20,  // 2.0 Credits
+  VIDEO_120S: 45, // 4.5 Credits
+  IMAGE_UNIT: 2,  // 0.2 Credits
+  IMAGE_SET_7_SCENE: 15,
+  CLONE_STYLE: 5,
+  CAMPAIGN_5_VIDEO: 40,
+  CAMPAIGN_10_VIDEO: 75,
+};
+
+// Aliases for transition
+export const VIDEO_UNIT_COSTS = UNIT_COSTS;
+export const IMAGE_UNIT_COST = UNIT_COSTS.IMAGE_UNIT;
+export const CREDIT_TO_UNIT = 10;
+
+// ── Subscription Tiers & Credits ──────────────────────────────────────────────
+
 export const SUBSCRIPTION_PLANS = {
   lite: {
     name: 'Lite',
-    monthlyPriceIdr: 99_000,
-    annualPriceIdr: 990_000,
-    monthlyCredits: 10,
-    dailyGenerationLimit: 5,
-    tier: 'basic' as const,
-    features: ['Priority queue', 'Basic analytics'],
+    tier: 'basic',
+    monthlyCredits: 20,
+    dailyGenerationLimit: 3,
+    monthlyPriceIdr: 99000,
+    annualPriceIdr: 990000,
+    features: ['20 Credits/month', '3 Daily limit', 'Standard support'],
   },
   pro: {
     name: 'Pro',
-    monthlyPriceIdr: 249_000,
-    annualPriceIdr: 2_490_000,
-    monthlyCredits: 30,
+    tier: 'pro',
+    monthlyCredits: 50,
     dailyGenerationLimit: 10,
-    tier: 'pro' as const,
-    features: ['Priority queue 2x', 'Campaign Builder', 'Clone Style', 'No watermark', 'Advanced analytics'],
+    monthlyPriceIdr: 199000,
+    annualPriceIdr: 1990000,
+    features: ['50 Credits/month', '10 Daily limit', 'Priority support', 'Viral research'],
   },
   agency: {
     name: 'Agency',
-    monthlyPriceIdr: 599_000,
-    annualPriceIdr: 5_990_000,
-    monthlyCredits: 100,
+    tier: 'agency',
+    monthlyCredits: 150,
     dailyGenerationLimit: 30,
-    tier: 'agency' as const,
-    features: ['Priority queue 3x', 'White-label', 'API access', 'Batch generation', 'Dedicated support'],
+    monthlyPriceIdr: 499000,
+    annualPriceIdr: 4990000,
+    features: ['150 Credits/month', '30 Daily limit', 'White-labeling', 'API Access'],
   },
-} as const;
-
-export type PlanKey = keyof typeof SUBSCRIPTION_PLANS;
-export type BillingCycle = 'monthly' | 'annual';
-
-export const VIDEO_CREDIT_COSTS: Record<string, number> = {
-  '5': 0.2,
-  '10': 0.4,
-  '15': 0.5,
-  '20': 0.7,
-  '25': 0.9,
-  '30': 1.0,
-  '35': 1.2,
-  '40': 1.4,
-  '45': 1.5,
-  '50': 1.7,
-  '55': 1.9,
-  '60': 2.0,
 };
 
-export const EXTRA_CREDIT_PRICING = {
-  subscriber: { pricePerCreditIdr: 10_000, label: 'Subscriber Price' },
-  nonSubscriber: { pricePerCreditIdr: 20_000, label: 'Standard Price' },
-} as const;
+// Legacy alias
+export const SUBSCRIPTION_PLANS_V3 = SUBSCRIPTION_PLANS;
+
+// ── Credit Packages ──────────────────────────────────────────────────────────
+
+export const PACKAGES = [
+  { id: 'starter', name: 'Starter Flow', priceIdr: 49000, credits: 5, bonus: 1, totalCredits: 6 },
+  { id: 'growth', name: 'Growth Machine', priceIdr: 149000, credits: 18, bonus: 4, totalCredits: 22, isPopular: true },
+  { id: 'business', name: 'Business Kingdom', priceIdr: 499000, credits: 70, bonus: 15, totalCredits: 85 },
+];
 
 export const EXTRA_CREDIT_PACKAGES = [
-  { id: 'extra_1', credits: 1 },
-  { id: 'extra_5', credits: 5 },
-  { id: 'extra_10', credits: 10 },
-  { id: 'extra_25', credits: 25 },
-] as const;
+  { id: '1credit', credits: 1, priceIdr: 15000, name: '1 Credit' },
+  { id: '5credits', credits: 5, priceIdr: 65000, name: '5 Credits' },
+];
 
-export const COMMISSIONS = {
-  DIRECT_REFERRAL: 0.15,
-  INDIRECT_REFERRAL: 0.05,
-  ACTIVITY_WINDOW_DAYS: 30,
-} as const;
+// Legacy alias
+export const CREDIT_PACKAGES_V3 = PACKAGES;
 
-export const FREE_TRIAL_CREDITS = 3;
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-export function getVideoCreditCost(durationSeconds: number): number {
-  const key = String(durationSeconds);
-  return VIDEO_CREDIT_COSTS[key] ?? Math.ceil(durationSeconds / 5) * (2.0 / 12);
-}
-
-export function isSubscriber(tier: string): boolean {
-  return tier !== 'free';
-}
-
-export function getCreditPriceIdr(tier: string): number {
-  return isSubscriber(tier)
-    ? EXTRA_CREDIT_PRICING.subscriber.pricePerCreditIdr
-    : EXTRA_CREDIT_PRICING.nonSubscriber.pricePerCreditIdr;
-}
+export const creditsToUnits = (credits: number) => Math.round(credits * 10);
+export const unitsToCredits = (units: number) => units / 10;
 
 export function getPlanPrice(plan: PlanKey, cycle: BillingCycle): number {
-  const p = SUBSCRIPTION_PLANS[plan];
-  return cycle === 'annual' ? p.annualPriceIdr : p.monthlyPriceIdr;
+  const planConfig = SUBSCRIPTION_PLANS[plan];
+  if (!planConfig) return 0;
+  return cycle === 'monthly' ? planConfig.monthlyPriceIdr : planConfig.annualPriceIdr;
 }
 
-export function getExtraCreditPackagePrice(credits: number, tier: string): number {
-  return credits * getCreditPriceIdr(tier);
+/**
+ * Get the cost of a video in Credits (v3.0)
+ * Fallback to static if DB config is missing
+ */
+export function getVideoCreditCost(durationSeconds: number): number {
+  if (durationSeconds <= 15) return 0.5;
+  if (durationSeconds <= 30) return 1.0;
+  if (durationSeconds <= 60) return 2.0;
+  return 4.5;
 }
 
-// ── Async DB-backed pricing (reads from PricingConfig, falls back to hardcoded) ──
-
-import { PaymentSettingsService } from '@/services/payment-settings.service';
+// ── Asynchronous Pricing Engine (Dynamic Override) ──────────────────────────
 
 export async function getVideoCreditCostAsync(durationSeconds: number): Promise<number> {
-  const config = await PaymentSettingsService.getPricingConfig('video_credit', String(durationSeconds));
-  if (config && typeof (config as any).credits === 'number') {
+  let key = '120';
+  if (durationSeconds <= 15) key = '15';
+  else if (durationSeconds <= 30) key = '30';
+  else if (durationSeconds <= 60) key = '60';
+
+  const config = await PaymentSettingsService.getPricingConfig('video_credit', key);
+  if (config && typeof config === 'object' && 'credits' in config) {
     return (config as any).credits;
   }
-  return getVideoCreditCost(durationSeconds);
+  return durationSeconds <= 15 ? 0.5 : (durationSeconds <= 30 ? 1.0 : (durationSeconds <= 60 ? 2.0 : 4.5));
 }
 
 export async function getImageCreditCostAsync(provider?: string): Promise<number> {
   return PaymentSettingsService.getImageCreditCost(provider);
 }
 
-export async function getPackagesAsync(): Promise<Array<{ id: string; name: string; priceIdr: number; credits: number; bonus: number; description?: string; isPopular?: boolean }>> {
+export async function getPackagesAsync() {
   const dbPackages = await PaymentSettingsService.getAllPricingByCategory('package');
   if (Object.keys(dbPackages).length > 0) {
-    return Object.entries(dbPackages).map(([id, config]: [string, any]) => ({
-      id,
-      name: config.name || id,
-      priceIdr: config.priceIdr || 0,
-      credits: config.credits || 0,
-      bonus: config.bonus || 0,
-      description: config.description,
-      isPopular: config.isPopular,
-    }));
+    return Object.entries(dbPackages).map(([id, config]: [string, any]) => {
+      const credits = config.credits || config.credit || 0;
+      const bonus = config.bonus || 0;
+      return {
+        id,
+        name: config.name || id,
+        priceIdr: config.priceIdr || config.price || 0,
+        credits,
+        bonus,
+        totalCredits: credits + bonus,
+        description: config.description,
+        isPopular: config.isPopular,
+      };
+    });
   }
-  // Fallback to hardcoded
-  return [
-    { id: 'starter', name: 'Starter Flow', priceIdr: 49000, credits: 5, bonus: 1 },
-    { id: 'growth', name: 'Growth Machine', priceIdr: 149000, credits: 18, bonus: 4, isPopular: true },
-    { id: 'business', name: 'Business Kingdom', priceIdr: 499000, credits: 70, bonus: 15 },
-  ];
+  return PACKAGES;
 }
 
 export async function getSubscriptionPlansAsync(): Promise<Record<string, any>> {
@@ -133,66 +149,19 @@ export async function getSubscriptionPlansAsync(): Promise<Record<string, any>> 
   return SUBSCRIPTION_PLANS;
 }
 
-// ── v3.0 Credit System (1 Credit = 10 Units) ──────────────────────────────────
-// Added: March 2026 — Master Document v3.0
+export async function getUnitCostAsync(key: keyof typeof UNIT_COSTS): Promise<number> {
+  const config = await PaymentSettingsService.getPricingConfig('unit_cost', key);
+  if (config && typeof config === 'object' && 'value' in config) {
+    return (config as any).value;
+  }
+  return UNIT_COSTS[key];
+}
 
-export const CREDIT_TO_UNIT = 10;
+export async function getReferralCommissionsAsync(): Promise<Record<string, number>> {
+  const defaults = { TIER_1: 0.15, TIER_2: 0.05, TIER_3: 0.02 };
+  const dbComms = await PaymentSettingsService.getAllPricingByCategory('referral_commission');
+  return { ...defaults, ...dbComms };
+}
 
-export const UNIT_COSTS = {
-  IMAGE_SET_7_SCENE: 1.5,
-  VIDEO_15S: 2.5,
-  VIDEO_30S: 3.5,
-  VIDEO_60S: 6.0,
-  CLONE_STYLE: 0.5,
-  CAMPAIGN_5_VIDEO: 15.0,
-  CAMPAIGN_10_VIDEO: 25.0,
-} as const;
-
-// ── Credit Packages (One-time purchase, credits never expire) ─────────────────
-// Cost basis: ~IDR 150-500/video via BytePlus/SiliconFlow/Fal.ai (NOT Kling)
-// Target margin: 85-93% gross margin
-export const CREDIT_PACKAGES_V3 = [
-  { id: 'coba',       name: 'Coba Dulu',    credits: 1,   units: 10,   priceIdr: 25_000,    pricePerUnit: 2500, savingPct: 0,  isPopular: false },
-  { id: 'growth',     name: 'Growth Pack',  credits: 15,  units: 150,  priceIdr: 249_000,   pricePerUnit: 1660, savingPct: 34, isPopular: true  },
-  { id: 'business',   name: 'Business Pack',credits: 50,  units: 500,  priceIdr: 699_000,   pricePerUnit: 1398, savingPct: 44, isPopular: false },
-  { id: 'agency_pkg', name: 'Agency Pack',  credits: 150, units: 1500, priceIdr: 1_799_000, pricePerUnit: 1199, savingPct: 52, isPopular: false },
-] as const;
-
-// ── Subscription Plans (Monthly credits auto-renew) ───────────────────────────
-export const SUBSCRIPTION_PLANS_V3 = {
-  lite: {
-    name: 'Lite',
-    monthlyPriceIdr: 99_000,
-    annualPriceIdr: 990_000,
-    monthlyCredits: 10,
-    features: ['Priority queue', 'Basic analytics'],
-  },
-  pro: {
-    name: 'Pro',
-    monthlyPriceIdr: 249_000,
-    annualPriceIdr: 2_490_000,
-    monthlyCredits: 30,
-    features: ['Priority queue 2x', 'Campaign Builder', 'Clone Style', 'No watermark', 'Advanced analytics'],
-  },
-  agency_sub: {
-    name: 'Agency',
-    monthlyPriceIdr: 599_000,
-    annualPriceIdr: 5_990_000,
-    monthlyCredits: 100,
-    features: ['Priority queue 3x', 'White-label', 'API access', 'Batch generation', 'Dedicated support'],
-  },
-} as const;
-
-export function creditsToUnits(credits: number): number { return credits * CREDIT_TO_UNIT; }
-export function unitsToCredits(units: number): number { return units / CREDIT_TO_UNIT; }
-export function getUnitCost(action: keyof typeof UNIT_COSTS): number { return UNIT_COSTS[action]; }
-export function creditCostForAction(action: keyof typeof UNIT_COSTS): number { return UNIT_COSTS[action] / CREDIT_TO_UNIT; }
-
-export const REFERRAL_COMMISSIONS_V3 = {
-  TIER_1: 0.15,
-  TIER_2: 0.05,
-  TIER_3: 0.03,
-  ACTIVITY_WINDOW_DAYS: 30,
-  MIN_PAYOUT_IDR: 50_000,
-  PENDING_DAYS: 7,
-} as const;
+// Legacy alias for admin route
+export const REFERRAL_COMMISSIONS_V3 = { TIER_1: 0.15, TIER_2: 0.05, TIER_3: 0.02 };

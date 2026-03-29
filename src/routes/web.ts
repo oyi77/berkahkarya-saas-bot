@@ -17,7 +17,11 @@ import {
   generateStoryboard,
   NICHES,
 } from "@/services/video-generation.service";
-import { getVideoCreditCost } from "@/config/pricing";
+import {
+  getVideoCreditCostAsync,
+  getPackagesAsync,
+  getSubscriptionPlansAsync,
+} from "@/config/pricing";
 import jwt from "jsonwebtoken";
 import * as fs from "fs";
 import crypto from "crypto";
@@ -40,8 +44,20 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     try {
       const data = await redis.get("admin:landing_config");
       if (data) landingConfig = JSON.parse(data);
-    } catch { /* ignore */ }
-    reply.view("web/landing.ejs", { landingConfig });
+    } catch {
+      /* ignore */
+    }
+
+    const [packages, subscriptionPlans] = await Promise.all([
+      getPackagesAsync(),
+      getSubscriptionPlansAsync(),
+    ]);
+
+    reply.view("web/landing.ejs", {
+      landingConfig,
+      packages,
+      subscriptionPlans,
+    });
   });
 
   // Facebook domain verification
@@ -228,7 +244,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       if (!niche || !duration)
         return reply.status(400).send({ error: "niche and duration required" });
 
-      const creditCost = getVideoCreditCost(duration);
+      const creditCost = await getVideoCreditCostAsync(duration);
       if (Number(user.creditBalance) < creditCost) {
         return reply.status(402).send({
           error: `Insufficient credits. Need ${creditCost}, have ${user.creditBalance}`,
@@ -291,7 +307,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   // ── PACKAGES ──
   server.get("/api/packages", async () => {
-    return PaymentService.getPackages();
+    return getPackagesAsync();
   });
 
   // ── PAYMENT CREATE ──
