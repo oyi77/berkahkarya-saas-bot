@@ -1318,18 +1318,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       // ── Guided onboarding — step-by-step, friendly ───────────────────────
       const lang = langCode;
 
-      // Message 1: Welcome + keyboard (bottom bar)
+      // Message 1: Welcome + inline menu
       await ctx.reply(t("onboarding.welcome", lang), {
         parse_mode: "Markdown",
         reply_markup: {
-          keyboard: [
-            [{ text: "📚 Prompt Library" }, { text: "🔥 Trending" }],
-            [{ text: "🎬 Create Video" }, { text: "🖼️ Generate Image" }],
-            [{ text: "🎁 Daily Prompt" }, { text: "💬 Chat AI" }],
-            [{ text: "💰 Top Up" }, { text: "⭐ Subscription" }],
-            [{ text: "👤 Profile" }, { text: "🆘 Support" }],
+          inline_keyboard: [
+            [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
+            [{ text: "🖼 Buat Gambar", callback_data: "create_image_new" }],
+            [{ text: "💳 Kredit & Paket", callback_data: "credits_menu" }],
+            [{ text: "🎞 Video Saya", callback_data: "videos_list" }],
+            [{ text: "👤 Akun", callback_data: "account_menu" }],
           ],
-          resize_keyboard: true,
         },
       });
 

@@ -14,6 +14,7 @@ import { referralCommand } from "@/commands/referral";
 import { subscriptionCommand } from "@/commands/subscription";
 import { settingsCommand } from "@/commands/settings";
 import { supportCommand } from "@/commands/support";
+import { showMainMenu } from "@/commands/main-menu";
 import { UserService } from "@/services/user.service";
 import {
   ImageGenerationService,
@@ -894,26 +895,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                 /* fall through to menu */
               }
             }
-            // Fallback: show menu
-            await ctx.reply(
-              "❓ Ketik pertanyaan kamu atau pilih dari menu:\n\n" +
-              "📚 /prompts — Template prompt siap pakai\n" +
-              "🎬 /create — Buat video baru\n" +
-              "🎁 /daily — Prompt gratis hari ini\n" +
-              "💬 /chat — Chat dengan AI",
-              {
-                reply_markup: {
-                  keyboard: [
-                    [{ text: "📚 Prompt Library" }, { text: "🔥 Trending" }],
-                    [{ text: "🎬 Create Video" }, { text: "🖼️ Generate Image" }],
-                    [{ text: "🎁 Daily Prompt" }, { text: "💬 Chat AI" }],
-                    [{ text: "💰 Top Up" }, { text: "⭐ Subscription" }],
-                    [{ text: "👤 Profile" }, { text: "🆘 Support" }],
-                  ],
-                  resize_keyboard: true,
-                },
-              },
-            );
+            // Fallback: show main menu (inline keyboard V3)
+            await showMainMenu(ctx);
           }
         }
       }
