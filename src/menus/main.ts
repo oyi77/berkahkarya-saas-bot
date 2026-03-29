@@ -78,7 +78,7 @@ export async function showCreditsMenu(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('showCreditsMenu error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
   }}
 
 /**
@@ -105,5 +105,5 @@ export async function showAccountMenu(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('showAccountMenu error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
   }}

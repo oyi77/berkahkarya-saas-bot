@@ -19,7 +19,7 @@ import type { Telegram } from 'telegraf';
 
 export const leaderboardQueue = new Queue('leaderboard', { connection: bullmqRedis });
 
-const LEADERBOARD_REWARDS = [2.0, 1.0, 0.5]; // Top 3 credit bonuses
+// const LEADERBOARD_REWARDS = [2.0, 1.0, 0.5]; // Top 3 credit bonuses
 
 export class WeeklyLeaderboardService {
 

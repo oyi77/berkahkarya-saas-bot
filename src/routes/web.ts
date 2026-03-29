@@ -40,7 +40,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     try {
       const data = await redis.get("admin:landing_config");
       if (data) landingConfig = JSON.parse(data);
-    } catch {}
+    } catch { /* ignore */ }
     reply.view("web/landing.ejs", { landingConfig });
   });
 

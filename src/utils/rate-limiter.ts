@@ -29,16 +29,6 @@ const PRESETS: Record<string, RateLimitConfig> = {
 // In-memory fallback when Redis is down
 const memStore = new Map<string, { count: number; expiresAt: number }>();
 
-function memGet(key: string): number {
-  const entry = memStore.get(key);
-  if (!entry) return 0;
-  if (Date.now() > entry.expiresAt) {
-    memStore.delete(key);
-    return 0;
-  }
-  return entry.count;
-}
-
 function memIncr(key: string, ttlSec: number): number {
   const existing = memStore.get(key);
   if (!existing || Date.now() > existing.expiresAt) {

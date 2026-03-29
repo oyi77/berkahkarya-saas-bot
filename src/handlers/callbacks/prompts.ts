@@ -1,5 +1,4 @@
 import { BotContext } from "@/types";
-import { logger } from "@/utils/logger";
 import { prisma } from "@/config/database";
 import { UserService } from "@/services/user.service";
 

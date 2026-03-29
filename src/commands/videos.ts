@@ -69,7 +69,7 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('videosCommand error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
   }
 }
 
@@ -211,7 +211,7 @@ export async function copyVideoUrl(ctx: BotContext, jobId: string): Promise<void
     );
   } catch (error) {
     logger.error('copyVideoUrl error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
   }
 }
 
@@ -246,6 +246,6 @@ export async function deleteVideo(ctx: BotContext, jobId: string): Promise<void>
     );
   } catch (error) {
     logger.error('deleteVideo error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
   }
 }

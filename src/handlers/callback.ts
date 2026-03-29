@@ -10,24 +10,8 @@ import { prisma } from "@/config/database";
 import { redis } from "@/config/redis";
 import { UserService } from "@/services/user.service";
 import {
-  handleTopupSelection,
-  handlePaymentGateway,
-  checkPayment,
-  handleTopupExtraCredit,
   topupCommand,
-  handleStarsMenu,
-  handleStarsInvoice,
-  STARS_PACKAGES,
-  handleCryptoMenu,
-  handleCryptoCoinSelect,
-  handleCryptoPayment,
 } from "@/commands/topup";
-import { CRYPTO_PACKAGES, CRYPTO_COINS } from "@/services/nowpayments.service";
-import {
-  subscriptionCommand,
-  handleSubscriptionPurchase,
-  handleCancelSubscription,
-} from "@/commands/subscription";
 import { profileCommand } from "@/commands/profile";
 import { referralCommand } from "@/commands/referral";
 import { helpCommand } from "@/commands/help";
@@ -69,10 +53,6 @@ import {
   handlePaymentSetDefault,
 } from "@/commands/admin/paymentSettings";
 import {
-  SUBSCRIPTION_PLANS,
-  PlanKey,
-  BillingCycle,
-  EXTRA_CREDIT_PACKAGES,
   getImageCreditCostAsync,
 } from "@/config/pricing";
 import { t } from "@/i18n/translations";

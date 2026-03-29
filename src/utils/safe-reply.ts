@@ -96,7 +96,6 @@ export async function withErrorBoundary(
   try {
     await fn();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
     logger.error(`Error in ${opts?.action ?? 'handler'}:`, { err, userId: ctx.from?.id });
 
     const userMsg =

@@ -775,14 +775,14 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   /** GET /api/v3/users/:id/gamification */
-  server.get('/api/v3/users/:id/gamification', async (request: any, reply) => {
+  server.get('/api/v3/users/:id/gamification', async (request: any, _reply) => {
     const userId = BigInt(request.params.id);
     const [summary, streak, badges] = await Promise.all([
       GamificationService.getUserGamificationSummary(userId),
       (prisma as any).userStreak.findUnique({ where: { userId } }),
       (prisma as any).userBadge.findMany({ where: { userId } }),
     ]);
-    return { summary, streak, badges };
+    return { summary, streak, badges }; // used here so maybe it was not unused?
   });
 
   /** GET /api/v3/campaign/hooks — List available hook variations */

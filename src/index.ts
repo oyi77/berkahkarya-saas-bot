@@ -208,8 +208,8 @@ async function main() {
     // Graceful shutdown
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
-      try { await bot.stop(signal); } catch (_) {}
-      try { await server.close(); } catch (_) {}
+      try { await bot.stop(signal); } catch (_) { /* ignore stop errors */ }
+      try { await server.close(); } catch (_) { /* ignore close errors */ }
       logger.info("👋 Goodbye!");
       process.exit(0);
     };

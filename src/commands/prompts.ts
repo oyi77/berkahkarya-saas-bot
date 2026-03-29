@@ -538,8 +538,6 @@ export async function showNichePrompts(
   const hasAdmin = adminPrompts.length > 0;
   const hasSaved = savedPrompts.length > 0;
 
-  const totalCount = adminPrompts.length + niche.prompts.length;
-
   let msg = `${niche.emoji} **${niche.label} PROMPT TEMPLATES**\n`;
   msg += `────────────────────────────────────────────\n\n`;
   msg += `Berikut prompt terbaik untuk niche ${niche.label}:\n\n`;
@@ -850,14 +848,6 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
     const userPrompt = getUserDailyPrompt(userId, today);
     const niche = PROMPT_LIBRARY[userPrompt.niche];
     const p = niche.prompts.find((x) => x.id === userPrompt.promptId)!;
-
-    // Format date nicely
-    const dateStr = today.toLocaleDateString("id-ID", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
 
     const msg =
       `🎁 **MYSTERY PROMPT BOX**\n` +

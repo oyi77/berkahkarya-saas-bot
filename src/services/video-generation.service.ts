@@ -12,7 +12,6 @@ import axios from 'axios';
 import FormData from 'form-data';
 import { CircuitBreaker } from '@/services/circuit-breaker.service';
 import { PromptOptimizer } from '@/services/prompt-optimizer.service';
-import { PROVIDER_CONFIG } from '@/config/providers';
 import { ProviderSettingsService } from '@/services/provider-settings.service';
 import { getVideoCreditCost } from '@/config/pricing';
 

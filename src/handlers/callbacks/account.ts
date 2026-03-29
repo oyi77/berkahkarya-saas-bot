@@ -1,11 +1,9 @@
 import { BotContext } from "@/types";
-import { logger } from "@/utils/logger";
 import {
   handleTopupSelection,
   handlePaymentGateway,
   checkPayment,
   handleTopupExtraCredit,
-  topupCommand,
   handleStarsMenu,
   handleStarsInvoice,
   STARS_PACKAGES,

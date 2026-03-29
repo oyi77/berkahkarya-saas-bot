@@ -245,10 +245,9 @@ export class GamificationService {
    * Get user stats for badge checking
    */
   static async getUserStats(userId: bigint): Promise<UserStats> {
-    const [streak, referrals, badges] = await Promise.all([
+    const [streak, referrals] = await Promise.all([
       (prisma as any).userStreak.findUnique({ where: { userId } }),
       prisma.commission.findMany({ where: { referrerId: userId }, select: { tier: true } }),
-      (prisma as any).userBadge.findMany({ where: { userId }, select: { badgeId: true } }),
     ]);
 
     const totalGenerates = streak?.totalGenerates || 0;

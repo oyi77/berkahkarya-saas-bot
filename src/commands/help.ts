@@ -56,6 +56,6 @@ export async function helpCommand(ctx: BotContext): Promise<void> {
     logger.error('helpCommand error:', error);
     try {
       await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi atau hubungi /support.');
-    } catch {}
+    } catch { /* ignore */ }
   }
 }

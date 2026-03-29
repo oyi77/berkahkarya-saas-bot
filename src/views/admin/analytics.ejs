@@ -799,6 +799,25 @@ async function loadUsers(reset = false) {
   } catch(e) { toast('Failed to load users: ' + e.message, 'error'); }
 }
 
+// ===================== REAL-TIME SSE ENGINE =====================
+const sse = new EventSource('/api/admin/sse');
+sse.onmessage = (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    if (data.type === 'NEW_USER') {
+      const uCount = document.getElementById('ov-users');
+      if(uCount && uCount.textContent !== '—') uCount.textContent = (parseInt(uCount.textContent.replace(/,/g, '')) + 1).toLocaleString();
+      toast('👤 New User Registered: @' + data.username, 'info');
+    }
+    if (data.type === 'VIDEO_SUCCESS') {
+      const vCount = document.getElementById('ov-videos');
+      if(vCount && vCount.textContent !== '—') vCount.textContent = (parseInt(vCount.textContent.replace(/,/g, '')) + 1).toLocaleString();
+      toast('🎬 Video Generation Completed', 'success');
+    }
+  } catch(e) {}
+};
+
+
 function renderUsersTable(users) {
   const wrap = document.getElementById('users-table-wrap');
   if (!users.length) { wrap.innerHTML = '<div class="empty-state">No users found</div>'; return; }

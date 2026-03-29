@@ -10,7 +10,6 @@
  * v3.0 — Master Document
  */
 
-import { logger } from '@/utils/logger';
 import { detectIndustry, generateVideoScenePrompts, DURATION_PRESETS } from '@/config/hpas-engine';
 import { UNIT_COSTS } from '@/config/pricing';
 
@@ -156,7 +155,6 @@ export class CampaignService {
         .replace('{product}', productDescription)
         .replace('{problem}', `masalah ${industry}`);
 
-      const hookScene = allScenePrompts.find((s) => s.sceneId === 'hook');
       const hookDuration = presetConfig.sceneDurations['hook'] || 3;
 
       return {

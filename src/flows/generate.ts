@@ -12,7 +12,6 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
-import { VideoService } from '@/services/video.service';
 import { UNIT_COSTS, creditsToUnits } from '@/config/pricing';
 import { detectIndustry, generateVideoScenePrompts, HPAS_SCENES, DURATION_PRESETS } from '@/config/hpas-engine';
 import { CampaignService } from '@/services/campaign.service';
