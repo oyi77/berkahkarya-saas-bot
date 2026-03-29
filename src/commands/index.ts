@@ -31,9 +31,9 @@ import {
 import { cancelCommand } from "./cancel";
 import { sendCommand } from "./send";
 
-// New redesigned flows
-export * from "./create-new";
-export * from "./main-menu";
+// Feature-based flows
+export * from "@/flows/generate";
+export * from "@/menus/main";
 
 // Admin commands
 import { adminBroadcastCommand } from "./admin/broadcast";

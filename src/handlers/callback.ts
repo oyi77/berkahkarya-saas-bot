@@ -321,79 +321,49 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // ── END NEW REDESIGN HANDLERS ────────────────────────────────────────
 
-    // New video/image creation flow handlers
-    if (data === "create_video_new") {
-      const { startVideoCreationNew } =
-        await import("../commands/create-new.js");
-      await startVideoCreationNew(ctx);
+    // ── V3 Flow handlers (Basic/Smart/Pro → HPAS) ────────────────────────────────
+    if (data === "v3_start" || data === "create_video_new") {
+      const { showModeSelection } = await import("../flows/generate.js");
+      await showModeSelection(ctx);
       return;
     }
 
-    if (data.startsWith("vcreate_source_")) {
-      const { handleVideoSourceSelection } =
-        await import("../commands/create-new.js");
-      const source = data.replace("vcreate_source_", "");
-      await handleVideoSourceSelection(ctx, source);
+    if (data.startsWith("v3_mode_")) {
+      const { showActionSelection } = await import("../flows/generate.js");
+      const mode = data.replace("v3_mode_", "") as "basic" | "smart" | "pro";
+      await showActionSelection(ctx, mode);
       return;
     }
 
-    if (data.startsWith("vcreate_type_")) {
-      const { showTemplateCategorySelection } =
-        await import("../commands/create-new.js");
-      await ctx.answerCbQuery();
-      const type = data.replace("vcreate_type_", "");
-      if (ctx.session?.videoCreationNew) {
-        ctx.session.videoCreationNew.contentType = type;
-      }
-      await showTemplateCategorySelection(ctx);
+    if (data.startsWith("v3_action_")) {
+      const { requestProductInput } = await import("../flows/generate.js");
+      const action = data.replace("v3_action_", "") as "image_set" | "video" | "clone_style" | "campaign";
+      await requestProductInput(ctx, action);
       return;
     }
 
-    if (data.startsWith("vcreate_theme_")) {
-      const { handleTemplateCategorySelection } =
-        await import("../commands/create-new.js");
-      const theme = data.replace("vcreate_theme_", "");
-      await handleTemplateCategorySelection(ctx, theme);
+    if (data.startsWith("v3_template_") || data === "v3_confirm_generate") {
+      const { handleV3Callback } = await import("../flows/generate.js");
+      await handleV3Callback(ctx, data);
       return;
     }
 
-    if (data.startsWith("vcreate_template_")) {
-      const { showTemplatePreview } = await import("../commands/create-new.js");
-      await ctx.answerCbQuery();
-      const templateId = data.replace("vcreate_template_", "");
-      await showTemplatePreview(ctx, templateId);
+    if (data === "v3_post_variation") {
+      const { showModeSelection } = await import("../flows/generate.js");
+      await showModeSelection(ctx);
       return;
     }
 
-    if (data === "vcreate_back_category") {
-      const { showTemplateCategorySelection } =
-        await import("../commands/create-new.js");
-      await ctx.answerCbQuery();
-      await showTemplateCategorySelection(ctx);
+    if (data === "v3_post_new") {
+      const { showModeSelection } = await import("../flows/generate.js");
+      await showModeSelection(ctx);
       return;
     }
 
-    if (data === "vcreate_customize") {
-      await ctx.answerCbQuery(
-        "🚧 Opsi Lanjutan segera hadir! Generate dengan default dulu.",
-      );
-      return;
-    }
-
-    if (data === "vcreate_save_favorite") {
-      await ctx.answerCbQuery("🚧 Simpan Favorit segera hadir!");
-      return;
-    }
-
-    if (data === "vcreate_photo_next" || data === "vcreate_photo_more") {
-      if (data === "vcreate_photo_more") {
-        await ctx.answerCbQuery("📸 Kirim foto lain sekarang");
-        return;
-      }
-      const { showContentTypeSelection } =
-        await import("../commands/create-new.js");
-      await ctx.answerCbQuery();
-      await showContentTypeSelection(ctx);
+    // ── Legacy vcreate_* → redirect to V3 flow ───────────────────────────────
+    if (data.startsWith("vcreate_")) {
+      const { showModeSelection } = await import("../flows/generate.js");
+      await showModeSelection(ctx);
       return;
     }
 

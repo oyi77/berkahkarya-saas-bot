@@ -14,7 +14,7 @@ import { referralCommand } from "@/commands/referral";
 import { subscriptionCommand } from "@/commands/subscription";
 import { settingsCommand } from "@/commands/settings";
 import { supportCommand } from "@/commands/support";
-import { showMainMenu } from "@/commands/main-menu";
+import { showMainMenu } from "@/menus/main";
 import { UserService } from "@/services/user.service";
 import {
   ImageGenerationService,
@@ -557,9 +557,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       ctx.session.videoCreationNew.textInput = textInput;
 
-      const { showContentTypeSelection } =
-        await import("../commands/create-new.js");
-      await showContentTypeSelection(ctx);
+      // Redirect to V3 flow
+      const { showModeSelection } = await import("../flows/generate.js");
+      await showModeSelection(ctx);
       return;
     }
 
