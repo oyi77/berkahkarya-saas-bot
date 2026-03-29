@@ -55,47 +55,55 @@ export async function showMainMenu(ctx: BotContext, isEdit = false): Promise<voi
  * Kredit & Paket Menu (replaces Top Up + Subscription)
  */
 export async function showCreditsMenu(ctx: BotContext): Promise<void> {
-  const creditBalance = ctx.session?.creditBalance || 0;
-  const tier = ctx.session?.tier || 'free';
+  try {
+    const creditBalance = ctx.session?.creditBalance || 0;
+    const tier = ctx.session?.tier || 'free';
 
-  await ctx.editMessageText(
-    `💳 *Kredit & Paket*\n\n` +
-    `Saldo kredit: *${creditBalance}*\n` +
-    `Tier: *${tier}*\n\n` +
-    `Pilih aksi:`,
-    {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
-          [{ text: '⭐ Upgrade Langganan', callback_data: 'open_subscription' }],
-          [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
-          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
-        ],
-      },
-    }
-  );
-}
+    await ctx.editMessageText(
+      `💳 *Kredit & Paket*\n\n` +
+      `Saldo kredit: *${creditBalance}*\n` +
+      `Tier: *${tier}*\n\n` +
+      `Pilih aksi:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
+            [{ text: '⭐ Upgrade Langganan', callback_data: 'open_subscription' }],
+            [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
+            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    logger.error('showCreditsMenu error:', error);
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+  }}
 
 /**
  * Account Menu (replaces Profile + Settings)
  */
 export async function showAccountMenu(ctx: BotContext): Promise<void> {
-  await ctx.editMessageText(
-    `👤 *Akun*\n\n` +
-    `Kelola preferensi dan pengaturan kamu:`,
-    {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '⭐ Workflow Favorit', callback_data: 'account_favorites' }],
-          [{ text: '⚙️ Preferensi Workflow', callback_data: 'account_preferences' }],
-          [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
-          [{ text: '🌐 Bahasa & Notifikasi', callback_data: 'account_settings' }],
-          [{ text: '❓ Bantuan & FAQ', callback_data: 'open_help' }],
-          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
-        ],
-      },
-    }
-  );
-}
+  try {
+    await ctx.editMessageText(
+      `👤 *Akun*\n\n` +
+      `Kelola preferensi dan pengaturan kamu:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '⭐ Workflow Favorit', callback_data: 'account_favorites' }],
+            [{ text: '⚙️ Preferensi Workflow', callback_data: 'account_preferences' }],
+            [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
+            [{ text: '🌐 Bahasa & Notifikasi', callback_data: 'account_settings' }],
+            [{ text: '❓ Bantuan & FAQ', callback_data: 'open_help' }],
+            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    logger.error('showAccountMenu error:', error);
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+  }}

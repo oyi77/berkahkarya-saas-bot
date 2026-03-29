@@ -1,0 +1,118 @@
+/**
+ * Rate Limiter (Per-operation)
+ *
+ * Separate from the global message rate limiter (middleware/rateLimit.ts).
+ * This handles per-operation limits: generate, topup, create, etc.
+ * Falls back to in-memory Map if Redis is unavailable.
+ */
+
+import { redis } from '@/config/redis';
+import { logger } from '@/utils/logger';
+
+interface RateLimitConfig {
+  /** Window in seconds */
+  windowSec: number;
+  /** Max operations per window */
+  max: number;
+  /** Human-readable label for error messages */
+  label: string;
+}
+
+const PRESETS: Record<string, RateLimitConfig> = {
+  generate: { windowSec: 60, max: 5, label: 'generate' },
+  create:   { windowSec: 60, max: 10, label: 'create' },
+  topup:    { windowSec: 300, max: 3, label: 'topup attempt' },
+  referral: { windowSec: 3600, max: 5, label: 'referral action' },
+  support:  { windowSec: 300, max: 3, label: 'support request' },
+};
+
+// In-memory fallback when Redis is down
+const memStore = new Map<string, { count: number; expiresAt: number }>();
+
+function memGet(key: string): number {
+  const entry = memStore.get(key);
+  if (!entry) return 0;
+  if (Date.now() > entry.expiresAt) {
+    memStore.delete(key);
+    return 0;
+  }
+  return entry.count;
+}
+
+function memIncr(key: string, ttlSec: number): number {
+  const existing = memStore.get(key);
+  if (!existing || Date.now() > existing.expiresAt) {
+    memStore.set(key, { count: 1, expiresAt: Date.now() + ttlSec * 1000 });
+    return 1;
+  }
+  existing.count++;
+  return existing.count;
+}
+
+/**
+ * Check and increment rate limit for a user operation.
+ *
+ * @returns null if allowed, or a user-friendly string if blocked
+ */
+export async function checkRateLimit(
+  userId: number,
+  operation: keyof typeof PRESETS | RateLimitConfig,
+  isAdmin = false,
+): Promise<string | null> {
+  if (isAdmin) return null;
+
+  const cfg: RateLimitConfig =
+    typeof operation === 'string' ? PRESETS[operation] : operation;
+
+  const key = `oplimit:${operation}:${userId}`;
+
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    pipeline.ttl(key);
+    const results = await pipeline.exec();
+
+    if (!results) throw new Error('pipeline returned null');
+
+    const count = (results[0][1] as number) || 0;
+    const ttl   = (results[1][1] as number) || -1;
+
+    // Set TTL on first call
+    if (ttl < 0 || ttl > cfg.windowSec) {
+      await redis.expire(key, cfg.windowSec);
+    }
+
+    if (count > cfg.max) {
+      const remaining = ttl > 0 ? ttl : cfg.windowSec;
+      return (
+        `⏳ Terlalu banyak ${cfg.label} dalam waktu singkat.\n` +
+        `Coba lagi dalam *${remaining} detik*.`
+      );
+    }
+
+    return null;
+  } catch (err) {
+    // Redis down — use in-memory fallback
+    logger.warn('Rate limit Redis error, falling back to memory:', err);
+    const count = memIncr(key, cfg.windowSec);
+    if (count > cfg.max) {
+      return `⏳ Terlalu banyak ${cfg.label}. Coba lagi dalam ${cfg.windowSec} detik.`;
+    }
+    return null;
+  }
+}
+
+/**
+ * Admin ID list from env
+ */
+export function getAdminIds(): number[] {
+  return (
+    process.env.ADMIN_TELEGRAM_IDS?.split(',')
+      .map((id) => parseInt(id.trim(), 10))
+      .filter(Boolean) ?? []
+  );
+}
+
+export function isAdmin(userId: number): boolean {
+  return getAdminIds().includes(userId);
+}

@@ -37,6 +37,11 @@ import cron from "node-cron";
 import { retentionQueue } from "@/workers/retention.worker";
 import { UserService } from "@/services/user.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
+import axios from "axios";
+
+// Set global axios defaults — all HTTP calls get 30s timeout by default
+axios.defaults.timeout = 30_000;
+axios.defaults.headers.common["User-Agent"] = "BerkahKarya-Bot/3.0";
 
 // Validate environment variables
 const requiredEnvVars = ["BOT_TOKEN", "DATABASE_URL", "REDIS_URL"];

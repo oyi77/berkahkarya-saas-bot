@@ -11,60 +11,65 @@ import { VideoService } from '@/services/video.service';
  * Handle /videos command
  */
 export async function videosCommand(ctx: BotContext): Promise<void> {
-  const user = ctx.from;
+  try {
+    const user = ctx.from;
   
-  if (!user) {
-    await ctx.reply('❌ Unable to identify user.');
-    return;
-  }
+    if (!user) {
+      await ctx.reply('❌ Unable to identify user.');
+      return;
+    }
 
-  // Get user's videos from database
-  const videos = await VideoService.getUserVideos(BigInt(user.id), 10);
+    // Get user's videos from database
+    const videos = await VideoService.getUserVideos(BigInt(user.id), 10);
 
-  if (videos.length === 0) {
+    if (videos.length === 0) {
+      await ctx.reply(
+        '📁 *My Videos*\n\n' +
+        'No videos yet. Create your first one! 🎬\n\n' +
+        'Videos are stored for 30 days.',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎬 Create New Video', callback_data: 'create_video' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Build video list with buttons
+    const videoButtons = videos.map((v, idx) => {
+      const statusEmoji = v.status === 'completed' ? '✅' : 
+                          v.status === 'processing' ? '⏳' : 
+                          v.status === 'failed' ? '❌' : '📹';
+    
+      return [{
+        text: `${statusEmoji} ${v.title || `Video ${idx + 1}`} (${v.duration}s)`,
+        callback_data: `video_view_${v.jobId}`
+      }];
+    });
+
     await ctx.reply(
-      '📁 *My Videos*\n\n' +
-      'No videos yet. Create your first one! 🎬\n\n' +
-      'Videos are stored for 30 days.',
+      `📁 *My Videos*\n\n` +
+      `Found ${videos.length} video(s)\n\n` +
+      `Click a video to view/download:`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🎬 Create New Video', callback_data: 'create_video' }],
+            ...videoButtons,
+            [{ text: '🎬 Buat Video Baru', callback_data: 'create_video' }],
+            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
           ],
         },
       }
     );
-    return;
+  } catch (error) {
+    logger.error('videosCommand error:', error);
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
   }
-
-  // Build video list with buttons
-  const videoButtons = videos.map((v, idx) => {
-    const statusEmoji = v.status === 'completed' ? '✅' : 
-                        v.status === 'processing' ? '⏳' : 
-                        v.status === 'failed' ? '❌' : '📹';
-    
-    return [{
-      text: `${statusEmoji} ${v.title || `Video ${idx + 1}`} (${v.duration}s)`,
-      callback_data: `video_view_${v.jobId}`
-    }];
-  });
-
-  await ctx.reply(
-    `📁 *My Videos*\n\n` +
-    `Found ${videos.length} video(s)\n\n` +
-    `Click a video to view/download:`,
-    {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          ...videoButtons,
-          [{ text: '🎬 Buat Video Baru', callback_data: 'create_video' }],
-          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
-        ],
-      },
-    }
-  );
 }
 
 /**
@@ -189,47 +194,57 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
  * Copy video URL to clipboard (show as text)
  */
 export async function copyVideoUrl(ctx: BotContext, jobId: string): Promise<void> {
-  const video = await VideoService.getByJobId(jobId);
+  try {
+    const video = await VideoService.getByJobId(jobId);
   
-  if (!video || !video.videoUrl) {
-    await ctx.answerCbQuery('❌ Video URL not found');
-    return;
-  }
+    if (!video || !video.videoUrl) {
+      await ctx.answerCbQuery('❌ Video URL not found');
+      return;
+    }
 
-  await ctx.answerCbQuery('URL copied!');
-  await ctx.reply(
-    `📋 *Video URL:*\n\n${video.videoUrl}\n\n` +
-    `_Tap and hold the URL above to copy_`,
-    { parse_mode: 'Markdown' }
-  );
+    await ctx.answerCbQuery('URL copied!');
+    await ctx.reply(
+      `📋 *Video URL:*\n\n${video.videoUrl}\n\n` +
+      `_Tap and hold the URL above to copy_`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error) {
+    logger.error('copyVideoUrl error:', error);
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+  }
 }
 
 /**
  * Delete video
  */
 export async function deleteVideo(ctx: BotContext, jobId: string): Promise<void> {
-  const video = await VideoService.getByJobId(jobId);
+  try {
+    const video = await VideoService.getByJobId(jobId);
   
-  if (!video) {
-    await ctx.answerCbQuery('❌ Video not found');
-    return;
-  }
-
-  // Soft delete by setting status to deleted
-  await ctx.editMessageText(
-    `🗑️ *Delete Video*\n\n` +
-    `Are you sure you want to delete "${video.title || 'this video'}"?\n\n` +
-    `_This action cannot be undone._`,
-    {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [
-            { text: '✅ Yes, Delete', callback_data: `video_confirm_delete_${jobId}` },
-            { text: '❌ Cancel', callback_data: `video_view_${jobId}` },
-          ],
-        ],
-      },
+    if (!video) {
+      await ctx.answerCbQuery('❌ Video not found');
+      return;
     }
-  );
+
+    // Soft delete by setting status to deleted
+    await ctx.editMessageText(
+      `🗑️ *Delete Video*\n\n` +
+      `Are you sure you want to delete "${video.title || 'this video'}"?\n\n` +
+      `_This action cannot be undone._`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ Yes, Delete', callback_data: `video_confirm_delete_${jobId}` },
+              { text: '❌ Cancel', callback_data: `video_view_${jobId}` },
+            ],
+          ],
+        },
+      }
+    );
+  } catch (error) {
+    logger.error('deleteVideo error:', error);
+    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch {}
+  }
 }
