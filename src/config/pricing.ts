@@ -3,28 +3,28 @@ export const SUBSCRIPTION_PLANS = {
     name: 'Lite',
     monthlyPriceIdr: 99_000,
     annualPriceIdr: 990_000,
-    monthlyCredits: 20,
-    dailyGenerationLimit: 3,
+    monthlyCredits: 10,
+    dailyGenerationLimit: 5,
     tier: 'basic' as const,
-    features: ['Priority queue (1.5x)', 'Basic analytics'],
+    features: ['Priority queue', 'Basic analytics'],
   },
   pro: {
     name: 'Pro',
-    monthlyPriceIdr: 199_000,
-    annualPriceIdr: 1_990_000,
-    monthlyCredits: 50,
+    monthlyPriceIdr: 249_000,
+    annualPriceIdr: 2_490_000,
+    monthlyCredits: 30,
     dailyGenerationLimit: 10,
     tier: 'pro' as const,
-    features: ['Priority queue (2x)', 'All video formats', '3 style variants', '1 revision/video', 'Advanced analytics'],
+    features: ['Priority queue 2x', 'Campaign Builder', 'Clone Style', 'No watermark', 'Advanced analytics'],
   },
   agency: {
     name: 'Agency',
-    monthlyPriceIdr: 499_000,
-    annualPriceIdr: 4_990_000,
-    monthlyCredits: 150,
+    monthlyPriceIdr: 599_000,
+    annualPriceIdr: 5_990_000,
+    monthlyCredits: 100,
     dailyGenerationLimit: 30,
     tier: 'agency' as const,
-    features: ['Priority queue (3x)', 'White-label', 'Bulk generation (20 files)', 'API access', '5 team seats', 'Dedicated support'],
+    features: ['Priority queue 3x', 'White-label', 'API access', 'Batch generation', 'Dedicated support'],
   },
 } as const;
 
@@ -148,33 +148,36 @@ export const UNIT_COSTS = {
   CAMPAIGN_10_VIDEO: 25.0,
 } as const;
 
+// ── Credit Packages (One-time purchase, credits never expire) ─────────────────
+// Cost basis: ~IDR 150-500/video via BytePlus/SiliconFlow/Fal.ai (NOT Kling)
+// Target margin: 85-93% gross margin
 export const CREDIT_PACKAGES_V3 = [
-  { id: 'coba', name: 'Coba Dulu', credits: 1, units: 10, priceIdr: 25_000, pricePerUnit: 2500, savingPct: 0, isPopular: false },
-  { id: 'starter', name: 'Starter', credits: 5, units: 50, priceIdr: 99_000, pricePerUnit: 1980, savingPct: 21, isPopular: false },
-  { id: 'growth', name: 'Growth', credits: 15, units: 150, priceIdr: 249_000, pricePerUnit: 1660, savingPct: 34, isPopular: true },
-  { id: 'business', name: 'Business', credits: 50, units: 500, priceIdr: 699_000, pricePerUnit: 1398, savingPct: 44, isPopular: false },
-  { id: 'agency_pkg', name: 'Agency', credits: 150, units: 1500, priceIdr: 1_799_000, pricePerUnit: 1199, savingPct: 52, isPopular: false },
+  { id: 'coba',       name: 'Coba Dulu',    credits: 1,   units: 10,   priceIdr: 25_000,    pricePerUnit: 2500, savingPct: 0,  isPopular: false },
+  { id: 'growth',     name: 'Growth Pack',  credits: 15,  units: 150,  priceIdr: 249_000,   pricePerUnit: 1660, savingPct: 34, isPopular: true  },
+  { id: 'business',   name: 'Business Pack',credits: 50,  units: 500,  priceIdr: 699_000,   pricePerUnit: 1398, savingPct: 44, isPopular: false },
+  { id: 'agency_pkg', name: 'Agency Pack',  credits: 150, units: 1500, priceIdr: 1_799_000, pricePerUnit: 1199, savingPct: 52, isPopular: false },
 ] as const;
 
+// ── Subscription Plans (Monthly credits auto-renew) ───────────────────────────
 export const SUBSCRIPTION_PLANS_V3 = {
   lite: {
     name: 'Lite',
-    monthlyPriceIdr: 149_000,
-    annualPriceIdr: 1_490_000,
+    monthlyPriceIdr: 99_000,
+    annualPriceIdr: 990_000,
     monthlyCredits: 10,
     features: ['Priority queue', 'Basic analytics'],
   },
   pro: {
     name: 'Pro',
-    monthlyPriceIdr: 349_000,
-    annualPriceIdr: 3_490_000,
+    monthlyPriceIdr: 249_000,
+    annualPriceIdr: 2_490_000,
     monthlyCredits: 30,
     features: ['Priority queue 2x', 'Campaign Builder', 'Clone Style', 'No watermark', 'Advanced analytics'],
   },
   agency_sub: {
     name: 'Agency',
-    monthlyPriceIdr: 799_000,
-    annualPriceIdr: 7_990_000,
+    monthlyPriceIdr: 599_000,
+    annualPriceIdr: 5_990_000,
     monthlyCredits: 100,
     features: ['Priority queue 3x', 'White-label', 'API access', 'Batch generation', 'Dedicated support'],
   },

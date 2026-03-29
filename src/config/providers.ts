@@ -152,13 +152,13 @@ export const PROVIDER_CONFIG: {
     },
     piapi: {
       name: 'PiAPI (Kling)',
-      priority: 10,
+      priority: 99, // ⚠️ EXPENSIVE — last resort only, ~$0.15-0.30/video vs $0.01-0.03 for other providers
       timeout: 60000,
       failureThreshold: 3,
       recoveryTimeout: 60000,
       strengths: ['kling', 'quality', 'img2video'],
-      quirks: 'async polling via piapi.ai, supports Kling 1.6 standard',
-      avoid: [],
+      quirks: 'EXPENSIVE: Kling 1.6 via piapi.ai. Cost 5-15x higher than BytePlus/SiliconFlow. Only use when all others fail.',
+      avoid: ['default', 'cost_sensitive'],
       tokenLimit: 500,
       supportsImg2Video: true,
       maxDuration: 5,
