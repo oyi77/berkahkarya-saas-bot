@@ -238,6 +238,11 @@
     var pricingData = {};
     var currentMargin = 30;
 
+    // Auth token helpers
+    var urlToken = new URLSearchParams(location.search).get('token');
+    if (urlToken) { localStorage.setItem('admin_password', urlToken); }
+    function getToken() { return localStorage.getItem('admin_password') || new URLSearchParams(location.search).get('token') || ''; }
+
     function showToast(msg, type) {
       var t = document.getElementById('toast');
       t.textContent = msg;
@@ -245,11 +250,22 @@
       setTimeout(function() { t.className = 'toast'; }, 3000);
     }
 
+    async function apiFetch(path, opts) {
+      opts = opts || {};
+      var token = getToken();
+      var headers = Object.assign({ 'Authorization': 'Basic ' + btoa(':' + token) }, opts.headers || {});
+      var res = await fetch(path, Object.assign({}, opts, { credentials: 'include', headers: headers }));
+      if (res.status === 401) { location.href = '/admin/login'; return null; }
+      return res;
+    }
+
     async function apiCall(method, url, body) {
       try {
-        var opts = { method: method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
+        var headers = { 'Content-Type': 'application/json' };
+        var opts = { method: method, headers: headers };
         if (body) opts.body = JSON.stringify(body);
-        var res = await fetch(url, opts);
+        var res = await apiFetch(url, opts);
+        if (!res) throw new Error('Authentication failed');
         var data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Request failed');
         return data;
@@ -261,8 +277,8 @@
 
     async function loadAll() {
       try {
-        var res = await fetch('/api/pricing-overview', { credentials: 'include' });
-        if (res.status === 401) { window.location.href = '/admin'; return; }
+        var res = await apiFetch('/api/pricing-overview');
+        if (!res) return;
         pricingData = await res.json();
 
         document.getElementById('loading').style.display = 'none';

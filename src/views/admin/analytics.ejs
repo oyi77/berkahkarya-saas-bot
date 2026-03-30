@@ -786,7 +786,8 @@ document.querySelectorAll('.nav-item').forEach(el => {
     const sec = el.dataset.section;
     document.getElementById('section-' + sec).classList.add('active');
     currentSection = sec;
-    loadSection(sec);
+    console.log('[nav] switching to section:', sec);
+    try { loadSection(sec); } catch(e) { console.error('[nav] loadSection error:', e); }
   });
 });
 
@@ -1566,14 +1567,11 @@ const ST_VIDEO_KEYS = ['byteplus', 'xai', 'laozhang', 'evolink', 'falai_video', 
 
 async function loadSettings() {
   try {
-    const [provRes, landRes, refRes] = await Promise.all([
-      fetch('/api/admin/settings/providers', { credentials: 'include' }),
-      fetch('/api/settings/landing', { credentials: 'include' }),
-      fetch('/api/settings/referral', { credentials: 'include' }),
+    const [provData, landData, refData] = await Promise.all([
+      api('/api/admin/settings/providers'),
+      api('/api/settings/landing'),
+      api('/api/settings/referral'),
     ]);
-    const provData = await provRes.json();
-    const landData = await landRes.json();
-    const refData = await refRes.json();
 
     // Providers
     const overrides = provData.overrides?.video || {};
@@ -1611,32 +1609,33 @@ async function saveProviders() {
       enabled: document.getElementById(`st-en_${k}`).checked,
     };
   });
-  const res = await fetch('/api/admin/settings/providers', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ video }) });
-  res.ok ? toast('Providers saved!') : toast('Failed to save providers', 'error');
+  const res = await api('/api/admin/settings/providers', { method: 'POST', body: { video } });
+  res !== null ? toast('Providers saved!') : toast('Failed to save providers', 'error');
 }
 
 async function saveLanding() {
   const payload = { headline: document.getElementById('st-lpHeadline').value, subheadline: document.getElementById('st-lpSub').value, ctaText: document.getElementById('st-lpCta').value };
-  const res = await fetch('/api/settings/landing', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  res.ok ? toast('Landing page saved!') : toast('Failed to save landing page', 'error');
+  const res = await api('/api/settings/landing', { method: 'POST', body: payload });
+  res !== null ? toast('Landing page saved!') : toast('Failed to save landing page', 'error');
 }
 
 async function seedPricing() {
   document.getElementById('st-seed-result').textContent = 'Seeding...';
-  const res = await fetch('/api/settings/seed-pricing', { method: 'POST', credentials: 'include' });
-  const data = await res.json();
-  document.getElementById('st-seed-result').textContent = data.success
-    ? `✅ Seeded ${data.seeded} entries.`
-    : '❌ Failed: ' + (data.error || 'Unknown');
-  if (data.success) toast(`Seeded ${data.seeded} pricing entries`);
+  const data = await api('/api/settings/seed-pricing', { method: 'POST' });
+  if (data) {
+    document.getElementById('st-seed-result').textContent = data.success
+      ? `✅ Seeded ${data.seeded} entries.`
+      : '❌ Failed: ' + (data.error || 'Unknown');
+    if (data.success) toast(`Seeded ${data.seeded} pricing entries`);
+  }
 }
 
 async function saveReferralRates() {
   const sellRate = parseInt(document.getElementById('st-refSellRate').value);
   const buyRate = parseInt(document.getElementById('st-refBuyRate').value);
   if (!sellRate || sellRate <= 0 || !buyRate || buyRate <= 0) { toast('Rates must be positive numbers', 'error'); return; }
-  const res = await fetch('/api/settings/referral', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellRate, buyRate }) });
-  res.ok ? toast('Referral rates saved!') : toast('Failed to save rates', 'error');
+  const res = await api('/api/settings/referral', { method: 'POST', body: { sellRate, buyRate } });
+  res !== null ? toast('Referral rates saved!') : toast('Failed to save rates', 'error');
 }
 
 // ===================== INIT =====================

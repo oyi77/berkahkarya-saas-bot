@@ -29,7 +29,7 @@
     }
     html { scroll-behavior: smooth; }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; line-height: 1.6; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+    .container { max-width: 1100px; width: 100%; margin: 0 auto; padding: 0 20px; box-sizing: border-box; }
     nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,26,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
     .nav-inner { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; max-width: 1100px; margin: 0 auto; }
     .logo { font-size: 20px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -41,7 +41,7 @@
     .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,217,255,0.3); }
     .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
     .btn-outline:hover { background: var(--card); border-color: var(--accent); }
-    .hero { text-align: center; padding: 80px 20px 60px; background: radial-gradient(circle at 50% 0%, rgba(0,217,255,0.1), transparent 50%); }
+    .hero { text-align: center; padding: 80px 20px 60px; background: radial-gradient(circle at 50% 0%, rgba(0,217,255,0.1), transparent 50%); overflow-x: hidden; }
     .hero-pain { display: inline-block; background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: var(--red); padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 24px; }
     .hero h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 900; line-height: 1.2; margin-bottom: 20px; }
     .hero h1 .highlight { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
@@ -458,7 +458,11 @@
       <section class="hero">
     <div class="container">
       <div class="hero-pain">⚠️ Kompetitor Posting 10 Video/Hari, Kamu Masih Stuck di 1 Video/Minggu?</div>
-      <h1><%= (landingConfig && landingConfig.headline) ? landingConfig.headline : 'Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik' %></h1>
+      <% if (landingConfig && landingConfig.headline) { %>
+        <h1><%- landingConfig.headline %></h1>
+      <% } else { %>
+        <h1>Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik</h1>
+      <% } %>
       <p class="subhead"><%= (landingConfig && landingConfig.subheadline) ? landingConfig.subheadline : 'Platform AI yang mengubah foto produk menjadi video iklan profesional dengan struktur HPAS (Hook-Problem-Agitate-Solution). Langsung dari Telegram. Tanpa skill editing. Bayar pakai VA/e-wallet.' %></p>
 
             <!-- Real Product Screenshot -->

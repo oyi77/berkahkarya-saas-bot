@@ -65,6 +65,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url === "/admin/pricing" ||
       url === "/admin/prompts" ||
       url === "/admin/settings" ||
+      url === "/admin/users" ||
       url.startsWith("/api/stats") ||
       url.startsWith("/api/analytics") ||
       url.startsWith("/api/users") ||
@@ -81,14 +82,14 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/profit-report") ||
       url.startsWith("/api/settings/") ||
       url.startsWith("/api/admin/") ||
-      url.startsWith("/api/system/");
+      (url.startsWith("/api/system/") && url !== "/api/system/health");
     if (isAdminRoute) {
       await verifyAdmin(request, reply);
     }
   });
 
   // Login page (no auth required)
-  server.get("/admin/login", async (request, reply) => {
+  server.get("/admin/login", async (_request, reply) => {
     return reply.view("admin/login.ejs");
   });
 
@@ -437,18 +438,22 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // ── Pricing Dashboard ──
 
-  server.get("/admin/pricing", async (request, reply) => {
+  server.get("/admin/pricing", async (_request, reply) => {
     return reply.view("admin/pricing.ejs");
   });
 
   // ── Prompt Management Dashboard ──
 
-  server.get("/admin/prompts", async (request, reply) => {
+  server.get("/admin/prompts", async (_request, reply) => {
     return reply.view("admin/prompts.ejs");
   });
 
-  server.get("/admin/settings", async (request, reply) => {
+  server.get("/admin/settings", async (_request, reply) => {
     return reply.redirect("/admin/dashboard#settings");
+  });
+
+  server.get("/admin/users", async (_request, reply) => {
+    return reply.redirect("/admin/dashboard#users");
   });
 
   // API: Get all admin prompts (global, visible to all users)
@@ -665,7 +670,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // ── Analytics Dashboard ──
 
-  server.get("/admin/dashboard", async (request, reply) => {
+  server.get("/admin/dashboard", async (_request, reply) => {
     return reply.view("admin/analytics.ejs");
   });
 
