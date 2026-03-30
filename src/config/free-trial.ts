@@ -7,12 +7,12 @@ export const FREE_TRIAL_CONFIG = {
   welcomeBonus: {
     enabled: true,
     type: 'image_generation',
-    count: 1,
-    provider: 'google_gemini', // FREE provider
+    count: 1, // 1 free image only, on first use
+    provider: 'google_gemini',
   },
   dailyFree: {
-    enabled: true,
-    type: 'image_generation',
+    enabled: true, // Daily mystery prompt showcase (no free generation, just prompt discovery)
+    type: 'prompt_showcase',
     count: 1,
     resetTime: '00:00', // WIB
     provider: 'google_gemini',
@@ -38,12 +38,11 @@ export function canUseWelcomeBonus(user: any): boolean {
 }
 
 export function canUseDailyFree(user: any): boolean {
+  if (!FREE_TRIAL_CONFIG.dailyFree.enabled) return false;
   if (!user.dailyFreeResetAt) return true;
-  
+
   const now = new Date();
   const resetAt = new Date(user.dailyFreeResetAt);
-  
-  // Check if reset time has passed (00:00 WIB = UTC+7)
   return now >= resetAt;
 }
 

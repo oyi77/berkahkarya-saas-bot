@@ -68,13 +68,12 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       return true;
     }
 
-    if (data.startsWith("use_prompt_")) {
-      const promptId = data.replace("use_prompt_", "");
+    if (data.startsWith("use_prompt_") || data.startsWith("use_admin_prompt_") || data.startsWith("use_saved_")) {
+      const promptId = data.replace(/use_(prompt|admin_prompt|saved)_/, "");
       await ctx.answerCbQuery();
 
-      const { getPromptById } =
-        await import("../../config/professional-prompts.js");
-      const prompt = getPromptById(promptId);
+      const { findAnyPrompt } = await import("../../commands/prompts.js");
+      const prompt = await findAnyPrompt(promptId);
 
       if (!prompt) {
         await ctx.reply("❌ Prompt tidak ditemukan.");
@@ -91,6 +90,16 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       if (!dbUser) {
         await ctx.reply("❌ User tidak ditemukan. Silakan /start ulang.");
         return true;
+      }
+
+      // Save to session for V3 flow
+      if (ctx.session) {
+        ctx.session.generateProductDesc = prompt.prompt;
+        ctx.session.stateData = {
+          ...(ctx.session.stateData || {}),
+          selectedPrompt: prompt.prompt,
+          selectedPromptId: prompt.id
+        };
       }
 
       const { canUseWelcomeBonus, canUseDailyFree } =
@@ -131,20 +140,24 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
 
       await ctx.editMessageText(
         `✅ *Prompt Dipilih!*\n\n` +
-        `📋 ${prompt.name}\n` +
-        `🎨 Niche: ${prompt.niche.toUpperCase()}\n` +
-        `🎯 Best For: ${prompt.bestFor}\n\n` +
+        `📋 ${prompt.title}\n` +
+        `🎨 Niche: ${prompt.niche.toUpperCase()}\n\n` +
         `${costInfo}\n` +
-        `🆓 Provider: Google Gemini (GRATIS)\n\n` +
-        `Siap generate?`,
+        `🎬 **Opsi Generate:**`,
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "🚀 Generate Sekarang!",
-                  callback_data: `generate_free_${promptId}`,
+                  text: "🎥 Buat Video (HPAS V3)",
+                  callback_data: "create_video_new",
+                },
+              ],
+              [
+                {
+                  text: "🎨 Generate Image Saja",
+                  callback_data: `generate_free_${prompt.id}`,
                 },
               ],
               [
@@ -164,14 +177,16 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const promptId = data.replace("generate_free_", "");
       await ctx.answerCbQuery();
 
-      const { getPromptById } =
-        await import("../../config/professional-prompts.js");
-      const prompt = getPromptById(promptId);
+      const { findAnyPrompt } = await import("../../commands/prompts.js");
+      const found = await findAnyPrompt(promptId);
 
-      if (!prompt) {
+      if (!found) {
         await ctx.reply("❌ Prompt tidak ditemukan.");
         return true;
       }
+
+      // Adapt to the shape expected below
+      const prompt = { id: found.id, name: found.title, prompt: found.prompt, niche: found.niche, bestFor: '' };
 
       const user = ctx.from;
       if (!user) return true;

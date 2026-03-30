@@ -64,12 +64,13 @@ export interface SessionData {
   // v3.0 Basic/Smart/Pro mode state
   generateMode?: 'basic' | 'smart' | 'pro';
   generateAction?: 'image_set' | 'video' | 'clone_style' | 'campaign';
-  generatePreset?: 'quick' | 'standard' | 'extended';
+  generatePreset?: 'quick' | 'standard' | 'extended' | 'custom';
   generatePlatform?: 'tiktok' | 'instagram' | 'youtube' | 'square';
   generateProductDesc?: string;
   generateCampaignSize?: 5 | 10;
   generateScenes?: Array<{ sceneId: string; prompt: string; durationSeconds: number }>;
   generatePhotoUrl?: string;
+  customPresetConfig?: any; // DurationPresetConfig for custom durations
   cloneRefUrl?: string;
 }
 
@@ -94,6 +95,7 @@ export type BotState =
   | 'VIDEO_CREATE_CUSTOMIZE'
   | 'VIDEO_CREATE_PREVIEW'
   | 'CUSTOM_DURATION_INPUT'
+  | 'CUSTOM_DURATION_INPUT_V3'
   | 'CUSTOM_PROMPT_INPUT'
   | 'CLONE_VIDEO_WAITING'
   | 'CLONE_EDIT_DESC_WAITING'

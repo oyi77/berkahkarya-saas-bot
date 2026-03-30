@@ -824,7 +824,7 @@ async function sendVideoToUser(
               { text: '\ud83d\udc4e Needs Work', callback_data: `feedback_bad_${jobId}` },
             ],
             [
-              { text: '\ud83c\udfac Create Another', callback_data: 'create_video' },
+              { text: '\ud83c\udfac Create Another', callback_data: 'create_video_new' },
               { text: '\ud83d\udcc1 My Videos', callback_data: 'videos_list' },
             ],
           ],

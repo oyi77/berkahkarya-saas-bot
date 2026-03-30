@@ -7,6 +7,7 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
+import { prisma } from '@/config/database';
 
 /**
  * Check if user is admin
@@ -86,5 +87,80 @@ export async function adminGrantCreditsCommand(ctx: BotContext): Promise<void> {
       `Failed to grant credits: ${error.message || 'Unknown error'}`,
       { parse_mode: 'Markdown' }
     );
+  }
+}
+
+/**
+ * Handle /deduct_credits command
+ */
+export async function adminDeductCreditsCommand(ctx: BotContext): Promise<void> {
+  const userId = ctx.from?.id;
+
+  if (!userId || !isAdmin(userId)) {
+    await ctx.reply('❌ You do not have permission to use this command.');
+    return;
+  }
+
+  const message = ctx.message;
+  if (!message || !('text' in message)) {
+    await ctx.reply('Usage: /deduct_credits <user_id> <amount> <reason>');
+    return;
+  }
+
+  const args = message.text.split(' ').slice(1);
+  if (args.length < 3) {
+    await ctx.reply(
+      '💳 *Deduct Credits*\n\n' +
+      'Usage: `/deduct_credits <user_id> <amount> <reason>`\n\n' +
+      'Example:\n' +
+      '`/deduct_credits 123456789 5 "Chargeback refund"`',
+      { parse_mode: 'Markdown' }
+    );
+    return;
+  }
+
+  const targetUserId = args[0];
+  const amount = parseFloat(args[1]);
+  const reason = args.slice(2).join(' ');
+
+  if (isNaN(amount) || amount <= 0) {
+    await ctx.reply('❌ Invalid amount. Please enter a positive number.');
+    return;
+  }
+
+  try {
+    const user = await UserService.findByTelegramId(BigInt(targetUserId));
+    if (!user) {
+      await ctx.reply('❌ User not found.');
+      return;
+    }
+
+    const currentBalance = Number(user.creditBalance);
+    if (currentBalance < amount) {
+      await ctx.reply(
+        `❌ User only has ${currentBalance} credits. Cannot deduct ${amount}.`,
+      );
+      return;
+    }
+
+    await prisma.user.update({
+      where: { telegramId: BigInt(targetUserId) },
+      data: { creditBalance: { decrement: amount } },
+    });
+
+    logger.info(`Admin ${userId} deducted ${amount} credits from user ${targetUserId}. Reason: ${reason}`);
+
+    await ctx.reply(
+      '✅ *Credits Deducted*\n\n' +
+      `User: ${user.username || user.firstName || targetUserId}\n` +
+      `Deducted: ${amount} credits\n` +
+      `Previous: ${currentBalance}\n` +
+      `New Balance: ${currentBalance - amount}\n` +
+      `Reason: ${reason}`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error: any) {
+    logger.error('Error deducting credits:', error);
+    await ctx.reply(`❌ Failed to deduct credits: ${error.message || 'Unknown'}`);
   }
 }

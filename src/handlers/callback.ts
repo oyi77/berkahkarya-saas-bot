@@ -58,7 +58,6 @@ import {
 import { t } from "@/i18n/translations";
 import {
   showNichePrompts,
-  showPromptDetail,
   showCustomizePrompt,
   promptsCommand,
   trendingCommand as promptsTrendingCommand,
@@ -195,21 +194,45 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const dbUser = await UserService.findByTelegramId(BigInt(user.id));
       const credBal = dbUser ? Number(dbUser.creditBalance) : 0;
       const credEmoji = credBal === 0 ? "⚠️" : credBal < 3 ? "🟡" : "🟢";
+
+      const rows: any[][] = [
+        [{ text: "📚 Pilih Prompt & Buat Video", callback_data: "back_prompts" }],
+        [
+          { text: "🔥 Trending", callback_data: "prompts_trending" },
+          { text: "🎁 Prompt Gratis", callback_data: "daily_open" },
+        ],
+        [
+          { text: "🎬 Buat Video", callback_data: "create_video_new" },
+          { text: "🖼️ Buat Gambar", callback_data: "image_from_prompt" },
+        ],
+        [
+          { text: "🔄 Clone", callback_data: "clone_video" },
+          { text: "📋 Storyboard", callback_data: "storyboard_create" },
+          { text: "📈 Viral", callback_data: "viral_research" },
+        ],
+        [
+          { text: "💰 Top Up", callback_data: "topup" },
+          { text: "⭐ Langganan", callback_data: "open_subscription" },
+        ],
+        [
+          { text: "📁 Video Saya", callback_data: "videos_list" },
+          { text: "👥 Referral", callback_data: "open_referral" },
+          { text: "👤 Profil", callback_data: "open_profile" },
+        ],
+      ];
+
+      const webAppUrl = process.env.WEB_APP_URL;
+      if (webAppUrl) {
+        rows.push([{ text: "🌐 Dashboard Web", web_app: { url: `${webAppUrl}/app` } }]);
+      }
+
       await ctx.editMessageText(
         `👋 *Halo, ${user.first_name}!*\n\n` +
         `${credEmoji} Kredit: *${credBal}*\n\n` +
-        `Mau buat apa hari ini?`,
+        `Mau buat apa hari ini? 👇`,
         {
           parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
-              [{ text: "🖼 Buat Gambar", callback_data: "create_image_new" }],
-              [{ text: "💳 Kredit & Paket", callback_data: "credits_menu" }],
-              [{ text: "🎞 Video Saya", callback_data: "videos_list" }],
-              [{ text: "👤 Akun", callback_data: "account_menu" }],
-            ],
-          },
+          reply_markup: { inline_keyboard: rows },
         },
       );
       return;
@@ -299,6 +322,131 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Chat AI — activate conversational mode
+    if (data === "chat_ai") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.state = "DASHBOARD";
+      await ctx.editMessageText(
+        `💬 *AI Assistant aktif!*\n\n` +
+        `Langsung ketik pertanyaan kamu sekarang.\n\n` +
+        `*Contoh:*\n` +
+        `• "Bikinin prompt untuk bakso saya"\n` +
+        `• "Tips video TikTok F&B yang viral"\n\n` +
+        `Atau ketik /prompts untuk template siap pakai`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "📚 Prompt Library", callback_data: "prompts_menu" }],
+              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
+    // Prompt Library menu
+    if (data === "prompts_menu") {
+      await ctx.answerCbQuery();
+      await promptsCommand(ctx);
+      return;
+    }
+
+    // Full help
+    if (data === "open_help_full") {
+      await ctx.answerCbQuery();
+      await helpCommand(ctx);
+      return;
+    }
+
+    // Image generation from prompt library (V3)
+    if (data.startsWith("generate_image_v3_")) {
+      await ctx.answerCbQuery();
+      const promptId = data.replace("generate_image_v3_", "");
+      const { findAnyPrompt } = await import("../commands/prompts.js");
+      const prompt = await findAnyPrompt(promptId);
+      if (!prompt) {
+        await ctx.reply("❌ Prompt tidak ditemukan.");
+        return;
+      }
+      // Route to generate_free_ flow which handles image generation
+      const { handlePromptsCallback } = await import("./callbacks/prompts.js");
+      await handlePromptsCallback(ctx, `generate_free_${promptId}`);
+      return;
+    }
+
+    // Rate result (placeholder)
+    if (data === "generate_rate") {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `⭐ *Rate Hasil Konten*\n\n` +
+        `Seberapa puas dengan hasil generate?`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "⭐⭐⭐⭐⭐ Sempurna!", callback_data: "rate_5" },
+              ],
+              [
+                { text: "⭐⭐⭐⭐ Bagus", callback_data: "rate_4" },
+              ],
+              [
+                { text: "⭐⭐⭐ Cukup", callback_data: "rate_3" },
+              ],
+              [
+                { text: "⭐⭐ Kurang", callback_data: "rate_2" },
+              ],
+              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
+    if (data.startsWith("rate_")) {
+      const score = parseInt(data.replace("rate_", ""));
+      await ctx.answerCbQuery(`Terima kasih! Rating: ${"⭐".repeat(score)}`);
+      await ctx.editMessageText(
+        `✅ *Terima kasih atas feedbacknya!*\n\n` +
+        `Rating: ${"⭐".repeat(score)}\n\n` +
+        `Feedback kamu membantu kami meningkatkan kualitas AI.`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🔄 Generate Lagi", callback_data: "generate_start" }],
+              [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
+    // Image generation menu
+    if (data === "img_gen_menu") {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `🖼️ *Image Generation*\n\nPilih workflow:`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
+              [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
+              [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
+              [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
+              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
     // ── END NEW REDESIGN HANDLERS ────────────────────────────────────────
 
     // ── V3 Flow handlers (Basic/Smart/Pro → HPAS) ────────────────────────────────
@@ -316,9 +464,55 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data.startsWith("action_")) {
-      const { requestProductInput } = await import("../flows/generate.js");
+      const { requestProductInput, showSmartPresetSelection } = await import("../flows/generate.js");
       const action = data.replace("action_", "") as "image_set" | "video" | "clone_style" | "campaign";
-      await requestProductInput(ctx, action);
+      if (action === "video" && ctx.session?.generateMode === "smart") {
+        await showSmartPresetSelection(ctx);
+      } else {
+        await requestProductInput(ctx, action);
+      }
+      return;
+    }
+
+    if (data.startsWith("preset_")) {
+      const preset = data.replace("preset_", "");
+
+      // Custom duration: ask user to type duration
+      if (preset === "custom") {
+        await ctx.answerCbQuery?.();
+        if (ctx.session) {
+          ctx.session.state = "CUSTOM_DURATION_INPUT_V3";
+        }
+        await ctx.editMessageText(
+          `⏱️ *Custom Duration*\n\n` +
+          `Ketik durasi video dalam detik:\n\n` +
+          `Contoh:\n` +
+          `\`90\` = 1 menit 30 detik\n` +
+          `\`300\` = 5 menit\n` +
+          `\`3600\` = 1 jam\n\n` +
+          `Min: 6 detik | Max: 3600 detik (1 jam)`,
+          { parse_mode: "Markdown" },
+        );
+        return;
+      }
+
+      const { showSmartPlatformSelection } = await import("../flows/generate.js");
+      await showSmartPlatformSelection(ctx, preset as any);
+      return;
+    }
+
+    if (data.startsWith("platform_")) {
+      const { requestProductInput } = await import("../flows/generate.js");
+      const platform = data.replace("platform_", "") as "tiktok" | "instagram" | "youtube" | "square";
+      if (ctx.session) ctx.session.generatePlatform = platform;
+      await requestProductInput(ctx, "video");
+      return;
+    }
+
+    if (data === "campaign_size_5" || data === "campaign_size_10") {
+      const { showConfirmScreen } = await import("../flows/generate.js");
+      if (ctx.session) ctx.session.generateCampaignSize = data === "campaign_size_5" ? 5 : 10;
+      await showConfirmScreen(ctx);
       return;
     }
 
@@ -349,7 +543,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // ── END NEW VIDEO/IMAGE CREATION HANDLERS ─────────────────────────────
 
     // ── Prompt Handlers ─────────────────
-    if (data.startsWith("prompts_niche_") || data.startsWith("use_prompt_") || data.startsWith("generate_free_")) {
+    if (data.startsWith("prompts_niche_") || data.startsWith("use_prompt_") || data.startsWith("use_admin_prompt_") || data.startsWith("use_saved_") || data.startsWith("generate_free_")) {
       const { handlePromptsCallback } = await import("./callbacks/prompts.js");
       if (await handlePromptsCallback(ctx, data)) return;
     }
@@ -390,7 +584,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         `🎉 *SELAMAT! Anda mendapat FREE TRIAL!*\n\n` +
         `*Bonus yang Anda dapatkan:*\n` +
         `• ✅ 1x Image Generation GRATIS (sekali pakai)\n` +
-        `• ✅ 1x Daily Free setiap hari (login harian)\n\n` +
+        `• ✅ 1x Mystery Prompt harian (inspirasi prompt terbaik!)\n\n` +
         `Pilih niche bisnis Anda untuk mulai:`,
         {
           parse_mode: "Markdown",
@@ -485,9 +679,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         `4️⃣ Download dan gunakan!\n\n` +
         `*FREE TRIAL ANDA:*\n` +
         `• ✅ 1x Image Generation (Welcome Bonus)\n` +
-        `• ✅ 1x Image Generation per hari (Daily Free)\n` +
+        `• ✅ 1x Mystery Prompt harian (contoh prompt terbaik!)\n` +
         `• 🎨 Harus pilih dari Prompt Library\n` +
-        `• 🆓 Provider: Google Gemini (GRATIS)\n\n` +
+        `• 🆓 AI Generation GRATIS\n\n` +
         `*FITUR PREMIUM (Bayar):*\n` +
         `• ✍️ Custom prompt sendiri\n` +
         `• 🎬 Video generation\n` +
@@ -931,12 +1125,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data === "confirm_create") {
-      await ctx.editMessageText(
-        "🎬 Creating your video...\n\n" +
-        "⏳ Estimated time: 2-5 minutes\n\n" +
-        "You will be notified when it's ready!",
-      );
-      ctx.session.state = "CREATE_VIDEO_PROCESSING";
+      // Redirect to V3 generate flow
+      const { showGenerateMode } = await import("../flows/generate.js");
+      await showGenerateMode(ctx);
       return;
     }
 
@@ -1055,13 +1246,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Use a specific prompt: use_prompt_fnb_1, use_prompt_fashion_2, etc.
-    if (data.startsWith("use_prompt_")) {
-      await ctx.answerCbQuery();
-      const promptId = data.replace("use_prompt_", "");
-      await showPromptDetail(ctx, promptId, true);
-      return;
-    }
+    // use_prompt_ is handled by the unified prompts callback handler above (line ~508)
 
     // Customize a prompt: customize_prompt_fnb_1
     if (data.startsWith("customize_prompt_")) {
@@ -1079,7 +1264,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const type = parts[1]; // style or light
       const value = parts[2];
       const promptId = parts.slice(3).join("_");
-      const p = getPromptById(promptId);
+      const p = await getPromptById(promptId);
       const base = p?.prompt || "";
       const modifiers: Record<string, string> = {
         cinematic: "cinematic style, film-grade quality",
@@ -1102,7 +1287,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "🎬 Buat Video", callback_data: "create_video" },
+                { text: "🎬 Buat Video", callback_data: "create_video_new" },
                 { text: "🖼️ Buat Gambar", callback_data: "image_from_prompt" },
               ],
               [
@@ -1135,105 +1320,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Use admin prompt (by DB id): use_admin_prompt_123
-    if (data.startsWith("use_admin_prompt_")) {
-      await ctx.answerCbQuery();
-      const adminPromptId = parseInt(data.replace("use_admin_prompt_", ""));
-      try {
-        const sp = await prisma.savedPrompt.findUnique({
-          where: { id: adminPromptId },
-        });
-        if (sp && ctx.session) {
-          ctx.session.stateData = {
-            ...(ctx.session.stateData || {}),
-            selectedPrompt: sp.prompt,
-          };
-          await SavedPromptService.incrementUsage(adminPromptId);
-          await ctx.editMessageText(
-            `✅ *Prompt dipilih!*\n\n⭐ *${sp.title}*\n\`${sp.prompt.slice(0, 200)}${sp.prompt.length > 200 ? "..." : ""}\`\n\nMau buat apa?`,
-            {
-              parse_mode: "Markdown",
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    {
-                      text: "🚀 Buat Video Sekarang!",
-                      callback_data: "create_video",
-                    },
-                  ],
-                  [
-                    {
-                      text: "🖼️ Buat Gambar",
-                      callback_data: "image_from_prompt",
-                    },
-                  ],
-                  [
-                    {
-                      text: `◀️ Kembali ke ${sp.niche}`,
-                      callback_data: `prompts_${sp.niche}`,
-                    },
-                  ],
-                ],
-              },
-            },
-          );
-        }
-      } catch {
-        await ctx.reply("❌ Prompt tidak ditemukan.");
-      }
-      return;
-    }
-
-    // Use a saved prompt (by DB id): use_saved_123
-    if (data.startsWith("use_saved_")) {
-      await ctx.answerCbQuery();
-      const savedId = parseInt(data.replace("use_saved_", ""));
-      try {
-        // Increment usage
-        await SavedPromptService.incrementUsage(savedId);
-        // Get prompt from DB
-        const sp = await prisma.savedPrompt.findUnique({
-          where: { id: savedId },
-        });
-        if (sp && ctx.session) {
-          ctx.session.stateData = {
-            ...(ctx.session.stateData || {}),
-            selectedPrompt: sp.prompt,
-          };
-          await ctx.editMessageText(
-            `✅ *Prompt dipilih!*\n\n📌 *${sp.title}*\n\`${sp.prompt.slice(0, 200)}${sp.prompt.length > 200 ? "..." : ""}\`\n\nMau buat apa?`,
-            {
-              parse_mode: "Markdown",
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    {
-                      text: "🚀 Buat Video Sekarang!",
-                      callback_data: "create_video",
-                    },
-                  ],
-                  [
-                    {
-                      text: "🖼️ Buat Gambar",
-                      callback_data: "image_from_prompt",
-                    },
-                  ],
-                  [
-                    {
-                      text: `◀️ Kembali`,
-                      callback_data: `my_prompts_${sp.niche}`,
-                    },
-                  ],
-                ],
-              },
-            },
-          );
-        }
-      } catch (err) {
-        await ctx.reply("❌ Gagal load prompt. Coba lagi.");
-      }
-      return;
-    }
+    // use_admin_prompt_ and use_saved_ are now handled by the unified prompts callback handler above
 
     // Delete saved prompt: del_saved_123_fnb
     if (data.startsWith("del_saved_")) {
@@ -1265,290 +1352,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // ── END Saved Prompt callbacks ─────────────────────────────────────────
 
-    // Back to prompts main menu — edit current message
-    // ── PROFESSIONAL PROMPT LIBRARY HANDLERS ──────────────────────────────
-    if (data.startsWith("prompts_niche_")) {
-      await ctx.answerCbQuery();
-      const niche = data.replace("prompts_niche_", "");
+    // prompts_niche_ is handled by the unified prompts callback handler above (line ~508)
 
-      const { getPromptsByNiche } =
-        await import("../config/professional-prompts.js");
-      const prompts = getPromptsByNiche(niche);
-
-      if (prompts.length === 0) {
-        await ctx.editMessageText(
-          `❌ Prompt library untuk niche ${niche} belum tersedia.`,
-          {
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "◀️ Kembali", callback_data: "main_menu" }],
-              ],
-            },
-          },
-        );
-        return;
-      }
-
-      const nicheLabels: Record<string, string> = {
-        fnb: "🍔 F&B",
-        fashion: "👗 Fashion",
-        tech: "💻 Tech",
-        travel: "✈️ Travel",
-        education: "🎓 Education",
-        finance: "💰 Finance",
-        health: "🏥 Health",
-        entertainment: "🎬 Entertainment",
-      };
-
-      let message = `📚 *Prompt Library: ${nicheLabels[niche] || niche}*\n\n`;
-      message += `${prompts.length} prompt profesional tersedia:\n\n`;
-
-      const buttons: Array<Array<{ text: string; callback_data: string }>> = [];
-
-      prompts.forEach((prompt, idx) => {
-        message += `${idx + 1}. *${prompt.name}*\n`;
-        message += `   _${prompt.bestFor}_\n\n`;
-
-        buttons.push([
-          {
-            text: `${idx + 1}. ${prompt.name}`,
-            callback_data: `use_prof_prompt_${prompt.id}`,
-          },
-        ]);
-      });
-
-      buttons.push([
-        { text: "◀️ Pilih Niche Lain", callback_data: "main_menu" },
-      ]);
-
-      await ctx.editMessageText(message, {
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: buttons },
-      });
-      return;
-    }
-
-    if (data.startsWith("use_prof_prompt_")) {
-      await ctx.answerCbQuery();
-      const promptId = data.replace("use_prof_prompt_", "");
-
-      const { getPromptById } =
-        await import("../config/professional-prompts.js");
-      const prompt = getPromptById(promptId);
-
-      if (!prompt) {
-        await ctx.reply("❌ Prompt tidak ditemukan.");
-        return;
-      }
-
-      // Check if user can use free trial
-      const user = ctx.from;
-      if (!user) return;
-
-      const telegramId = BigInt(user.id);
-      const dbUser = await UserService.findByTelegramId(telegramId);
-
-      if (!dbUser) {
-        await ctx.reply("❌ User tidak ditemukan. Silakan /start ulang.");
-        return;
-      }
-
-      const { canUseWelcomeBonus, canUseDailyFree } =
-        await import("../config/free-trial.js");
-      const hasWelcome = canUseWelcomeBonus(dbUser);
-      const hasDaily = canUseDailyFree(dbUser);
-      const hasCredits = Number(dbUser.creditBalance) >= 0.2;
-
-      if (!hasWelcome && !hasDaily && !hasCredits) {
-        await ctx.editMessageText(
-          `⚠️ *Tidak ada kredit tersedia!*\n\n` +
-          `Welcome Bonus: ${hasWelcome ? "✅" : "❌"}\n` +
-          `Daily Free: ${hasDaily ? "✅" : "❌"}\n` +
-          `Kredit: ${dbUser.creditBalance}\n\n` +
-          `Beli kredit untuk melanjutkan.`,
-          {
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [
-                  {
-                    text: "◀️ Kembali",
-                    callback_data: `prompts_niche_${prompt.niche}`,
-                  },
-                ],
-              ],
-            },
-          },
-        );
-        return;
-      }
-
-      // Show prompt preview and generate
-      await ctx.editMessageText(
-        `✅ *${prompt.name}*\n\n` +
-        `📋 Prompt:\n_${prompt.prompt.substring(0, 200)}..._\n\n` +
-        `🎯 Best For: ${prompt.bestFor}\n\n` +
-        `Siap generate dengan ${hasWelcome ? "Welcome Bonus" : hasDaily ? "Daily Free" : "kredit"}?`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "🚀 Generate Sekarang!",
-                  callback_data: `gen_free_${promptId}`,
-                },
-              ],
-              [
-                {
-                  text: "◀️ Pilih Prompt Lain",
-                  callback_data: `prompts_niche_${prompt.niche}`,
-                },
-              ],
-            ],
-          },
-        },
-      );
-      return;
-    }
-
-    if (data.startsWith("gen_free_")) {
-      await ctx.answerCbQuery();
-      const promptId = data.replace("gen_free_", "");
-
-      const { getPromptById } =
-        await import("../config/professional-prompts.js");
-      const prompt = getPromptById(promptId);
-
-      if (!prompt) {
-        await ctx.reply("❌ Prompt tidak ditemukan.");
-        return;
-      }
-
-      const user = ctx.from;
-      if (!user) return;
-
-      const telegramId = BigInt(user.id);
-      const dbUser = await UserService.findByTelegramId(telegramId);
-
-      if (!dbUser) {
-        await ctx.reply("❌ User tidak ditemukan.");
-        return;
-      }
-
-      const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } =
-        await import("../config/free-trial.js");
-      const hasWelcome = canUseWelcomeBonus(dbUser);
-      const hasDaily = canUseDailyFree(dbUser);
-
-      let usedType = "";
-      if (hasWelcome) {
-        usedType = "welcome";
-        // Mark welcome bonus as used
-        await prisma.user.update({
-          where: { telegramId },
-          data: { welcomeBonusUsed: true },
-        });
-      } else if (hasDaily) {
-        usedType = "daily";
-        // Mark daily free as used and set reset time
-        await prisma.user.update({
-          where: { telegramId },
-          data: {
-            dailyFreeUsed: true,
-            dailyFreeResetAt: getNextDailyFreeReset(),
-          },
-        });
-      } else {
-        await ctx.reply("❌ Tidak ada free trial tersedia.");
-        return;
-      }
-
-      // Trigger image generation with google_gemini (FREE provider)
-      const { generateVideoWithFallback } =
-        await import("../services/video-fallback.service.js");
-
-      await ctx.editMessageText(
-        `🚀 *Generating...*\n\n` +
-        `Prompt: ${prompt.name}\n` +
-        `Provider: Google Gemini (FREE)\n` +
-        `Type: ${usedType === "welcome" ? "Welcome Bonus" : "Daily Free"}\n\n` +
-        `⏱️ Estimasi: 30-60 detik`,
-        { parse_mode: "Markdown" },
-      );
-
-      // Detect if there's a reference image in session
-      let referenceImageUrl: string | null = null;
-      const sessionPhotos = ctx.session?.videoCreationNew?.uploadedPhotos || ctx.session?.videoCreation?.uploadedPhotos;
-      if (sessionPhotos && sessionPhotos.length > 0) {
-        try {
-          const fileId = sessionPhotos[0].fileId;
-          const fileLink = await ctx.telegram.getFileLink(fileId);
-          referenceImageUrl = fileLink.toString();
-          logger.info(`📸 Using session reference image for free trial: ${referenceImageUrl}`);
-        } catch (err) {
-          logger.error("Failed to get reference image link for free trial:", err);
-        }
-      }
-
-      // Generate image/short video
-      generateVideoWithFallback({
-        prompt: prompt.prompt,
-        duration: 5,
-        aspectRatio: "9:16",
-        style: prompt.niche,
-        niche: prompt.niche,
-        referenceImage: referenceImageUrl,
-      })
-        .then(async (result) => {
-          if (result.success && result.videoUrl) {
-            await ctx.telegram.sendPhoto(ctx.chat!.id, result.videoUrl, {
-              caption: `✅ *Image Generated!*\n\n📋 ${prompt.name}\n🎨 ${prompt.bestFor}\n🆓 ${usedType === "welcome" ? "Welcome Bonus" : "Daily Free"} digunakan\n\n_Generated by BerkahKarya_`,
-              parse_mode: "Markdown",
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    {
-                      text: "🔄 Generate Lagi",
-                      callback_data: `prompts_niche_${prompt.niche}`,
-                    },
-                  ],
-                  [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                  [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
-                ],
-              },
-            });
-          } else {
-            throw new Error(result.error || "Generation failed");
-          }
-        })
-        .catch(async (error) => {
-          logger.error("Free trial generation failed:", error);
-
-          // Refund free trial
-          if (usedType === "welcome") {
-            await prisma.user.update({
-              where: { telegramId },
-              data: { welcomeBonusUsed: false },
-            });
-          } else if (usedType === "daily") {
-            await prisma.user.update({
-              where: { telegramId },
-              data: { dailyFreeUsed: false, dailyFreeResetAt: null },
-            });
-          }
-
-          await ctx.telegram.sendMessage(
-            ctx.chat!.id,
-            `❌ *Generation Failed*\n\n${error.message}\n\nFree trial kamu sudah di-refund.`,
-            { parse_mode: "Markdown" },
-          );
-        });
-
-      return;
-    }
+    // use_prof_prompt_ and gen_free_ are handled by the unified prompts callback handler above
 
     if (data === "back_prompts") {
       await ctx.answerCbQuery();
@@ -1600,7 +1406,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith("daily_save_")) {
       await ctx.answerCbQuery("💾 Prompt disimpan ke sesi kamu!");
       const promptId = data.replace("daily_save_", "");
-      const p = getPromptById(promptId);
+      const p = await getPromptById(promptId);
       if (p && ctx.session)
         ctx.session.stateData = {
           ...(ctx.session.stateData || {}),
@@ -2122,46 +1928,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Main menu
-    if (data === "main_menu") {
-      await ctx.answerCbQuery();
-      await ctx.editMessageText("👋 *Mau buat apa hari ini?* 👇", {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "📚 Pilih Prompt & Buat Video",
-                callback_data: "back_prompts",
-              },
-            ],
-            [
-              { text: "🔥 Trending", callback_data: "prompts_trending" },
-              { text: "🎁 Prompt Gratis", callback_data: "daily_open" },
-            ],
-            [
-              { text: "🎬 Buat Video", callback_data: "create_video" },
-              { text: "🖼️ Buat Gambar", callback_data: "image_from_prompt" },
-            ],
-            [
-              { text: "🔄 Clone", callback_data: "clone_video" },
-              { text: "📋 Storyboard", callback_data: "storyboard_create" },
-              { text: "📈 Viral", callback_data: "viral_research" },
-            ],
-            [
-              { text: "💰 Top Up", callback_data: "topup" },
-              { text: "⭐ Langganan", callback_data: "open_subscription" },
-            ],
-            [
-              { text: "📁 Video Saya", callback_data: "videos_list" },
-              { text: "👥 Referral", callback_data: "open_referral" },
-              { text: "👤 Profil", callback_data: "open_profile" },
-            ],
-          ],
-        },
-      });
-      return;
-    }
+    // (main_menu is handled above in NEW REDESIGN HANDLERS section)
 
     // Videos menu handlers
     if (data === "videos_favorites") {
@@ -2344,7 +2111,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                 [
                   {
                     text: "🔄 Change Niche/Style",
-                    callback_data: "create_video",
+                    callback_data: "create_video_new",
                   },
                 ],
               ],
@@ -3075,37 +2842,200 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         });
         const available = Number(availableAgg._sum.amount || 0);
 
-        const minWithdraw = 50000; // Rp 50,000 minimum
+        // Half of buy price per credit (avg ~Rp 6,000/credit → sell at Rp 3,000)
+        const CREDIT_BUY_RATE = 6000; // average price per credit in IDR
+        const SELL_RATE = CREDIT_BUY_RATE / 2; // half rate for cashout
+        const creditsCanConvert = Math.floor(available / SELL_RATE);
 
         let message = "💸 *Withdraw Commission*\n\n";
-        message += `*Available Balance:* Rp ${available.toLocaleString("id-ID")}\n`;
-        message += `*Minimum Withdrawal:* Rp ${minWithdraw.toLocaleString("id-ID")}\n\n`;
+        message += `*Saldo Komisi:* Rp ${available.toLocaleString("id-ID")}\n\n`;
 
-        if (available < minWithdraw) {
-          message += `❌ Insufficient balance for withdrawal.\n\n`;
-          message += `You need at least Rp ${minWithdraw.toLocaleString("id-ID")} to withdraw.\n`;
-          message += `Keep referring to earn more!`;
+        if (available <= 0) {
+          message += `❌ Belum ada komisi yang tersedia.\n\n`;
+          message += `Ajak teman untuk mulai mendapatkan komisi!`;
         } else {
-          message += `✅ You are eligible for withdrawal.\n\n`;
-          message += `*How to withdraw:*\n`;
-          message += `1. Contact our support team\n`;
-          message += `2. Provide your bank account details\n`;
-          message += `3. Withdrawal processed within 1-3 business days\n\n`;
-          message += `Contact: @codergaboets`;
+          message += `*Opsi Penarikan:*\n\n`;
+          message += `1️⃣ *Tukar ke Kredit* — ${creditsCanConvert} kredit\n`;
+          message += `   (Rate: Rp ${SELL_RATE.toLocaleString("id-ID")}/kredit)\n\n`;
+          message += `2️⃣ *Jual ke Admin* — Rp ${(available / 2).toLocaleString("id-ID")}\n`;
+          message += `   (50% dari harga beli kredit)\n\n`;
+          message += `3️⃣ *Transfer P2P* — Kirim kredit ke user lain\n`;
+          message += `   (Gunakan /send setelah konversi)\n\n`;
+          message += `_Komisi juga bisa dipakai langsung untuk generate!_`;
         }
+
+        const buttons: any[][] = [];
+        if (creditsCanConvert > 0) {
+          buttons.push([{ text: `🔄 Tukar ke ${creditsCanConvert} Kredit`, callback_data: "referral_convert_credits" }]);
+          buttons.push([{ text: `💵 Jual ke Admin (Rp ${(available / 2).toLocaleString("id-ID")})`, callback_data: "referral_sell_admin" }]);
+        }
+        buttons.push([{ text: "📊 Lihat Stats", callback_data: "referral_stats" }]);
+        buttons.push([{ text: "◀️ Kembali", callback_data: "open_referral" }]);
 
         await ctx.editMessageText(message, {
           parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "📊 View Stats", callback_data: "referral_stats" }],
-              [{ text: "◀️ Back to Referral", callback_data: "open_referral" }],
-            ],
-          },
+          reply_markup: { inline_keyboard: buttons },
         });
       } catch (error) {
         logger.error("Referral withdraw error:", error);
-        await ctx.reply("❌ Failed to load withdrawal info. Please try again.");
+        await ctx.reply("❌ Gagal memuat info withdrawal. Coba lagi.");
+      }
+      return;
+    }
+
+    // Convert referral commission to credits
+    if (data === "referral_convert_credits") {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      try {
+        const telegramId = BigInt(userId);
+        const availableAgg = await prisma.commission.aggregate({
+          where: { referrerId: telegramId, status: "available" },
+          _sum: { amount: true },
+        });
+        const available = Number(availableAgg._sum.amount || 0);
+        const SELL_RATE = 3000;
+        const creditsToAdd = Math.floor(available / SELL_RATE);
+
+        if (creditsToAdd <= 0) {
+          await ctx.editMessageText("❌ Komisi tidak cukup untuk ditukar ke kredit.", {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
+          });
+          return;
+        }
+
+        // Execute conversion in transaction
+        await prisma.$transaction(async (tx) => {
+          // Mark commissions as withdrawn
+          await tx.commission.updateMany({
+            where: { referrerId: telegramId, status: "available" },
+            data: { status: "withdrawn" },
+          });
+          // Add credits to user
+          await tx.user.update({
+            where: { telegramId },
+            data: { creditBalance: { increment: creditsToAdd } },
+          });
+          // Create transaction record
+          await tx.transaction.create({
+            data: {
+              orderId: `REF-CONV-${Date.now()}`,
+              userId: telegramId,
+              type: "referral_conversion",
+              amountIdr: available,
+              creditsAmount: creditsToAdd,
+              gateway: "internal",
+              status: "success",
+              paymentMethod: "referral_commission",
+            },
+          });
+        });
+
+        await ctx.editMessageText(
+          `✅ *Konversi Berhasil!*\n\n` +
+          `Rp ${available.toLocaleString("id-ID")} komisi → *${creditsToAdd} kredit*\n\n` +
+          `Kredit sudah ditambahkan ke saldo kamu.`,
+          {
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
+                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+              ],
+            },
+          },
+        );
+      } catch (error) {
+        logger.error("Referral convert credits error:", error);
+        await ctx.reply("❌ Gagal konversi. Coba lagi.");
+      }
+      return;
+    }
+
+    // Sell commission to admin (request cashout at half rate)
+    if (data === "referral_sell_admin") {
+      await ctx.answerCbQuery();
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      try {
+        const telegramId = BigInt(userId);
+        const availableAgg = await prisma.commission.aggregate({
+          where: { referrerId: telegramId, status: "available" },
+          _sum: { amount: true },
+        });
+        const available = Number(availableAgg._sum.amount || 0);
+        const cashoutAmount = Math.floor(available / 2); // half rate
+
+        if (cashoutAmount <= 0) {
+          await ctx.editMessageText("❌ Komisi tidak cukup untuk dijual.", {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
+          });
+          return;
+        }
+
+        // Mark commissions as pending_cashout
+        await prisma.commission.updateMany({
+          where: { referrerId: telegramId, status: "available" },
+          data: { status: "pending_cashout" },
+        });
+
+        // Create cashout request transaction
+        await prisma.transaction.create({
+          data: {
+            orderId: `REF-CASH-${Date.now()}`,
+            userId: telegramId,
+            type: "referral_cashout",
+            amountIdr: cashoutAmount,
+            creditsAmount: 0,
+            gateway: "admin_transfer",
+            status: "pending",
+            paymentMethod: "admin_transfer",
+          },
+        });
+
+        // Notify admin
+        const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").filter(Boolean);
+        const user = await UserService.findByTelegramId(telegramId);
+        for (const adminId of adminIds) {
+          try {
+            await ctx.telegram.sendMessage(
+              adminId.trim(),
+              `💸 *Cashout Request*\n\n` +
+              `User: ${user?.firstName || user?.username || telegramId}\n` +
+              `TG ID: ${telegramId}\n` +
+              `Komisi: Rp ${available.toLocaleString("id-ID")}\n` +
+              `Cashout (50%): *Rp ${cashoutAmount.toLocaleString("id-ID")}*\n\n` +
+              `Transfer ke rekening user, lalu ketik:\n` +
+              `/grant_credits ${telegramId} 0 cashout_approved`,
+              { parse_mode: "Markdown" },
+            );
+          } catch { /* admin unreachable */ }
+        }
+
+        await ctx.editMessageText(
+          `✅ *Permintaan Cashout Dikirim!*\n\n` +
+          `Komisi: Rp ${available.toLocaleString("id-ID")}\n` +
+          `Cashout (50%): *Rp ${cashoutAmount.toLocaleString("id-ID")}*\n\n` +
+          `Admin akan memproses dalam 1-3 hari kerja.\n` +
+          `Kamu akan dinotifikasi saat transfer selesai.`,
+          {
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "📊 Lihat Stats", callback_data: "referral_stats" }],
+                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+              ],
+            },
+          },
+        );
+      } catch (error) {
+        logger.error("Referral sell admin error:", error);
+        await ctx.reply("❌ Gagal memproses cashout. Coba lagi.");
       }
       return;
     }

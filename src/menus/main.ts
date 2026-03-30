@@ -1,39 +1,65 @@
 /**
- * New Simplified Main Menu (Redesign 2026-03-24)
- * 
- * 5 core actions:
- * 1. 🎬 Buat Video
- * 2. 🖼 Buat Gambar
- * 3. 💳 Kredit & Paket
- * 4. 🎞 Video Saya
- * 5. 👤 Akun
+ * Main Menu — Inline Keyboard
+ *
+ * Designed for micro business owners (non-tech users).
+ * Clear, simple, action-oriented buttons.
  */
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { UserService } from '@/services/user.service';
 
 export async function showMainMenu(ctx: BotContext, isEdit = false): Promise<void> {
   try {
     const user = ctx.from;
     if (!user) return;
 
-    const creditBalance = ctx.session?.creditBalance || 0;
-    const credEmoji = creditBalance === 0 ? '⚠️' : creditBalance < 3 ? '🟡' : '🟢';
+    // Fetch real credit balance from DB
+    let credBal = 0;
+    try {
+      const dbUser = await UserService.findByTelegramId(BigInt(user.id));
+      if (dbUser) credBal = Number(dbUser.creditBalance);
+    } catch { /* fallback to 0 */ }
 
-    const menuText = 
+    const credEmoji = credBal === 0 ? '⚠️' : credBal < 3 ? '🟡' : '🟢';
+
+    const menuText =
       `👋 *Halo, ${user.first_name}!*\n\n` +
-      `${credEmoji} Kredit: *${creditBalance}*\n\n` +
-      `Mau buat apa hari ini?`;
+      `${credEmoji} Kredit: *${credBal}*\n\n` +
+      `Mau buat apa hari ini? 👇`;
 
-    const menuButtons = {
-      inline_keyboard: [
-        [{ text: '🎬 Generate Konten', callback_data: 'generate_start' }],
-        [{ text: '💳 Kredit & Paket', callback_data: 'credits_menu' }, { text: '🎞 Video Saya', callback_data: 'videos_list' }],
-        [{ text: '👤 Profil', callback_data: 'open_profile' }, { text: '📊 Dashboard', callback_data: 'open_dashboard' }],
-        [{ text: '👥 Referral', callback_data: 'open_referral' }, { text: '⚙️ Settings', callback_data: 'open_settings' }],
-        [{ text: '❓ Bantuan', callback_data: 'open_help' }],
+    const rows: any[][] = [
+      [{ text: '📚 Pilih Prompt & Buat Video', callback_data: 'back_prompts' }],
+      [
+        { text: '🔥 Trending', callback_data: 'prompts_trending' },
+        { text: '🎁 Prompt Gratis', callback_data: 'daily_open' },
       ],
-    };
+      [
+        { text: '🎬 Buat Video', callback_data: 'create_video_new' },
+        { text: '🖼️ Buat Gambar', callback_data: 'image_from_prompt' },
+      ],
+      [
+        { text: '🔄 Clone', callback_data: 'clone_video' },
+        { text: '📋 Storyboard', callback_data: 'storyboard_create' },
+        { text: '📈 Viral', callback_data: 'viral_research' },
+      ],
+      [
+        { text: '💰 Top Up', callback_data: 'topup' },
+        { text: '⭐ Langganan', callback_data: 'open_subscription' },
+      ],
+      [
+        { text: '📁 Video Saya', callback_data: 'videos_list' },
+        { text: '👥 Referral', callback_data: 'open_referral' },
+        { text: '👤 Profil', callback_data: 'open_profile' },
+      ],
+    ];
+
+    const webAppUrl = process.env.WEB_APP_URL;
+    if (webAppUrl) {
+      rows.push([{ text: '🌐 Dashboard Web', web_app: { url: `${webAppUrl}/app` } }]);
+    }
+
+    const menuButtons = { inline_keyboard: rows };
 
     if (isEdit && ctx.callbackQuery) {
       await ctx.editMessageText(menuText, {
@@ -50,60 +76,3 @@ export async function showMainMenu(ctx: BotContext, isEdit = false): Promise<voi
     logger.error('Error showing main menu:', error);
   }
 }
-
-/**
- * Kredit & Paket Menu (replaces Top Up + Subscription)
- */
-export async function showCreditsMenu(ctx: BotContext): Promise<void> {
-  try {
-    const creditBalance = ctx.session?.creditBalance || 0;
-    const tier = ctx.session?.tier || 'free';
-
-    await ctx.editMessageText(
-      `💳 *Kredit & Paket*\n\n` +
-      `Saldo kredit: *${creditBalance}*\n` +
-      `Tier: *${tier}*\n\n` +
-      `Pilih aksi:`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '💰 Beli Kredit', callback_data: 'topup' }],
-            [{ text: '⭐ Upgrade Langganan', callback_data: 'open_subscription' }],
-            [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
-            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
-          ],
-        },
-      }
-    );
-  } catch (error) {
-    logger.error('showCreditsMenu error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
-  }}
-
-/**
- * Account Menu (replaces Profile + Settings)
- */
-export async function showAccountMenu(ctx: BotContext): Promise<void> {
-  try {
-    await ctx.editMessageText(
-      `👤 *Akun*\n\n` +
-      `Kelola preferensi dan pengaturan kamu:`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '⭐ Workflow Favorit', callback_data: 'account_favorites' }],
-            [{ text: '⚙️ Preferensi Workflow', callback_data: 'account_preferences' }],
-            [{ text: '🎁 Kode Referral', callback_data: 'open_referral' }],
-            [{ text: '🌐 Bahasa & Notifikasi', callback_data: 'account_settings' }],
-            [{ text: '❓ Bantuan & FAQ', callback_data: 'open_help' }],
-            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
-          ],
-        },
-      }
-    );
-  } catch (error) {
-    logger.error('showAccountMenu error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
-  }}

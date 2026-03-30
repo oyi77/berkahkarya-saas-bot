@@ -42,171 +42,11 @@ function getUserLang(dbUser: { language?: string } | null): string {
 }
 
 /**
- * Handle /create command
+ * Handle /create command - Redirected to V3 Flow
  */
 export async function createCommand(ctx: BotContext): Promise<void> {
-  try {
-    const user = ctx.from;
-    if (!user) {
-      await ctx.reply(t("error.identify_user"));
-      return;
-    }
-
-    // Check credits
-    const dbUser = await UserService.findByTelegramId(
-      BigInt(user.id.toString()),
-    );
-    if (!dbUser) {
-      await ctx.reply(t("error.user_not_found"));
-      return;
-    }
-
-    const lang = getUserLang(dbUser);
-
-    if (Number(dbUser.creditBalance) < 0.5) {
-      const minPlan = SUBSCRIPTION_PLANS.lite;
-      const maxPlan = SUBSCRIPTION_PLANS.agency;
-      await ctx.reply(
-        `${t("error.insufficient_credits", lang)}\n\n` +
-        t("error.insufficient_credits_detail", lang, {
-          balance: String(dbUser.creditBalance),
-          min: "0.5",
-        }) +
-        `\n\n${t("menu.top_up", lang)} -- ${lang === "id" ? "Beli kredit langsung" : "Buy credits instantly"}\n` +
-        `${t("menu.subscribe", lang)} -- ${lang === "id" ? `Dapatkan ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} kredit/bulan` : `Get ${minPlan.monthlyCredits}-${maxPlan.monthlyCredits} credits/month`}`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: t("menu.top_up", lang), callback_data: "topup" },
-                {
-                  text: t("menu.subscribe", lang),
-                  callback_data: "open_subscription",
-                },
-              ],
-            ],
-          },
-        },
-      );
-      return;
-    }
-
-    // Check daily generation limit
-    const dailyCheck = await UserService.canGenerate(
-      BigInt(user.id.toString()),
-    );
-    if (!dailyCheck.allowed) {
-      await ctx.reply(
-        t("create.daily_limit_reached", lang, {
-          used: String(dailyCheck.limit),
-          limit: String(dailyCheck.limit),
-        }),
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: t("menu.subscribe", lang),
-                  callback_data: "open_subscription",
-                },
-              ],
-            ],
-          },
-        },
-      );
-      return;
-    }
-
-    // ── If prompt already selected from library → skip niche/style/platform ──
-    const preselectedPrompt = ctx.session?.stateData?.selectedPrompt as
-      | string
-      | undefined;
-    if (preselectedPrompt) {
-      // Auto-set defaults for niche/style/platform from session or use 'fnb' default
-      const autoNiche = ctx.session?.selectedNiche || "fnb";
-      const autoStyle = ctx.session?.selectedStyles?.[0] || "appetizing";
-      ctx.session.selectedNiche = autoNiche;
-      ctx.session.selectedStyles = [autoStyle];
-      ctx.session.stateData = {
-        ...ctx.session.stateData,
-        selectedPlatform: "tiktok",
-      };
-
-      // Jump straight to duration picker
-      await ctx.reply(
-        `✅ *Prompt aktif!*\n` +
-        `\`${preselectedPrompt.slice(0, 100)}${preselectedPrompt.length > 100 ? "..." : ""}\`\n\n` +
-        `⏱️ *Pilih durasi video:*\n` +
-        `💰 Saldo: *${dbUser.creditBalance}* kredit`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "⚡ 15 detik (0.5 cr)",
-                  callback_data: "duration_15_1",
-                },
-                {
-                  text: "🎬 30 detik (1.0 cr)",
-                  callback_data: "duration_30_2",
-                },
-              ],
-              [
-                {
-                  text: "📽️ 60 detik (2.0 cr)",
-                  callback_data: "duration_60_4",
-                },
-                { text: "🎞️ Custom", callback_data: "custom_duration" },
-              ],
-              [{ text: "◀️ Kembali ke Prompt", callback_data: "back_prompts" }],
-            ],
-          },
-        },
-      );
-      return;
-    }
-
-    // ── Normal flow: Show niche picker ──────────────────────────────────────
-    const nicheKeys = Object.keys(NICHES);
-    const nicheButtons: any[][] = [];
-    for (let i = 0; i < nicheKeys.length; i += 2) {
-      const row: any[] = [];
-      const key1 = nicheKeys[i];
-      const n1 = NICHES[key1 as keyof typeof NICHES];
-      row.push({
-        text: `${n1.emoji} ${n1.name}`,
-        callback_data: `select_niche_${key1}`,
-      });
-      if (nicheKeys[i + 1]) {
-        const key2 = nicheKeys[i + 1];
-        const n2 = NICHES[key2 as keyof typeof NICHES];
-        row.push({
-          text: `${n2.emoji} ${n2.name}`,
-          callback_data: `select_niche_${key2}`,
-        });
-      }
-      nicheButtons.push(row);
-    }
-    nicheButtons.push([
-      { text: t("create.need_credits", lang), callback_data: "topup" },
-    ]);
-    nicheButtons.push([{ text: "◀️ Menu Utama", callback_data: "main_menu" }]);
-
-    await ctx.reply(
-      `${t("create.title", lang)}\n\n` +
-      `${t("create.current_credits", lang)}: ${dbUser.creditBalance}\n\n` +
-      t("create.select_niche", lang),
-      {
-        reply_markup: {
-          inline_keyboard: nicheButtons,
-        },
-      },
-    );
-  } catch (error) {
-    logger.error("Error in create command:", error);
-    await ctx.reply(t("error.generic"));
-  }
+  const { showGenerateMode } = await import("../flows/generate.js");
+  return await showGenerateMode(ctx);
 }
 
 /**
@@ -404,7 +244,7 @@ export async function handleNicheSelection(
     styleButtons.push([
       {
         text: t("create.change_category", lang),
-        callback_data: "create_video",
+        callback_data: "create_video_new",
       },
     ]);
 
@@ -555,7 +395,7 @@ export async function handlePlatformSelection(
             [
               {
                 text: t("create.change_category", lang),
-                callback_data: "create_video",
+                callback_data: "create_video_new",
               },
             ],
           ],
@@ -1046,7 +886,7 @@ async function sendSuccessNotification(
 
   // Row 4: create another / my videos
   keyboard.push([
-    { text: "🎬 Create Another", callback_data: "create_video" },
+    { text: "🎬 Create Another", callback_data: "create_video_new" },
     { text: "📁 My Videos", callback_data: "videos_list" },
   ]);
 

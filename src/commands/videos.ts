@@ -32,7 +32,7 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '🎬 Create New Video', callback_data: 'create_video' }],
+              [{ text: '🎬 Create New Video', callback_data: 'create_video_new' }],
             ],
           },
         }
@@ -61,7 +61,7 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             ...videoButtons,
-            [{ text: '🎬 Buat Video Baru', callback_data: 'create_video' }],
+            [{ text: '🎬 Buat Video Baru', callback_data: 'create_video_new' }],
             [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
           ],
         },

@@ -13,7 +13,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { UNIT_COSTS, creditsToUnits } from '@/config/pricing';
-import { detectIndustry, generateVideoScenePrompts, HPAS_SCENES, DURATION_PRESETS } from '@/config/hpas-engine';
+import { detectIndustry, generateVideoScenePrompts, HPAS_SCENES, DURATION_PRESETS, buildCustomPresetConfig } from '@/config/hpas-engine';
 import { CampaignService } from '@/services/campaign.service';
 import { ContentAnalysisService } from '@/services/content-analysis.service';
 import { ImageGenerationService } from '@/services/image.service';
@@ -98,7 +98,9 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
   const platform = session.generatePlatform as Platform || 'tiktok';
   const telegramId = BigInt(ctx.from!.id);
 
-  const presetConfig = DURATION_PRESETS[preset];
+  const presetConfig = preset === 'custom' && session.customPresetConfig
+    ? session.customPresetConfig as typeof DURATION_PRESETS['standard']
+    : DURATION_PRESETS[preset];
   const industry = detectIndustry(productDesc);
 
   try {
@@ -219,31 +221,31 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
 export async function showGenerateMode(ctx: BotContext): Promise<void> {
   try {
-    await ctx.answerCbQuery?.();
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
-    const text = `🎬 *Generate Konten*\n\nPilih mode:`;
+    const prefilledPrompt = ctx.session?.generateProductDesc;
+    const text = prefilledPrompt 
+      ? `🎬 *Generate Konten*\n\nPrompt: \`${prefilledPrompt.slice(0, 50)}${prefilledPrompt.length > 50 ? '...' : ''}\`\n\nPilih mode:`
+      : `🎬 *Generate Konten*\n\nPilih mode:`;
 
-    await ctx.editMessageText?.(text, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '⚡ Basic — Full Auto', callback_data: 'mode_basic' }],
-          [{ text: '🎯 Smart — Pilih Preset', callback_data: 'mode_smart' }],
-          [{ text: '👑 Pro — Full Control', callback_data: 'mode_pro' }],
-          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
-        ],
-      },
-    }) ?? await ctx.reply(text, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '⚡ Basic — Full Auto', callback_data: 'mode_basic' }],
-          [{ text: '🎯 Smart — Pilih Preset', callback_data: 'mode_smart' }],
-          [{ text: '👑 Pro — Full Control', callback_data: 'mode_pro' }],
-          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
-        ],
-      },
-    });
+    const markup = {
+      inline_keyboard: [
+        [{ text: '⚡ Basic — Full Auto', callback_data: 'mode_basic' }],
+        [{ text: '🎯 Smart — Pilih Preset', callback_data: 'mode_smart' }],
+        [{ text: '👑 Pro — Full Control', callback_data: 'mode_pro' }],
+        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+      ],
+    };
+
+    if (ctx.callbackQuery) {
+      try {
+        await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      } catch {
+        await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+      }
+    } else {
+      await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    }
   } catch (err) {
     logger.error('showGenerateMode error', err);
   }
@@ -253,7 +255,7 @@ export async function showGenerateMode(ctx: BotContext): Promise<void> {
 
 export async function showGenerateAction(ctx: BotContext, mode: GenerateMode): Promise<void> {
   try {
-    await ctx.answerCbQuery?.();
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
     const modeLabel = mode === 'basic' ? '⚡ Basic' : mode === 'smart' ? '🎯 Smart' : '👑 Pro';
 
@@ -263,18 +265,20 @@ export async function showGenerateAction(ctx: BotContext, mode: GenerateMode): P
 
     const text = `${modeLabel} Mode\n\nPilih aksi:`;
 
-    await ctx.editMessageText?.(text, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE} unit`, callback_data: 'action_image_set' }],
-          [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S} unit`, callback_data: 'action_video' }],
-          [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE} unit`, callback_data: 'action_clone_style' }],
-          [{ text: `📦 Campaign (5/10 video) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO}/${UNIT_COSTS.CAMPAIGN_10_VIDEO} unit`, callback_data: 'action_campaign' }],
-          [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
-        ],
-      },
-    }) ?? await ctx.reply(text, { parse_mode: 'Markdown' });
+    const markup = {
+      inline_keyboard: [
+        [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE} unit`, callback_data: 'action_image_set' }],
+        [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S} unit`, callback_data: 'action_video' }],
+        [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE} unit`, callback_data: 'action_clone_style' }],
+        [{ text: `📦 Campaign (5/10 video) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO}/${UNIT_COSTS.CAMPAIGN_10_VIDEO} unit`, callback_data: 'action_campaign' }],
+        [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
+        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
   } catch (err) {
     logger.error('showGenerateAction error', err);
   }
@@ -284,10 +288,35 @@ export async function showGenerateAction(ctx: BotContext, mode: GenerateMode): P
 
 export async function requestProductInput(ctx: BotContext, action: GenerateAction): Promise<void> {
   try {
-    await ctx.answerCbQuery?.();
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
     if (ctx.session) {
       ctx.session.generateAction = action;
+    }
+
+    // If prompt is already pre-filled from library, skip input step
+    const prefilledPrompt = ctx.session?.generateProductDesc;
+    if (prefilledPrompt && action !== 'clone_style') {
+      if (ctx.session) ctx.session.state = 'DASHBOARD';
+      const mode = ctx.session?.generateMode as GenerateMode || 'basic';
+
+      if (mode === 'basic') {
+        await showConfirmScreen(ctx);
+        return;
+      }
+      if (mode === 'smart' && action === 'video') {
+        await showSmartPresetSelection(ctx);
+        return;
+      }
+      if (mode === 'pro' && action === 'video') {
+        await showProSceneReview(ctx, prefilledPrompt);
+        return;
+      }
+      await showConfirmScreen(ctx);
+      return;
+    }
+
+    if (ctx.session) {
       ctx.session.state = 'AWAITING_PRODUCT_INPUT';
     }
 
@@ -312,21 +341,24 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
 
 export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
   try {
-    await ctx.answerCbQuery?.();
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
     const text = `🎯 *Smart Mode*\n\nPilih durasi video:`;
 
-    await ctx.editMessageText?.(text, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S} unit)`, callback_data: 'preset_quick' }],
-          [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S} unit)`, callback_data: 'preset_standard' }],
-          [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S} unit)`, callback_data: 'preset_extended' }],
-          [{ text: '◀️ Kembali', callback_data: 'action_video' }],
-        ],
-      },
-    }) ?? await ctx.reply(text, { parse_mode: 'Markdown' });
+    const markup = {
+      inline_keyboard: [
+        [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S} unit)`, callback_data: 'preset_quick' }],
+        [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S} unit)`, callback_data: 'preset_standard' }],
+        [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S} unit)`, callback_data: 'preset_extended' }],
+        [{ text: '⏱️ Custom — Pilih Durasi Sendiri', callback_data: 'preset_custom' }],
+        [{ text: '◀️ Kembali', callback_data: 'action_video' }],
+        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
   } catch (err) {
     logger.error('showSmartPresetSelection error', err);
   }
@@ -334,7 +366,7 @@ export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
 
 export async function showSmartPlatformSelection(ctx: BotContext, preset: DurationPreset): Promise<void> {
   try {
-    await ctx.answerCbQuery?.();
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
     if (ctx.session) {
       ctx.session.generatePreset = preset;
@@ -342,18 +374,20 @@ export async function showSmartPlatformSelection(ctx: BotContext, preset: Durati
 
     const text = `Platform tujuan:`;
 
-    await ctx.editMessageText?.(text, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '🎵 TikTok (9:16)', callback_data: 'platform_tiktok' }],
-          [{ text: '📸 Instagram (9:16)', callback_data: 'platform_instagram' }],
-          [{ text: '▶️ YouTube (16:9)', callback_data: 'platform_youtube' }],
-          [{ text: '⬛ Square (1:1)', callback_data: 'platform_square' }],
-          [{ text: '◀️ Kembali', callback_data: 'action_video' }],
-        ],
-      },
-    }) ?? await ctx.reply(text, { parse_mode: 'Markdown' });
+    const markup = {
+      inline_keyboard: [
+        [{ text: '🎵 TikTok (9:16)', callback_data: 'platform_tiktok' }],
+        [{ text: '📸 Instagram (9:16)', callback_data: 'platform_instagram' }],
+        [{ text: '▶️ YouTube (16:9)', callback_data: 'platform_youtube' }],
+        [{ text: '⬛ Square (1:1)', callback_data: 'platform_square' }],
+        [{ text: '◀️ Kembali', callback_data: 'action_video' }],
+        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
   } catch (err) {
     logger.error('showSmartPlatformSelection error', err);
   }
@@ -386,6 +420,7 @@ export async function showProSceneReview(
           ...scenes.map((s, i) => [{ text: `✏️ Edit Scene ${i + 1}: ${HPAS_SCENES[s.sceneId].nameId}`, callback_data: `edit_scene_${s.sceneId}` }]),
           [{ text: '✅ Lanjut ke Pilih Durasi', callback_data: 'pro_select_duration' }],
           [{ text: '◀️ Kembali', callback_data: 'action_video' }],
+          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     });
@@ -407,7 +442,9 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     const platform = session.generatePlatform as Platform || 'tiktok';
     const productDesc = session.generateProductDesc as string || '';
 
-    const presetConfig = DURATION_PRESETS[preset];
+    const presetConfig = preset === 'custom' && session.customPresetConfig
+      ? session.customPresetConfig as typeof DURATION_PRESETS['standard']
+      : DURATION_PRESETS[preset];
     const industry = detectIndustry(productDesc);
 
     let cost = 0;
@@ -439,6 +476,7 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
         inline_keyboard: [
           [{ text: `✅ Generate Sekarang (${cost} unit)`, callback_data: 'generate_confirm' }],
           [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
+          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
         ],
       },
     });

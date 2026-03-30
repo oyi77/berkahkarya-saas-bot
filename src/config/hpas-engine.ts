@@ -9,7 +9,7 @@
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type SceneId = 'hook' | 'problem' | 'agitate' | 'discovery' | 'interaction' | 'result' | 'cta';
-export type DurationPreset = 'quick' | 'standard' | 'extended';
+export type DurationPreset = 'quick' | 'standard' | 'extended' | 'custom';
 export type IndustryId = 'beauty' | 'food' | 'fashion' | 'tech' | 'fitness' | 'general';
 
 export interface SceneConfig {
@@ -25,7 +25,7 @@ export interface SceneConfig {
 }
 
 export interface DurationPresetConfig {
-  id: DurationPreset;
+  id: DurationPreset | string;
   name: string;
   totalSeconds: number;
   scenesIncluded: SceneId[];
@@ -227,7 +227,7 @@ export const HPAS_SCENES: Record<SceneId, SceneConfig> = {
 
 // ── Duration Presets ──────────────────────────────────────────────────────────
 
-export const DURATION_PRESETS: Record<DurationPreset, DurationPresetConfig> = {
+export const DURATION_PRESETS: Record<string, DurationPresetConfig> = {
   quick: {
     id: 'quick',
     name: 'Quick',
@@ -256,6 +256,68 @@ export const DURATION_PRESETS: Record<DurationPreset, DurationPresetConfig> = {
     description: '60s — 7 scenes extended. Rich storytelling, YouTube/Facebook.',
   },
 };
+
+/**
+ * Build a custom duration preset config for arbitrary durations (6-3600s).
+ * Cycles through 7 HPAS scenes. Max 50 scenes.
+ */
+export function buildCustomPresetConfig(durationSeconds: number): DurationPresetConfig {
+  const clamped = Math.max(6, Math.min(3600, durationSeconds));
+  const FULL_CYCLE: SceneId[] = ['hook', 'problem', 'agitate', 'discovery', 'interaction', 'result', 'cta'];
+
+  // Calculate scene count: ~5-8s per scene, cycle through HPAS
+  const targetSceneDuration = clamped <= 60 ? 5 : clamped <= 300 ? 6 : 7;
+  let sceneCount = Math.max(3, Math.ceil(clamped / targetSceneDuration));
+  sceneCount = Math.min(sceneCount, 50); // hard cap
+
+  // Build scene list by cycling through HPAS
+  const scenesIncluded: SceneId[] = [];
+  for (let i = 0; i < sceneCount; i++) {
+    scenesIncluded.push(FULL_CYCLE[i % FULL_CYCLE.length]);
+  }
+
+  // Distribute duration proportionally (standard ratios)
+  const ratios: Record<SceneId, number> = {
+    hook: 4, problem: 4, agitate: 4, discovery: 5, interaction: 5, result: 4, cta: 4,
+  };
+  const totalRatio = scenesIncluded.reduce((s, id) => s + ratios[id], 0);
+  const sceneDurations: Partial<Record<SceneId, number>> = {};
+  let assigned = 0;
+  scenesIncluded.forEach((id, i) => {
+    if (i === scenesIncluded.length - 1) {
+      sceneDurations[id] = clamped - assigned; // last scene gets remainder
+    } else {
+      const dur = Math.max(2, Math.round((ratios[id] / totalRatio) * clamped));
+      sceneDurations[id] = dur;
+      assigned += dur;
+    }
+  });
+
+  // Tiered pricing: 0.035/s first 60s, 0.030/s 61-300s, 0.025/s 300+s
+  let creditCost = 0;
+  if (clamped <= 60) {
+    creditCost = clamped * 0.035;
+  } else if (clamped <= 300) {
+    creditCost = 60 * 0.035 + (clamped - 60) * 0.030;
+  } else {
+    creditCost = 60 * 0.035 + 240 * 0.030 + (clamped - 300) * 0.025;
+  }
+  creditCost = Math.max(0.5, Math.round(creditCost * 10) / 10); // min 0.5, round to 0.1
+
+  const minutes = Math.floor(clamped / 60);
+  const secs = clamped % 60;
+  const durLabel = minutes > 0 ? `${minutes}m${secs > 0 ? `${secs}s` : ''}` : `${secs}s`;
+
+  return {
+    id: 'custom',
+    name: `Custom ${durLabel}`,
+    totalSeconds: clamped,
+    scenesIncluded,
+    sceneDurations,
+    creditCost,
+    description: `${durLabel} — ${sceneCount} scenes, custom duration.`,
+  };
+}
 
 // ── Industry Templates ────────────────────────────────────────────────────────
 

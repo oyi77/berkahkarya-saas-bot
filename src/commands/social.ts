@@ -59,7 +59,7 @@ export async function socialCommand(ctx: BotContext): Promise<void> {
 
     message += '\n*Actions:*';
     keyboard.push([{ text: '➕ Connect New Account', callback_data: 'manage_accounts' }]);
-    keyboard.push([{ text: '🎬 Create Video to Publish', callback_data: 'create_video' }]);
+    keyboard.push([{ text: '🎬 Create Video to Publish', callback_data: 'create_video_new' }]);
 
     await ctx.reply(message, {
       parse_mode: 'Markdown',

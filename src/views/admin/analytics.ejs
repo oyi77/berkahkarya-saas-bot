@@ -151,6 +151,7 @@
     <div class="nav-item" data-section="broadcast">📢 Broadcast</div>
     <div class="nav-item" data-section="system">⚙️ System</div>
     <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
+    <div class="nav-item" data-section="profit">💹 Profit</div>
   </nav>
   <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
     <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
@@ -444,6 +445,36 @@
     </div>
   </div>
 
+  <!-- ====== PROFIT ====== -->
+  <div id="section-profit" class="section">
+    <div class="section-title">Profit Report</div>
+    <div class="section-sub">Revenue vs Costs — Actual profit tracking</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+      <button class="tab active" onclick="setProfitPeriod(this,7)">7 Days</button>
+      <button class="tab" onclick="setProfitPeriod(this,30)">30 Days</button>
+      <button class="tab" onclick="setProfitPeriod(this,90)">90 Days</button>
+      <button class="btn btn-gold btn-sm" style="margin-left:auto;" onclick="loadProfitReport()">🔄 Refresh</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+      <div class="kpi-card"><div class="label">Revenue (IDR)</div><div class="value" id="pf-revenue" style="color:#4ade80">—</div></div>
+      <div class="kpi-card"><div class="label">Costs (IDR)</div><div class="value" id="pf-costs" style="color:#f87171">—</div></div>
+      <div class="kpi-card"><div class="label">Profit (IDR)</div><div class="value" id="pf-profit" style="color:var(--gold)">—</div></div>
+      <div class="kpi-card"><div class="label">Margin %</div><div class="value" id="pf-margin">—</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+      <div class="kpi-card"><div class="label">Transactions</div><div class="value" id="pf-txcount">—</div></div>
+      <div class="kpi-card"><div class="label">API Calls</div><div class="value" id="pf-apicalls">—</div></div>
+      <div class="kpi-card"><div class="label">Cost (USD)</div><div class="value" id="pf-costusd" style="color:var(--muted)">—</div></div>
+      <div class="kpi-card"><div class="label">Avg Cost/Call (IDR)</div><div class="value" id="pf-avgcost" style="font-size:16px">—</div></div>
+    </div>
+    <div class="card" style="margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;">DAILY REVENUE vs COSTS</div>
+      <div id="pf-daily-table" style="max-height:400px;overflow-y:auto;">
+        <div class="loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <!-- ======= MODALS ======= -->
@@ -681,6 +712,7 @@ function loadSection(sec) {
   else if (sec === 'prompts') loadPrompts();
   else if (sec === 'system') loadSystem();
   else if (sec === 'tokens') loadTokenStats();
+  else if (sec === 'profit') loadProfitReport();
 }
 
 // ===================== CLOCK =====================
@@ -1384,6 +1416,60 @@ async function loadTokenStats() {
       '<div class="empty-state">No token usage recorded yet.<br>Usage will appear here after first AI chat call.</div>';
 
   } catch(e) { toast('Failed to load token stats: ' + e.message, 'error'); }
+}
+
+// ===================== PROFIT =====================
+let profitPeriod = 30;
+
+function setProfitPeriod(el, days) {
+  profitPeriod = days;
+  document.querySelectorAll('#section-profit .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  loadProfitReport();
+}
+
+async function loadProfitReport() {
+  try {
+    const res = await fetch(`/api/profit-report?period=${profitPeriod}`, { headers: authHeaders() });
+    const data = await res.json();
+    const fmt = n => Number(n || 0).toLocaleString('id-ID');
+
+    document.getElementById('pf-revenue').textContent = 'Rp ' + fmt(data.revenue?.totalIdr);
+    document.getElementById('pf-costs').textContent = 'Rp ' + fmt(data.costs?.totalIdr);
+    document.getElementById('pf-profit').textContent = 'Rp ' + fmt(data.profit?.totalIdr);
+    document.getElementById('pf-margin').textContent = (data.profit?.marginPercent || 0) + '%';
+    document.getElementById('pf-txcount').textContent = fmt(data.revenue?.transactions);
+    document.getElementById('pf-apicalls').textContent = fmt(data.costs?.apiCalls);
+    document.getElementById('pf-costusd').textContent = '$' + Number(data.costs?.totalUsd || 0).toFixed(4);
+
+    const avgCost = data.costs?.apiCalls > 0 ? Math.round(data.costs.totalIdr / data.costs.apiCalls) : 0;
+    document.getElementById('pf-avgcost').textContent = 'Rp ' + fmt(avgCost);
+
+    // Daily table
+    const dailyRev = data.daily?.revenue || [];
+    const dailyCost = data.daily?.costs || [];
+
+    // Merge by date
+    const dates = new Set([...dailyRev.map(r => r.date), ...dailyCost.map(c => c.date)]);
+    const merged = [...dates].sort().map(d => {
+      const rev = dailyRev.find(r => r.date === d);
+      const cost = dailyCost.find(c => c.date === d);
+      const revIdr = Number(rev?.revenue_idr || 0);
+      const costIdr = Number(cost?.cost_idr || 0);
+      return { date: d, revenue: revIdr, cost: costIdr, profit: revIdr - costIdr };
+    });
+
+    document.getElementById('pf-daily-table').innerHTML = merged.length ?
+      `<table><thead><tr><th>Date</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead><tbody>
+        ${merged.map(r => `<tr>
+          <td style="font-size:12px;">${r.date}</td>
+          <td style="color:#4ade80;">Rp ${fmt(r.revenue)}</td>
+          <td style="color:#f87171;">Rp ${fmt(r.cost)}</td>
+          <td style="color:${r.profit >= 0 ? 'var(--gold)' : '#f87171'};">Rp ${fmt(r.profit)}</td>
+        </tr>`).join('')}
+      </tbody></table>` : '<div class="empty-state">No data for this period</div>';
+
+  } catch(e) { toast('Failed to load profit report: ' + e.message, 'error'); }
 }
 
 // ===================== INIT =====================

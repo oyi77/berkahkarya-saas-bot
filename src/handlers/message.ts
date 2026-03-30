@@ -9,7 +9,6 @@ export { handleDisassemble, handleVideoCreationImage, handleSkipImageReference }
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
 import { videosCommand } from "@/commands/videos";
-import { createCommand } from "@/commands/create";
 import { topupCommand } from "@/commands/topup";
 import { profileCommand } from "@/commands/profile";
 import { referralCommand } from "@/commands/referral";
@@ -81,6 +80,50 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       ctx.session?.videoCreation?.waitingForImage
     ) {
       await handleSkipImageReference(ctx);
+      return;
+    }
+
+    // ── V3 FLOW: CUSTOM DURATION INPUT ─────────────────────────────────────
+    if (ctx.session?.state === 'CUSTOM_DURATION_INPUT_V3' && 'text' in message) {
+      const input = message.text.trim();
+      const duration = parseInt(input);
+
+      if (isNaN(duration) || duration < 6 || duration > 3600) {
+        await ctx.reply('❌ Durasi harus antara 6 - 3600 detik.\n\nContoh: `120` untuk 2 menit, `3600` untuk 1 jam.', { parse_mode: 'Markdown' });
+        return;
+      }
+
+      const { buildCustomPresetConfig } = await import('../config/hpas-engine.js');
+      const presetConfig = buildCustomPresetConfig(duration);
+
+      if (ctx.session) {
+        ctx.session.generatePreset = 'custom';
+        ctx.session.customPresetConfig = presetConfig;
+        ctx.session.state = 'DASHBOARD';
+      }
+
+      const minutes = Math.floor(duration / 60);
+      const secs = duration % 60;
+      const durLabel = minutes > 0 ? `${minutes} menit${secs > 0 ? ` ${secs} detik` : ''}` : `${secs} detik`;
+
+      await ctx.reply(
+        `✅ *Custom Duration: ${durLabel}*\n\n` +
+        `🎬 ${presetConfig.scenesIncluded.length} scene\n` +
+        `💰 Biaya: ${presetConfig.creditCost} unit\n\n` +
+        `Pilih platform tujuan:`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎵 TikTok (9:16)', callback_data: 'platform_tiktok' }],
+              [{ text: '📸 Instagram (9:16)', callback_data: 'platform_instagram' }],
+              [{ text: '▶️ YouTube (16:9)', callback_data: 'platform_youtube' }],
+              [{ text: '⬛ Square (1:1)', callback_data: 'platform_square' }],
+              [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+            ],
+          },
+        },
+      );
       return;
     }
 
@@ -262,7 +305,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                   [
                     {
                       text: "🚀 Buat Video Sekarang!",
-                      callback_data: "create_video",
+                      callback_data: "create_video_new",
                     },
                   ],
                   [
@@ -347,7 +390,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                     callback_data: "manage_accounts",
                   },
                 ],
-                [{ text: "🎬 Create Video", callback_data: "create_video" }],
+                [{ text: "🎬 Create Video", callback_data: "create_video_new" }],
               ],
             },
           },
@@ -388,9 +431,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         // Handle reply keyboard buttons — route to proper command handlers
         switch (text) {
           case "🎬 Create Video":
-          case "🚀 Get Started":
-            await createCommand(ctx);
+          case "🚀 Get Started": {
+            const { showGenerateMode } = await import('../flows/generate.js');
+            await showGenerateMode(ctx);
             return;
+          }
 
           case "🖼️ Generate Image":
             await ctx.reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
@@ -783,7 +828,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                     text: "🔄 Buat Variasi Lain",
                     callback_data: "image_generate",
                   },
-                  { text: "🎬 Jadikan Video", callback_data: "create_video" },
+                  { text: "🎬 Jadikan Video", callback_data: "create_video_new" },
                 ],
                 [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
               ],
@@ -862,7 +907,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                 [
                   {
                     text: "🎬 Create Similar Video",
-                    callback_data: "create_video",
+                    callback_data: "create_video_new",
                   },
                 ],
                 [
@@ -920,7 +965,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎬 Create Video", callback_data: "create_video" }],
+            [{ text: "🎬 Create Video", callback_data: "create_video_new" }],
             [{ text: "✏️ Edit Again", callback_data: "clone_edit_desc" }],
             [{ text: "❌ Cancel", callback_data: "main_menu" }],
           ],

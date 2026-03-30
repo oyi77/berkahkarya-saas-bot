@@ -863,6 +863,93 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return { success: true };
   });
 
+  /** GET /api/settings/landing — Landing page config (used by settings.ejs) */
+  server.get("/api/settings/landing", async () => {
+    const data = await redis.get("admin:landing_config");
+    return data ? JSON.parse(data) : { headline: '', subheadline: '', ctaText: '', heroImageUrl: '' };
+  });
+
+  /** POST /api/settings/landing — Update landing page config */
+  server.post("/api/settings/landing", async (request, reply) => {
+    const body = request.body as any;
+    if (!body || typeof body !== "object") {
+      return reply.status(400).send({ error: "Invalid payload" });
+    }
+    const config = {
+      headline: body.headline || '',
+      subheadline: body.subheadline || '',
+      ctaText: body.ctaText || '',
+      heroImageUrl: body.heroImageUrl || '',
+      updatedAt: new Date().toISOString(),
+    };
+    await redis.set("admin:landing_config", JSON.stringify(config));
+    await redis.publish("admin_events", JSON.stringify({
+      type: "settings_updated", category: "landing",
+      timestamp: new Date().toISOString()
+    }));
+    return { success: true };
+  });
+
+  /** GET /api/profit-report — Revenue, costs, and profit breakdown */
+  server.get("/api/profit-report", async (request) => {
+    const { period = '30' } = request.query as any;
+    const days = parseInt(period as string) || 30;
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+
+    const [revenue, costs] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: { status: 'success', createdAt: { gte: since } },
+        _sum: { amountIdr: true },
+        _count: true,
+      }),
+      prisma.tokenUsage.aggregate({
+        where: { createdAt: { gte: since } },
+        _sum: { costUsd: true, costIdr: true },
+        _count: true,
+      }),
+    ]);
+
+    let dailyRevenue: any[] = [];
+    let dailyCosts: any[] = [];
+    try {
+      dailyRevenue = await prisma.$queryRawUnsafe(`
+        SELECT DATE(created_at) as date,
+               COALESCE(SUM(amount_idr), 0)::float as revenue_idr,
+               COUNT(*)::int as transactions
+        FROM transactions
+        WHERE status = 'success' AND created_at >= $1
+        GROUP BY DATE(created_at)
+        ORDER BY date
+      `, since);
+
+      dailyCosts = await prisma.$queryRawUnsafe(`
+        SELECT DATE(created_at) as date,
+               COALESCE(SUM(cost_idr), 0)::float as cost_idr,
+               COALESCE(SUM(cost_usd), 0)::float as cost_usd,
+               COUNT(*)::int as api_calls
+        FROM token_usage
+        WHERE created_at >= $1
+        GROUP BY DATE(created_at)
+        ORDER BY date
+      `, since);
+    } catch { /* raw queries may fail on some DB configs */ }
+
+    const totalRevenueIdr = Number(revenue._sum.amountIdr || 0);
+    const totalCostIdr = Number(costs._sum.costIdr || 0);
+
+    return {
+      period: days,
+      revenue: { totalIdr: totalRevenueIdr, transactions: revenue._count },
+      costs: { totalUsd: Number(costs._sum.costUsd || 0), totalIdr: totalCostIdr, apiCalls: costs._count },
+      profit: {
+        totalIdr: totalRevenueIdr - totalCostIdr,
+        marginPercent: totalRevenueIdr > 0 ? Math.round((totalRevenueIdr - totalCostIdr) / totalRevenueIdr * 100) : 0,
+      },
+      daily: { revenue: dailyRevenue, costs: dailyCosts },
+    };
+  });
+
   /** GET /api/admin/transactions/transfers — P2P Transfer logs */
   server.get("/api/admin/transactions/transfers", async () => {
     return prisma.transaction.findMany({

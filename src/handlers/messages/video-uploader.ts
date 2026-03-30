@@ -60,7 +60,7 @@ export async function handleDisassemble(ctx: BotContext): Promise<void> {
               [
                 {
                   text: "🎬 Create Video with This",
-                  callback_data: "create_video",
+                  callback_data: "create_video_new",
                 },
               ],
               [

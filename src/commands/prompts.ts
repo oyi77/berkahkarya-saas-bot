@@ -416,14 +416,56 @@ export const MYSTERY_PROMPTS = [
   { niche: "education", promptId: "edu_2", rarity: "⭐⭐ UNCOMMON" },
 ];
 
-export function getPromptById(promptId: string) {
+export async function findAnyPrompt(promptId: string): Promise<{
+  id: string;
+  title: string;
+  prompt: string;
+  niche: string;
+  type: 'library' | 'professional' | 'db';
+} | null> {
+  // 1. Trace in PROMPT_LIBRARY (Standard)
   for (const nicheKey of Object.keys(PROMPT_LIBRARY)) {
-    const found = PROMPT_LIBRARY[nicheKey].prompts.find(
-      (p) => p.id === promptId,
-    );
-    if (found) return { ...found, niche: nicheKey };
+    const found = PROMPT_LIBRARY[nicheKey].prompts.find((p) => p.id === promptId);
+    if (found) return { ...found, niche: nicheKey, type: 'library' };
   }
+
+  // 2. Trace in PROFESSIONAL_PROMPT_LIBRARY (Professional)
+  try {
+    const { PROFESSIONAL_PROMPT_LIBRARY } = await import('../config/professional-prompts.js');
+    for (const nicheKey of Object.keys(PROFESSIONAL_PROMPT_LIBRARY)) {
+      const found = PROFESSIONAL_PROMPT_LIBRARY[nicheKey].find((p) => p.id === promptId);
+      if (found) return { id: found.id, title: found.name, prompt: found.prompt, niche: nicheKey, type: 'professional' };
+    }
+  } catch (err) {
+    logger.error("findAnyPrompt professional lookup error:", err);
+  }
+
+  // 3. Trace in Database (Admin/Saved)
+  if (!isNaN(Number(promptId))) {
+    try {
+      const dbPrompt = await prisma.savedPrompt.findUnique({
+        where: { id: parseInt(promptId) }
+      });
+      if (dbPrompt) {
+        return {
+          id: String(dbPrompt.id),
+          title: dbPrompt.title,
+          prompt: dbPrompt.prompt,
+          niche: dbPrompt.niche || 'fnb',
+          type: 'db'
+        };
+      }
+    } catch (err) {
+      logger.error("findAnyPrompt DB lookup error:", err);
+    }
+  }
+
   return null;
+}
+
+// Backward compatibility wrapper
+export async function getPromptById(promptId: string) {
+  return await findAnyPrompt(promptId);
 }
 
 // ─── /prompts ────────────────────────────────────────────────────────────────
@@ -624,13 +666,11 @@ export async function showPromptDetail(
   promptId: string,
   edit = false,
 ): Promise<void> {
-  const p = getPromptById(promptId);
+  const p = await findAnyPrompt(promptId);
   if (!p) {
     await ctx.reply("❌ Prompt tidak ditemukan.");
     return;
   }
-
-  const niche = PROMPT_LIBRARY[p.niche];
 
   // Get user credits
   let credits = "?";
@@ -669,17 +709,17 @@ export async function showPromptDetail(
 
   const markup = {
     inline_keyboard: [
-      // Primary CTA
-      [{ text: "🚀 Buat Video Sekarang!", callback_data: "create_video" }],
-      [{ text: "🖼️ Buat Gambar Saja", callback_data: "image_from_prompt" }],
+      // Primary CTA -> Redirect to V3 Flow
+      [{ text: "🚀 Buat Video Sekarang!", callback_data: "create_video_new" }],
+      [{ text: "🖼️ Buat Gambar Saja", callback_data: `generate_image_v3_${promptId}` }],
       [
         { text: "🔧 Customize", callback_data: `customize_prompt_${promptId}` },
         { text: "💾 Simpan", callback_data: `save_prompt_${promptId}` },
       ],
       [
         {
-          text: `◀️ Kembali ke ${niche.emoji} ${niche.label}`,
-          callback_data: `prompts_${p.niche}`,
+          text: `◀️ Kembali ke Niche`,
+          callback_data: `prompts_niche_${p.niche}`,
         },
       ],
     ],
@@ -698,11 +738,13 @@ export async function showPromptDetail(
     await ctx.reply(msg, { parse_mode: "Markdown", reply_markup: markup });
   }
 
-  // Save selected prompt to session for create flow
+  // Save selected prompt to session for V3 flow
   if (ctx.session) {
+    ctx.session.generateProductDesc = p.prompt; // Used by V3 Flow
     ctx.session.stateData = {
       ...(ctx.session.stateData || {}),
-      selectedPrompt: p.prompt,
+      selectedPrompt: p.prompt, // Legacy support
+      selectedPromptId: p.id
     };
   }
 }
@@ -714,8 +756,8 @@ export async function showCustomizePrompt(
   promptId: string,
   edit = false,
 ): Promise<void> {
-  const p = getPromptById(promptId);
-  const base = p ? p.prompt : "Prompt kustom";
+    const p = await getPromptById(promptId);
+    const base = p ? p.prompt : "Prompt kustom";
 
   const msg =
     `🔧 **PROMPT CUSTOMIZER**\n` +
@@ -880,10 +922,9 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
       `**${p.title}**\n\n` +
       `\`${p.prompt}\`\n\n` +
       `─────────────────────────────────────\n` +
-      `💰 Normal price: **2 credits**\n` +
-      `🆓 You got: **FREE** (today only!)\n` +
+      `💡 Prompt ini bisa langsung dipakai untuk generate!\n` +
       `─────────────────────────────────────\n\n` +
-      `⏰ Claim dalam 24 jam sebelum expired!`;
+      `⏰ Prompt baru setiap hari — jangan sampai ketinggalan!`;
 
     if (ctx.session) {
       ctx.session.stateData = {
@@ -1012,7 +1053,7 @@ export async function saveLibraryPrompt(
   promptId: string,
 ): Promise<void> {
   try {
-    const p = getPromptById(promptId);
+    const p = await getPromptById(promptId);
     if (!p) {
       await ctx.answerCbQuery("❌ Prompt tidak ditemukan");
       return;

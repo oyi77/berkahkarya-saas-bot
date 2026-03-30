@@ -100,7 +100,22 @@ export function getVideoCreditCost(durationSeconds: number): number {
   if (durationSeconds <= 15) return 0.5;
   if (durationSeconds <= 30) return 1.0;
   if (durationSeconds <= 60) return 2.0;
-  return 4.5;
+  if (durationSeconds <= 120) return 4.5;
+  // Custom duration tiered pricing
+  return getCustomDurationCreditCost(durationSeconds);
+}
+
+/** Tiered pricing for custom durations: 0.035/s first 60s, 0.030/s 61-300s, 0.025/s 300+s */
+export function getCustomDurationCreditCost(durationSeconds: number): number {
+  let cost = 0;
+  if (durationSeconds <= 60) {
+    cost = durationSeconds * 0.035;
+  } else if (durationSeconds <= 300) {
+    cost = 60 * 0.035 + (durationSeconds - 60) * 0.030;
+  } else {
+    cost = 60 * 0.035 + 240 * 0.030 + (durationSeconds - 300) * 0.025;
+  }
+  return Math.max(0.5, Math.round(cost * 10) / 10);
 }
 
 // ── Asynchronous Pricing Engine (Dynamic Override) ──────────────────────────

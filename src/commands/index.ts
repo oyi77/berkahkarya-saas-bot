@@ -11,7 +11,6 @@ import { logger } from "@/utils/logger";
 // Import command handlers
 import { startCommand } from "./start";
 import { helpCommand } from "./help";
-import { createCommand } from "./create";
 import { topupCommand } from "./topup";
 import { referralCommand } from "./referral";
 import { profileCommand } from "./profile";
@@ -38,7 +37,7 @@ export * from "@/menus/main";
 // Admin commands
 import { adminBroadcastCommand } from "./admin/broadcast";
 import { adminSystemStatusCommand } from "./admin/systemStatus";
-import { adminGrantCreditsCommand } from "./admin/grantCredits";
+import { adminGrantCreditsCommand, adminDeductCreditsCommand } from "./admin/grantCredits";
 import { paymentSettingsCommand } from "./admin/paymentSettings";
 
 /**
@@ -50,7 +49,10 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   // User commands
   bot.command("start", startCommand);
   bot.command("help", helpCommand);
-  bot.command("create", createCommand);
+  bot.command("create", async (ctx) => {
+    const { showGenerateMode } = await import('../flows/generate.js');
+    await showGenerateMode(ctx);
+  });
   bot.command("menu", startCommand); // Show main menu with all features
   bot.command("dashboard", startCommand); // Alias for menu
   bot.command("topup", topupCommand);
@@ -91,6 +93,7 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("broadcast", adminBroadcastCommand);
   bot.command("system_status", adminSystemStatusCommand);
   bot.command("grant_credits", adminGrantCreditsCommand);
+  bot.command("deduct_credits", adminDeductCreditsCommand);
   bot.command("payment_settings", paymentSettingsCommand);
   bot.command("admin", paymentSettingsCommand); // Alias
 

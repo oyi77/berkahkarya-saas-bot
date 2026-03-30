@@ -435,18 +435,18 @@
       <section class="hero">
     <div class="container">
       <div class="hero-pain">⚠️ Kompetitor Posting 10 Video/Hari, Kamu Masih Stuck di 1 Video/Minggu?</div>
-      <h1>Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik</h1>
-      <p class="subhead">Platform AI yang mengubah foto produk menjadi video iklan profesional dengan struktur HPAS (Hook-Problem-Agitate-Solution). Langsung dari Telegram. Tanpa skill editing. Bayar pakai VA/e-wallet.</p>
-      
+      <h1><%= (landingConfig && landingConfig.headline) ? landingConfig.headline : 'Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik' %></h1>
+      <p class="subhead"><%= (landingConfig && landingConfig.subheadline) ? landingConfig.subheadline : 'Platform AI yang mengubah foto produk menjadi video iklan profesional dengan struktur HPAS (Hook-Problem-Agitate-Solution). Langsung dari Telegram. Tanpa skill editing. Bayar pakai VA/e-wallet.' %></p>
+
             <!-- Real Product Screenshot -->
       <div class="hero-screenshot" style="max-width: 900px; margin: 40px auto 32px;">
-        <img src="/public/hero-tiktok-showcase.png?v=1774653613" 
-             alt="Before After Comparison - Stuck vs Winning Dashboard" 
+        <img src="<%= (landingConfig && landingConfig.heroImageUrl) ? landingConfig.heroImageUrl : '/public/hero-tiktok-showcase.png?v=1774653613' %>"
+             alt="Before After Comparison - Stuck vs Winning Dashboard"
              style="width: 100%; height: auto; display: block; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
       </div>
-      
+
       <div class="cta-row">
-        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_hero_click')">🎁 Mulai Gratis — 1 Video Gratis</a>
+        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_hero_click')"><%= (landingConfig && landingConfig.ctaText) ? landingConfig.ctaText : '🎁 Mulai Gratis — 1 Video Gratis' %></a>
       </div>
       <p class="trust-line">✅ <strong>Tanpa Kartu Kredit</strong> • ✅ <strong>100% di Telegram</strong> • ✅ <strong>Bayar VA/GoPay/OVO</strong></p>
     </div>
