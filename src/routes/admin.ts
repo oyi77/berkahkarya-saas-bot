@@ -600,11 +600,11 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.patch("/api/users/:id/tier", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { tier } = request.body as { tier: string };
-    const validTiers = ["FREE", "STARTER", "PRO", "ENTERPRISE"];
-    if (!validTiers.includes(tier)) return reply.status(400).send({ error: "Invalid tier" });
+    const validTiers = ["free", "basic", "lite", "pro", "agency"];
+    if (!validTiers.includes(tier.toLowerCase())) return reply.status(400).send({ error: "Invalid tier" });
     const user = await prisma.user.update({
       where: { telegramId: BigInt(id) },
-      data: { tier: tier as any },
+      data: { tier: tier.toLowerCase() },
     });
     return { success: true, tier: user.tier };
   });

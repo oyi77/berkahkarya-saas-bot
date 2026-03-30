@@ -234,10 +234,11 @@
           <option value="">All Users</option>
           <option value="active">Active</option>
           <option value="banned">Banned</option>
-          <option value="FREE">FREE</option>
-          <option value="STARTER">STARTER</option>
-          <option value="PRO">PRO</option>
-          <option value="ENTERPRISE">ENTERPRISE</option>
+          <option value="free">free</option>
+          <option value="basic">basic</option>
+          <option value="lite">lite</option>
+          <option value="pro">pro</option>
+          <option value="agency">agency</option>
         </select>
         <button class="btn btn-gold btn-sm" onclick="loadUsers(true)">Refresh</button>
       </div>
@@ -368,10 +369,11 @@
         <label>Target Audience</label>
         <select class="select" id="bc-tier" onchange="previewBroadcast()">
           <option value="">All Users</option>
-          <option value="FREE">FREE</option>
-          <option value="STARTER">STARTER</option>
-          <option value="PRO">PRO</option>
-          <option value="ENTERPRISE">ENTERPRISE</option>
+          <option value="free">free</option>
+          <option value="basic">basic</option>
+          <option value="lite">lite</option>
+          <option value="pro">pro</option>
+          <option value="agency">agency</option>
         </select>
       </div>
       <div id="bc-preview" style="padding: 12px; background: #0d0d14; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--muted); margin-bottom: 16px;">
@@ -612,10 +614,11 @@
     <div class="form-group">
       <label>New Tier</label>
       <select class="select" id="tier-select" style="width:100%;">
-        <option value="FREE">FREE</option>
-        <option value="STARTER">STARTER</option>
-        <option value="PRO">PRO</option>
-        <option value="ENTERPRISE">ENTERPRISE</option>
+        <option value="free">free</option>
+        <option value="basic">basic</option>
+        <option value="lite">lite</option>
+        <option value="pro">pro</option>
+        <option value="agency">agency</option>
       </select>
     </div>
     <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
@@ -759,7 +762,7 @@ function reltime(s) {
   return Math.floor(h / 24) + 'd ago';
 }
 function tierBadge(tier) {
-  const map = { FREE: 'badge-free', STARTER: 'badge-starter', PRO: 'badge-pro', ENTERPRISE: 'badge-enterprise' };
+  const map = { free: 'badge-free', basic: 'badge-starter', lite: 'badge-starter', pro: 'badge-pro', agency: 'badge-enterprise' };
   return `<span class="badge ${map[tier] || 'badge-free'}">${tier}</span>`;
 }
 function statusBadge(status) {
@@ -858,7 +861,7 @@ async function loadOverview() {
     });
 
     // Tiers donut
-    const tierColors = { FREE: '#555568', STARTER: '#1a4a8a', PRO: '#4a1a8a', ENTERPRISE: '#8a6030' };
+    const tierColors = { free: '#555568', basic: '#1a4a8a', lite: '#2a5a9a', pro: '#4a1a8a', agency: '#8a6030' };
     const tierLabels = Object.keys(d.users.byTier);
     const tierData = Object.values(d.users.byTier);
     if (chartTiers) chartTiers.destroy();
@@ -907,7 +910,7 @@ async function loadUsers(reset = false) {
       const params = new URLSearchParams({ limit: '30', offset: String(userOffset) });
       if (filter === 'active') params.set('isBanned', 'false');
       else if (filter === 'banned') params.set('isBanned', 'true');
-      else if (['FREE','STARTER','PRO','ENTERPRISE'].includes(filter)) params.set('tier', filter);
+      else if (['free','basic','lite','pro','agency'].includes(filter)) params.set('tier', filter);
       users = await api('/api/users?' + params);
     }
     if (!users) return;

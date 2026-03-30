@@ -32,3 +32,4 @@ tests/test-*.ts
 tests/test-*.js
 docs/assets/
 *.zip
+public/qa-screenshots/

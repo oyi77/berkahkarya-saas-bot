@@ -146,13 +146,13 @@
     }
 
     async function promptTier(id) {
-      const tier = prompt('Enter new tier (FREE, STARTER, PRO, ENTERPRISE):');
+      const tier = prompt('Enter new tier (free, basic, lite, pro, agency):');
       if(!tier) return;
       await fetch(\`/api/users/\${id}/tier\`, {
         method:'PATCH',
         credentials: 'include',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ tier: tier.toUpperCase() })
+        body: JSON.stringify({ tier: tier.toLowerCase() })
       });
       alert('Tier updated!');
       searchUsers();
