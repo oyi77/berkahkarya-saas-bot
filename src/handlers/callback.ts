@@ -56,6 +56,7 @@ import {
   getImageCreditCostAsync,
   getVideoCreditCostAsync,
 } from "@/config/pricing";
+import { ImageGenerationService } from "@/services/image.service";
 import { enqueueVideoGeneration } from "@/config/queue";
 import { t } from "@/i18n/translations";
 import {
@@ -189,9 +190,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // ── UNIVERSAL NOOP (pagination display buttons) ──────────────────────
+    if (data === "noop") {
+      await ctx.answerCbQuery();
+      return;
+    }
+
     // ── NEW REDESIGN HANDLERS (2026-03-24) ───────────────────────────────
     if (data === "main_menu") {
       await ctx.answerCbQuery();
+      // Always reset state so user isn't stuck in a previous flow
+      if (ctx.session) ctx.session.state = "DASHBOARD";
       const user = ctx.from;
       if (!user) return;
       const dbUser = await UserService.findByTelegramId(BigInt(user.id));
@@ -433,6 +442,52 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Support: tutorial and bug report
+    if (data === "view_tutorial") {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `📖 *Tutorial Singkat*\n\n` +
+        `1. Ketik /create untuk membuat video\n` +
+        `2. Pilih mode (Basic/Smart/Pro)\n` +
+        `3. Upload foto produk atau ketik deskripsi\n` +
+        `4. Pilih platform & durasi\n` +
+        `5. Konfirmasi — video masuk antrian\n\n` +
+        `Untuk gambar: ketik /image\n` +
+        `Untuk top up kredit: ketik /topup`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
+    if (data === "report_bug") {
+      await ctx.answerCbQuery();
+      await ctx.editMessageText(
+        `🐛 *Report Bug*\n\n` +
+        `Temukan bug? Silakan hubungi tim kami:\n\n` +
+        `💬 @codergaboets\n\n` +
+        `Sertakan:\n` +
+        `• Deskripsi masalah\n` +
+        `• Langkah-langkah yang dilakukan\n` +
+        `• Screenshot (jika ada)`,
+        {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
     // Image generation menu
     if (data === "img_gen_menu") {
       await ctx.answerCbQuery();
@@ -509,10 +564,16 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data.startsWith("platform_")) {
-      const { requestProductInput } = await import("../flows/generate.js");
       const platform = data.replace("platform_", "") as "tiktok" | "instagram" | "youtube" | "square";
       if (ctx.session) ctx.session.generatePlatform = platform;
-      await requestProductInput(ctx, "video");
+      // If product description already entered, go straight to confirm; otherwise ask for it
+      if (ctx.session?.generateProductDesc) {
+        const { showConfirmScreen } = await import("../flows/generate.js");
+        await showConfirmScreen(ctx);
+      } else {
+        const { requestProductInput } = await import("../flows/generate.js");
+        await requestProductInput(ctx, "video");
+      }
       return;
     }
 
@@ -1695,6 +1756,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Upload reference image for image generation
     if (data === "imgref_upload") {
+      await ctx.answerCbQuery();
       ctx.session.state = "IMAGE_REFERENCE_WAITING";
       await ctx.editMessageText(
         `📸 *Upload Foto Referensi*\n\n` +
@@ -1721,9 +1783,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Skip reference image → generate text2img
     if (data === "imgref_skip") {
+      await ctx.answerCbQuery();
       ctx.session.state = "IMAGE_GENERATION_WAITING";
       const category = ctx.session.stateData?.imageCategory as string;
-      ctx.session.stateData = { imageCategory: category };
+      ctx.session.stateData = { ...ctx.session.stateData, imageCategory: category, mode: "text2img" };
 
       const hints: Record<string, string> = {
         product:
@@ -2140,7 +2203,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data.startsWith("video_confirm_delete_")) {
+      await ctx.answerCbQuery();
       const jobId = data.replace("video_confirm_delete_", "");
+      const videoToDelete = await VideoService.getByJobId(jobId);
+      if (!videoToDelete || (ctx.from && videoToDelete.userId !== BigInt(ctx.from.id))) {
+        await ctx.editMessageText("❌ Access denied or video not found.");
+        return;
+      }
       // Soft delete — mark as deleted instead of removing from database
       await VideoService.deleteVideo(jobId);
       await ctx.editMessageText(
@@ -2163,6 +2232,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       try {
         const video = await VideoService.getByJobId(jobId);
+        if (video && ctx.from && video.userId !== BigInt(ctx.from.id)) {
+          await ctx.reply("❌ Access denied.");
+          return;
+        }
         const niche =
           ctx.session?.selectedNiche ||
           ctx.session?.videoCreation?.niche ||
@@ -2195,6 +2268,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         const video = await VideoService.getByJobId(jobId);
         if (!video) {
           await ctx.reply("Video not found. Please try /create instead.");
+          return;
+        }
+
+        if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
+          await ctx.reply("❌ Access denied.");
           return;
         }
 
@@ -3256,6 +3334,11 @@ async function handlePublishVideo(ctx: BotContext, jobId: string) {
     return;
   }
 
+  if (video.userId !== BigInt(userId)) {
+    await ctx.answerCbQuery("❌ Access denied");
+    return;
+  }
+
   // Check if user has connected accounts
   const hasAccounts = await PostAutomationService.hasConnectedAccounts(
     BigInt(userId),
@@ -3409,6 +3492,11 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
       throw new Error("Video not found");
     }
 
+    if (video.userId !== BigInt(userId)) {
+      await ctx.editMessageText("❌ Access denied.");
+      return;
+    }
+
     // Get user's selected accounts
     const accounts = await PostAutomationService.getUserAccounts(
       BigInt(userId),
@@ -3488,6 +3576,11 @@ async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
     const video = await VideoService.getByJobId(jobId);
     if (!video || !video.videoUrl) {
       await ctx.reply("❌ Video not found or has no URL.");
+      return;
+    }
+
+    if (video.userId !== BigInt(userId)) {
+      await ctx.reply("❌ Access denied.");
       return;
     }
 
@@ -3750,8 +3843,9 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
     | undefined;
 
   if (existingClonePrompt) {
-    // Clone prompt exists — skip the "describe what you want" step and go straight to generation
-    ctx.session.state = "IMAGE_GENERATION_WAITING";
+    // Clone prompt exists — skip the "describe what you want" step and fire generation immediately.
+    // Release session state before async work so the user is not blocked.
+    ctx.session.state = "DASHBOARD";
     ctx.session.stateData = {
       ...ctx.session.stateData,
       imageCategory: category,
@@ -3765,8 +3859,36 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
       { parse_mode: "Markdown" },
     );
 
-    // Trigger generation directly by simulating the user sending the cloned prompt as text.
-    // The message handler for IMAGE_GENERATION_WAITING will pick up the clonePrompt from stateData.
+    // Fire-and-forget: trigger generation inline (same pattern as message.ts IMAGE_GENERATION_WAITING)
+    const chatId = ctx.chat!.id;
+    const telegramClient = ctx.telegram;
+    const telegramId = BigInt(ctx.from!.id);
+
+    void (async () => {
+      try {
+        const result = await ImageGenerationService.generateImage({
+          prompt: existingClonePrompt,
+          category: category || "product",
+          aspectRatio: "1:1",
+          style: "commercial",
+          mode: "text2img",
+        });
+
+        if (result.success && result.imageUrl) {
+          await UserService.deductCredits(telegramId, await getImageCreditCostAsync(result.provider));
+          await telegramClient.sendPhoto(chatId, result.imageUrl, {
+            caption: `✅ *Gambar Berhasil Dibuat!*\n\n_Prompt: ${existingClonePrompt.slice(0, 100)}${existingClonePrompt.length > 100 ? "..." : ""}_`,
+            parse_mode: "Markdown",
+          });
+        } else {
+          await telegramClient.sendMessage(chatId, `❌ Gagal generate gambar. Kredit tidak ditagih.\n\n${result.error || ""}`);
+        }
+      } catch (err) {
+        logger.error("useClonePrompt generation error", err);
+        await telegramClient.sendMessage(chatId, "❌ Gagal generate gambar. Coba lagi.");
+      }
+    })();
+
     return;
   }
 
@@ -3810,6 +3932,9 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
     },
   );
 
-  ctx.session.state = "IMAGE_GENERATION_WAITING";
-  ctx.session.stateData = { imageCategory: category };
+  // Only persist the imageCategory — do NOT set state here.
+  // imgref_upload sets IMAGE_REFERENCE_WAITING; imgref_skip sets
+  // IMAGE_GENERATION_WAITING. Setting IMAGE_GENERATION_WAITING here would
+  // cause photo uploads at this point to be silently dropped.
+  ctx.session.stateData = { ...ctx.session.stateData, imageCategory: category };
 }

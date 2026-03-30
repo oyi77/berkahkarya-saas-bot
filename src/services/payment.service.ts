@@ -190,47 +190,60 @@ export class PaymentService {
         break;
     }
 
-    await prisma.transaction.update({
-      where: { orderId: notification.order_id },
-      data: {
-        status: newStatus,
-        paymentMethod: notification.payment_type,
-        paidAt: newStatus === 'success' ? new Date() : undefined,
-      },
-    });
-
-    // If success, add credits to user
-    if (newStatus === 'success' && transaction.status !== 'success') {
-      // Update user credits AND tier
-      const credits = Number(transaction.creditsAmount) || 0;
-      
-      // Determine new tier based on package
-      let newTier = 'basic';
-      const plans = await getSubscriptionPlansAsync();
-      const plan = plans[transaction.packageName];
-      if (plan && plan.tier) {
-        newTier = plan.tier;
-      }
-
-      await prisma.user.update({
-        where: { telegramId: transaction.userId },
+    if (newStatus === 'success') {
+      // Atomic guard: only flip to success once. Two concurrent webhooks both read
+      // status=pending, but only one UPDATE WHERE status != 'success' wins (count=1).
+      const updateResult = await prisma.transaction.updateMany({
+        where: { orderId: notification.order_id, status: { not: 'success' } },
         data: {
-          creditBalance: { increment: credits },
-          tier: newTier as any,
+          status: 'success',
+          paymentMethod: notification.payment_type,
+          paidAt: new Date(),
         },
       });
 
-      logger.info(`Added ${credits} credits and set tier ${newTier} for user ${transaction.userId}`);
+      if (updateResult.count === 1) {
+        // This process won the race — add credits exactly once.
+        const credits = Number(transaction.creditsAmount) || 0;
 
-      // Send bot notification
-      this.sendFulfillmentNotification(transaction.userId, credits, newTier).catch(() => {});
+        // Default 'free' (not 'basic') to avoid privilege escalation when package
+        // name doesn't match any known plan.
+        let newTier = 'free';
+        const plans = await getSubscriptionPlansAsync();
+        const plan = plans[transaction.packageName];
+        if (plan && plan.tier) {
+          newTier = plan.tier;
+        }
 
-      // Process referral commissions for this purchase
-      await ReferralService.processCommissions(
-        notification.order_id,
-        Number(transaction.amountIdr),
-        transaction.userId
-      );
+        await prisma.user.update({
+          where: { telegramId: transaction.userId },
+          data: {
+            creditBalance: { increment: credits },
+            tier: newTier as any,
+          },
+        });
+
+        logger.info(`Added ${credits} credits and set tier ${newTier} for user ${transaction.userId}`);
+
+        this.sendFulfillmentNotification(transaction.userId, credits, newTier).catch(() => {});
+
+        await ReferralService.processCommissions(
+          notification.order_id,
+          Number(transaction.amountIdr),
+          transaction.userId
+        );
+      } else {
+        logger.warn(`Duplicate webhook for ${notification.order_id} — already processed, skipping credit addition`);
+      }
+    } else {
+      // Non-success (pending, failed, expired, refunded): plain update.
+      await prisma.transaction.update({
+        where: { orderId: notification.order_id },
+        data: {
+          status: newStatus,
+          paymentMethod: notification.payment_type,
+        },
+      });
     }
 
     return { success: true, message: 'Notification processed' };

@@ -41,6 +41,24 @@ import { sendVilonaLoading } from "@/services/vilona-animation.service";
 import { SavedPromptService } from "@/services/saved-prompt.service";
 import { PROMPT_LIBRARY as _PL } from "@/commands/prompts";
 import { actionableError } from "@/utils/errors";
+import { redis } from "@/config/redis";
+import { VideoAnalysisService } from "@/services/video-analysis.service";
+
+const SESSION_TTL = 86400; // 24h
+
+/** Write session data directly to Redis without going through middleware */
+async function updateSessionDirectly(
+  userId: number,
+  updater: (session: any) => void,
+): Promise<void> {
+  const key = `session:${userId}`;
+  const raw = await redis.get(key);
+  const session = raw
+    ? JSON.parse(raw)
+    : { state: "DASHBOARD", stateData: {}, lastActivity: new Date() };
+  updater(session);
+  await redis.setex(key, SESSION_TTL, JSON.stringify(session));
+}
 
 /**
  * Handle disassemble — extract prompt from user's uploaded media
@@ -696,6 +714,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         | undefined;
       const mode =
         (ctx.session.stateData?.mode as ImageGenerationMode) || "text2img";
+      const selectedPrompt = ctx.session.stateData?.selectedPrompt as string | undefined;
 
       const modeLabel =
         mode === "img2img"
@@ -704,30 +723,29 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             ? " (with avatar)"
             : "";
 
-      // Check credits before generating
+      // Check credits before generating (sync check — fast)
       const estimatedCost = await getImageCreditCostAsync();
       const telegramIdImg = BigInt(ctx.from!.id);
       const userImg = await UserService.findByTelegramId(telegramIdImg);
-      
+
       let useFreeSlot: 'daily' | 'welcome' | null = null;
-      const isLibraryPrompt = ctx.session.stateData?.selectedPrompt === description;
+      const isLibraryPrompt = selectedPrompt === description;
 
       if (!userImg || Number(userImg.creditBalance) < estimatedCost) {
-        // Check for free slots (Welcome or Daily)
         if (isLibraryPrompt && canUseDailyFree(userImg)) {
           useFreeSlot = 'daily';
         } else if (isLibraryPrompt && canUseWelcomeBonus(userImg)) {
           useFreeSlot = 'welcome';
         } else {
-          const reason = !isLibraryPrompt 
-            ? "Prompt custom hanya tersedia untuk pengguna Premium." 
+          const reason = !isLibraryPrompt
+            ? "Prompt custom hanya tersedia untuk pengguna Premium."
             : "Kredit tidak cukup & Reward harian sudah habis.";
-            
+
           await ctx.reply(
             `❌ *Gagal Memulai*\n\n` +
             `${reason}\n\n` +
             `Gunakan /topup untuk menambah kredit agar bisa menggunakan fitur custom dan video.`,
-            { parse_mode: "Markdown" }
+            { parse_mode: "Markdown" },
           );
           ctx.session.state = "DASHBOARD";
           return;
@@ -736,127 +754,125 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         `⏳ *Generating image${modeLabel}...*\n\n` +
-        "This may take 30-60 seconds.",
+        "Sedang diproses, kamu bisa lanjut pakai bot. Hasil akan dikirim sebentar lagi.",
         { parse_mode: "Markdown" },
       );
 
-      try {
-        const result = await ImageGenerationService.generateImage({
-          prompt: description,
-          category: category || "product",
-          aspectRatio:
-            category === "realestate" || category === "car"
-              ? "16:9"
-              : category === "fnb"
-                ? "4:5"
-                : "1:1",
-          style:
-            category === "fnb"
-              ? "food photography"
-              : category === "realestate"
-                ? "architectural"
-                : category === "car"
-                  ? "automotive"
-                  : "commercial",
-          referenceImageUrl,
-          avatarImageUrl,
-          mode,
-        });
+      // Release session immediately — fire and forget
+      ctx.session.state = "DASHBOARD";
 
-        if (result.success && result.imageUrl) {
-          const isDemo = result.provider === "demo";
+      const chatId = ctx.chat!.id;
+      const telegram = ctx.telegram;
 
-          // Deduct credits or consume free slot
-          if (useFreeSlot === 'daily') {
-            await prisma.user.update({
-              where: { telegramId: telegramIdImg },
-              data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() }
-            });
-            await MetricsService.increment('generation_trial_daily');
-            logger.info(`🖼️ Used Daily Free slot for user ${telegramIdImg}`);
-          } else if (useFreeSlot === 'welcome') {
-            await prisma.user.update({
-              where: { telegramId: telegramIdImg },
-              data: { welcomeBonusUsed: true }
-            });
-            await MetricsService.increment('generation_trial_welcome');
-            logger.info(`🖼️ Used Welcome Bonus slot for user ${telegramIdImg}`);
-          } else if (!isDemo) {
-            const actualCost = await getImageCreditCostAsync(result.provider);
-            await UserService.deductCredits(telegramIdImg, actualCost);
-            logger.info(
-              `🖼️ Charged ${actualCost} credits for image (provider: ${result.provider})`,
-            );
-          }
-
-          const modeInfo =
-            result.mode === "img2img"
-              ? "\n📸 _Generated with your reference image_"
-              : result.mode === "ip_adapter"
-                ? "\n👤 _Generated with avatar consistency_"
-                : "";
-
-          const caption = isDemo
-            ? `🖼️ *Sample Image (Demo)*\n\n` +
-            `_Description: ${description}_\n\n` +
-            `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
-            `The actual product will generate images matching your description.`
-            : `✅ *Gambar Berhasil Dibuat!*\n\n` +
-            `_Deskripsi: ${description}_${modeInfo}\n\n` +
-            `Mau lanjut apa?`;
-
-          let photoSource: string | { source: Buffer };
-          let isBase64 = false;
-          if (result.imageUrl!.startsWith("data:")) {
-            const base64Data = result.imageUrl!.split(",")[1];
-            photoSource = { source: Buffer.from(base64Data, "base64") };
-            isBase64 = true;
-          } else {
-            photoSource = result.imageUrl!;
-          }
-
-          await ctx.replyWithPhoto(photoSource, {
-            caption,
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                ...(isDemo || isBase64
-                  ? []
-                  : [[{ text: "⬇️ Download", url: result.imageUrl! }]]),
-                [
-                  {
-                    text: "🔄 Buat Variasi Lain",
-                    callback_data: "image_generate",
-                  },
-                  { text: "🎬 Jadikan Video", callback_data: "create_video_new" },
-                ],
-                [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
-              ],
-            },
+      void (async () => {
+        try {
+          const result = await ImageGenerationService.generateImage({
+            prompt: description,
+            category: category || "product",
+            aspectRatio:
+              category === "realestate" || category === "car"
+                ? "16:9"
+                : category === "fnb"
+                  ? "4:5"
+                  : "1:1",
+            style:
+              category === "fnb"
+                ? "food photography"
+                : category === "realestate"
+                  ? "architectural"
+                  : category === "car"
+                    ? "automotive"
+                    : "commercial",
+            referenceImageUrl,
+            avatarImageUrl,
+            mode,
           });
-        } else {
-          await ctx.reply(
-            `❌ *Generate Gagal*\n\n` +
-            `${result.error || "Unknown error"}\n\n` +
-            `Coba lagi dengan deskripsi yang berbeda.`,
-            {
+
+          if (result.success && result.imageUrl) {
+            const isDemo = result.provider === "demo";
+
+            if (useFreeSlot === 'daily') {
+              await prisma.user.update({
+                where: { telegramId: telegramIdImg },
+                data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() },
+              });
+              await MetricsService.increment('generation_trial_daily');
+            } else if (useFreeSlot === 'welcome') {
+              await prisma.user.update({
+                where: { telegramId: telegramIdImg },
+                data: { welcomeBonusUsed: true },
+              });
+              await MetricsService.increment('generation_trial_welcome');
+            } else if (!isDemo) {
+              const actualCost = await getImageCreditCostAsync(result.provider);
+              await UserService.deductCredits(telegramIdImg, actualCost);
+              logger.info(`🖼️ Charged ${actualCost} credits for image (provider: ${result.provider})`);
+            }
+
+            const modeInfo =
+              result.mode === "img2img"
+                ? "\n📸 _Generated with your reference image_"
+                : result.mode === "ip_adapter"
+                  ? "\n👤 _Generated with avatar consistency_"
+                  : "";
+
+            const caption = isDemo
+              ? `🖼️ *Sample Image (Demo)*\n\n` +
+              `_Description: ${description}_\n\n` +
+              `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
+              `The actual product will generate images matching your description.`
+              : `✅ *Gambar Berhasil Dibuat!*\n\n` +
+              `_Deskripsi: ${description}_${modeInfo}\n\n` +
+              `Mau lanjut apa?`;
+
+            let photoSource: string | { source: Buffer };
+            let isBase64 = false;
+            if (result.imageUrl!.startsWith("data:")) {
+              const base64Data = result.imageUrl!.split(",")[1];
+              photoSource = { source: Buffer.from(base64Data, "base64") };
+              isBase64 = true;
+            } else {
+              photoSource = result.imageUrl!;
+            }
+
+            await telegram.sendPhoto(chatId, photoSource as any, {
+              caption,
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "🔄 Coba Lagi", callback_data: "image_generate" }],
+                  ...(isDemo || isBase64
+                    ? []
+                    : [[{ text: "⬇️ Download", url: result.imageUrl! }]]),
+                  [
+                    { text: "🔄 Buat Variasi Lain", callback_data: "image_generate" },
+                    { text: "🎬 Jadikan Video", callback_data: "create_video_new" },
+                  ],
+                  [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
                 ],
               },
-            },
-          );
+            });
+          } else {
+            await telegram.sendMessage(
+              chatId,
+              `❌ *Generate Gagal*\n\n` +
+              `${result.error || "Unknown error"}\n\n` +
+              `Coba lagi dengan deskripsi yang berbeda.`,
+              {
+                parse_mode: "Markdown",
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "🔄 Coba Lagi", callback_data: "image_generate" }],
+                  ],
+                },
+              },
+            );
+          }
+        } catch (error: any) {
+          logger.error("Image generation error:", error);
+          await telegram.sendMessage(chatId, "❌ Failed to generate image. Please try again.");
         }
-      } catch (error: any) {
-        logger.error("Image generation error:", error);
-        await ctx.reply("❌ Failed to generate image. Please try again.", {
-          parse_mode: "Markdown",
-        });
-      }
+      })();
 
-      ctx.session.state = "DASHBOARD";
       return;
     }
 
@@ -878,68 +894,68 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       await ctx.reply(
         "⏳ *Analyzing video...*\n\n" +
-        "Extracting style and creating prompt...",
+        "Sedang diproses, kamu bisa lanjut pakai bot. Hasil akan dikirim sebentar lagi.",
         { parse_mode: "Markdown" },
       );
 
-      try {
-        const result = await ContentAnalysisService.cloneVideo(videoUrl);
-
-        if (result.success && result.prompt) {
-          const cleanPrompt = result.prompt
-            .replace(/\*\*/g, "")
-            .replace(/\*/g, "")
-            .replace(/_/g, "")
-            .replace(/`/g, "")
-            .slice(0, 1500);
-
-          // Format structured description
-          const structuredDesc =
-            `📋 *Video Analysis Result*\n\n` +
-            `*Style:* ${result.style || "Modern/Dynamic"}\n\n` +
-            `*Description:*\n${cleanPrompt}\n\n` +
-            `Ready to create a similar video?`;
-
-          await ctx.reply(structuredDesc, {
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [
-                  {
-                    text: "🎬 Create Similar Video",
-                    callback_data: "create_video_new",
-                  },
-                ],
-                [
-                  {
-                    text: "✏️ Edit Description",
-                    callback_data: "clone_edit_desc",
-                  },
-                ],
-                [{ text: "❌ Cancel", callback_data: "main_menu" }],
-              ],
-            },
-          });
-
-          ctx.session.stateData = {
-            clonePrompt: result.prompt,
-            cloneStyle: result.style,
-          };
-        } else {
-          await ctx.reply(
-            `❌ *Analysis Failed*\n\n` +
-            `Error: ${result.error || "Unknown error"}`,
-            { parse_mode: "Markdown" },
-          );
-        }
-      } catch (error: any) {
-        logger.error("Clone video error:", error);
-        await ctx.reply("❌ Failed to analyze video. Please try again.", {
-          parse_mode: "Markdown",
-        });
-      }
-
+      // Release session immediately — fire and forget
       ctx.session.state = "DASHBOARD";
+
+      const chatId = ctx.chat!.id;
+      const userId = ctx.from!.id;
+      const telegram = ctx.telegram;
+      const cloneUrl = videoUrl;
+
+      void (async () => {
+        try {
+          const result = await ContentAnalysisService.cloneVideo(cloneUrl);
+
+          if (result.success && result.prompt) {
+            const cleanPrompt = result.prompt
+              .replace(/\*\*/g, "")
+              .replace(/\*/g, "")
+              .replace(/_/g, "")
+              .replace(/`/g, "")
+              .slice(0, 1500);
+
+            const structuredDesc =
+              `📋 *Video Analysis Result*\n\n` +
+              `*Style:* ${result.style || "Modern/Dynamic"}\n\n` +
+              `*Description:*\n${cleanPrompt}\n\n` +
+              `Ready to create a similar video?`;
+
+            // Store result in session via direct Redis write
+            await updateSessionDirectly(userId, (session) => {
+              session.stateData = {
+                ...session.stateData,
+                clonePrompt: result.prompt,
+                cloneStyle: result.style,
+              };
+            });
+
+            await telegram.sendMessage(chatId, structuredDesc, {
+              parse_mode: "Markdown",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "🎬 Create Similar Video", callback_data: "create_video_new" }],
+                  [{ text: "✏️ Edit Description", callback_data: "clone_edit_desc" }],
+                  [{ text: "❌ Cancel", callback_data: "main_menu" }],
+                ],
+              },
+            });
+          } else {
+            await telegram.sendMessage(
+              chatId,
+              `❌ *Analysis Failed*\n\nError: ${result.error || "Unknown error"}`,
+              { parse_mode: "Markdown" },
+            );
+          }
+        } catch (error: any) {
+          logger.error("Clone video error:", error);
+          await telegram.sendMessage(chatId, "❌ Failed to analyze video. Please try again.");
+        }
+      })();
+
       return;
     }
 
@@ -1081,87 +1097,94 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         return;
       }
 
-      const analyzingMsg = await ctx.reply(
+      await ctx.reply(
         "⏳ *Menganalisis video...*\n\n" +
-        "Extracting storyboard, prompts, dan transkrip. Tunggu sebentar...",
+        "Sedang diproses, kamu bisa lanjut pakai bot. Hasil akan dikirim sebentar lagi.",
         { parse_mode: "Markdown" },
       );
 
-      try {
-        const { VideoAnalysisService } = await import("@/services/video-analysis.service");
-        const analysis = await VideoAnalysisService.analyze(videoUrl);
+      // Release session immediately — fire and forget
+      ctx.session.state = "DASHBOARD";
 
-        if (!analysis.success || !analysis.storyboard?.length) {
-          await ctx.telegram.deleteMessage(ctx.chat!.id, analyzingMsg.message_id).catch(() => {});
-          await ctx.reply(
-            "❌ Gagal menganalisis video.\n\n" +
-            (analysis.error || "Pastikan URL video bisa diakses publik."),
-          );
-          ctx.session.state = "DASHBOARD";
-          return;
-        }
+      const repChatId = ctx.chat!.id;
+      const repUserId = ctx.from!.id;
+      const repTelegram = ctx.telegram;
+      const repVideoUrl = videoUrl;
 
-        // Store analysis in session
-        ctx.session.stateData = {
-          ...ctx.session.stateData,
-          repurposeData: {
-            storyboard: analysis.storyboard,
-            transcript: analysis.transcript,
-            niche: analysis.niche,
-            style: analysis.style,
-            totalDuration: analysis.totalDuration,
-            keyFramePaths: analysis.keyFramePaths,
-          },
-        };
+      void (async () => {
+        try {
+          const analysis = await VideoAnalysisService.analyze(repVideoUrl);
 
-        // Format storyboard preview
-        const scenes = analysis.storyboard.slice(0, 5);
-        const sceneText = scenes
-          .map(
-            (s) =>
-              `*Scene ${s.scene}* (${s.duration}s): ${s.description.slice(0, 80)}${s.description.length > 80 ? "..." : ""}`,
-          )
-          .join("\n");
+          if (!analysis.success || !analysis.storyboard?.length) {
+            await repTelegram.sendMessage(
+              repChatId,
+              "❌ Gagal menganalisis video.\n\n" +
+              (analysis.error || "Pastikan URL video bisa diakses publik."),
+            );
+            return;
+          }
 
-        const moreScenes =
-          analysis.storyboard.length > 5
-            ? `\n_...+${analysis.storyboard.length - 5} more scenes_`
+          // Store analysis result in session via direct Redis write
+          await updateSessionDirectly(repUserId, (session) => {
+            session.state = "REPURPOSE_CONFIRM";
+            session.stateData = {
+              ...session.stateData,
+              repurposeData: {
+                storyboard: analysis.storyboard,
+                transcript: analysis.transcript,
+                niche: analysis.niche,
+                style: analysis.style,
+                totalDuration: analysis.totalDuration,
+                keyFramePaths: analysis.keyFramePaths,
+              },
+            };
+          });
+
+          const scenes = analysis.storyboard!.slice(0, 5);
+          const sceneText = scenes
+            .map(
+              (s: any) =>
+                `*Scene ${s.scene}* (${s.duration}s): ${s.description.slice(0, 80)}${s.description.length > 80 ? "..." : ""}`,
+            )
+            .join("\n");
+
+          const moreScenes =
+            analysis.storyboard!.length > 5
+              ? `\n_...+${analysis.storyboard!.length - 5} more scenes_`
+              : "";
+          const transcriptPreview = analysis.transcript
+            ? `\n\n*Transkrip:*\n_"${analysis.transcript.slice(0, 200)}${analysis.transcript.length > 200 ? "..." : ""}"_`
             : "";
-        const transcriptPreview = analysis.transcript
-          ? `\n\n*Transkrip:*\n_"${analysis.transcript.slice(0, 200)}${analysis.transcript.length > 200 ? "..." : ""}"_`
-          : "";
 
-        const hasFrames = (analysis.keyFramePaths?.length || 0) > 0;
+          const hasFrames = (analysis.keyFramePaths?.length || 0) > 0;
 
-        await ctx.telegram.deleteMessage(ctx.chat!.id, analyzingMsg.message_id).catch(() => {});
-
-        ctx.session.state = "REPURPOSE_CONFIRM";
-
-        await ctx.reply(
-          `✅ *Analisis Selesai!*\n\n` +
-          `🎯 *Niche:* ${analysis.niche || "general"}\n` +
-          `🎨 *Style:* ${analysis.style || "-"}\n` +
-          `⏱️ *Durasi:* ${analysis.totalDuration || "?"}s · ${analysis.storyboard.length} scenes\n\n` +
-          `*Storyboard:*\n${sceneText}${moreScenes}${transcriptPreview}\n\n` +
-          `Mau regenerate gimana?`,
-          {
-            parse_mode: "Markdown",
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: "🎬 Generate (Text-to-Video)", callback_data: "repurpose_generate_t2v" }],
-                ...(hasFrames
-                  ? [[{ text: "🖼️ Generate (Image-to-Video)", callback_data: "repurpose_generate_i2v" }]]
-                  : []),
-                [{ text: "❌ Cancel", callback_data: "main_menu" }],
-              ],
+          await repTelegram.sendMessage(
+            repChatId,
+            `✅ *Analisis Selesai!*\n\n` +
+            `🎯 *Niche:* ${analysis.niche || "general"}\n` +
+            `🎨 *Style:* ${analysis.style || "-"}\n` +
+            `⏱️ *Durasi:* ${analysis.totalDuration || "?"}s · ${analysis.storyboard!.length} scenes\n\n` +
+            `*Storyboard:*\n${sceneText}${moreScenes}${transcriptPreview}\n\n` +
+            `Mau regenerate gimana?`,
+            {
+              parse_mode: "Markdown",
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: "🎬 Generate (Text-to-Video)", callback_data: "repurpose_generate_t2v" }],
+                  ...(hasFrames
+                    ? [[{ text: "🖼️ Generate (Image-to-Video)", callback_data: "repurpose_generate_i2v" }]]
+                    : []),
+                  [{ text: "❌ Cancel", callback_data: "main_menu" }],
+                ],
+              },
             },
-          },
-        );
-      } catch (err: any) {
-        await ctx.telegram.deleteMessage(ctx.chat!.id, analyzingMsg.message_id).catch(() => {});
-        await ctx.reply(`❌ Error: ${err.message}`);
-        ctx.session.state = "DASHBOARD";
-      }
+          );
+        } catch (err: any) {
+          logger.error("Repurpose video analysis error:", err);
+          await repTelegram.sendMessage(repChatId, `❌ Error: ${err.message}`);
+        }
+      })();
+
       return;
     }
 

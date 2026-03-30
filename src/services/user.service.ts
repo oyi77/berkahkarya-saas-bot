@@ -148,24 +148,30 @@ export class UserService {
    * Deduct credits from user
    */
   static async deductCredits(telegramId: bigint, amount: number): Promise<User> {
-    const user = await this.findByTelegramId(telegramId);
-    if (!user || Number(user.creditBalance) < amount) {
+    // Atomic conditional decrement — prevents TOCTOU race condition.
+    // The WHERE clause and UPDATE execute as a single SQL statement, so two
+    // concurrent requests cannot both pass the balance check.
+    const result = await prisma.user.updateMany({
+      where: {
+        telegramId,
+        creditBalance: { gte: amount },
+      },
+      data: {
+        creditBalance: { decrement: amount },
+      },
+    });
+
+    if (result.count === 0) {
       throw new Error('Insufficient credits');
     }
 
-    const updated = await prisma.user.update({
-      where: { telegramId },
-      data: {
-        creditBalance: {
-          decrement: amount,
-        },
-      },
-    });
+    const updated = await this.findByTelegramId(telegramId);
+    if (!updated) throw new Error('User not found after credit deduction');
 
     // Fire-and-forget low credit warning
     const remaining = Number(updated.creditBalance);
     if (remaining > 0 && remaining < 1) {
-      this.sendLowCreditWarning(telegramId, remaining, user.language || 'id').catch(() => {});
+      this.sendLowCreditWarning(telegramId, remaining, updated.language || 'id').catch(() => {});
     }
 
     return updated;

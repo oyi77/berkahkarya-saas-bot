@@ -8,6 +8,7 @@ import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { Video } from '@prisma/client';
 import { processVideoJob } from './video-generation.service';
+import crypto from 'crypto';
 import { getVideoCreditCost } from '@/config/pricing';
 import { getAILabel } from '@/config/languages';
 
@@ -105,7 +106,7 @@ export class VideoService {
     const creditCost = getVideoCreditCost(params.duration);
 
     // Generate job ID
-    const jobId = `VID-${Date.now()}-${params.userId}-${Math.random().toString(36).substring(2, 8)}`;
+    const jobId = `VID-${Date.now()}-${params.userId}-${crypto.randomBytes(4).toString("hex")}`;
 
     // Create video record
     const video = await prisma.video.create({

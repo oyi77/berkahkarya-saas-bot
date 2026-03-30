@@ -37,7 +37,7 @@ export async function supportCommand(ctx: BotContext): Promise<void> {
       },
     );
 
-    ctx.session.state = "SUPPORT_CHAT";
+    ctx.session.state = "DASHBOARD";
   } catch (error) {
     logger.error('supportCommand error:', error);
     try {

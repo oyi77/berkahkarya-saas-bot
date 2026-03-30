@@ -59,15 +59,19 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
 
     const mode = ctx.session?.generateMode as GenerateMode || 'basic';
 
-    // Basic mode → auto-detect → straight to confirm
+    // Basic mode → straight to confirm
     if (mode === 'basic') {
       await showConfirmScreen(ctx);
       return;
     }
 
-    // Smart mode → show preset selection
+    // Smart mode → if preset+platform already set (user went through smart flow), go to confirm
     if (mode === 'smart' && action === 'video') {
-      await showSmartPresetSelection(ctx);
+      if (ctx.session?.generatePreset && ctx.session?.generatePlatform) {
+        await showConfirmScreen(ctx);
+      } else {
+        await showSmartPresetSelection(ctx);
+      }
       return;
     }
 
@@ -130,7 +134,6 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     if (action === 'image_set') {
       const scenes = generateVideoScenePrompts(industry, productDesc, 'standard', 'id');
       const creditCost = cost / 10;
-      await UserService.deductCredits(telegramId, creditCost);
 
       const results: string[] = [];
       for (let i = 0; i < Math.min(scenes.length, 7); i++) {
@@ -147,14 +150,21 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         if (result.success && result.imageUrl) results.push(result.imageUrl);
       }
 
-      if (results.length > 0) {
-        const mediaGroup = results.map((url, i) => ({
-          type: 'photo' as const,
-          media: url,
-          ...(i === 0 ? { caption: `✅ *${results.length} scene berhasil!*\n🏭 Industri: ${industry}`, parse_mode: 'Markdown' as const } : {}),
-        }));
-        await ctx.replyWithMediaGroup(mediaGroup);
+      if (results.length === 0) {
+        await ctx.reply('❌ Gagal generate semua scene. Kredit tidak ditagih.');
+        return;
       }
+
+      // Only charge after at least one scene succeeds; scale cost proportionally
+      const proportionalCost = Math.ceil(creditCost * results.length / 7 * 10) / 10;
+      await UserService.deductCredits(telegramId, proportionalCost);
+
+      const mediaGroup = results.map((url, i) => ({
+        type: 'photo' as const,
+        media: url,
+        ...(i === 0 ? { caption: `✅ *${results.length}/7 scene berhasil!*\n🏭 Industri: ${industry}`, parse_mode: 'Markdown' as const } : {}),
+      }));
+      await ctx.replyWithMediaGroup(mediaGroup);
       await showPostDelivery(ctx);
       return;
     }
@@ -163,7 +173,6 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     if (action === 'video') {
       const scenes = generateVideoScenePrompts(industry, productDesc, preset, 'id');
       const creditCost = cost / 10;
-      await UserService.deductCredits(telegramId, creditCost);
 
       const { VideoService: VS } = await import('../services/video.service.js');
       const video = await VS.createJob({
@@ -175,6 +184,9 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         title: `Video ${new Date().toLocaleDateString('id-ID')}`,
       });
 
+      // Deduct after job is created (worker refunds on failure)
+      await UserService.deductCredits(telegramId, creditCost);
+
       try {
         const { position } = await enqueueVideoGeneration({
           jobId: video.jobId,
@@ -183,7 +195,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           duration: presetConfig.totalSeconds,
           scenes: scenes.length,
           storyboard: scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt })),
-          referenceImage: null,
+          referenceImage: photoUrl || null,
           userId: telegramId.toString(),
           chatId: ctx.chat!.id,
           enableVO: true,
@@ -192,21 +204,130 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         });
         await ctx.reply(`✅ Video masuk antrian #${position}\n\nKamu akan dinotifikasi saat selesai.`);
       } catch {
-        generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(() => {});
+        generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
+          logger.error('Video generateVideoAsync failed:', err);
+          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(() => {});
+          await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Video gagal diproses. Kredit dikembalikan.').catch(() => {});
+        });
         await ctx.reply('✅ Video sedang diproses. Kamu akan dinotifikasi saat selesai.');
       }
       await showPostDelivery(ctx);
       return;
     }
 
-    // Campaign
+    // Clone Style — extract style from reference photo and queue a video
+    if (action === 'clone_style') {
+      const creditCost = cost / 10;
+      let styleHint = '';
+
+      if (photoUrl) {
+        try {
+          const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
+          styleHint = analysis.success && analysis.prompt ? `, ${analysis.prompt}` : '';
+        } catch {
+          // Non-fatal: proceed without style hint
+        }
+      }
+
+      const combinedPrompt = `${productDesc}${styleHint}`;
+      const scenes = generateVideoScenePrompts(industry, combinedPrompt, 'standard', 'id');
+
+      const { VideoService: VS2 } = await import('../services/video.service.js');
+      const video2 = await VS2.createJob({
+        userId: telegramId,
+        niche: industry,
+        platform,
+        duration: DURATION_PRESETS['standard'].totalSeconds,
+        scenes: scenes.length,
+        title: `Clone Style — ${new Date().toLocaleDateString('id-ID')}`,
+      });
+
+      await UserService.deductCredits(telegramId, creditCost);
+
+      try {
+        const { position } = await enqueueVideoGeneration({
+          jobId: video2.jobId,
+          niche: industry,
+          platform,
+          duration: DURATION_PRESETS['standard'].totalSeconds,
+          scenes: scenes.length,
+          storyboard: scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt })),
+          referenceImage: photoUrl || null,
+          userId: telegramId.toString(),
+          chatId: ctx.chat!.id,
+          enableVO: true,
+          enableSubtitles: true,
+          language: user.language || 'id',
+        });
+        await ctx.reply(`✅ Clone Style video masuk antrian #${position}\n\nKamu akan dinotifikasi saat selesai.`);
+      } catch {
+        generateVideoAsync(ctx, video2.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
+          logger.error('Clone style generateVideoAsync failed:', err);
+          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch(() => {});
+          await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Clone Style gagal diproses. Kredit dikembalikan.').catch(() => {});
+        });
+        await ctx.reply('✅ Clone Style video sedang diproses. Kamu akan dinotifikasi saat selesai.');
+      }
+      await showPostDelivery(ctx);
+      return;
+    }
+
+    // Campaign — queue one video per spec
     if (action === 'campaign') {
       const campSize = (session.generateCampaignSize as 5 | 10) || 5;
       const creditCost = cost / 10;
-      await UserService.deductCredits(telegramId, creditCost);
-      // Campaign uses batch video generation specs
       const specs = CampaignService.generateCampaignSpecs(productDesc, campSize, 'standard');
-      await ctx.reply(`✅ *Campaign ${campSize} video dibuat!*\n\n${specs.length} video specs siap.\nProses berjalan di background.`, { parse_mode: 'Markdown' });
+
+      // Deduct credits upfront; refund below if ZERO jobs are queued successfully.
+      await UserService.deductCredits(telegramId, creditCost);
+
+      const { VideoService: VS3 } = await import('../services/video.service.js');
+      let queued = 0;
+      const queuedJobIds: string[] = [];
+      for (const spec of specs) {
+        try {
+          const vid = await VS3.createJob({
+            userId: telegramId,
+            niche: industry,
+            platform,
+            duration: DURATION_PRESETS['standard'].totalSeconds,
+            scenes: spec.scenes?.length || 7,
+            title: `Campaign video ${queued + 1} — ${spec.hookVariation?.name || 'Hook'}`,
+          });
+          await enqueueVideoGeneration({
+            jobId: vid.jobId,
+            niche: industry,
+            platform,
+            duration: DURATION_PRESETS['standard'].totalSeconds,
+            scenes: spec.scenes?.length || 7,
+            storyboard: (spec.scenes || []).map((s, i) => ({ scene: i + 1, duration: s.durationSeconds || 5, description: s.prompt })),
+            referenceImage: photoUrl || null,
+            userId: telegramId.toString(),
+            chatId: ctx.chat!.id,
+            enableVO: true,
+            enableSubtitles: true,
+            language: user.language || 'id',
+          });
+          queued++;
+          queuedJobIds.push(vid.jobId);
+        } catch (jobErr) {
+          logger.warn('Campaign job failed to queue:', jobErr);
+        }
+      }
+
+      if (queued === 0) {
+        // Nothing queued — refund full cost and notify user
+        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'all campaign jobs failed to queue').catch(() => {});
+        await ctx.reply('❌ *Campaign Gagal*\n\nSemua video gagal masuk antrian. Kredit dikembalikan.', { parse_mode: 'Markdown' });
+        return;
+      }
+
+      await ctx.reply(
+        `✅ *Campaign ${campSize} video dibuat!*\n\n` +
+        `${queued}/${specs.length} video masuk antrian.\n` +
+        `Kamu akan dinotifikasi saat setiap video selesai.`,
+        { parse_mode: 'Markdown' },
+      );
       await showPostDelivery(ctx);
       return;
     }
@@ -305,7 +426,12 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
         return;
       }
       if (mode === 'smart' && action === 'video') {
-        await showSmartPresetSelection(ctx);
+        // If preset+platform already selected, go straight to confirm
+        if (ctx.session?.generatePreset && ctx.session?.generatePlatform) {
+          await showConfirmScreen(ctx);
+        } else {
+          await showSmartPresetSelection(ctx);
+        }
         return;
       }
       if (mode === 'pro' && action === 'video') {

@@ -80,7 +80,8 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/token-usage") ||
       url.startsWith("/api/profit-report") ||
       url.startsWith("/api/settings/") ||
-      url.startsWith("/api/admin/");
+      url.startsWith("/api/admin/") ||
+      url.startsWith("/api/system/");
     if (isAdminRoute) {
       await verifyAdmin(request, reply);
     }
@@ -155,8 +156,8 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: List users
   server.get("/api/users", async (request, _reply) => {
     const query = request.query as { limit?: string; offset?: string };
-    const limit = parseInt(query.limit || "50");
-    const offset = parseInt(query.offset || "0");
+    const limit = Math.min(Math.max(1, parseInt(query.limit || "50") || 50), 200);
+    const offset = Math.max(0, parseInt(query.offset || "0") || 0);
 
     const users = await prisma.user.findMany({
       take: limit,
@@ -234,7 +235,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: List transactions
   server.get("/api/transactions", async (request, _reply) => {
     const query = request.query as { status?: string; limit?: string };
-    const limit = parseInt(query.limit || "50");
+    const limit = Math.min(Math.max(1, parseInt(query.limit || "50") || 50), 200);
 
     const where: any = {};
     if (query.status) {
@@ -258,7 +259,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: List videos
   server.get("/api/videos", async (request, _reply) => {
     const query = request.query as { status?: string; limit?: string };
-    const limit = parseInt(query.limit || "50");
+    const limit = Math.min(Math.max(1, parseInt(query.limit || "50") || 50), 200);
 
     const where: any = {};
     if (query.status) {
@@ -495,6 +496,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: Update admin prompt
   server.put("/api/admin-prompts/:id", async (request: any, reply) => {
     const id = parseInt(request.params.id);
+    if (!Number.isInteger(id) || id <= 0) return reply.status(400).send({ error: "Invalid id" });
     const { title, prompt, niche } = request.body as any;
     try {
       await prisma.savedPrompt.update({
@@ -514,6 +516,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: Delete admin prompt
   server.delete("/api/admin-prompts/:id", async (request: any, reply) => {
     const id = parseInt(request.params.id);
+    if (!Number.isInteger(id) || id <= 0) return reply.status(400).send({ error: "Invalid id" });
     try {
       await prisma.savedPrompt.delete({ where: { id } });
       return { ok: true };
@@ -635,9 +638,10 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   server.get("/api/token-stats", async (request) => {
     const { days = "7" } = request.query as { days?: string };
+    const daysCapped = Math.min(Math.max(1, parseInt(days) || 7), 90);
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { getTokenStats } = require("../services/token-tracker.service");
-    return getTokenStats(parseInt(days));
+    return getTokenStats(daysCapped);
   });
 
   server.get("/api/token-usage", async (request) => {
@@ -649,7 +653,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     if (service) where.service = service;
     return prisma.tokenUsage.findMany({
       where,
-      take: parseInt(limit),
+      take: Math.min(Math.max(1, parseInt(limit) || 50), 200),
       orderBy: { createdAt: "desc" },
       select: {
         id: true, provider: true, model: true, service: true,
@@ -985,7 +989,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   /** GET /api/profit-report — Revenue, costs, and profit breakdown */
   server.get("/api/profit-report", async (request) => {
     const { period = '30' } = request.query as any;
-    const days = parseInt(period as string) || 30;
+    const days = Math.min(Math.max(1, parseInt(period as string) || 30), 365);
     const since = new Date();
     since.setDate(since.getDate() - days);
 

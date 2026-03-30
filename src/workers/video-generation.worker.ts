@@ -810,35 +810,63 @@ async function sendVideoToUser(
     const webhookUrl = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
     const video = await VideoService.getByJobId(jobId);
     const userId = video?.userId?.toString() || '0';
-    const downloadToken = Buffer.from(`${userId}:${jobId}`).toString('base64');
+    const jwtSecret = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+    const downloadToken = (await import('jsonwebtoken')).default.sign(
+      { telegramId: userId, jobId },
+      jwtSecret,
+      { expiresIn: '30d' },
+    );
     const downloadUrl = `${webhookUrl}/video/${jobId}/download?token=${downloadToken}`;
 
+    const caption =
+      `✅ *Video Selesai!*\n\n` +
+      `🎬 Durasi: ${duration}s | Platform: ${platform.toUpperCase()}\n\n` +
+      `Tap tombol di bawah untuk download atau publish:`;
+
+    const replyMarkup = {
+      inline_keyboard: [
+        [{ text: '⬇️ Download HD', url: downloadUrl }],
+        [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
+        [
+          { text: '👍 Good', callback_data: `feedback_good_${jobId}` },
+          { text: '👎 Needs Work', callback_data: `feedback_bad_${jobId}` },
+        ],
+        [
+          { text: '🎬 Create Another', callback_data: 'create_video_new' },
+          { text: '📁 My Videos', callback_data: 'videos_list' },
+        ],
+      ],
+    };
+
     if (fs.existsSync(localPath)) {
+      // Send local file directly via Telegram
       await telegram.sendVideo(chatId, { source: localPath }, {
-        caption:
-          `Video Ready!\n\n` +
-          `Job ID: ${jobId}\n` +
-          `Duration: ${duration}s\n` +
-          `Platform: ${platform}`,
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '\u2b07\ufe0f Download HD', url: downloadUrl }],
-            [{ text: '\ud83d\udce4 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
-            [
-              { text: '\ud83d\udc4d Good', callback_data: `feedback_good_${jobId}` },
-              { text: '\ud83d\udc4e Needs Work', callback_data: `feedback_bad_${jobId}` },
-            ],
-            [
-              { text: '\ud83c\udfac Create Another', callback_data: 'create_video_new' },
-              { text: '\ud83d\udcc1 My Videos', callback_data: 'videos_list' },
-            ],
-          ],
-        },
+        caption,
+        parse_mode: 'Markdown',
+        reply_markup: replyMarkup,
       });
+    } else if (video?.videoUrl) {
+      // Local file gone but CDN URL available — stream via URL
+      try {
+        await telegram.sendVideo(chatId, video.videoUrl, {
+          caption,
+          parse_mode: 'Markdown',
+          reply_markup: replyMarkup,
+        });
+      } catch {
+        // Telegram rejected the CDN URL (e.g. bad format) — fall back to link message
+        await telegram.sendMessage(
+          chatId,
+          caption + `\n\n🔗 [Tonton / Download Video](${video.videoUrl || downloadUrl})`,
+          { parse_mode: 'Markdown', reply_markup: replyMarkup },
+        );
+      }
     } else {
+      // No file and no CDN URL — send download link only
       await telegram.sendMessage(
         chatId,
-        `Video Ready!\n\nJob ID: ${jobId}\nDuration: ${duration}s\nPlatform: ${platform}\n\nNote: Local file unavailable, but video is saved.`,
+        caption,
+        { parse_mode: 'Markdown', reply_markup: replyMarkup },
       );
     }
 

@@ -472,7 +472,8 @@ async function generateVideoAsync(
     logger.error("Video generation error:", error);
     await VideoService.updateStatus(jobId, "failed", String(error));
     const telegramId = BigInt(ctx.from!.id);
-    await UserService.refundCredits(telegramId, 0.5, jobId, String(error));
+    const creditCostFallback = getVideoCreditCost(duration);
+    await UserService.refundCredits(telegramId, creditCostFallback, jobId, String(error));
     const userMessage = actionableError(String(error), { jobId });
     await ctx.reply(`${userMessage}\n\nCredits refunded.`);
   }
@@ -633,7 +634,8 @@ async function generateExtendedVideoAsync(
     logger.error("Extended video generation error:", error);
     await VideoService.updateStatus(jobId, "failed", String(error));
     const telegramId = BigInt(ctx.from!.id);
-    await UserService.refundCredits(telegramId, 0.5, jobId, String(error));
+    const creditCostExtended = getVideoCreditCost(totalDuration);
+    await UserService.refundCredits(telegramId, creditCostExtended, jobId, String(error));
     const userMessage = actionableError(String(error), { jobId });
     await ctx.reply(`${userMessage}\n\nCredits refunded.`);
   }
@@ -829,15 +831,18 @@ async function sendSuccessNotification(
   platform: string,
 ): Promise<void> {
   const video = await VideoService.getByJobId(jobId);
-  if (!video?.downloadUrl) return;
+  if (!video) return;
 
   // Build download URL
   const webhookUrl = (
     process.env.WEBHOOK_URL || "http://localhost:3000"
   ).replace(/\/webhook.*$/, "");
   const videoUserId = video.userId.toString();
-  const downloadToken = Buffer.from(`${videoUserId}:${jobId}`).toString(
-    "base64",
+  const jwtSecret = process.env.JWT_SECRET || "dev-only-secret-do-not-use-in-production";
+  const downloadToken = (await import("jsonwebtoken")).default.sign(
+    { telegramId: videoUserId, jobId },
+    jwtSecret,
+    { expiresIn: "30d" },
   );
   const downloadUrl = `${webhookUrl}/video/${jobId}/download?token=${downloadToken}`;
 
@@ -890,20 +895,42 @@ async function sendSuccessNotification(
     { text: "📁 My Videos", callback_data: "videos_list" },
   ]);
 
-  await ctx.replyWithVideo(
-    { source: video.downloadUrl },
-    {
-      caption:
-        `✅ **Video Ready!**\n\n` +
-        `Job ID: ${jobId}\n` +
-        `Duration: ${duration}s\n` +
-        `Platform: ${platform}`,
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: keyboard as any,
+  const videoCaption =
+    `✅ *Video Selesai!*\n\n` +
+    `🎬 Durasi: ${duration}s | Platform: ${platform.toUpperCase()}`;
+
+  if (video.downloadUrl && require('fs').existsSync(video.downloadUrl)) {
+    // Local file: stream directly to Telegram
+    await ctx.replyWithVideo(
+      { source: video.downloadUrl },
+      {
+        caption: videoCaption,
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: keyboard as any },
       },
-    },
-  );
+    );
+  } else if (video.videoUrl) {
+    // CDN URL: send via URL (Telegram will fetch it)
+    try {
+      await ctx.replyWithVideo(video.videoUrl, {
+        caption: videoCaption,
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: keyboard as any },
+      });
+    } catch {
+      // Telegram rejected the URL — send link message as final fallback
+      await ctx.reply(videoCaption, {
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: keyboard as any },
+      });
+    }
+  } else {
+    // No file anywhere — send message with download link only
+    await ctx.reply(videoCaption, {
+      parse_mode: "Markdown",
+      reply_markup: { inline_keyboard: keyboard as any },
+    });
+  }
 
   // Send auto-generated caption as a follow-up message
   const niche = ctx.session?.selectedNiche || ctx.session?.videoCreation?.niche;

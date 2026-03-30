@@ -55,9 +55,6 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
         return true;
       }
 
-      // Deduct credits
-      await UserService.deductCredits(telegramId, template.creditCost);
-
       // Build prompt from template + user input
       const textInput = ctx.session.videoCreationNew.textInput || "";
 
@@ -68,12 +65,10 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
         prompt += `User description: ${textInput}`;
       }
 
-      // Trigger video generation (use existing pipeline)
-      const jobId = `job_${Date.now()}_${telegramId}`;
       const niche = template.theme;
       const duration = template.sceneCount * 5; // 5 sec per scene
 
-      // Queue video generation job
+      // Queue video generation job — deduct credits AFTER createJob succeeds
       try {
         const video = await VideoService.createJob({
           userId: telegramId,
@@ -85,6 +80,9 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
         });
 
         const actualJobId = video.jobId;
+
+        // Deduct credits now that the job record exists (worker refunds on failure)
+        await UserService.deductCredits(telegramId, template.creditCost);
 
         // Trigger actual video generation
         const { generateVideoWithFallback } =
@@ -129,10 +127,27 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
                 },
               });
 
-              // Send video to user
+              // Send video to user with action buttons
               await ctx.telegram.sendVideo(ctx.chat!.id, result.videoUrl, {
-                caption: `✅ *Video Selesai!*\n\n📋 ${template.name}\n🎬 ${template.sceneCount} scene • ${duration} detik`,
+                caption:
+                  `✅ *Video Selesai!*\n\n` +
+                  `📋 ${template.name}\n` +
+                  `🎬 ${template.sceneCount} scene • ${duration} detik`,
                 parse_mode: "Markdown",
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '⬇️ Download', url: result.videoUrl }],
+                    [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${actualJobId}` }],
+                    [
+                      { text: '👍 Good', callback_data: `feedback_good_${actualJobId}` },
+                      { text: '👎 Needs Work', callback_data: `feedback_bad_${actualJobId}` },
+                    ],
+                    [
+                      { text: '🎬 Create Another', callback_data: 'create_video_new' },
+                      { text: '📁 My Videos', callback_data: 'videos_list' },
+                    ],
+                  ],
+                },
               });
             } else {
               throw new Error(result.error || "Generation failed");
@@ -182,17 +197,13 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
         }
       } catch (error: any) {
         logger.error("Video generation failed:", error);
-        // Refund credits
-        await UserService.refundCredits(
-          telegramId,
-          template.creditCost,
-          jobId,
-          error.message,
-        );
+        // Credits are only deducted after createJob succeeds, so only refund
+        // if this error was thrown after the deduction point (i.e. actualJobId exists).
+        // If createJob itself threw, no credits were charged — no refund needed.
         await ctx.reply(
           `❌ *Generation Failed*\n\n` +
           `${error.message}\n\n` +
-          `Kredit kamu sudah di-refund.`,
+          `Kredit kamu sudah di-refund jika sudah ditagih.`,
           { parse_mode: "Markdown" },
         );
       }

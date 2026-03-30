@@ -62,7 +62,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         .update(JSON.stringify(body))
         .digest('hex');
 
-      if (process.env.NODE_ENV === 'production' && signature !== expectedSignature) {
+      if (signature !== expectedSignature) {
         logger.warn('Invalid Tripay signature', { received: signature, expected: expectedSignature });
         return reply.status(401).send({ error: 'Invalid signature' });
       }

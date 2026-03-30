@@ -61,6 +61,32 @@ jest.mock("@/services/tripay.service", () => ({
   TripayService: { createTransaction: mockTripayCreateTransaction },
 }));
 
+const mockPaymentSettingsGet = jest.fn();
+
+jest.mock("@/services/payment-settings.service", () => ({
+  PaymentSettingsService: {
+    get: mockPaymentSettingsGet,
+  },
+}));
+
+const mockRedisGet = jest.fn().mockResolvedValue(null as any);
+const mockRedisSet = jest.fn().mockResolvedValue("OK" as any);
+
+jest.mock("@/config/redis", () => ({
+  redis: {
+    get: mockRedisGet,
+    set: mockRedisSet,
+  },
+}));
+
+const mockGenerateImage = jest.fn();
+
+jest.mock("@/services/image.service", () => ({
+  ImageGenerationService: {
+    generateImage: mockGenerateImage,
+  },
+}));
+
 const mockCheckTelegramHash = jest.fn();
 
 jest.mock("@/utils/telegram", () => ({
@@ -84,9 +110,22 @@ jest.mock("@/services/video-generation.service", () => ({
 }));
 
 const mockGetVideoCreditCost = jest.fn();
+const mockGetVideoCreditCostAsync = jest.fn();
+const mockGetImageCreditCostAsync = jest.fn();
+const mockGetPackagesAsync = jest.fn();
+const mockGetSubscriptionPlansAsync = jest.fn();
 
 jest.mock("@/config/pricing", () => ({
   getVideoCreditCost: mockGetVideoCreditCost,
+  getVideoCreditCostAsync: mockGetVideoCreditCostAsync,
+  getImageCreditCostAsync: mockGetImageCreditCostAsync,
+  getPackagesAsync: mockGetPackagesAsync,
+  getSubscriptionPlansAsync: mockGetSubscriptionPlansAsync,
+  SUBSCRIPTION_PLANS: {
+    lite: { name: "Lite", tier: "basic", monthlyCredits: 30, monthlyPriceIdr: 49000, annualPriceIdr: 490000 },
+    pro: { name: "Pro", tier: "pro", monthlyCredits: 100, monthlyPriceIdr: 99000, annualPriceIdr: 990000 },
+  },
+  getPlanPrice: jest.fn().mockReturnValue(49000),
 }));
 
 const mockExistsSync = jest.fn();
@@ -129,6 +168,9 @@ function createMockServer() {
   const routes: Record<string, Record<string, Function>> = {
     get: {},
     post: {},
+    delete: {},
+    patch: {},
+    put: {},
   };
   const server = {
     get: jest.fn((path: string, handler: Function) => {
@@ -136,6 +178,15 @@ function createMockServer() {
     }),
     post: jest.fn((path: string, handler: Function) => {
       routes.post[path] = handler;
+    }),
+    delete: jest.fn((path: string, handler: Function) => {
+      routes.delete[path] = handler;
+    }),
+    patch: jest.fn((path: string, handler: Function) => {
+      routes.patch[path] = handler;
+    }),
+    put: jest.fn((path: string, handler: Function) => {
+      routes.put[path] = handler;
     }),
     register: (jest.fn() as any).mockResolvedValue(undefined),
     log: { info: jest.fn(), error: jest.fn(), warn: jest.fn() },
@@ -257,11 +308,17 @@ it("should register GET / route", () => {
 
   describe("GET /", () => {
     it("should render landing page", async () => {
+      (mockGetPackagesAsync as any).mockResolvedValue([]);
+      (mockGetSubscriptionPlansAsync as any).mockResolvedValue({});
       const handler = routes.get["/"];
       const request = createMockRequest();
       const reply = createMockReply();
       await handler(request, reply);
-      expect(reply.view).toHaveBeenCalledWith("web/landing.ejs");
+      expect(reply.view).toHaveBeenCalledWith("web/landing.ejs", expect.objectContaining({
+        landingConfig: expect.any(Object),
+        packages: expect.any(Array),
+        subscriptionPlans: expect.any(Object),
+      }));
     });
   });
 
@@ -271,7 +328,7 @@ it("should register GET / route", () => {
       const request = createMockRequest();
       const reply = createMockReply();
       await handler(request, reply);
-      expect(reply.view).toHaveBeenCalledWith("web/app.ejs");
+      expect(reply.view).toHaveBeenCalledWith("web/app.ejs", expect.any(Object));
     });
   });
 
@@ -623,7 +680,7 @@ it("should register GET / route", () => {
       (mockFindByUuid as any).mockResolvedValue(
         createMockUser({ creditBalance: 0 }),
       );
-      (mockGetVideoCreditCost as any).mockReturnValue(5);
+      (mockGetVideoCreditCostAsync as any).mockResolvedValue(5);
       const request = createMockRequest(
         { niche: "fashion", duration: 30 },
         { authorization: `Bearer ${token}` },
@@ -639,7 +696,7 @@ it("should register GET / route", () => {
     it("should create video with storyboard scenes", async () => {
       const token = createValidToken();
       (mockFindByUuid as any).mockResolvedValue(createMockUser());
-      (mockGetVideoCreditCost as any).mockReturnValue(1);
+      (mockGetVideoCreditCostAsync as any).mockResolvedValue(1);
       (mockDeductCredits as any).mockResolvedValue(undefined);
       (mockPrismaVideoCreate as any).mockResolvedValue({});
       (mockEnqueueVideoGeneration as any).mockResolvedValue(undefined);
@@ -668,7 +725,7 @@ it("should register GET / route", () => {
     it("should create video with custom prompt when no storyboard", async () => {
       const token = createValidToken();
       (mockFindByUuid as any).mockResolvedValue(createMockUser());
-      (mockGetVideoCreditCost as any).mockReturnValue(1);
+      (mockGetVideoCreditCostAsync as any).mockResolvedValue(1);
       (mockDeductCredits as any).mockResolvedValue(undefined);
       (mockPrismaVideoCreate as any).mockResolvedValue({});
       (mockEnqueueVideoGeneration as any).mockResolvedValue(undefined);
@@ -693,7 +750,7 @@ it("should register GET / route", () => {
     it("should use default description when no custom prompt", async () => {
       const token = createValidToken();
       (mockFindByUuid as any).mockResolvedValue(createMockUser());
-      (mockGetVideoCreditCost as any).mockReturnValue(1);
+      (mockGetVideoCreditCostAsync as any).mockResolvedValue(1);
       (mockDeductCredits as any).mockResolvedValue(undefined);
       (mockPrismaVideoCreate as any).mockResolvedValue({});
       (mockEnqueueVideoGeneration as any).mockResolvedValue(undefined);
@@ -721,7 +778,7 @@ it("should register GET / route", () => {
     it("should return 500 on creation error", async () => {
       const token = createValidToken();
       (mockFindByUuid as any).mockResolvedValue(createMockUser());
-      (mockGetVideoCreditCost as any).mockReturnValue(1);
+      (mockGetVideoCreditCostAsync as any).mockResolvedValue(1);
       (mockDeductCredits as any).mockRejectedValue(new Error("Deduct failed"));
       const request = createMockRequest(
         { niche: "fashion", duration: 30 },
@@ -742,11 +799,11 @@ it("should register GET / route", () => {
         { id: "starter", name: "Starter", credits: 5, priceIdr: 49000 },
         { id: "growth", name: "Growth", credits: 18, priceIdr: 149000 },
       ];
-      (mockGetPackages as any).mockResolvedValue(mockPackages);
+      (mockGetPackagesAsync as any).mockResolvedValue(mockPackages);
       const request = createMockRequest();
       const reply = createMockReply();
       const result = await handler()(request, reply);
-      expect(mockGetPackages).toHaveBeenCalled();
+      expect(mockGetPackagesAsync).toHaveBeenCalled();
       expect(result).toEqual(mockPackages);
     });
   });
@@ -987,35 +1044,24 @@ it("should register GET / route", () => {
       expect(reply.send).toHaveBeenCalledWith({ error: "Missing token" });
     });
 
-    it("should return 403 when token decodes to mismatched jobId", async () => {
+    it("should return 401 when token is an invalid JWT", async () => {
       const request = createMockRequest(
         {},
         {},
         { jobId: "JOB-123" },
-        { token: "!!!invalid-base64!!!" },
+        { token: "not.a.valid.jwt" },
       );
       const reply = createMockReply();
       await handler()(request, reply);
-      expect(reply.status).toHaveBeenCalledWith(403);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Token mismatch" });
+      expect(reply.status).toHaveBeenCalledWith(401);
+      expect(reply.send).toHaveBeenCalledWith({ error: "Invalid token" });
     });
 
     it("should return 403 when token jobId does not match param", async () => {
-      const token = Buffer.from("user-123:JOB-OTHER").toString("base64");
-      const request = createMockRequest(
-        {},
-        {},
-        { jobId: "JOB-123" },
-        { token },
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-OTHER" },
+        process.env.JWT_SECRET!,
       );
-      const reply = createMockReply();
-      await handler()(request, reply);
-      expect(reply.status).toHaveBeenCalledWith(403);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Token mismatch" });
-    });
-
-    it("should return 403 when token userId is missing", async () => {
-      const token = Buffer.from(":JOB-123").toString("base64");
       const request = createMockRequest(
         {},
         {},
@@ -1029,7 +1075,10 @@ it("should register GET / route", () => {
     });
 
     it("should return 404 when video not found", async () => {
-      const token = Buffer.from("user-123:JOB-123").toString("base64");
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-123" },
+        process.env.JWT_SECRET!,
+      );
       (mockGetByJobId as any).mockResolvedValue(null);
       const request = createMockRequest(
         {},
@@ -1044,9 +1093,12 @@ it("should register GET / route", () => {
     });
 
     it("should return 403 when user does not own video", async () => {
-      const token = Buffer.from("user-123:JOB-123").toString("base64");
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-123" },
+        process.env.JWT_SECRET!,
+      );
       (mockGetByJobId as any).mockResolvedValue({
-        userId: BigInt(999),
+        userId: BigInt(999999999),
         downloadUrl: "/path/to/video.mp4",
       });
       const request = createMockRequest(
@@ -1062,9 +1114,12 @@ it("should register GET / route", () => {
     });
 
     it("should return 404 when video file not found on disk", async () => {
-      const token = Buffer.from("123:JOB-123").toString("base64");
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-123" },
+        process.env.JWT_SECRET!,
+      );
       (mockGetByJobId as any).mockResolvedValue({
-        userId: BigInt(123),
+        userId: BigInt(123456789),
         downloadUrl: "/path/to/video.mp4",
       });
       (mockExistsSync as any).mockReturnValue(false);
@@ -1083,9 +1138,12 @@ it("should register GET / route", () => {
     });
 
     it("should return 404 when downloadUrl is missing", async () => {
-      const token = Buffer.from("123:JOB-123").toString("base64");
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-123" },
+        process.env.JWT_SECRET!,
+      );
       (mockGetByJobId as any).mockResolvedValue({
-        userId: BigInt(123),
+        userId: BigInt(123456789),
         downloadUrl: null,
       });
       const request = createMockRequest(
@@ -1100,10 +1158,13 @@ it("should register GET / route", () => {
     });
 
     it("should stream video file when valid", async () => {
-      const token = Buffer.from("123:JOB-123").toString("base64");
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-123" },
+        process.env.JWT_SECRET!,
+      );
       const mockStream = { pipe: jest.fn() };
       (mockGetByJobId as any).mockResolvedValue({
-        userId: BigInt(123),
+        userId: BigInt(123456789),
         downloadUrl: "/path/to/video.mp4",
       });
       (mockExistsSync as any).mockReturnValue(true);
@@ -1127,7 +1188,10 @@ it("should register GET / route", () => {
     });
 
     it("should return 500 on unexpected error", async () => {
-      const token = Buffer.from("123:JOB-123").toString("base64");
+      const token = jwt.sign(
+        { telegramId: "123456789", jobId: "JOB-123" },
+        process.env.JWT_SECRET!,
+      );
       (mockGetByJobId as any).mockRejectedValue(new Error("Unexpected error"));
       const request = createMockRequest(
         {},

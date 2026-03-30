@@ -31,7 +31,7 @@ export async function settingsCommand(ctx: BotContext): Promise<void> {
       }
     );
 
-    ctx.session.state = 'SETTINGS_LANGUAGE';
+    ctx.session.state = 'DASHBOARD';
   } catch (error) {
     logger.error('settingsCommand error:', error);
     try {

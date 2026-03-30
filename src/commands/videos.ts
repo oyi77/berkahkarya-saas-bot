@@ -78,9 +78,15 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
  */
 export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
   const video = await VideoService.getByJobId(jobId);
-  
+
   if (!video) {
     await ctx.answerCbQuery('❌ Video not found');
+    return;
+  }
+
+  // Ownership check — users may only view their own videos
+  if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
+    await ctx.answerCbQuery('❌ Access denied');
     return;
   }
 
@@ -197,9 +203,14 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
 export async function copyVideoUrl(ctx: BotContext, jobId: string): Promise<void> {
   try {
     const video = await VideoService.getByJobId(jobId);
-  
+
     if (!video || !video.videoUrl) {
       await ctx.answerCbQuery('❌ Video URL not found');
+      return;
+    }
+
+    if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
+      await ctx.answerCbQuery('❌ Access denied');
       return;
     }
 
@@ -224,6 +235,11 @@ export async function deleteVideo(ctx: BotContext, jobId: string): Promise<void>
   
     if (!video) {
       await ctx.answerCbQuery('❌ Video not found');
+      return;
+    }
+
+    if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
+      await ctx.answerCbQuery('❌ Access denied');
       return;
     }
 
