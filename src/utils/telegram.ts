@@ -31,3 +31,22 @@ export function checkTelegramHash(data: any, botToken: string): boolean {
   
   return hmac === hash;
 }
+
+/**
+ * Verify Telegram Web App (Mini App) initData
+ * Uses HMAC_SHA256("WebAppData", botToken) as secret key
+ */
+export function checkTWAHash(initData: string, botToken: string): boolean {
+  if (!initData) return false;
+  const urlParams = new URLSearchParams(initData);
+  const hash = urlParams.get('hash');
+  if (!hash) return false;
+  urlParams.delete('hash');
+  const dataCheckString = Array.from(urlParams.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n');
+  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+  const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+  return hmac === hash;
+}

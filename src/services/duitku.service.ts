@@ -150,20 +150,17 @@ export class DuitkuService {
         logger.info(`Subscription activated: ${plan}/${billingCycle} for user ${transaction.userId}`);
       } else {
         const credits = Number(transaction.creditsAmount) || 0;
-        let newTier = 'free';
         const plans = await getSubscriptionPlansAsync();
         const plan = plans[transaction.packageName];
+        const userUpdateData: any = { creditBalance: { increment: credits } };
         if (plan && plan.tier) {
-          newTier = plan.tier;
+          userUpdateData.tier = plan.tier; // Only set tier for subscription packages
         }
         await prisma.user.update({
           where: { telegramId: transaction.userId },
-          data: {
-            creditBalance: { increment: credits },
-            tier: newTier as any,
-          },
+          data: userUpdateData,
         });
-        logger.info(`Added ${credits} credits and set tier ${newTier} for user ${transaction.userId}`);
+        logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${plan?.tier || 'unchanged'})`);
       }
 
       await ReferralService.processCommissions(

@@ -475,6 +475,7 @@ describe("Webhook Routes", () => {
     it("should process valid Tripay notification successfully", async () => {
       const body = {
         reference: "TP-123456789",
+        merchant_ref: "TP-123456789",
         status: "PAID",
         status_code: 200,
         amount: 50000,
@@ -540,6 +541,7 @@ describe("Webhook Routes", () => {
     it("should map PAID status to success", async () => {
       const body = {
         reference: "TP-123456789",
+        merchant_ref: "TP-123456789",
         status: "PAID",
         status_code: 200,
         amount: 50000,
@@ -741,6 +743,7 @@ describe("Webhook Routes", () => {
     it("should handle PaymentService error gracefully", async () => {
       const body = {
         reference: "TP-123456789",
+        merchant_ref: "TP-123456789",
         status: "PAID",
         status_code: 200,
         amount: 50000,

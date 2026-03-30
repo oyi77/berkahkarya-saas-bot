@@ -77,7 +77,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         'PAID': 'success', 'EXPIRED': 'failed', 'FAILED': 'failed', 'CANCELLED': 'failed',
       };
       const result = await PaymentService.handleNotification({
-        order_id: body.reference,
+        order_id: body.merchant_ref,
         status_code: body.status_code?.toString() || '200',
         gross_amount: body.amount?.toString() || '0',
         signature_key: body.signature,

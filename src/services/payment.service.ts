@@ -206,26 +206,22 @@ export class PaymentService {
         // This process won the race — add credits exactly once.
         const credits = Number(transaction.creditsAmount) || 0;
 
-        // Default 'free' (not 'basic') to avoid privilege escalation when package
-        // name doesn't match any known plan.
-        let newTier = 'free';
         const plans = await getSubscriptionPlansAsync();
         const plan = plans[transaction.packageName];
+        const userUpdateData: any = { creditBalance: { increment: credits } };
         if (plan && plan.tier) {
-          newTier = plan.tier;
+          userUpdateData.tier = plan.tier; // Only set tier for subscription packages
         }
 
         await prisma.user.update({
           where: { telegramId: transaction.userId },
-          data: {
-            creditBalance: { increment: credits },
-            tier: newTier as any,
-          },
+          data: userUpdateData,
         });
 
-        logger.info(`Added ${credits} credits and set tier ${newTier} for user ${transaction.userId}`);
+        const tierLabel = plan?.tier || 'unchanged';
+        logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${tierLabel})`);
 
-        this.sendFulfillmentNotification(transaction.userId, credits, newTier).catch(() => {});
+        this.sendFulfillmentNotification(transaction.userId, credits, plan?.tier || '').catch(() => {});
 
         await ReferralService.processCommissions(
           notification.order_id,

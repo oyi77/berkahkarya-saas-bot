@@ -11,7 +11,7 @@ import { VideoService } from "@/services/video.service";
 import { PaymentService } from "@/services/payment.service";
 import { DuitkuService } from "@/services/duitku.service";
 import { TripayService } from "@/services/tripay.service";
-import { checkTelegramHash } from "@/utils/telegram";
+import { checkTelegramHash, checkTWAHash } from "@/utils/telegram";
 import { enqueueVideoGeneration } from "@/config/queue";
 import {
   generateStoryboard,
@@ -130,19 +130,35 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   // ── AUTH ──
   server.post("/auth/telegram", async (request, reply) => {
     try {
-      const userData = request.body as any;
-      if (!userData || !userData.id) {
-        return reply.status(400).send({ error: "Invalid user data" });
+      let userData = request.body as any;
+
+      // Support Telegram Web App (Mini App) initData format
+      if (userData?.initData) {
+        const isValidTWA = checkTWAHash(userData.initData as string, BOT_TOKEN);
+        if (!isValidTWA) {
+          return reply.status(401).send({ error: 'Invalid TWA initData' });
+        }
+        // Parse user from initData
+        const params = new URLSearchParams(userData.initData as string);
+        const userJson = params.get('user');
+        if (!userJson) return reply.status(400).send({ error: 'No user in initData' });
+        const twaUser = JSON.parse(userJson);
+        userData = {
+          id: twaUser.id,
+          username: twaUser.username,
+          first_name: twaUser.first_name,
+          last_name: twaUser.last_name,
+        };
+      } else {
+        if (!userData || !userData.id) {
+          return reply.status(400).send({ error: "Invalid user data" });
+        }
+        const isValid = checkTelegramHash(userData, BOT_TOKEN);
+        if (!isValid) {
+          return reply.status(401).send({ error: 'Auth hash verification failed' });
+        }
       }
-      const isValid = checkTelegramHash(userData, BOT_TOKEN);
-      // Always verify hash — the prior "skip in non-production" bypass was removed
-      // to prevent forged auth in staging/dev environments.
-      // Exception: Telegram Web App (TWA) sends hash="twa" which is pre-verified by TWA.
-      if (!isValid && userData.hash !== "twa") {
-        return reply
-          .status(401)
-          .send({ error: "Auth hash verification failed" });
-      }
+
       let user = await UserService.findByTelegramId(BigInt(userData.id));
       if (!user) {
         user = await UserService.create({
@@ -704,17 +720,25 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       const packageId = `sub_${planKey}_${billingCycle}`;
       let result: any;
       if (gateway === "duitku") {
-        result = await DuitkuService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName || "Customer",
-        });
+        try {
+          result = await DuitkuService.createTransaction({
+            userId: user.telegramId,
+            packageId,
+            username: user.username || user.firstName || "Customer",
+          });
+        } catch {
+          result = null; // sub_ package not in packages list — fall through to direct tx creation below
+        }
       } else if (gateway === "tripay") {
-        result = await TripayService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName || "Customer",
-        });
+        try {
+          result = await TripayService.createTransaction({
+            userId: user.telegramId,
+            packageId,
+            username: user.username || user.firstName || "Customer",
+          });
+        } catch {
+          result = null; // sub_ package not in packages list — fall through to direct tx creation below
+        }
       } else {
         result = await PaymentService.createTransaction({
           userId: user.telegramId,

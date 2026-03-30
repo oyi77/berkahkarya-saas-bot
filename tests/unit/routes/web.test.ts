@@ -372,9 +372,7 @@ it("should register GET / route", () => {
       process.env.NODE_ENV = originalEnv;
     });
 
-    it("should allow twa hash bypass in production", async () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+    it("should reject hash='twa' bypass (security fix — use initData instead)", async () => {
       const userData = {
         id: "123456789",
         username: "testuser",
@@ -383,16 +381,10 @@ it("should register GET / route", () => {
         hash: "twa",
       };
       (mockCheckTelegramHash as any).mockReturnValue(false);
-      (mockFindByTelegramId as any).mockResolvedValue(null);
-      (mockUserCreate as any).mockResolvedValue(
-        createMockUser({ telegramId: BigInt(123456789) }),
-      );
       const request = createMockRequest(userData);
       const reply = createMockReply();
-      const result = await handler()(request, reply);
-      expect(result).toHaveProperty("token");
-      expect(result).toHaveProperty("user");
-      process.env.NODE_ENV = originalEnv;
+      await handler()(request, reply);
+      expect(reply.status).toHaveBeenCalledWith(401);
     });
 
     it("should create new user when not found", async () => {

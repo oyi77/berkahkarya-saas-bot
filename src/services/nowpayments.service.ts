@@ -146,27 +146,23 @@ export class NowPaymentsService {
 
       const credits = Number(transaction.creditsAmount);
 
-      // Determine and update user tier
-      let newTier = 'free';
+      // Determine and update user tier — only change tier for subscription packages
       const plans = await getSubscriptionPlansAsync();
       const plan = plans[transaction.packageName];
+      const userUpdateData: any = { creditBalance: { increment: credits } };
       if (plan && plan.tier) {
-        newTier = plan.tier;
+        userUpdateData.tier = plan.tier; // Only set tier for subscription packages
       }
       await prisma.user.update({
         where: { telegramId: transaction.userId },
-        data: {
-          creditBalance: { increment: credits },
-          tier: newTier as any,
-        },
+        data: userUpdateData,
       });
 
-      // Process referral commissions — read USD amount from metadata
-      const meta = transaction.metadata as any;
-      const amountUsd = meta?.priceUsd ? Number(meta.priceUsd) : 0;
-      if (amountUsd > 0) {
+      // Process referral commissions using IDR amount (0 for crypto — acceptable)
+      const amountIdr = Number(transaction.amountIdr) || 0;
+      if (amountIdr > 0) {
         try {
-          await ReferralService.processCommissions(order_id, amountUsd, transaction.userId);
+          await ReferralService.processCommissions(order_id, amountIdr, transaction.userId);
         } catch (refErr) {
           logger.warn('NOWPayments: referral commission error (non-fatal):', refErr);
         }
