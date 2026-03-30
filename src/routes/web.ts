@@ -22,6 +22,7 @@ import {
   getPackagesAsync,
   getSubscriptionPlansAsync,
 } from "@/config/pricing";
+import { ImageGenerationService } from "@/services/image.service";
 import jwt from "jsonwebtoken";
 import * as fs from "fs";
 import crypto from "crypto";
@@ -244,8 +245,14 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     const user = await getUser(request, reply);
     if (!user) return;
     try {
-      const { niche, style, duration, customPrompt, storyboard } =
-        request.body as any;
+      const {
+        niche, style, duration, customPrompt, storyboard,
+        platform = "tiktok",
+        enableVO = true,
+        enableSubtitles = true,
+        language = "id",
+        referenceImageUrl,
+      } = request.body as any;
       if (!niche || !duration)
         return reply.status(400).send({ error: "niche and duration required" });
 
@@ -278,7 +285,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
           userId: user.telegramId,
           jobId,
           niche,
-          platform: "tiktok",
+          platform,
           duration,
           scenes: sceneData.length,
           status: "processing",
@@ -292,13 +299,17 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       await enqueueVideoGeneration({
         jobId,
         niche,
-        platform: "tiktok",
+        platform,
         duration,
         scenes: sceneData.length,
         storyboard: sceneData,
         customPrompt: customPrompt || undefined,
+        referenceImage: referenceImageUrl || undefined,
         userId: user.telegramId.toString(),
         chatId: Number(user.telegramId),
+        enableVO,
+        enableSubtitles,
+        language,
       });
 
       return { ok: true, jobId, message: "Video generation started" };
@@ -307,6 +318,54 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return reply
         .status(500)
         .send({ error: error.message || "Failed to create video" });
+    }
+  });
+
+  // ── IMAGE GENERATE ──
+  server.post("/api/image/generate", async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const {
+        prompt, category = "general", style, aspectRatio = "1:1",
+        referenceImageUrl, avatarImageUrl,
+      } = request.body as any;
+      if (!prompt)
+        return reply.status(400).send({ error: "prompt is required" });
+
+      // 1 credit per image generation
+      const IMAGE_CREDIT_COST = 1;
+      if (Number(user.creditBalance) < IMAGE_CREDIT_COST) {
+        return reply.status(402).send({
+          error: `Insufficient credits. Need ${IMAGE_CREDIT_COST}, have ${user.creditBalance}`,
+        });
+      }
+
+      await UserService.deductCredits(user.telegramId, IMAGE_CREDIT_COST);
+
+      const result = await ImageGenerationService.generateImage({
+        prompt,
+        category,
+        style,
+        aspectRatio,
+        referenceImageUrl,
+        avatarImageUrl,
+      });
+
+      if (!result.success) {
+        // Refund on failure
+        await UserService.refundCredits(user.telegramId, IMAGE_CREDIT_COST, `IMG-REFUND-${Date.now()}`, result.error || 'Generation failed');
+        return reply.status(500).send({ error: result.error || "Image generation failed" });
+      }
+
+      return {
+        ok: true,
+        imageUrl: result.imageUrl,
+        provider: result.provider,
+      };
+    } catch (error: any) {
+      server.log.error({ error }, "Image generate error");
+      return reply.status(500).send({ error: error.message || "Failed to generate image" });
     }
   });
 

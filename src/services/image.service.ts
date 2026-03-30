@@ -839,11 +839,17 @@ export class ImageGenerationService {
         logger.info('🖼️ Analysing reference image with Vision AI...');
         const analysis = await ContentAnalysisService.extractPrompt(refUrl, 'image');
         if (analysis.success && analysis.prompt) {
-          // Prepend the vision description so every provider understands the subject
-          visionEnrichedPrompt =
-            `Reference subject: ${analysis.prompt}. ` +
-            `Now create this scene: ${params.prompt}`;
-          logger.info(`🖼️ Vision enrichment added (${analysis.prompt.length} chars)`);
+          // Extract STYLE attributes from reference (lighting, color palette, mood, composition)
+          // but keep the user's intended SUBJECT/CONTENT from params.prompt unchanged.
+          // Wrong: "Reference subject: <desc>. Now create: <prompt>" — makes AI recreate the reference.
+          // Correct: apply reference aesthetics to the user's scene.
+          const styleHint = analysis.prompt
+            .replace(/\b(person|people|man|woman|face|portrait|figure|model|human|body)\b/gi, '')
+            .trim();
+          visionEnrichedPrompt = styleHint.length > 10
+            ? `${params.prompt}, inspired by this visual style: ${styleHint}`
+            : params.prompt;
+          logger.info(`🖼️ Style enrichment added (${styleHint.length} chars)`);
         }
       } catch (err) {
         logger.warn('🖼️ Vision analysis failed, continuing with original prompt');

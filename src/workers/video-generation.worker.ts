@@ -591,24 +591,20 @@ async function processExtendedScenes(
 
     const batchResults = await Promise.allSettled(batchPromises);
 
-    // Process results and check for failures
+    // Process results — skip failed scenes instead of aborting the whole job
+    let batchFailures = 0;
     for (const settled of batchResults) {
       if (settled.status === 'rejected') {
-        cancelTimeout();
-        const errMsg = settled.reason?.message || 'Scene generation failed';
-        const creditCost = getVideoCreditCost(duration);
-        await VideoService.updateStatus(jobId, 'failed', errMsg);
-        await UserService.refundCredits(telegramId, creditCost, jobId, errMsg);
-        const sceneUserMessage = actionableError(errMsg, { jobId });
-        await telegram.sendMessage(
-          chatId,
-          `Video generation failed\n\nJob ID: ${jobId}\n${sceneUserMessage}\n\nCredits refunded.`,
-        );
-        return;
+        batchFailures++;
+        logger.warn(`Batch scene failed (will skip): ${settled.reason?.message}`);
+        // Leave sceneVideos[sceneIndex] as empty string — filtered out before concat
+        continue;
       }
-
       const { sceneIndex, scenePath } = settled.value;
       sceneVideos[sceneIndex] = scenePath;
+    }
+    if (batchFailures > 0) {
+      await notifyProgress(telegram, chatId, `⚠️ ${batchFailures} scene(s) skipped — continuing with remaining scenes.`);
     }
 
     // Notify progress for all scenes completed in this batch
@@ -628,8 +624,17 @@ async function processExtendedScenes(
 
   const rawConcatPath = path.join(VIDEO_DIR, `${jobId}_raw.mp4`);
   const finalPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
-  logger.info(`Concatenating ${scenes} scenes for job ${jobId} (niche: ${niche})...`);
-  await concatenateVideos(sceneVideos, rawConcatPath, niche);
+  const successfulScenes = sceneVideos.filter(p => p && fs.existsSync(p));
+  if (successfulScenes.length === 0) {
+    cancelTimeout();
+    const creditCost = getVideoCreditCost(duration);
+    await VideoService.updateStatus(jobId, 'failed', 'All scenes failed');
+    await UserService.refundCredits(telegramId, creditCost, jobId, 'All scenes failed');
+    await telegram.sendMessage(chatId, `Video generation failed — all scenes could not be generated.\n\nJob ID: ${jobId}\n\nCredits refunded.`);
+    return;
+  }
+  logger.info(`Concatenating ${successfulScenes.length}/${scenes} scenes for job ${jobId} (niche: ${niche})...`);
+  await concatenateVideos(successfulScenes, rawConcatPath, niche);
 
   // Watermark removal on raw concatenated video
   try {
