@@ -74,6 +74,36 @@
       </div>
 
     </div>
+
+    <!-- Pricing Seed -->
+    <div class="card p-6 rounded-xl mt-8">
+      <h3 class="text-xl font-bold mb-4 border-b border-[var(--border)] pb-2">
+        Pricing Data
+      </h3>
+      <p class="text-sm text-gray-400 mb-4">If the Pricing tab in the dashboard shows empty, seed the database with the default packages and subscription plans from the static config.</p>
+      <button onclick="seedPricing()" class="btn-primary text-sm">🌱 Seed Default Pricing Data</button>
+      <div id="seed-result" class="mt-3 text-sm text-gray-400"></div>
+    </div>
+
+    <!-- Referral Rates -->
+    <div class="card p-6 rounded-xl mt-8">
+      <h3 class="text-xl font-bold mb-4 border-b border-[var(--border)] pb-2 flex justify-between items-center">
+        Referral Commission Rates
+        <button onclick="saveReferralRates()" class="btn-primary text-sm">Save Rates</button>
+      </h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Sell Rate (IDR per credit) — rate paid when user converts commission → credits</label>
+          <input type="number" id="refSellRate" class="w-full bg-[var(--bg)] border border-[var(--border)] p-2 rounded text-white" placeholder="3000" min="100" step="100">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Buy Rate (IDR per credit) — average credit purchase price (for reference)</label>
+          <input type="number" id="refBuyRate" class="w-full bg-[var(--bg)] border border-[var(--border)] p-2 rounded text-white" placeholder="6000" min="100" step="100">
+        </div>
+        <p class="text-xs text-gray-500">Sell rate determines how many credits a user gets when converting commission. E.g., Rp 30,000 commission ÷ Rp 3,000 sell rate = 10 credits.</p>
+      </div>
+    </div>
+
   </main>
 
   <script>
@@ -142,8 +172,39 @@
       alert('Landing Page config saved!');
     }
 
+    async function seedPricing() {
+      const res = await fetch('/api/settings/seed-pricing', { method: 'POST' });
+      const data = await res.json();
+      document.getElementById('seed-result').textContent = data.success
+        ? `✅ Seeded ${data.seeded} pricing entries. Go to Pricing tab to view.`
+        : '❌ Seed failed: ' + (data.error || 'Unknown');
+    }
+
+    async function loadReferralRates() {
+      const res = await fetch('/api/settings/referral');
+      const data = await res.json();
+      document.getElementById('refSellRate').value = data.sellRate || 3000;
+      document.getElementById('refBuyRate').value = data.buyRate || 6000;
+    }
+
+    async function saveReferralRates() {
+      const sellRate = parseInt(document.getElementById('refSellRate').value);
+      const buyRate = parseInt(document.getElementById('refBuyRate').value);
+      if (!sellRate || sellRate <= 0 || !buyRate || buyRate <= 0) {
+        alert('Both rates must be positive numbers.');
+        return;
+      }
+      await fetch('/api/settings/referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sellRate, buyRate })
+      });
+      alert('Referral rates saved!');
+    }
+
     loadProviders();
     loadLanding();
+    loadReferralRates();
   </script>
 </body>
 </html>

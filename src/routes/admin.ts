@@ -367,7 +367,11 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   server.get("/api/pricing/:category", async (request) => {
     const { category } = request.params as { category: string };
-    return PaymentSettingsService.getAllPricingByCategory(category);
+    // Return array format for frontend table rendering
+    return prisma.pricingConfig.findMany({
+      where: { category },
+      orderBy: { key: 'asc' },
+    });
   });
 
   server.post("/api/pricing", async (request, reply) => {
@@ -896,6 +900,80 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       type: "settings_updated", category: "landing",
       timestamp: new Date().toISOString()
     }));
+    return { success: true };
+  });
+
+  /** POST /api/settings/seed-pricing — Seed pricing DB from static config (idempotent) */
+  server.post("/api/settings/seed-pricing", async () => {
+    const { PACKAGES, SUBSCRIPTION_PLANS, UNIT_COSTS } = await import('@/config/pricing.js');
+    let seeded = 0;
+
+    // Seed credit packages
+    for (const pkg of PACKAGES) {
+      await prisma.pricingConfig.upsert({
+        where: { category_key: { category: 'package', key: pkg.id } },
+        update: {},
+        create: { category: 'package', key: pkg.id, value: pkg as any },
+      });
+      seeded++;
+    }
+
+    // Seed subscription plans
+    for (const [key, plan] of Object.entries(SUBSCRIPTION_PLANS)) {
+      await prisma.pricingConfig.upsert({
+        where: { category_key: { category: 'subscription', key } },
+        update: {},
+        create: { category: 'subscription', key, value: plan as any },
+      });
+      seeded++;
+    }
+
+    // Seed video credit costs
+    for (const [key, units] of Object.entries(UNIT_COSTS)) {
+      await prisma.pricingConfig.upsert({
+        where: { category_key: { category: 'video_credit', key: key.toLowerCase() } },
+        update: {},
+        create: { category: 'video_credit', key: key.toLowerCase(), value: { units, credits: units / 10 } as any },
+      });
+      seeded++;
+    }
+
+    // Seed global margin
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'global', key: 'margin_percent' } },
+      update: {},
+      create: { category: 'global', key: 'margin_percent', value: { value: 30 } as any },
+    });
+    seeded++;
+
+    PaymentSettingsService.clearPricingCache();
+    return { success: true, seeded };
+  });
+
+  /** GET /api/settings/referral — Referral conversion rates */
+  server.get("/api/settings/referral", async () => {
+    const sellRate = await PaymentSettingsService.get('referral_sell_rate');
+    const buyRate = await PaymentSettingsService.get('referral_buy_rate');
+    return {
+      sellRate: sellRate ? parseInt(sellRate) : 3000,
+      buyRate: buyRate ? parseInt(buyRate) : 6000,
+    };
+  });
+
+  /** POST /api/settings/referral — Update referral conversion rates */
+  server.post("/api/settings/referral", async (request, reply) => {
+    const body = request.body as { sellRate?: number; buyRate?: number };
+    if (!body || (body.sellRate === undefined && body.buyRate === undefined)) {
+      return reply.status(400).send({ error: 'sellRate or buyRate required' });
+    }
+    if (body.sellRate !== undefined) {
+      if (body.sellRate <= 0) return reply.status(400).send({ error: 'sellRate must be positive' });
+      await PaymentSettingsService.set('referral_sell_rate', String(body.sellRate), 'Referral commission → credits conversion rate (IDR/credit)');
+    }
+    if (body.buyRate !== undefined) {
+      if (body.buyRate <= 0) return reply.status(400).send({ error: 'buyRate must be positive' });
+      await PaymentSettingsService.set('referral_buy_rate', String(body.buyRate), 'Average credit buy rate used for referral calculations (IDR/credit)');
+    }
     return { success: true };
   });
 

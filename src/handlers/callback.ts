@@ -72,6 +72,7 @@ import {
 } from "@/commands/prompts";
 import { SavedPromptService } from "@/services/saved-prompt.service";
 import { P2pService } from "@/services/p2p.service";
+import { PaymentSettingsService } from "@/services/payment-settings.service";
 
 // ── Back button helpers ──────────────────────────────────────────────────────
 const BTN_BACK_MAIN = { text: "◀️ Menu Utama", callback_data: "main_menu" };
@@ -2842,9 +2843,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         });
         const available = Number(availableAgg._sum.amount || 0);
 
-        // Half of buy price per credit (avg ~Rp 6,000/credit → sell at Rp 3,000)
-        const CREDIT_BUY_RATE = 6000; // average price per credit in IDR
-        const SELL_RATE = CREDIT_BUY_RATE / 2; // half rate for cashout
+        // Use admin-configurable rates (default: sell=3000 IDR/credit)
+        const sellRateStr = await PaymentSettingsService.get('referral_sell_rate');
+        const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
         const creditsCanConvert = Math.floor(available / SELL_RATE);
 
         let message = "💸 *Withdraw Commission*\n\n";
@@ -2896,7 +2897,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           _sum: { amount: true },
         });
         const available = Number(availableAgg._sum.amount || 0);
-        const SELL_RATE = 3000;
+        const sellRateStr = await PaymentSettingsService.get('referral_sell_rate');
+        const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
         const creditsToAdd = Math.floor(available / SELL_RATE);
 
         if (creditsToAdd <= 0) {
