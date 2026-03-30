@@ -319,11 +319,14 @@ export class UserService {
   }
 
   /**
-   * Get the number of videos the user has generated today (UTC).
+   * Get the number of videos the user has generated today (WIB = UTC+7).
+   * Resets at midnight WIB (17:00 UTC) so Indonesian users see the correct daily quota.
    */
   static async getDailyGenerationCount(telegramId: bigint): Promise<number> {
-    const startOfDay = new Date();
-    startOfDay.setUTCHours(0, 0, 0, 0);
+    const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const nowWIB = new Date(Date.now() + WIB_OFFSET_MS);
+    nowWIB.setUTCHours(0, 0, 0, 0); // midnight in WIB time, expressed as UTC
+    const startOfDay = new Date(nowWIB.getTime() - WIB_OFFSET_MS); // convert back to real UTC
 
     return prisma.video.count({
       where: {

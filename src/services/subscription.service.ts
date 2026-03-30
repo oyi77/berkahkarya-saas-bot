@@ -145,16 +145,18 @@ export class SubscriptionService {
     });
 
     for (const sub of dueForRenewal) {
-      // Manual renewal for now
-      await prisma.subscription.update({
-        where: { id: sub.id },
-        data: { status: 'expired' },
-      });
-      await prisma.user.update({
-        where: { telegramId: sub.userId },
-        data: { tier: 'free', creditBalance: 0, creditExpiresAt: null },
-      });
-      logger.info(`Subscription expired (requires manual renewal) for user ${sub.userId}`);
+      try {
+        await SubscriptionService.renewSubscription(sub.id);
+        logger.info(`Subscription auto-renewed: ${sub.plan} for user ${sub.userId}`);
+      } catch (err) {
+        logger.error(`Auto-renewal failed for sub ${sub.id} (user ${sub.userId}):`, err);
+        // On failure, expire gracefully
+        await prisma.subscription.update({ where: { id: sub.id }, data: { status: 'expired' } });
+        await prisma.user.update({
+          where: { telegramId: sub.userId },
+          data: { tier: 'free', creditExpiresAt: null },
+        });
+      }
     }
 
     logger.info(`Processed ${expiredCancelled.length} cancelled + ${dueForRenewal.length} manual-renewal subscriptions`);

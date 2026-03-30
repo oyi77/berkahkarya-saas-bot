@@ -37,6 +37,7 @@ import { startDailyReportWorker } from "@/workers/daily-report.worker";
 import cron from "node-cron";
 import { retentionQueue } from "@/workers/retention.worker";
 import { UserService } from "@/services/user.service";
+import { SubscriptionService } from "@/services/subscription.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
 import axios from "axios";
 
@@ -121,6 +122,18 @@ async function main() {
       logger.info("✅ Retention cron scheduled (every 6h)");
     } catch (cronErr) {
       logger.warn("⚠️ Retention cron failed to start:", cronErr);
+    }
+
+    // Subscription renewal cron: run daily at 00:05 WIB (17:05 UTC)
+    try {
+      cron.schedule("5 17 * * *", async () => {
+        logger.info("⏰ Running subscription renewal/expiry check...");
+        const count = await SubscriptionService.checkExpiredSubscriptions();
+        if (count > 0) logger.info(`✅ Processed ${count} subscription(s)`);
+      });
+      logger.info("✅ Subscription renewal cron scheduled (daily 00:05 WIB)");
+    } catch (cronErr) {
+      logger.warn("⚠️ Subscription cron failed to start:", cronErr);
     }
 
     // Set telegram instance for cleanup notifications and run startup cleanup
