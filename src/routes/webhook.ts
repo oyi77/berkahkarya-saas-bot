@@ -57,7 +57,8 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
     try {
       const tripayPrivateKey = process.env.TRIPAY_PRIVATE_KEY || '';
       if (!tripayPrivateKey) {
-        logger.warn('TRIPAY_PRIVATE_KEY is not set — skipping Tripay webhook signature validation');
+        logger.error('TRIPAY_PRIVATE_KEY is not set — rejecting Tripay webhook');
+        return reply.status(500).send({ error: 'Tripay webhook not configured' });
       }
 
       const body = request.body as any;

@@ -46,9 +46,6 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
     if (token === makeAdminToken(ADMIN_PASSWORD)) return;
   }
 
-  const query = request.query as Record<string, string>;
-  if (query.token === ADMIN_PASSWORD) return;
-
   reply
     .status(401)
     .header("WWW-Authenticate", 'Basic realm="Admin"')

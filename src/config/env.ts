@@ -6,6 +6,8 @@
 const REQUIRED_ENV_VARS = [
   'BOT_TOKEN',
   'DATABASE_URL',
+  'REDIS_URL',
+  'ADMIN_PASSWORD',
   'DUITKU_MERCHANT_CODE',
   'DUITKU_API_KEY',
 ] as const;

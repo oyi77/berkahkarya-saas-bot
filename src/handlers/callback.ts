@@ -1870,7 +1870,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.answerCbQuery();
 
       if (!ctx.session?.stateData?.clonePrompt) {
-        await ctx.reply("❌ No clone data found. Please start over.");
+        await ctx.reply("❌ Data clone tidak ditemukan. Silakan mulai ulang.");
         return;
       }
 
@@ -2020,7 +2020,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       // Use extracted storyboard prompts for t2v generation
       const repurposeData = ctx.session.stateData?.repurposeData as any;
       if (!repurposeData?.storyboard) {
-        await ctx.reply("❌ No analysis data found. Please start over.");
+        await ctx.reply("❌ Data analisis tidak ditemukan. Silakan mulai ulang.");
         return;
       }
       // Store in videoCreation and trigger normal generation flow
@@ -2081,7 +2081,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "repurpose_generate_i2v") {
       const repurposeData = ctx.session.stateData?.repurposeData as any;
       if (!repurposeData?.storyboard) {
-        await ctx.reply("❌ No analysis data found. Please start over.");
+        await ctx.reply("❌ Data analisis tidak ditemukan. Silakan mulai ulang.");
         return;
       }
       const storyboard = repurposeData.storyboard;
@@ -2254,7 +2254,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         await ctx.reply(`${caption.text}\n\n${caption.hashtags}`);
       } catch (err) {
         logger.error("Failed to generate caption for copy:", err);
-        await ctx.reply("Failed to generate caption. Please try again.");
+        await ctx.reply("Gagal membuat caption. Silakan coba lagi.");
       }
       return;
     }
@@ -2267,7 +2267,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       try {
         const video = await VideoService.getByJobId(jobId);
         if (!video) {
-          await ctx.reply("Video not found. Please try /create instead.");
+          await ctx.reply("Video tidak ditemukan. Gunakan /create untuk mulai.");
           return;
         }
 
@@ -2348,7 +2348,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       } catch (error) {
         logger.error("Create similar error:", error);
         await ctx.reply(
-          "Failed to load video settings. Please try /create instead.",
+          "Gagal memuat pengaturan video. Gunakan /create untuk mulai.",
         );
       }
       return;
@@ -2590,7 +2590,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       langButtons.push([
         {
-          text: "\u25c0\ufe0f Back to Settings",
+          text: "◀️ Kembali ke Pengaturan",
           callback_data: "open_settings",
         },
       ]);
@@ -2626,7 +2626,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             inline_keyboard: [
               [
                 {
-                  text: "\u25c0\ufe0f Back to Settings",
+                  text: "◀️ Kembali ke Pengaturan",
                   callback_data: "open_settings",
                 },
               ],
@@ -2666,7 +2666,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "toggle_notifications",
                 },
               ],
-              [{ text: "◀️ Back to Settings", callback_data: "open_settings" }],
+              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
             ],
           },
         },
@@ -2706,7 +2706,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "toggle_notifications",
                 },
               ],
-              [{ text: "◀️ Back to Settings", callback_data: "open_settings" }],
+              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
             ],
           },
         },
@@ -2740,7 +2740,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "toggle_autorenewal",
                 },
               ],
-              [{ text: "◀️ Back to Settings", callback_data: "open_settings" }],
+              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
             ],
           },
         },
@@ -2778,7 +2778,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "toggle_autorenewal",
                 },
               ],
-              [{ text: "◀️ Back to Settings", callback_data: "open_settings" }],
+              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
             ],
           },
         },
@@ -2901,7 +2901,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       } catch (error) {
         logger.error("Transaction history error:", error);
         await ctx.editMessageText(
-          "❌ Failed to load transaction history.\n\nPlease try again later.",
+          "❌ Gagal memuat riwayat transaksi.\n\nSilakan coba lagi nanti.",
           {
             reply_markup: {
               inline_keyboard: [
@@ -2931,7 +2931,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         );
       } else {
         await ctx.reply(
-          "❌ No prompt found. Please use the Disassemble feature first to extract a prompt from media.",
+          "❌ Prompt tidak ditemukan. Gunakan fitur Disassemble terlebih dahulu untuk mengekstrak prompt dari media.",
           { parse_mode: "Markdown" },
         );
       }
@@ -3047,7 +3047,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       } catch (error) {
         logger.error("Referral stats error:", error);
         await ctx.reply(
-          "❌ Failed to load referral statistics. Please try again.",
+          "❌ Gagal memuat statistik referral. Silakan coba lagi.",
         );
       }
       return;
@@ -3277,7 +3277,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.answerCbQuery();
 
       if (!ctx.session?.videoCreation?.waitingForImage) {
-        await ctx.reply("No active video creation. Please start with /create");
+        await ctx.reply("Tidak ada sesi pembuatan video aktif. Gunakan /create untuk mulai.");
         return;
       }
 
@@ -3547,13 +3547,13 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
     await ctx.editMessageText(
       `❌ *Publish Failed*\n\n` +
       `Error: ${error.message}\n\n` +
-      `Please try again or contact support.`,
+      `Silakan coba lagi atau hubungi support.`,
       {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🔄 Retry", callback_data: `publish_video_${jobId}` }],
-            [{ text: "❌ Cancel", callback_data: "videos_list" }],
+            [{ text: "🔄 Coba Lagi", callback_data: `publish_video_${jobId}` }],
+            [{ text: "❌ Batal", callback_data: "videos_list" }],
           ],
         },
       },

@@ -76,9 +76,7 @@ export interface SessionData {
 
 export type BotState =
   | 'START'
-  | 'ONBOARDING'
   | 'ONBOARDING_LANGUAGE'
-  | 'ONBOARDING_TERMS'
   | 'DASHBOARD'
   | 'CREATE_VIDEO_UPLOAD'
   | 'CREATE_VIDEO_NICHE'
@@ -108,16 +106,6 @@ export type BotState =
   | 'AVATAR_UPLOAD_WAITING'
   | 'AVATAR_NAME_WAITING'
   | 'WAITING_ACCOUNT_ID'
-  | 'WAITING_CAPTION'
-  | 'TOPUP_SELECT'
-  | 'TOPUP_PAYMENT'
-  | 'TOPUP_CONFIRM'
-  | 'REFERRAL_VIEW'
-  | 'REFERRAL_WITHDRAW'
-  | 'PROFILE_VIEW'
-  | 'SETTINGS_LANGUAGE'
-  | 'SETTINGS_NOTIFICATIONS'
-  | 'SUPPORT_CHAT'
   | 'CUSTOMIZING_PROMPT'
   | 'CUSTOM_PROMPT_CREATION'
   | 'AWAITING_PRODUCT_INPUT'
@@ -179,7 +167,7 @@ export interface VideoParams {
 
 export type TransactionStatus = 'pending' | 'processing' | 'success' | 'failed' | 'expired' | 'refunded';
 export type TransactionType = 'topup' | 'subscription' | 'refund' | 'bonus' | 'adjustment';
-export type PaymentGateway = 'midtrans' | 'tripay';
+export type PaymentGateway = 'midtrans' | 'tripay' | 'duitku' | 'nowpayments' | 'internal' | 'admin_transfer';
 
 export interface TopupPackage {
   id: string;

@@ -136,6 +136,18 @@ async function main() {
       logger.warn("⚠️ Subscription cron failed to start:", cronErr);
     }
 
+    // Credit expiry cron: run daily at 00:00 WIB (17:00 UTC)
+    try {
+      cron.schedule("0 17 * * *", async () => {
+        logger.info("⏰ Running credit expiry check...");
+        const count = await UserService.expireStaleCredits(bot.telegram);
+        if (count > 0) logger.info(`✅ Expired credits for ${count} user(s)`);
+      });
+      logger.info("✅ Credit expiry cron scheduled (daily 00:00 WIB)");
+    } catch (cronErr) {
+      logger.warn("⚠️ Credit expiry cron failed to start:", cronErr);
+    }
+
     // Set telegram instance for cleanup notifications and run startup cleanup
     setCleanupTelegram(bot.telegram);
     try {

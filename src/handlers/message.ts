@@ -224,7 +224,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const duration = parseInt(durationInput);
 
       if (isNaN(duration) || duration < 6 || duration > 300) {
-        await ctx.reply("❌ Please enter a valid duration (6-300 seconds)");
+        await ctx.reply("❌ Durasi harus antara 6 sampai 300 detik.");
         return;
       }
 
@@ -357,7 +357,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     ) {
       const promptText = message.text.trim();
       if (!promptText) {
-        await ctx.reply("Please enter a prompt or use /create to start over.");
+        await ctx.reply("Kirim prompt atau gunakan /create untuk mulai ulang.");
         return;
       }
 
@@ -382,7 +382,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const telegramId = BigInt(ctx.from!.id);
 
       if (!accountId || accountId.startsWith("/")) {
-        await ctx.reply("❌ Please enter a valid PostBridge Account ID.");
+        await ctx.reply("❌ ID Akun PostBridge tidak valid.");
         return;
       }
 
@@ -416,9 +416,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       } catch (error: any) {
         logger.error("Failed to connect account:", error);
         await ctx.reply(
-          `❌ Failed to connect account.\n\n` +
+          `❌ Gagal menghubungkan akun.\n\n` +
           `Error: ${error.message || "Unknown error"}\n\n` +
-          `Please try again or contact support.`,
+          `Silakan coba lagi atau hubungi support.`,
         );
       }
 
@@ -693,7 +693,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       } catch (error: any) {
         logger.error("Avatar creation failed:", error);
         await ctx.reply(
-          `❌ *Failed to save avatar*\n\n${error.message || "Please try again."}`,
+          `❌ *Gagal menyimpan avatar*\n\n${error.message || "Silakan coba lagi."}`,
           { parse_mode: "Markdown" },
         );
       }
@@ -869,7 +869,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           }
         } catch (error: any) {
           logger.error("Image generation error:", error);
-          await telegram.sendMessage(chatId, "❌ Failed to generate image. Please try again.");
+          await telegram.sendMessage(chatId, "❌ Gagal membuat gambar. Silakan coba lagi.");
         }
       })();
 
@@ -888,7 +888,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       if (!videoUrl) {
-        await ctx.reply("❌ Please send a video or video URL.");
+        await ctx.reply("❌ Kirim video atau URL video.");
         return;
       }
 
@@ -952,7 +952,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           }
         } catch (error: any) {
           logger.error("Clone video error:", error);
-          await telegram.sendMessage(chatId, "❌ Failed to analyze video. Please try again.");
+          await telegram.sendMessage(chatId, "❌ Gagal menganalisa video. Silakan coba lagi.");
         }
       })();
 
@@ -964,7 +964,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const newDescription = message.text;
 
       if (!ctx.session?.stateData?.clonePrompt) {
-        await ctx.reply("❌ No clone data found. Please start over.");
+        await ctx.reply("❌ Data clone tidak ditemukan. Silakan mulai ulang.");
         return;
       }
 
@@ -1005,7 +1005,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       if (!imageUrl) {
-        await ctx.reply("❌ Please send an image or image URL.");
+        await ctx.reply("❌ Kirim gambar atau URL gambar.");
         return;
       }
 
@@ -1057,7 +1057,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         }
       } catch (error: any) {
         logger.error("Clone image error:", error);
-        await ctx.reply("❌ Failed to analyze image. Please try again.", {
+        await ctx.reply("❌ Gagal menganalisa gambar. Silakan coba lagi.", {
           parse_mode: "Markdown",
         });
       }

@@ -406,4 +406,49 @@ export class UserService {
       return { videosCreated: 0, totalSpent: 0, referralCount: 0, commissionEarned: 0 };
     }
   }
+
+  /**
+   * Expire stale credits for users whose creditExpiresAt has passed.
+   * Returns the number of users whose credits were reset.
+   */
+  static async expireStaleCredits(telegram?: any): Promise<number> {
+    const now = new Date();
+    const expired = await prisma.user.findMany({
+      where: {
+        creditExpiresAt: { lt: now },
+        creditBalance: { gt: 0 },
+      },
+      select: { telegramId: true, creditBalance: true },
+    });
+
+    if (expired.length === 0) return 0;
+
+    await prisma.user.updateMany({
+      where: {
+        creditExpiresAt: { lt: now },
+        creditBalance: { gt: 0 },
+      },
+      data: { creditBalance: 0 },
+    });
+
+    // Notify affected users via Telegram (best-effort, non-blocking)
+    if (telegram) {
+      for (const u of expired) {
+        try {
+          await telegram.sendMessage(
+            u.telegramId.toString(),
+            `⏰ *Kredit Kadaluarsa*\n\n` +
+            `Kredit kamu sebesar *${Number(u.creditBalance)} kredit* telah kadaluarsa.\n\n` +
+            `Gunakan /topup untuk mengisi ulang kredit.`,
+            { parse_mode: 'Markdown' },
+          );
+        } catch (_) {
+          // User may have blocked the bot — ignore
+        }
+      }
+    }
+
+    logger.info(`Credit expiry: reset balance for ${expired.length} user(s)`);
+    return expired.length;
+  }
 }
