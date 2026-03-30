@@ -111,7 +111,7 @@
     const DEFAULT_VIDEO_KEYS = ['byteplus', 'xai', 'laozhang', 'evolink', 'falai_video', 'geminigen', 'siliconflow', 'piapi', 'remotion'];
     
     async function loadProviders() {
-      const res = await fetch('/api/settings/providers');
+      const res = await fetch('/api/admin/settings/providers');
       const data = await res.json();
       const overrides = data.overrides?.video || {};
 
@@ -142,7 +142,7 @@
         video[k] = { priority: val, enabled: en };
       });
 
-      await fetch('/api/settings/providers', {
+      await fetch('/api/admin/settings/providers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ video })
