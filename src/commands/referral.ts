@@ -41,33 +41,32 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
       return `Rp ${amount.toLocaleString('id-ID')}`;
     };
 
-    await ctx.reply(
-      `👥 *Referral & Affiliate*\n\n` +
+    const msg =
+      `👥 Referral & Affiliate\n\n` +
       `Ajak teman dan dapatkan komisi!\n\n` +
-      `*Kode Referral:* \`${referralCode}\`\n\n` +
-      `*Struktur Komisi:*\n` +
+      `Kode Referral: ${referralCode}\n\n` +
+      `Struktur Komisi:\n` +
       `• Tier 1 (Langsung): 15%\n` +
       `• Tier 2 (Tidak Langsung): 5%\n\n` +
-      `*Stats Kamu:*\n` +
+      `Stats Kamu:\n` +
       `• Total Referral: ${stats.referralCount}\n` +
       `• Total Komisi: ${formatRupiah(stats.commissionEarned)}\n\n` +
-      `*Opsi Komisi:*\n` +
+      `Opsi Komisi:\n` +
       `• Tukar ke kredit (untuk generate)\n` +
       `• Transfer P2P ke user lain\n` +
       `• Jual ke admin (50% harga kredit)\n\n` +
-      `Tap Share untuk mulai earn!`,
-      {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📤 Share Link Referral', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Buat video iklan AI keren! Pakai link referral saya:')}` }],
-            [{ text: '💸 Withdraw Komisi', callback_data: 'referral_withdraw' }],
-            [{ text: '📊 Lihat Stats', callback_data: 'referral_stats' }],
-            [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
-          ],
-        },
-      }
-    );
+      `Tap Share untuk mulai earn!`;
+
+    const markup = {
+      inline_keyboard: [
+        [{ text: '📤 Share Link Referral', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Buat video iklan AI keren! Pakai link referral saya:')}` }],
+        [{ text: '💸 Withdraw Komisi', callback_data: 'referral_withdraw' }],
+        [{ text: '📊 Lihat Stats', callback_data: 'referral_stats' }],
+        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+      ],
+    };
+
+    await ctx.reply(msg, { reply_markup: markup });
   } catch (error: any) {
     logger.error('Error in referral command:', error);
     await ctx.reply(`Failed to load referral info. Error: ${error.message || 'Unknown'}. Please try again later.`);
