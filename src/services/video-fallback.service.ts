@@ -150,31 +150,74 @@ async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoF
   throw new Error('GeminiGen poll timeout');
 }
 
-/** Tier 2: Fal.ai — kling-video or minimax */
+/** Tier 2: Fal.ai — kling-video v1.6 with async queue polling */
 async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+  const hasRefImage = !!(params.referenceImage && fs.existsSync(params.referenceImage));
+  const model = hasRefImage
+    ? 'fal-ai/kling-video/v1.6/standard/image-to-video'
+    : 'fal-ai/kling-video/v1.6/standard/text-to-video';
+
   const payload: any = {
     prompt: params.prompt,
-    duration: String(Math.min(5, params.duration)),
+    duration: Math.min(5, params.duration) >= 5 ? '5' : '5', // kling only supports "5" or "10"
     aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
   };
 
-  // Use image-to-video if reference image exists
-  const model = params.referenceImage ? 'fal-ai/kling-video/v1/standard/image-to-video' : 'fal-ai/minimax-video/image-to-video';
-  if (params.referenceImage && fs.existsSync(params.referenceImage)) {
-    const imgBase64 = readRefImageBase64(params.referenceImage);
+  if (hasRefImage) {
+    const imgBase64 = readRefImageBase64(params.referenceImage!);
     if (imgBase64) payload.image_url = imgBase64;
   }
 
-  const response = await axios.post(`https://fal.run/${model}`, payload, {
-    headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
-    timeout: 120000,
-  });
+  // Submit to async queue
+  const submitRes = await axios.post(
+    `https://queue.fal.run/${model}`,
+    payload,
+    {
+      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      timeout: 30000,
+    }
+  );
 
-  const videoUrl = response.data?.video?.url || response.data?.video_url;
-  if (videoUrl) {
-    return { success: true, videoUrl, provider: 'falai' };
+  const requestId = submitRes.data?.request_id;
+  // fal.ai returns canonical status_url and response_url — use them directly
+  // (the base path differs from the submission model path, e.g. fal-ai/kling-video/requests/...)
+  const statusUrl: string = submitRes.data?.status_url;
+  const responseUrl: string = submitRes.data?.response_url;
+  if (!requestId || !statusUrl || !responseUrl) {
+    throw new Error(`Fal.ai: incomplete queue response — ${JSON.stringify(submitRes.data)}`);
   }
-  throw new Error('Fal.ai: no video URL in response');
+  logger.info(`Fal.ai video queued: ${requestId} (model: ${model})`);
+
+  // Poll status using the canonical URL from the submit response
+  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
+    await sleep(POLL_INTERVAL);
+    const statusRes = await axios.get(statusUrl, {
+      headers: { Authorization: `Key ${FALAI_API_KEY}` },
+      timeout: 15000,
+    });
+    const status = statusRes.data?.status;
+    if (status === 'COMPLETED') {
+      // Fetch result using the canonical response URL
+      const resultRes = await axios.get(responseUrl, {
+        headers: { Authorization: `Key ${FALAI_API_KEY}` },
+        timeout: 15000,
+      });
+      const videoUrl =
+        resultRes.data?.video?.url ||
+        resultRes.data?.video_url ||
+        resultRes.data?.output?.video?.url ||
+        resultRes.data?.output?.video_url;
+      if (videoUrl) return { success: true, videoUrl, provider: 'falai', jobId: requestId };
+      throw new Error('Fal.ai: COMPLETED but no video URL in result');
+    }
+    if (status === 'FAILED') {
+      const errMsg = statusRes.data?.error || 'Fal.ai generation failed';
+      throw new Error(`Fal.ai: ${errMsg}`);
+    }
+    // IN_QUEUE or IN_PROGRESS — keep polling
+    if (i % 6 === 0) logger.info(`Fal.ai poll ${i + 1}/${POLL_MAX_ATTEMPTS}: ${status}`);
+  }
+  throw new Error('Fal.ai: poll timeout');
 }
 
 /** Tier 3: SiliconFlow — Wan-AI video */
