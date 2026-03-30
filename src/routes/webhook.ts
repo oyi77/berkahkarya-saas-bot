@@ -55,10 +55,15 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
 
   server.post('/webhook/tripay', async (request, reply) => {
     try {
+      const tripayPrivateKey = process.env.TRIPAY_PRIVATE_KEY || '';
+      if (!tripayPrivateKey) {
+        logger.warn('TRIPAY_PRIVATE_KEY is not set — skipping Tripay webhook signature validation');
+      }
+
       const body = request.body as any;
       const signature = request.headers['x-signature'] as string;
       const expectedSignature = crypto
-        .createHmac('sha256', process.env.TRIPAY_PRIVATE_KEY || '')
+        .createHmac('sha256', tripayPrivateKey)
         .update(JSON.stringify(body))
         .digest('hex');
 
@@ -91,19 +96,21 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
     try {
       const body = request.body as any;
 
-      // Verify IPN signature
+      // Verify IPN signature — mandatory when NOWPAYMENTS_IPN_SECRET is configured
       const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
       if (ipnSecret) {
         const signature = request.headers['x-nowpayments-sig'] as string;
-        if (signature) {
-          const sortedBody = JSON.stringify(
-            Object.keys(body).sort().reduce((acc: any, key) => { acc[key] = body[key]; return acc; }, {})
-          );
-          const expectedSig = crypto.createHmac('sha512', ipnSecret).update(sortedBody).digest('hex');
-          if (signature !== expectedSig) {
-            logger.warn('NOWPayments: invalid IPN signature');
-            return reply.status(401).send({ error: 'Invalid signature' });
-          }
+        if (!signature) {
+          logger.warn('NOWPayments: missing x-nowpayments-sig header');
+          return reply.status(400).send({ error: 'Missing signature' });
+        }
+        const sortedBody = JSON.stringify(
+          Object.keys(body).sort().reduce((acc: any, key) => { acc[key] = body[key]; return acc; }, {})
+        );
+        const expectedSig = crypto.createHmac('sha512', ipnSecret).update(sortedBody).digest('hex');
+        if (signature !== expectedSig) {
+          logger.warn('NOWPayments: invalid IPN signature');
+          return reply.status(401).send({ error: 'Invalid signature' });
         }
       }
 

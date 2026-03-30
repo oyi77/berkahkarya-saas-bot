@@ -93,7 +93,7 @@ export class SubscriptionService {
     await prisma.user.update({
       where: { telegramId: sub.userId },
       data: {
-        creditBalance: planConfig.monthlyCredits,
+        creditBalance: { increment: planConfig.monthlyCredits },
         creditExpiresAt: newEnd,
       },
     });

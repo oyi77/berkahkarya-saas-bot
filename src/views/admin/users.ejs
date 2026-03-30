@@ -80,7 +80,7 @@
 
   <script>
     async function loadUsers(query = '') {
-      const res = await fetch(\`/api/users/search?q=\${query}&limit=20\`);
+      const res = await fetch(\`/api/users/search?q=\${query}&limit=20\`, { credentials: 'include' });
       const users = await res.json();
       
       const tbody = document.getElementById('usersTable');
@@ -137,6 +137,7 @@
       if(!amt) return;
       await fetch(\`/api/users/\${id}/credits\`, {
         method:'POST',
+        credentials: 'include',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ amount: parseFloat(amt), reason: 'admin manual' })
       });
@@ -149,6 +150,7 @@
       if(!tier) return;
       await fetch(\`/api/users/\${id}/tier\`, {
         method:'PATCH',
+        credentials: 'include',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ tier: tier.toUpperCase() })
       });
@@ -160,6 +162,7 @@
       if(!confirm('Are you sure?')) return;
       await fetch(\`/api/users/\${id}/ban\`, {
         method:'POST',
+        credentials: 'include',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ banned: banState })
       });

@@ -117,7 +117,7 @@ describe("Admin Dashboard API Integration Tests", () => {
       ]);
 
       const response = await request(app.server)
-        .get("/api/admin/transactions/transfers")
+        .get("/api/transactions/transfers")
         .set("Authorization", adminAuthHeader());
       expect(response.status).toBe(200);
       expect(response.body.length).toBe(1);

@@ -254,7 +254,8 @@ async function addPrompt() {
   if (!title || !prompt) { showToast('⚠️ Judul dan prompt wajib diisi!', 'error'); return; }
   const r = await fetch('/api/admin-prompts', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(':' + '<%= ADMIN_PASSWORD %>') },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ niche, title, prompt }),
   });
   if (r.ok) {
@@ -289,7 +290,8 @@ async function saveEdit() {
   const prompt = document.getElementById('edit-prompt').value.trim();
   const r = await fetch('/api/admin-prompts/' + id, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + btoa(':' + '<%= ADMIN_PASSWORD %>') },
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ niche, title, prompt }),
   });
   if (r.ok) { showToast('✅ Prompt diupdate!'); closeModal(); loadPrompts(); }
@@ -300,7 +302,7 @@ async function deletePrompt(id, title) {
   if (!confirm('Hapus prompt "' + title + '"?')) return;
   const r = await fetch('/api/admin-prompts/' + id, {
     method: 'DELETE',
-    headers: { 'Authorization': 'Basic ' + btoa(':' + '<%= ADMIN_PASSWORD %>') },
+    credentials: 'include',
   });
   if (r.ok) { showToast('🗑️ Prompt dihapus!'); loadPrompts(); }
   else showToast('❌ Gagal hapus', 'error');

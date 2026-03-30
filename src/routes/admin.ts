@@ -1046,8 +1046,8 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     };
   });
 
-  /** GET /api/admin/transactions/transfers — P2P Transfer logs */
-  server.get("/api/admin/transactions/transfers", async () => {
+  /** GET /api/transactions/transfers — P2P Transfer logs */
+  server.get("/api/transactions/transfers", async () => {
     return prisma.transaction.findMany({
       where: { type: "transfer" },
       take: 100,

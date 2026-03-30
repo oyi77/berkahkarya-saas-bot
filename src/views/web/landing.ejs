@@ -6,6 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vilona OpenClaw — Ubah 1 Foto Jadi Video Iklan Viral dalam 60 Detik</title>
   <meta name="description" content="Platform AI yang ubah foto produk jadi video iklan profesional dengan struktur HPAS. Langsung dari Telegram. Mulai gratis, bayar pakai VA/e-wallet.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="OpenClaw AI — Ubah Foto Jadi Video Iklan Viral dalam 60 Detik">
+  <meta property="og:description" content="Platform AI yang ubah foto produk jadi video iklan profesional. HPAS Framework. Langsung dari Telegram. Bayar VA/GoPay/OVO.">
+  <meta property="og:image" content="/public/hero-tiktok-showcase.png">
+  <meta property="og:url" content="https://saas.aitradepulse.com">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="OpenClaw AI — Video Iklan Viral dengan AI">
+  <meta name="twitter:description" content="Ubah 1 foto jadi video viral dalam 60 detik. Langsung dari Telegram.">
+  <meta name="twitter:image" content="/public/hero-tiktok-showcase.png">
+  <meta name="theme-color" content="#0d0d14">
+  <link rel="canonical" href="https://saas.aitradepulse.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -77,6 +88,9 @@
     .urgency-box .btn { font-size: 16px; padding: 16px 32px; }
     footer { border-top: 1px solid var(--border); padding: 40px 20px; text-align: center; color: var(--dim); font-size: 14px; }
     footer a { color: var(--accent); text-decoration: none; }
+    @media(max-width: 900px) and (min-width: 641px) {
+      .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+    }
     @media(max-width: 640px) {
       .nav-links .hide-mobile { display: none; }
       .hero { padding: 60px 16px 40px; }
@@ -349,6 +363,13 @@
   }
 }
 
+@media(max-width: 480px) {
+  .video-grid-winning {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
       
     /* Hero Screenshot Responsive */
     .hero-screenshot {
@@ -444,6 +465,7 @@
       <div class="hero-screenshot" style="max-width: 900px; margin: 40px auto 32px;">
         <img src="<%= (landingConfig && landingConfig.heroImageUrl) ? landingConfig.heroImageUrl : '/public/hero-tiktok-showcase.png?v=1774653613' %>"
              alt="Before After Comparison - Stuck vs Winning Dashboard"
+             loading="lazy"
              style="width: 100%; height: auto; display: block; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
       </div>
 
@@ -583,18 +605,19 @@
   <script>
     // Track scroll depth for LTV analysis
     let maxScroll = 0;
+    let scrollThrottle = null;
     window.addEventListener('scroll', function() {
-      const scrollPercent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
-      if (scrollPercent > maxScroll) {
-        maxScroll = Math.floor(scrollPercent / 25) * 25; // Track in 25% increments
-        if (maxScroll > 0 && typeof gtag !== 'undefined') {
-          gtag('event', 'scroll_depth', {
-            event_category: 'engagement',
-            event_label: maxScroll + '%',
-            value: maxScroll
-          });
+      if (scrollThrottle) return;
+      scrollThrottle = requestAnimationFrame(function() {
+        scrollThrottle = null;
+        const scrollPercent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+        if (scrollPercent > maxScroll) {
+          maxScroll = Math.floor(scrollPercent / 25) * 25;
+          if (maxScroll > 0 && typeof gtag !== 'undefined') {
+            gtag('event', 'scroll_depth', { event_category: 'engagement', event_label: maxScroll + '%', value: maxScroll });
+          }
         }
-      }
+      });
     });
 
     // Track time on page for LTV analysis

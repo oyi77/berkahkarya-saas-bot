@@ -106,7 +106,6 @@
     .scene-card p{font-size:14px;color:var(--dim);line-height:1.5}
 
     /* VIDEO CARDS */
-    .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
     .video-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:all .25s}
     .video-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,0.3)}
     .video-thumb{background:linear-gradient(135deg,#111,#1a1a2e);aspect-ratio:9/16;display:flex;align-items:center;justify-content:center;font-size:40px;max-height:180px;overflow:hidden;position:relative}
@@ -162,6 +161,15 @@
     .progress-bar{height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;margin:12px 0}
     .progress-fill{height:100%;background:var(--grad);border-radius:3px;transition:width .4s ease}
 
+    /* VIDEO GRID */
+    .video-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+
+    /* TABLET BREAKPOINT */
+    @media(max-width:1024px) and (min-width:769px){
+      .sidebar{width:200px}
+      .main{margin-left:200px}
+    }
+
     /* MOBILE */
     @media(max-width:768px){
       .sidebar{display:none}
@@ -169,7 +177,7 @@
       .mobile-nav{display:flex!important}
     }
     .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#111127;border-top:1px solid var(--border);z-index:100;padding:8px 0}
-    .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--dim);font-size:10px;font-weight:500;padding:4px;transition:color .2s}
+    .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--dim);font-size:12px;font-weight:500;padding:12px 4px;transition:color .2s}
     .mobile-nav-item.active{color:var(--accent)}
     .mobile-nav-item .mni{font-size:22px}
   </style>
@@ -275,14 +283,34 @@ let currentUser = null;
 let createState = { step: 1, niche: '', style: '', duration: 30, customPrompt: '', storyboard: null };
 let pollInterval = null;
 
+// ── UTILS ─────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // ── AUTH ──────────────────────────────────────────────────
 async function apiFetch(path, opts = {}) {
-  const res = await fetch(API + path, {
-    ...opts,
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) }
-  });
-  if (res.status === 401) { logout(); return null; }
-  return res.json();
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 15000);
+  try {
+    const res = await fetch(API + path, {
+      ...opts,
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, ...(opts.headers || {}) },
+    });
+    clearTimeout(tid);
+    if (res.status === 401) { logout(); return null; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || `Request failed (${res.status})`);
+    }
+    return await res.json();
+  } catch(e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('Request timed out. Check your connection.');
+    throw e;
+  }
 }
 
 function logout() {
@@ -347,7 +375,7 @@ async function init() {
   document.getElementById('stat-tier').textContent = user.tier?.toUpperCase() || 'FREE';
   document.getElementById('stat-ref').textContent = user.referralCode || '—';
   document.getElementById('stat-ref-copy').onclick = () => { navigator.clipboard?.writeText(user.referralCode || ''); toast('Referral code disalin!', 'ok'); };
-  document.getElementById('billing-credits').textContent = Number(user.credits).toFixed(1);
+  document.getElementById('billing-credits').textContent = Math.floor(Number(user.credits));
 
   document.getElementById('loading-overlay').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
@@ -356,7 +384,7 @@ async function init() {
 }
 
 function updateCreditsDisplay(credits) {
-  const c = Number(credits).toFixed(1);
+  const c = Math.floor(Number(credits));
   document.getElementById('stat-credits').textContent = c;
   document.getElementById('header-credits').textContent = '✨ ' + c + ' cr';
   document.getElementById('sidebar-credits').textContent = '✨ ' + c + ' Credits';
@@ -398,14 +426,16 @@ function videoCard(v) {
   const statusMap = { processing: 'processing', completed: 'completed', failed: 'failed', pending: 'pending' };
   const statusLabel = { processing: '⏳ Processing', completed: '✅ Selesai', failed: '❌ Gagal', pending: '🕐 Pending' };
   const s = v.status || 'pending';
+  const safeStatus = statusMap[s] || 'pending';
   const dl = v.downloadUrl || v.videoUrl;
+  const videoSrc = v.videoUrl ? esc(v.videoUrl) : '';
   return `<div class="video-card">
-    <div class="video-thumb">${v.videoUrl ? '<video src="' + v.videoUrl + '" muted playsinline></video>' : '<span>🎬</span>'}</div>
+    <div class="video-thumb">${videoSrc ? '<video src="' + videoSrc + '" muted playsinline></video>' : '<span>🎬</span>'}</div>
     <div class="video-info">
-      <div class="video-title">${v.niche?.toUpperCase() || 'VIDEO'} · ${v.duration}s</div>
-      <div class="video-meta">${new Date(v.createdAt).toLocaleDateString('id-ID')}</div>
-      <span class="status-badge status-${statusMap[s] || 'pending'}">${statusLabel[s] || s}</span>
-      ${dl && s === 'completed' ? '<br><a href="' + dl + '" target="_blank" class="btn btn-outline btn-sm" style="margin-top:8px">⬇ Download</a>' : ''}
+      <div class="video-title">${esc(v.niche?.toUpperCase()) || 'VIDEO'} · ${esc(String(v.duration || ''))}s</div>
+      <div class="video-meta">${esc(new Date(v.createdAt).toLocaleDateString('id-ID'))}</div>
+      <span class="status-badge status-${safeStatus}">${statusLabel[s] || esc(s)}</span>
+      ${dl && s === 'completed' ? '<br><a href="' + esc(dl) + '" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="margin-top:8px">⬇ Download</a>' : ''}
     </div>
   </div>`;
 }
@@ -498,9 +528,9 @@ function renderCreateStep() {
       <div class="step-header">Konfirmasi & Generate</div>
       <div class="step-sub">${scenes.length} scene · ${createState.duration}s · ${createState.niche} · ${createState.style}</div>
       <div style="margin-bottom:20px">
-        ${scenes.map(s => '<div class="scene-card"><div class="scene-num">Scene '+s.scene+' · '+s.duration+'s</div><p>'+s.description+'</p></div>').join('')}
+        ${scenes.map(s => '<div class="scene-card"><div class="scene-num">Scene '+esc(String(s.scene))+' · '+esc(String(s.duration))+'s</div><p>'+esc(s.description)+'</p></div>').join('')}
       </div>
-      ${createState.storyboard?.caption ? '<div class="card" style="margin-bottom:20px"><div style="font-size:12px;color:var(--dim);margin-bottom:6px">📝 Caption</div><p style="font-size:14px;line-height:1.6">'+createState.storyboard.caption+'</p></div>' : ''}
+      ${createState.storyboard?.caption ? '<div class="card" style="margin-bottom:20px"><div style="font-size:12px;color:var(--dim);margin-bottom:6px">📝 Caption</div><p style="font-size:14px;line-height:1.6">'+esc(createState.storyboard.caption)+'</p></div>' : ''}
       <div class="card" style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:14px">Biaya</span>
@@ -561,20 +591,31 @@ async function startGeneration() {
 function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
   let attempts = 0;
+  const MAX_ATTEMPTS = 75; // 5 minutes at 4s intervals
   pollInterval = setInterval(async () => {
     attempts++;
-    const videos = await apiFetch('/api/user/videos');
-    if (!videos) { clearInterval(pollInterval); return; }
-    const processing = videos.filter(v => v.status === 'processing' || v.status === 'pending');
-    loadVideosList(videos);
-    if (processing.length === 0 || attempts > 60) {
-      clearInterval(pollInterval); pollInterval = null;
-      if (attempts <= 60) toast('🎉 Video selesai diproses!', 'ok');
-      const user = await apiFetch('/api/user');
-      if (user) { currentUser = user; updateCreditsDisplay(user.credits); }
+    try {
+      const videos = await apiFetch('/api/user/videos');
+      if (!videos) { clearInterval(pollInterval); pollInterval = null; return; }
+      loadVideosList(videos);
+      const processing = videos.filter(v => v.status === 'processing' || v.status === 'pending');
+      if (processing.length === 0) {
+        clearInterval(pollInterval); pollInterval = null;
+        toast('🎉 Video selesai diproses!', 'ok');
+        const user = await apiFetch('/api/user');
+        if (user) { currentUser = user; updateCreditsDisplay(user.credits); }
+      } else if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(pollInterval); pollInterval = null;
+        toast('⏱️ Video masih diproses. Refresh halaman untuk update terbaru.', 'warn');
+      }
+    } catch(e) {
+      // Network error during polling — don't stop, just wait for next tick
+      if (attempts >= MAX_ATTEMPTS) { clearInterval(pollInterval); pollInterval = null; }
     }
   }, 4000);
 }
+// Cleanup polling when page unloads
+window.addEventListener('beforeunload', () => { if (pollInterval) clearInterval(pollInterval); });
 
 async function loadVideos() {
   const container = document.getElementById('videos-container');
@@ -598,29 +639,35 @@ async function loadBilling() {
   const pkgs = await apiFetch('/api/packages');
   const pc = document.getElementById('packages-container');
   if (pkgs && pkgs.length > 0) {
-    pc.innerHTML = pkgs.map((p, i) => `
+    pc.innerHTML = pkgs.map((p) => `
       <div class="price-card ${p.isPopular ? 'popular' : ''}">
         ${p.isPopular ? '<div class="popular-tag">⭐ POPULER</div>' : ''}
-        <h3>${p.name}</h3>
+        <h3>${esc(p.name)}</h3>
         <div class="price">IDR ${Number(p.priceIdr || p.price).toLocaleString('id-ID')}</div>
-        <div class="cred">${p.totalCredits || p.credits} Credits</div>
-        <button class="btn btn-${p.isPopular ? 'primary' : 'outline'} btn-full" onclick="buyPackage('${p.id}')">Beli Paket</button>
+        <div class="cred">${esc(String(p.totalCredits || p.credits))} Credits</div>
+        <button class="btn btn-${p.isPopular ? 'primary' : 'outline'} btn-full" data-pkg-id="${esc(p.id)}">Beli Paket</button>
       </div>
     `).join('');
+    pc.querySelectorAll('button[data-pkg-id]').forEach(btn => {
+      btn.addEventListener('click', () => buyPackage(btn.dataset.pkgId));
+    });
   }
   const txns = await apiFetch('/api/my/transactions');
   const tbody = document.getElementById('txn-body');
   if (txns && txns.length > 0) {
-    tbody.innerHTML = txns.map(t => `
+    const safeStatuses = new Set(['processing','completed','failed','pending','paid','expired','cancelled']);
+    tbody.innerHTML = txns.map(t => {
+      const safeStatus = safeStatuses.has(t.status) ? t.status : 'pending';
+      return `
       <tr>
-        <td style="font-family:monospace;font-size:11px">${(t.orderId||'').slice(0,18)}...</td>
-        <td>${t.packageName || '—'}</td>
+        <td style="font-family:monospace;font-size:11px">${esc((t.orderId||'').slice(0,18))}...</td>
+        <td>${esc(t.packageName || '—')}</td>
         <td>IDR ${Number(t.amountIdr||0).toLocaleString('id-ID')}</td>
         <td>${Number(t.creditsAmount||0).toFixed(1)}</td>
-        <td><span class="status-badge status-${t.status}">${t.status}</span></td>
-        <td>${new Date(t.createdAt).toLocaleDateString('id-ID')}</td>
+        <td><span class="status-badge status-${safeStatus}">${esc(t.status)}</span></td>
+        <td>${esc(new Date(t.createdAt).toLocaleDateString('id-ID'))}</td>
       </tr>
-    `).join('');
+    `}).join('');
   } else {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">Belum ada transaksi</td></tr>';
   }

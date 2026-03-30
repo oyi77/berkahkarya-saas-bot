@@ -7,7 +7,7 @@
 
 import axios from 'axios';
 import { prisma } from '@/config/database';
-import { UserService } from '@/services/user.service';
+import { getSubscriptionPlansAsync } from '@/config/pricing';
 import { ReferralService } from '@/services/referral.service';
 import { logger } from '@/utils/logger';
 
@@ -129,14 +129,10 @@ export class NowPaymentsService {
       return { success: false, message: 'Transaction not found' };
     }
 
-    if (transaction.status === 'success') {
-      return { success: true, message: 'Already processed' };
-    }
-
     if (payment_status === 'finished' || payment_status === 'confirmed') {
-      // Payment confirmed — add credits
-      await prisma.transaction.update({
-        where: { orderId: order_id },
+      // Atomic guard: only one concurrent webhook wins this update
+      const updateResult = await prisma.transaction.updateMany({
+        where: { orderId: order_id, status: { not: 'success' } },
         data: {
           status: 'success',
           paidAt: new Date(),
@@ -144,8 +140,26 @@ export class NowPaymentsService {
         },
       });
 
+      if (updateResult.count === 0) {
+        return { success: true, message: 'Already processed' };
+      }
+
       const credits = Number(transaction.creditsAmount);
-      await UserService.addCredits(transaction.userId, credits);
+
+      // Determine and update user tier
+      let newTier = 'free';
+      const plans = await getSubscriptionPlansAsync();
+      const plan = plans[transaction.packageName];
+      if (plan && plan.tier) {
+        newTier = plan.tier;
+      }
+      await prisma.user.update({
+        where: { telegramId: transaction.userId },
+        data: {
+          creditBalance: { increment: credits },
+          tier: newTier as any,
+        },
+      });
 
       // Process referral commissions — read USD amount from metadata
       const meta = transaction.metadata as any;

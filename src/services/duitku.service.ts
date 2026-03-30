@@ -4,7 +4,7 @@ import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { ReferralService } from '@/services/referral.service';
 import { SubscriptionService } from '@/services/subscription.service';
-import { PlanKey, BillingCycle, getPackagesAsync } from '@/config/pricing';
+import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import { AnalyticsService } from '@/services/analytics.service';
 
 const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
@@ -121,8 +121,8 @@ export class DuitkuService {
     else if (params.resultCode === '01') newStatus = 'pending';
     else newStatus = 'failed';
 
-    await prisma.transaction.update({
-      where: { orderId: params.merchantOrderId },
+    const updateResult = await prisma.transaction.updateMany({
+      where: { orderId: params.merchantOrderId, status: { not: 'success' } },
       data: {
         status: newStatus,
         gatewayTransactionId: params.reference,
@@ -130,7 +130,12 @@ export class DuitkuService {
       },
     });
 
-    if (newStatus === 'success' && transaction.status !== 'success') {
+    if (newStatus === 'success') {
+      if (updateResult.count === 0) {
+        // Already processed — skip credit grant
+        return { success: true, message: 'Already processed' };
+      }
+
       if (transaction.type === 'subscription') {
         const parts = transaction.packageName.split('_');
         const plan = parts[0] as PlanKey;
@@ -145,11 +150,20 @@ export class DuitkuService {
         logger.info(`Subscription activated: ${plan}/${billingCycle} for user ${transaction.userId}`);
       } else {
         const credits = Number(transaction.creditsAmount) || 0;
+        let newTier = 'free';
+        const plans = await getSubscriptionPlansAsync();
+        const plan = plans[transaction.packageName];
+        if (plan && plan.tier) {
+          newTier = plan.tier;
+        }
         await prisma.user.update({
           where: { telegramId: transaction.userId },
-          data: { creditBalance: { increment: credits } },
+          data: {
+            creditBalance: { increment: credits },
+            tier: newTier as any,
+          },
         });
-        logger.info(`Added ${credits} credits to user ${transaction.userId}`);
+        logger.info(`Added ${credits} credits and set tier ${newTier} for user ${transaction.userId}`);
       }
 
       await ReferralService.processCommissions(

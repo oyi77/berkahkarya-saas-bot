@@ -138,7 +138,19 @@ export class TripayService {
         newStatus = 'failed';
       }
 
-      if (newStatus === 'success' && transaction.status !== 'success') {
+      const updateResult = await prisma.transaction.updateMany({
+        where: { orderId: transaction.orderId, status: { not: 'success' } },
+        data: {
+          status: newStatus,
+          paidAt: newStatus === 'success' ? new Date() : undefined,
+        },
+      });
+
+      if (newStatus === 'success') {
+        if (updateResult.count === 0) {
+          // Already processed or status is already success — skip credit grant
+          return { success: true, message: 'Already processed' };
+        }
         await prisma.user.update({
           where: { telegramId: transaction.userId },
           data: {
@@ -147,14 +159,6 @@ export class TripayService {
         });
         logger.info(`Added ${transaction.creditsAmount} credits to user ${transaction.userId} via Tripay`);
       }
-
-      await prisma.transaction.update({
-        where: { orderId: merchant_ref },
-        data: {
-          status: newStatus,
-          paidAt: newStatus === 'success' ? new Date() : undefined,
-        },
-      });
 
       return { success: true, message: 'Callback processed' };
     } catch (error: any) {

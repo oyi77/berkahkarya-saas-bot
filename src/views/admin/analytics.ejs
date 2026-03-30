@@ -130,11 +130,23 @@
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; }
+      .hamburger { display: block; }
+      .kpi-row, .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .health-card { min-width: unset; }
+      table { font-size: 12px; }
+      table td, table th { padding: 6px 8px; }
+    }
   </style>
 </head>
 <body>
 
 <!-- Sidebar -->
+<button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
 <div class="sidebar">
   <div style="padding: 20px; border-bottom: 1px solid var(--border);">
     <div style="font-size: 16px; font-weight: 700; color: var(--gold);">⚡ BerkahKarya</div>
@@ -1635,7 +1647,9 @@ if (urlToken) { localStorage.setItem('admin_password', urlToken); }
 // Load initial section — support #hash navigation (e.g. redirect from /admin/settings)
 const initSection = location.hash.replace('#', '') || 'overview';
 if (initSection !== 'overview') {
-  switchSection(initSection);
+  const navItem = document.querySelector(`[data-section="${initSection}"]`);
+  if (navItem) navItem.click();
+  else loadOverview();
 } else {
   loadOverview();
 }
@@ -1645,6 +1659,17 @@ setInterval(() => {
   if (currentSection === 'overview') loadOverview();
   if (currentSection === 'analytics') loadAnalytics();
 }, 30000);
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+}
+// Close sidebar when nav item clicked on mobile
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    if (window.innerWidth <= 768) {
+      document.querySelector('.sidebar').classList.remove('open');
+    }
+  });
+});
 </script>
 </body>
 </html>
