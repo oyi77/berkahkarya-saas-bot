@@ -133,7 +133,9 @@
     "globals": {
       "ts-jest": {
         "tsconfig": {
-          "isolatedModules": true
+          "isolatedModules": true,
+          "module": "CommonJS",
+          "moduleResolution": "node"
         }
       }
     },

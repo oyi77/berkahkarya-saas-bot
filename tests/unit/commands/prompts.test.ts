@@ -125,15 +125,15 @@ describe("Prompts Command", () => {
   });
 
   describe("getPromptById", () => {
-    it("should return prompt for valid ID", () => {
-      const prompt = getPromptById("fnb_1");
+    it("should return prompt for valid ID", async () => {
+      const prompt = await getPromptById("fnb_1");
       expect(prompt).toBeDefined();
       expect(prompt?.id).toBe("fnb_1");
       expect(prompt?.niche).toBe("fnb");
     });
 
-    it("should return null for invalid ID", () => {
-      const prompt = getPromptById("invalid_id");
+    it("should return null for invalid ID", async () => {
+      const prompt = await getPromptById("invalid_id");
       expect(prompt).toBeNull();
     });
   });

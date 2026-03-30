@@ -4,6 +4,10 @@
  * Tests for /create command handler and related functions
  */
 
+jest.mock("@/flows/generate", () => ({
+  showGenerateMode: jest.fn().mockResolvedValue(undefined),
+}));
+
 import {
   describe,
   it,
@@ -220,23 +224,36 @@ describe("Create Command", () => {
   });
 
   describe("createCommand", () => {
-    it("should handle missing user gracefully", async () => {
+    let showGenerateMode: jest.Mock;
+
+    beforeEach(() => {
+      showGenerateMode = require("@/flows/generate").showGenerateMode;
+      showGenerateMode.mockClear();
+    });
+
+    it("should delegate to showGenerateMode regardless of user state", async () => {
+      await createCommand(ctx as any);
+
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
+    });
+
+    it("should delegate to showGenerateMode when user is missing", async () => {
       ctx.from = undefined as any;
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("❌ Unable to identify user");
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should handle user not found in database", async () => {
+    it("should delegate to showGenerateMode when user not found in database", async () => {
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("❌ User not found");
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should show insufficient credits message when balance < 0.5", async () => {
+    it("should delegate to showGenerateMode when balance is insufficient", async () => {
       UserService.findByTelegramId.mockResolvedValue({
         ...mockUser,
         creditBalance: 0.3,
@@ -245,18 +262,10 @@ describe("Create Command", () => {
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalled();
-      const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[1].reply_markup.inline_keyboard).toEqual(
-        expect.arrayContaining([
-          expect.arrayContaining([
-            expect.objectContaining({ callback_data: "topup" }),
-          ]),
-        ]),
-      );
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should show daily limit message when generation not allowed", async () => {
+    it("should delegate to showGenerateMode when daily limit reached", async () => {
       UserService.findByTelegramId.mockResolvedValue({
         ...mockUser,
         creditBalance: 10,
@@ -270,14 +279,10 @@ describe("Create Command", () => {
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalled();
-      const replyCall = ctx.reply.mock.calls[0];
-      expect(
-        replyCall[1].reply_markup.inline_keyboard[0][0].callback_data,
-      ).toBe("open_subscription");
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should show duration picker when prompt is preselected", async () => {
+    it("should delegate to showGenerateMode when prompt is preselected", async () => {
       ctx.session.stateData = { selectedPrompt: "Test prompt for video" };
       ctx.session.selectedNiche = "fnb";
       ctx.session.selectedStyles = ["appetizing"];
@@ -290,17 +295,10 @@ describe("Create Command", () => {
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalled();
-      const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Prompt aktif");
-      expect(
-        replyCall[1].reply_markup.inline_keyboard[0][0].callback_data,
-      ).toBe("duration_15_1");
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should truncate long preselected prompts", async () => {
-      const longPrompt = "A".repeat(150);
-      ctx.session.stateData = { selectedPrompt: longPrompt };
+    it("should delegate to showGenerateMode for normal flow", async () => {
       UserService.findByTelegramId.mockResolvedValue({
         ...mockUser,
         creditBalance: 10,
@@ -310,29 +308,10 @@ describe("Create Command", () => {
 
       await createCommand(ctx as any);
 
-      const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("...");
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should show niche picker for normal flow", async () => {
-      UserService.findByTelegramId.mockResolvedValue({
-        ...mockUser,
-        creditBalance: 10,
-        language: "id",
-      });
-      UserService.canGenerate.mockResolvedValue({ allowed: true });
-
-      await createCommand(ctx as any);
-
-      expect(ctx.reply).toHaveBeenCalled();
-      const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Create Video");
-      expect(replyCall[1].reply_markup.inline_keyboard.length).toBeGreaterThan(
-        0,
-      );
-    });
-
-    it("should use default language when user has no language set", async () => {
+    it("should delegate to showGenerateMode when user has no language set", async () => {
       UserService.findByTelegramId.mockResolvedValue({
         ...mockUser,
         creditBalance: 10,
@@ -342,17 +321,17 @@ describe("Create Command", () => {
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalled();
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
 
-    it("should handle database errors gracefully", async () => {
+    it("should delegate to showGenerateMode even when database errors occur", async () => {
       UserService.findByTelegramId.mockRejectedValue(
         new Error("Database error"),
       );
 
       await createCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("❌ Something went wrong");
+      expect(showGenerateMode).toHaveBeenCalledWith(ctx);
     });
   });
 

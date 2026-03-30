@@ -133,7 +133,7 @@ describe("Referral Command", () => {
 
       const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
       expect(keyboard[0][0].url).toContain("t.me/share/url");
-      expect(keyboard[1][0].callback_data).toBe("main_menu");
+      expect(keyboard[3][0].callback_data).toBe("main_menu");
     });
 
     it("should include referral link in share URL", async () => {
@@ -160,7 +160,7 @@ describe("Referral Command", () => {
       await referralCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Failed to load referral info. Please try again later.",
+        "Failed to load referral info. Error: Database error. Please try again later.",
       );
     });
   });

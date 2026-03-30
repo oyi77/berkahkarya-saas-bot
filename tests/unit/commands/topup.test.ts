@@ -97,12 +97,22 @@ jest.mock("@/config/pricing", () => ({
     (credits: number, tier: string) =>
       credits * (tier === "free" ? 20000 : 10000),
   ),
+  getUnitCostAsync: jest.fn().mockResolvedValue(20000),
+  getPackagesAsync: jest.fn().mockResolvedValue([
+    { id: "starter", name: "Starter", credits: 6, bonus: 0, priceIdr: 49000 },
+    { id: "growth", name: "Growth", credits: 16, bonus: 6, priceIdr: 149000 },
+  ]),
+  SUBSCRIPTION_PLANS: {
+    lite: { monthlyCredits: 30 },
+    pro: { monthlyCredits: 100 },
+  },
 }));
 
 jest.mock("@/config/database", () => ({
   prisma: {
     transaction: {
       create: jest.fn(),
+      findUnique: jest.fn(),
     },
   },
 }));
@@ -199,7 +209,7 @@ describe("Topup Command", () => {
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("Top Up Credits");
       expect(replyCall[0]).toContain("Standard Pricing");
-      expect(replyCall[0]).toContain("Subscribe to save 50%");
+      expect(replyCall[0]).toContain("Subscribe to save up to 50%");
     });
 
     it("should show subscriber pricing for subscribed users", async () => {
@@ -228,7 +238,7 @@ describe("Topup Command", () => {
       await topupCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Extra Credit Packages");
+      expect(replyCall[0]).toContain("Quick Units");
     });
 
     it("should show bulk packages", async () => {
@@ -378,7 +388,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("select payment gateway");
+      expect(editCall[0]).toContain("Select Payment Gateway");
     });
 
     it("should handle errors gracefully", async () => {
@@ -441,7 +451,7 @@ describe("Topup Command", () => {
 
       const editCall = ctx.editMessageText.mock.calls[0];
       const keyboard = editCall[1].reply_markup.inline_keyboard;
-      expect(keyboard[0][0].text).toContain("Pay Now");
+      expect(keyboard[0][0].text).toContain("Complete Payment");
       expect(keyboard[1][0].callback_data).toBe("check_payment_ORDER-123");
     });
 
@@ -460,9 +470,10 @@ describe("Topup Command", () => {
 
   describe("checkPayment", () => {
     it("should show success message for successful payment", async () => {
-      PaymentService.getTransactionStatus.mockResolvedValue({
+      prisma.transaction.findUnique.mockResolvedValue({
         status: "success",
-        credits: 6,
+        creditsAmount: 6,
+        orderId: "ORDER-123",
       });
 
       await checkPayment(ctx as any, "ORDER-123");
@@ -474,8 +485,9 @@ describe("Topup Command", () => {
     });
 
     it("should show pending message for pending payment", async () => {
-      PaymentService.getTransactionStatus.mockResolvedValue({
+      prisma.transaction.findUnique.mockResolvedValue({
         status: "pending",
+        orderId: "ORDER-123",
       });
 
       await checkPayment(ctx as any, "ORDER-123");
@@ -487,19 +499,20 @@ describe("Topup Command", () => {
     });
 
     it("should show failed message for failed payment", async () => {
-      PaymentService.getTransactionStatus.mockResolvedValue({
+      prisma.transaction.findUnique.mockResolvedValue({
         status: "failed",
+        orderId: "ORDER-123",
       });
 
       await checkPayment(ctx as any, "ORDER-123");
 
       expect(ctx.editMessageText).toHaveBeenCalledWith(
-        expect.stringContaining("Payment failed"),
+        expect.stringContaining("failed"),
       );
     });
 
     it("should handle transaction not found", async () => {
-      PaymentService.getTransactionStatus.mockResolvedValue(null);
+      prisma.transaction.findUnique.mockResolvedValue(null);
 
       await checkPayment(ctx as any, "ORDER-123");
 
@@ -509,7 +522,7 @@ describe("Topup Command", () => {
     });
 
     it("should handle errors gracefully", async () => {
-      PaymentService.getTransactionStatus.mockRejectedValue(
+      prisma.transaction.findUnique.mockRejectedValue(
         new Error("Service error"),
       );
 
@@ -545,11 +558,14 @@ describe("Topup Command", () => {
         ...mockUser,
         tier: "free",
       });
-      prisma.transaction.create.mockResolvedValue({});
+      DuitkuService.createTransaction.mockResolvedValue({
+        orderId: "ORDER-EXTRA-5",
+        paymentUrl: "https://duitku.example.com/pay",
+      });
 
       await handleTopupExtraCredit(ctx as any, 5);
 
-      expect(prisma.transaction.create).toHaveBeenCalled();
+      expect(DuitkuService.createTransaction).toHaveBeenCalled();
       expect(ctx.editMessageText).toHaveBeenCalled();
     });
 
@@ -558,7 +574,7 @@ describe("Topup Command", () => {
         ...mockUser,
         tier: "free",
       });
-      axios.post.mockRejectedValue(new Error("Payment error"));
+      DuitkuService.createTransaction.mockRejectedValue(new Error("Payment error"));
 
       await handleTopupExtraCredit(ctx as any, 5);
 
@@ -708,7 +724,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("5 Credits");
+      expect(editCall[0]).toContain("5 Units");
       expect(editCall[0]).toContain("$2.00");
     });
 

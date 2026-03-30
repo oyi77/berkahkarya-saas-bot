@@ -94,7 +94,7 @@ describe("Start Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain(
-        "Selamat datang di BerkahKarya AI!",
+        "Selamat datang di OpenClaw AI!",
       );
       expect(
         replyCall[1].reply_markup.inline_keyboard[0][0].callback_data,
@@ -173,7 +173,7 @@ describe("Start Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("Halo");
-      expect(replyCall[1].reply_markup.inline_keyboard).toHaveLength(5);
+      expect(replyCall[1].reply_markup.keyboard).toHaveLength(5);
     });
 
     it("should show correct credit emoji for zero balance", async () => {
@@ -313,12 +313,12 @@ describe("Start Command", () => {
 
       await startCommand(ctx as any);
 
-      const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
-      expect(keyboard[0][0].callback_data).toBe("create_video_new");
-      expect(keyboard[1][0].callback_data).toBe("create_image_new");
-      expect(keyboard[2][0].callback_data).toBe("credits_menu");
-      expect(keyboard[3][0].callback_data).toBe("videos_list");
-      expect(keyboard[4][0].callback_data).toBe("account_menu");
+      const keyboard = ctx.reply.mock.calls[0][1].reply_markup.keyboard;
+      expect(keyboard[0][0].text).toBe("🎬 Create Video");
+      expect(keyboard[0][1].text).toBe("🖼️ Generate Image");
+      expect(keyboard[1][0].text).toBe("📚 Prompt Library");
+      expect(keyboard[2][0].text).toBe("📁 My Videos");
+      expect(keyboard[4][0].text).toBe("⚙️ Settings");
     });
 
     it("should handle zh-hans language code", async () => {

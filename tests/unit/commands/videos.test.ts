@@ -80,7 +80,7 @@ describe("Videos Command", () => {
       expect(replyCall[0]).toContain("No videos yet");
       expect(
         replyCall[1].reply_markup.inline_keyboard[0][0].callback_data,
-      ).toBe("create_video");
+      ).toBe("create_video_new");
     });
 
     it("should show video list with completed videos", async () => {
@@ -152,7 +152,7 @@ describe("Videos Command", () => {
       const replyCall = ctx.reply.mock.calls[0];
       const keyboard = replyCall[1].reply_markup.inline_keyboard;
       const createButton = keyboard.find((row: any) =>
-        row.some((btn: any) => btn.callback_data === "create_video"),
+        row.some((btn: any) => btn.callback_data === "create_video_new"),
       );
       expect(createButton).toBeDefined();
     });
@@ -173,7 +173,11 @@ describe("Videos Command", () => {
         new Error("Database error") as never,
       );
 
-      await expect(videosCommand(ctx as any)).rejects.toThrow();
+      await videosCommand(ctx as any);
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        "❌ Terjadi kesalahan. Silakan coba lagi.",
+      );
     });
   });
 
@@ -316,7 +320,11 @@ describe("Videos Command", () => {
         new Error("Database error") as never,
       );
 
-      await expect(copyVideoUrl(ctx as any, "job_test_123")).rejects.toThrow();
+      await copyVideoUrl(ctx as any, "job_test_123");
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        "❌ Terjadi kesalahan. Silakan coba lagi.",
+      );
     });
   });
 
@@ -366,7 +374,11 @@ describe("Videos Command", () => {
         new Error("Database error") as never,
       );
 
-      await expect(deleteVideo(ctx as any, "job_test_123")).rejects.toThrow();
+      await deleteVideo(ctx as any, "job_test_123");
+
+      expect(ctx.reply).toHaveBeenCalledWith(
+        "❌ Terjadi kesalahan. Silakan coba lagi.",
+      );
     });
   });
 });

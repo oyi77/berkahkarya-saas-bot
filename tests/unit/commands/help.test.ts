@@ -61,11 +61,11 @@ describe("Help Command", () => {
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("/prompts");
       expect(replyCall[0]).toContain("/create");
-      expect(replyCall[0]).toContain("/credits");
-      expect(replyCall[0]).toContain("/history");
+      expect(replyCall[0]).toContain("/topup");
+      expect(replyCall[0]).toContain("/subscription");
       expect(replyCall[0]).toContain("/settings");
-      expect(replyCall[0]).toContain("/feedback");
-      expect(replyCall[0]).toContain("/settings");
+      expect(replyCall[0]).toContain("/videos");
+      expect(replyCall[0]).toContain("/profile");
       expect(replyCall[0]).toContain("/support");
     });
 
@@ -74,8 +74,8 @@ describe("Help Command", () => {
 
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("GENERATE");
-      expect(replyCall[0]).toContain("/video");
-      expect(replyCall[0]).toContain("/imagine");
+      expect(replyCall[0]).toContain("/create");
+      expect(replyCall[0]).toContain("/trending");
     });
 
     it("should show quick tips section", async () => {

@@ -157,7 +157,7 @@ describe("Social Command", () => {
 
       const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
       const createButton = keyboard.find((row: any) =>
-        row.some((btn: any) => btn.callback_data === "create_video"),
+        row.some((btn: any) => btn.callback_data === "create_video_new"),
       );
       expect(createButton).toBeDefined();
     });

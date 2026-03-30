@@ -1,30 +1,74 @@
 import request from "supertest";
 import fastify from "fastify";
-import { adminRoutes } from "../../src/routes/admin";
-import { ProviderSettingsService } from "../../src/services/provider-settings.service";
 
-// Mock the Redis setup for testing
+const TEST_ADMIN_PASSWORD = "test-admin-password";
+
+// Set env var before ANY module is imported (runs before hoisted jest.mock factories)
+// jest.mock factories are hoisted, so we embed the password there too.
+process.env.ADMIN_PASSWORD = TEST_ADMIN_PASSWORD;
+
+// Mock modules before admin.ts loads — factories run with the env var already set
 jest.mock("../../src/config/redis", () => ({
   redis: {
     get: jest.fn(),
     set: jest.fn(),
+    publish: jest.fn(),
   },
 }));
 
-// Mock database to avoid hitting real Postgres during integration test
 jest.mock("../../src/config/database", () => ({
   prisma: {
     transaction: { findMany: jest.fn().mockResolvedValue([]) },
   },
 }));
 
+// Prevent BullMQ from opening real Redis connections during tests
+jest.mock("../../src/config/queue", () => ({
+  videoQueue: { add: jest.fn() },
+  paymentQueue: { add: jest.fn() },
+  notificationQueue: { add: jest.fn() },
+  billingQueue: { add: jest.fn() },
+  cleanupQueue: { add: jest.fn() },
+}));
+
+jest.mock("../../src/workers/retention.worker", () => ({
+  retentionQueue: { add: jest.fn() },
+  RetentionWorker: jest.fn(),
+}));
+
+// Import after mocks are in place. admin.ts captures ADMIN_PASSWORD at module
+// load; the jest.mock factory for a sentinel module forces admin.ts to be
+// evaluated only after all mocks (including process.env) are set.
+// We use jest.isolateModules in beforeAll to guarantee fresh evaluation.
+let adminRoutes: (server: any) => Promise<void>;
+let ProviderSettingsService: any;
+let isolatedPrisma: any;
+
+// Helper: build Basic auth header matching admin.ts verifyAdmin logic
+// verifyAdmin splits "user:password" and takes the password part ([1]).
+function adminAuthHeader(): string {
+  const encoded = Buffer.from(`admin:${TEST_ADMIN_PASSWORD}`).toString("base64");
+  return `Basic ${encoded}`;
+}
+
 describe("Admin Dashboard API Integration Tests", () => {
   let app: any;
 
   beforeAll(async () => {
+    // Ensure env var is set before the fresh module evaluation
+    process.env.ADMIN_PASSWORD = TEST_ADMIN_PASSWORD;
+
+    await new Promise<void>((resolve) => {
+      jest.isolateModules(async () => {
+        ({ adminRoutes } = require("../../src/routes/admin"));
+        ({ ProviderSettingsService } = require("../../src/services/provider-settings.service"));
+        // Capture the prisma instance from the same isolated module scope
+        ({ prisma: isolatedPrisma } = require("../../src/config/database"));
+        resolve();
+      });
+    });
+
     app = fastify();
-    // Simulate auth token for testing scope
-    app.decorateRequest("user", { role: "ADMIN" });
     await app.register(adminRoutes);
     await app.ready();
   });
@@ -44,7 +88,9 @@ describe("Admin Dashboard API Integration Tests", () => {
         image: {},
       });
 
-      const response = await request(app.server).get("/api/admin/settings/providers");
+      const response = await request(app.server)
+        .get("/api/admin/settings/providers")
+        .set("Authorization", adminAuthHeader());
       expect(response.status).toBe(200);
       expect(response.body.overrides.video.xai.priority).toBe(1);
       expect(response.body.overrides.video.byteplus.enabled).toBe(false);
@@ -59,18 +105,20 @@ describe("Admin Dashboard API Integration Tests", () => {
 
       const sorted = await ProviderSettingsService.getSortedVideoProviders();
       expect(sorted[0].key).toBe("xai");
-      expect(sorted.find(p => p.key === "byteplus")).toBeUndefined();
+      expect(sorted.find((p: any) => p.key === "byteplus")).toBeUndefined();
     });
   });
 
   describe("Real-time Tracking APIs", () => {
     it("should return P2P transfer logs with proper schema", async () => {
-      const { prisma } = require("../../src/config/database");
-      prisma.transaction.findMany.mockResolvedValueOnce([
+      // Use the prisma instance from the same isolated module scope as adminRoutes
+      isolatedPrisma.transaction.findMany.mockResolvedValueOnce([
         { id: "tx-123", type: "transfer", creditsAmount: 50, user: { username: "tester" } }
       ]);
-      
-      const response = await request(app.server).get("/api/admin/transactions/transfers");
+
+      const response = await request(app.server)
+        .get("/api/admin/transactions/transfers")
+        .set("Authorization", adminAuthHeader());
       expect(response.status).toBe(200);
       expect(response.body.length).toBe(1);
       expect(response.body[0].creditsAmount).toBe(50);
