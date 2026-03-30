@@ -19,6 +19,7 @@ import {
 } from "@/services/video-generation.service";
 import {
   getVideoCreditCostAsync,
+  getImageCreditCostAsync,
   getPackagesAsync,
   getSubscriptionPlansAsync,
 } from "@/config/pricing";
@@ -364,8 +365,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       if (!prompt)
         return reply.status(400).send({ error: "prompt is required" });
 
-      // 1 credit per image generation
-      const IMAGE_CREDIT_COST = 1;
+      const IMAGE_CREDIT_COST = await getImageCreditCostAsync();
       if (Number(user.creditBalance) < IMAGE_CREDIT_COST) {
         return reply.status(402).send({
           error: `Insufficient credits. Need ${IMAGE_CREDIT_COST}, have ${user.creditBalance}`,
@@ -397,6 +397,33 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     } catch (error: any) {
       server.log.error({ error }, "Image generate error");
       return reply.status(500).send({ error: error.message || "Failed to generate image" });
+    }
+  });
+
+  // ── IMAGE DESCRIBE (i2t) ──
+  server.post("/api/image/describe", async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const { imageUrl } = request.body as any;
+      if (!imageUrl) return reply.status(400).send({ error: "imageUrl is required" });
+
+      const { ContentAnalysisService } = await import("@/services/content-analysis.service");
+      const result = await ContentAnalysisService.extractPrompt(imageUrl, "image");
+
+      if (!result.success) {
+        return reply.status(422).send({ error: result.error || "Could not analyze image" });
+      }
+
+      return {
+        ok: true,
+        description: result.prompt,
+        style: result.style,
+        elements: result.elements,
+      };
+    } catch (error: any) {
+      server.log.error({ error }, "Image describe error");
+      return reply.status(500).send({ error: error.message || "Failed to describe image" });
     }
   });
 

@@ -142,8 +142,11 @@ export class VideoAnalysisService {
       logger.info(`[VideoAnalysis] Downloading video (${isSocialPlatform ? 'yt-dlp' : 'wget'}): ${videoUrl.slice(0, 80)}`);
       if (isSocialPlatform) {
         // Use yt-dlp for social platforms (handles auth-less public videos)
+        // Use full path because pm2/child_process may not include ~/.local/bin in PATH
+        const ytdlpBin = '/home/openclaw/.local/bin/yt-dlp';
+        const ytdlpCmd = require('fs').existsSync(ytdlpBin) ? ytdlpBin : 'yt-dlp';
         await execAsync(
-          `yt-dlp --no-playlist -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" ` +
+          `${ytdlpCmd} --no-playlist -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" ` +
           `--merge-output-format mp4 -o "${tempPath}" "${videoUrl}"`,
           { timeout: 120_000 },
         );

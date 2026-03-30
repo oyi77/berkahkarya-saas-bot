@@ -1165,6 +1165,14 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // REPURPOSE_CONFIRM — user is waiting to tap a button; any text message here is noise
+    if (ctx.session.state === "REPURPOSE_CONFIRM") {
+      await ctx.reply(
+        "Tap salah satu tombol di atas untuk mulai generate, atau /menu untuk kembali ke dashboard.",
+      );
+      return;
+    }
+
     // Handle disassemble (video/image to prompt)
     if (ctx.session.state === "DISASSEMBLE_WAITING") {
       await handleDisassemble(ctx);
