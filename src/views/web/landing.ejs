@@ -388,11 +388,13 @@
     
     // Track CTA clicks
     function trackCTA(action) {
-      gtag('event', action, {
-        event_category: 'engagement',
-        event_label: 'landing_page'
-      });
-      
+      if (typeof gtag !== 'undefined') {
+        gtag('event', action, {
+          event_category: 'engagement',
+          event_label: 'landing_page'
+        });
+      }
+
       // Meta Pixel
       if (typeof fbq !== 'undefined') {
         fbq('track', action);
@@ -427,7 +429,7 @@
       <div class="nav-links">
         <a href="#fitur" class="hide-mobile">Fitur</a>
         <a href="#harga" class="hide-mobile">Harga</a>
-        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_nav_click')">Coba Gratis</a>
+        <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_nav_click')">Coba Gratis</a>
       </div>
     </div>
   </nav>
@@ -446,7 +448,7 @@
       </div>
 
       <div class="cta-row">
-        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_hero_click')"><%= (landingConfig && landingConfig.ctaText) ? landingConfig.ctaText : '🎁 Mulai Gratis — 1 Video Gratis' %></a>
+        <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_hero_click')"><%= (landingConfig && landingConfig.ctaText) ? landingConfig.ctaText : '🎁 Mulai Gratis — 1 Video Gratis' %></a>
       </div>
       <p class="trust-line">✅ <strong>Tanpa Kartu Kredit</strong> • ✅ <strong>100% di Telegram</strong> • ✅ <strong>Bayar VA/GoPay/OVO</strong></p>
     </div>
@@ -539,19 +541,13 @@
           <div class="price">IDR <%= (pkg.priceIdr / 1000).toFixed(0) %>K</div>
           <div class="credits"><%= pkg.credits + (pkg.bonus || 0) %> Credits (<%= (pkg.credits + (pkg.bonus || 0)) * 10 %> Unit)</div>
           <ul>
-            <% if (pkg.description) { %>
-              <% pkg.description.split(',').forEach(feat => { %>
-                <li><%= feat.trim() %></li>
-              <% }) %>
-            <% } else { %>
-              <li>~<%= pkg.credits + (pkg.bonus || 0) %> video 30 detik</li>
-              <li>Semua mode (Basic/Smart/Pro)</li>
-              <li>HPAS Framework</li>
-              <li>Download HD</li>
-              <li>Multi platform output</li>
-            <% } %>
+            <li>~<%= pkg.credits + (pkg.bonus || 0) %> video 30 detik</li>
+            <li>Semua mode (Basic/Smart/Pro)</li>
+            <li>HPAS Framework</li>
+            <li>Download HD</li>
+            <li>Multi platform output</li>
           </ul>
-          <a href="https://t.me/berkahkarya_saas_bot" class="btn <%= pkg.isPopular ? 'btn-primary' : 'btn-outline' %>" onclick="trackCTA('cta_<%= pkg.id %>_click')">
+          <a href="https://t.me/<%= botUsername %>" class="btn <%= pkg.isPopular ? 'btn-primary' : 'btn-outline' %>" onclick="trackCTA('cta_<%= pkg.id %>_click')">
             <%= pkg.id === 'agency_pkg' ? 'Hubungi Sales' : 'Mulai Sekarang' %>
           </a>
         </div>
@@ -570,16 +566,16 @@
     <div class="urgency-box">
       <h2>⏰ Kompetitor Kamu Udah Posting 10 Video Hari Ini</h2>
       <p>Sementara kamu masih mikir, kompetitor kamu udah generate 10 video, post ke TikTok/IG, dan closing 5 customer. Algoritma TikTok reward yang konsisten posting. Mau tunggu sampai kapan?</p>
-      <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_urgency_click')">🎁 Coba Gratis Sekarang — 1 Video Gratis</a>
+      <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_urgency_click')">🎁 Coba Gratis Sekarang — 1 Video Gratis</a>
       <p style="margin-top:16px; font-size:13px; color:var(--dim);">✅ Tanpa Kartu Kredit • ✅ 100% di Telegram • ✅ 60 Detik Generate</p>
     </div>
   </section>
 
   <footer>
-    <p>© 2026 <a href="https://berkahkarya.org">BerkahKarya</a> — Vilona OpenClaw SaaS. All rights reserved.</p>
+    <p>© 2026 OpenClaw AI — All rights reserved.</p>
     <p style="margin-top:8px">
-      <a href="https://t.me/berkahkarya_saas_bot">Telegram Bot</a> · 
-      <a href="/app">Web App</a> · 
+      <a href="https://t.me/<%= botUsername %>">Telegram Bot</a> ·
+      <a href="/app">Web App</a> ·
       <a href="https://t.me/codergaboets">Support</a>
     </p>
   </footer>

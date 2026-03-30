@@ -110,7 +110,7 @@
     }
 
     async function loadTransfers() {
-      const res = await fetch('/api/transactions/transfers');
+      const res = await fetch('/api/transactions/transfers', { credentials: 'include' });
       const transfers = await res.json();
       
       const div = document.getElementById('transfersLog');

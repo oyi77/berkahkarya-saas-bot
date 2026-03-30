@@ -263,9 +263,9 @@ export class PaymentSettingsService {
       { category: 'package', key: 'growth', value: { name: 'Growth Machine', nameId: 'Paket Growth', priceIdr: 149000, credits: 18, bonus: 4, description: 'Most popular', isPopular: true } },
       { category: 'package', key: 'business', value: { name: 'Business Kingdom', nameId: 'Paket Bisnis', priceIdr: 499000, credits: 70, bonus: 15, description: 'Best value for teams' } },
       // Subscriptions
-      { category: 'subscription', key: 'lite', value: { name: 'Lite', monthlyIdr: 99000, yearlyIdr: 990000, monthlyCredits: 20, dailyGenerationLimit: 3 } },
-      { category: 'subscription', key: 'pro', value: { name: 'Pro', monthlyIdr: 199000, yearlyIdr: 1990000, monthlyCredits: 50, dailyGenerationLimit: 10 } },
-      { category: 'subscription', key: 'agency', value: { name: 'Agency', monthlyIdr: 499000, yearlyIdr: 4990000, monthlyCredits: 150, dailyGenerationLimit: 30 } },
+      { category: 'subscription', key: 'lite', value: { name: 'Lite', monthlyPriceIdr: 99000, annualPriceIdr: 990000, monthlyCredits: 20, dailyGenerationLimit: 3 } },
+      { category: 'subscription', key: 'pro', value: { name: 'Pro', monthlyPriceIdr: 199000, annualPriceIdr: 1990000, monthlyCredits: 50, dailyGenerationLimit: 10 } },
+      { category: 'subscription', key: 'agency', value: { name: 'Agency', monthlyPriceIdr: 499000, annualPriceIdr: 4990000, monthlyCredits: 150, dailyGenerationLimit: 30 } },
     ];
 
     await prisma.pricingConfig.createMany({

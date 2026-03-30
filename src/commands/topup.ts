@@ -48,50 +48,25 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     }
 
     const subscribed = await SubscriptionService.isSubscribed(telegramId);
-    
-    // Use a default unit for pricing visualization or fetch specific ones
-    const pricePerCredit = await getUnitCostAsync('VIDEO_15S'); 
-    // Actually, for topup, we should probably follow the old logic of 20k/10k or get from DB
-    // Let's assume 'VIDEO_15S' reflects the 'base' unit cost for calculation if needed,
-    // but the actual price for TOPUP should be fetched separately if it's different.
-    // For now, I'll align the type.
+
+    const packages = await getPackagesAsync();
 
     let message =
       `💰 *Top Up Credits*\n\n` +
       `Current Balance: ${dbUser.creditBalance} credits\n\n`;
 
     if (subscribed) {
-      message += `✅ *Subscriber Pricing* — Rp ${formatIdr(pricePerCredit)}/credit\n\n`;
+      message += `✅ *Subscriber* — enjoy priority generation\n\n`;
     } else {
-      message +=
-        `💲 *Standard Pricing* — Rp ${formatIdr(pricePerCredit)}/credit\n` +
-        `_Subscribe to save up to 50%!_\n\n`;
+      message += `_Subscribe to save up to 50%!_\n\n`;
     }
 
-    // Dynamic Packages from DB/Redis
-    const packages = await getPackagesAsync();
-    
-    // Extra/Single Credit Buttons (using Unit Cost)
-    const quickPacks = [1, 5, 10];
-    const extraButtons = quickPacks.map(credits => {
-      const price = credits * pricePerCredit;
-      return [{
-        text: `${credits} unit${credits > 1 ? 's' : ''} — Rp ${formatIdr(price)}`,
-        callback_data: `topup_extra_${credits}`,
-      }];
-    });
+    message += '*Bulk Packages:*';
 
     const packageButtons = packages.map(pkg => [{
-      text: `${pkg.name} — Rp ${formatIdr(pkg.priceIdr || (pkg as any).price)} (${pkg.credits + (pkg.bonus || 0)} credits)`,
+      text: `${pkg.name} — Rp ${formatIdr(pkg.priceIdr)} (${pkg.credits + (pkg.bonus || 0)} credits)`,
       callback_data: `topup_pkg_${pkg.id}`,
     }]);
-
-    message += '*Quick Units:*\n';
-    quickPacks.forEach(c => {
-      message += `• ${c} unit${c > 1 ? 's' : ''} — Rp ${formatIdr(c * pricePerCredit)}\n`;
-    });
-
-    message += '\n*Bulk Packages:*';
 
     const upsellRow = !subscribed
       ? [[{ text: '💡 Subscribe for Cheaper Rates!', callback_data: 'open_subscription' }]]
@@ -105,7 +80,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(message, {
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [...extraButtons, ...upsellRow, ...packageButtons, ...starsRow, [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }]],
+        inline_keyboard: [...upsellRow, ...packageButtons, ...starsRow, [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }]],
       },
     });
   } catch (error) {

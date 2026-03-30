@@ -55,15 +55,12 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       /* ignore */
     }
 
-    const [packages, subscriptionPlans] = await Promise.all([
-      getPackagesAsync(),
-      getSubscriptionPlansAsync(),
-    ]);
+    const packages = await getPackagesAsync();
 
     reply.view("web/landing.ejs", {
       landingConfig,
       packages,
-      subscriptionPlans,
+      botUsername: process.env.BOT_USERNAME || 'berkahkarya_saas_bot',
     });
   });
 
@@ -346,7 +343,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       const { videoUrl } = request.body as any;
       if (!videoUrl) return reply.status(400).send({ error: "videoUrl is required" });
 
-      const { VideoAnalysisService } = await import("@/services/video-analysis.service");
+      const { VideoAnalysisService } = await import("@/services/video-analysis.service.js");
       const result = await VideoAnalysisService.analyze(videoUrl);
 
       if (!result.success) {
@@ -431,7 +428,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       const { imageUrl } = request.body as any;
       if (!imageUrl) return reply.status(400).send({ error: "imageUrl is required" });
 
-      const { ContentAnalysisService } = await import("@/services/content-analysis.service");
+      const { ContentAnalysisService } = await import("@/services/content-analysis.service.js");
       const result = await ContentAnalysisService.extractPrompt(imageUrl, "image");
 
       if (!result.success) {
@@ -756,7 +753,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     const user = await getUser(request, reply);
     if (!user) return;
     try {
-      const { SubscriptionService } = await import("@/services/subscription.service");
+      const { SubscriptionService } = await import("@/services/subscription.service.js");
       await SubscriptionService.cancelSubscription(user.telegramId);
       return { ok: true };
     } catch (error: any) {

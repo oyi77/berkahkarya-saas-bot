@@ -208,7 +208,6 @@ describe("Topup Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("Top Up Credits");
-      expect(replyCall[0]).toContain("Standard Pricing");
       expect(replyCall[0]).toContain("Subscribe to save up to 50%");
     });
 
@@ -223,8 +222,8 @@ describe("Topup Command", () => {
       await topupCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Subscriber Pricing");
-      expect(replyCall[0]).not.toContain("Subscribe to save 50%");
+      expect(replyCall[0]).toContain("Subscriber");
+      expect(replyCall[0]).not.toContain("Subscribe to save");
     });
 
     it("should show extra credit packages", async () => {
@@ -238,7 +237,7 @@ describe("Topup Command", () => {
       await topupCommand(ctx as any);
 
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Quick Units");
+      expect(replyCall[0]).toContain("Bulk Packages");
     });
 
     it("should show bulk packages", async () => {

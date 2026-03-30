@@ -239,7 +239,7 @@
 
     async function apiCall(method, url, body) {
       try {
-        var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+        var opts = { method: method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
         if (body) opts.body = JSON.stringify(body);
         var res = await fetch(url, opts);
         var data = await res.json();
@@ -253,7 +253,7 @@
 
     async function loadAll() {
       try {
-        var res = await fetch('/api/pricing-overview');
+        var res = await fetch('/api/pricing-overview', { credentials: 'include' });
         if (res.status === 401) { window.location.href = '/admin'; return; }
         pricingData = await res.json();
 

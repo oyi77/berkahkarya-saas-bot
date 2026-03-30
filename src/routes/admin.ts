@@ -448,7 +448,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   server.get("/admin/settings", async (request, reply) => {
-    return reply.view("admin/settings.ejs");
+    return reply.redirect("/admin/dashboard#settings");
   });
 
   // API: Get all admin prompts (global, visible to all users)
@@ -885,7 +885,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return { success: true };
   });
 
-  /** GET /api/settings/landing — Landing page config (used by settings.ejs) */
+  /** GET /api/settings/landing — Landing page config */
   server.get("/api/settings/landing", async () => {
     const data = await redis.get("admin:landing_config");
     return data ? JSON.parse(data) : { headline: '', subheadline: '', ctaText: '', heroImageUrl: '' };
@@ -931,7 +931,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     for (const [key, plan] of Object.entries(SUBSCRIPTION_PLANS)) {
       await prisma.pricingConfig.upsert({
         where: { category_key: { category: 'subscription', key } },
-        update: {},
+        update: { value: plan as any },
         create: { category: 'subscription', key, value: plan as any },
       });
       seeded++;

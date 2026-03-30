@@ -317,7 +317,7 @@ it("should register GET / route", () => {
       expect(reply.view).toHaveBeenCalledWith("web/landing.ejs", expect.objectContaining({
         landingConfig: expect.any(Object),
         packages: expect.any(Array),
-        subscriptionPlans: expect.any(Object),
+        botUsername: expect.any(String),
       }));
     });
   });

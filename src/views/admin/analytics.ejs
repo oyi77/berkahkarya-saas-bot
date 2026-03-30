@@ -152,7 +152,7 @@
     <div class="nav-item" data-section="system">⚙️ System</div>
     <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
     <div class="nav-item" data-section="profit">💹 Revenue</div>
-    <a href="/admin/settings" class="nav-item" style="text-decoration:none;">⚙️ Settings</a>
+    <div class="nav-item" data-section="settings">⚙️ Settings</div>
   </nav>
   <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
     <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
@@ -476,6 +476,81 @@
     </div>
   </div>
 
+  <!-- ====== SETTINGS ====== -->
+  <div id="section-settings" class="section">
+    <div class="section-title">Settings</div>
+    <div class="section-sub">System configuration, providers, and operational settings</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+      <!-- AI Provider Priority -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">AI Provider Priority</div>
+          <button class="btn btn-gold btn-sm" onclick="saveProviders()">Save</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Lower number = higher priority in fallback chain</div>
+        <div id="st-videoProviders" style="display:flex;flex-direction:column;gap:8px;">
+          <div class="loading">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Landing Page Editor -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">Landing Page Editor</div>
+          <button class="btn btn-gold btn-sm" onclick="saveLanding()">Save</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Main Headline</div>
+            <input type="text" id="st-lpHeadline" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Bring Your AI Ideas to Life">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Sub-Headline</div>
+            <textarea id="st-lpSub" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);height:80px;resize:vertical;" placeholder="Generate cinematic AI videos directly from Telegram..."></textarea>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Call To Action Button</div>
+            <input type="text" id="st-lpCta" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Start Creating Now">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+      <!-- Pricing Seed -->
+      <div class="card" style="padding:20px;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">Pricing Data</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Seed the database with default packages and subscription plans from static config. Safe to run multiple times (idempotent).</div>
+        <button class="btn btn-gold btn-sm" onclick="seedPricing()">🌱 Seed Default Pricing Data</button>
+        <div id="st-seed-result" style="margin-top:10px;font-size:12px;color:var(--muted);"></div>
+      </div>
+
+      <!-- Referral Rates -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">Referral Commission Rates</div>
+          <button class="btn btn-gold btn-sm" onclick="saveReferralRates()">Save</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Sell Rate (IDR/credit) — paid when converting commission → credits</div>
+            <input type="number" id="st-refSellRate" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="3000" min="100" step="100">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Buy Rate (IDR/credit) — average credit purchase price (reference)</div>
+            <input type="number" id="st-refBuyRate" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="6000" min="100" step="100">
+          </div>
+          <div style="font-size:11px;color:var(--muted);">E.g. Rp 30,000 commission ÷ Rp 3,000 sell rate = 10 credits.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <!-- ======= MODALS ======= -->
@@ -714,6 +789,7 @@ function loadSection(sec) {
   else if (sec === 'system') loadSystem();
   else if (sec === 'tokens') loadTokenStats();
   else if (sec === 'profit') loadProfitReport();
+  else if (sec === 'settings') loadSettings();
 }
 
 // ===================== CLOCK =====================
@@ -1473,13 +1549,96 @@ async function loadProfitReport() {
   } catch(e) { toast('Failed to load profit report: ' + e.message, 'error'); }
 }
 
+// ===================== SETTINGS =====================
+const ST_VIDEO_KEYS = ['byteplus', 'xai', 'laozhang', 'evolink', 'falai_video', 'geminigen', 'siliconflow', 'piapi', 'remotion'];
+
+async function loadSettings() {
+  try {
+    const [provRes, landRes, refRes] = await Promise.all([
+      fetch('/api/admin/settings/providers', { credentials: 'include' }),
+      fetch('/api/settings/landing', { credentials: 'include' }),
+      fetch('/api/settings/referral', { credentials: 'include' }),
+    ]);
+    const provData = await provRes.json();
+    const landData = await landRes.json();
+    const refData = await refRes.json();
+
+    // Providers
+    const overrides = provData.overrides?.video || {};
+    document.getElementById('st-videoProviders').innerHTML = ST_VIDEO_KEYS.map(k => {
+      const priority = overrides[k] ? overrides[k].priority : 99;
+      const enabled = overrides[k] ? overrides[k].enabled : true;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg);padding:8px 12px;border-radius:6px;border:1px solid var(--border);">
+        <span style="font-size:13px;font-weight:600;">${k}</span>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="number" id="st-prio_${k}" value="${priority}" style="width:52px;background:var(--card);border:1px solid var(--border);padding:4px;border-radius:4px;text-align:center;color:var(--text);" title="Priority">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" id="st-en_${k}" ${enabled ? 'checked' : ''}>
+            <span>On</span>
+          </label>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Landing
+    document.getElementById('st-lpHeadline').value = landData.headline || '';
+    document.getElementById('st-lpSub').value = landData.subheadline || '';
+    document.getElementById('st-lpCta').value = landData.ctaText || '';
+
+    // Referral
+    document.getElementById('st-refSellRate').value = refData.sellRate || 3000;
+    document.getElementById('st-refBuyRate').value = refData.buyRate || 6000;
+  } catch(e) { toast('Failed to load settings: ' + e.message, 'error'); }
+}
+
+async function saveProviders() {
+  const video = {};
+  ST_VIDEO_KEYS.forEach(k => {
+    video[k] = {
+      priority: parseInt(document.getElementById(`st-prio_${k}`).value),
+      enabled: document.getElementById(`st-en_${k}`).checked,
+    };
+  });
+  const res = await fetch('/api/admin/settings/providers', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ video }) });
+  res.ok ? toast('Providers saved!') : toast('Failed to save providers', 'error');
+}
+
+async function saveLanding() {
+  const payload = { headline: document.getElementById('st-lpHeadline').value, subheadline: document.getElementById('st-lpSub').value, ctaText: document.getElementById('st-lpCta').value };
+  const res = await fetch('/api/settings/landing', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  res.ok ? toast('Landing page saved!') : toast('Failed to save landing page', 'error');
+}
+
+async function seedPricing() {
+  document.getElementById('st-seed-result').textContent = 'Seeding...';
+  const res = await fetch('/api/settings/seed-pricing', { method: 'POST', credentials: 'include' });
+  const data = await res.json();
+  document.getElementById('st-seed-result').textContent = data.success
+    ? `✅ Seeded ${data.seeded} entries.`
+    : '❌ Failed: ' + (data.error || 'Unknown');
+  if (data.success) toast(`Seeded ${data.seeded} pricing entries`);
+}
+
+async function saveReferralRates() {
+  const sellRate = parseInt(document.getElementById('st-refSellRate').value);
+  const buyRate = parseInt(document.getElementById('st-refBuyRate').value);
+  if (!sellRate || sellRate <= 0 || !buyRate || buyRate <= 0) { toast('Rates must be positive numbers', 'error'); return; }
+  const res = await fetch('/api/settings/referral', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sellRate, buyRate }) });
+  res.ok ? toast('Referral rates saved!') : toast('Failed to save rates', 'error');
+}
+
 // ===================== INIT =====================
 // Store token from URL into localStorage
 const urlToken = new URLSearchParams(location.search).get('token');
 if (urlToken) { localStorage.setItem('admin_password', urlToken); }
 
-// Load initial section
-loadOverview();
+// Load initial section — support #hash navigation (e.g. redirect from /admin/settings)
+const initSection = location.hash.replace('#', '') || 'overview';
+if (initSection !== 'overview') {
+  switchSection(initSection);
+} else {
+  loadOverview();
+}
 
 // Auto-refresh overview + analytics every 30s
 setInterval(() => {
