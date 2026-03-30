@@ -76,7 +76,10 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/provider-costs") ||
       url.startsWith("/api/admin-prompts") ||
       url.startsWith("/api/token-stats") ||
-      url.startsWith("/api/token-usage");
+      url.startsWith("/api/token-usage") ||
+      url.startsWith("/api/profit-report") ||
+      url.startsWith("/api/settings/") ||
+      url.startsWith("/api/admin/");
     if (isAdminRoute) {
       await verifyAdmin(request, reply);
     }
@@ -318,8 +321,14 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // API: Get payment settings
   server.get("/api/payment-settings", async () => {
-    const settings = await PaymentSettingsService.getAllSettings();
+    const flat = await PaymentSettingsService.getAllSettings();
     const defaultGateway = await PaymentSettingsService.getDefaultGateway();
+    // Return structured settings: { midtrans: { enabled: true }, tripay: { enabled: true }, ... }
+    const gateways = ['midtrans', 'tripay', 'duitku'];
+    const settings: Record<string, { enabled: boolean }> = {};
+    for (const gw of gateways) {
+      settings[gw] = { enabled: flat[`${gw}_enabled`] !== 'false' };
+    }
     return { settings, defaultGateway };
   });
 

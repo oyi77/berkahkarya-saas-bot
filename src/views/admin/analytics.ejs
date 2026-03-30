@@ -151,7 +151,7 @@
     <div class="nav-item" data-section="broadcast">📢 Broadcast</div>
     <div class="nav-item" data-section="system">⚙️ System</div>
     <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
-    <div class="nav-item" data-section="profit">💹 Profit</div>
+    <div class="nav-item" data-section="profit">💹 Revenue</div>
   </nav>
   <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
     <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
@@ -445,9 +445,9 @@
     </div>
   </div>
 
-  <!-- ====== PROFIT ====== -->
+  <!-- ====== REVENUE ====== -->
   <div id="section-profit" class="section">
-    <div class="section-title">Profit Report</div>
+    <div class="section-title">Revenue Report</div>
     <div class="section-sub">Revenue vs Costs — Actual profit tracking</div>
     <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
       <button class="tab active" onclick="setProfitPeriod(this,7)">7 Days</button>
@@ -1103,7 +1103,7 @@ async function loadGateways() {
     const data = await api('/api/payment-settings');
     if (!data) return;
     const { settings, defaultGateway } = data;
-    const gateways = ['midtrans', 'tripay'];
+    const gateways = ['midtrans', 'tripay', 'duitku'];
     document.getElementById('gateways-wrap').innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;">
       ${gateways.map(gw => {
         const enabled = settings?.[gw]?.enabled !== false;
@@ -1430,8 +1430,8 @@ function setProfitPeriod(el, days) {
 
 async function loadProfitReport() {
   try {
-    const res = await fetch(`/api/profit-report?period=${profitPeriod}`, { headers: authHeaders() });
-    const data = await res.json();
+    const data = await api(`/api/profit-report?period=${profitPeriod}`);
+    if (!data) return;
     const fmt = n => Number(n || 0).toLocaleString('id-ID');
 
     document.getElementById('pf-revenue').textContent = 'Rp ' + fmt(data.revenue?.totalIdr);

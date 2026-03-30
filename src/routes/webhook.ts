@@ -16,10 +16,13 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
 
   server.post('/webhook/telegram', async (request, reply) => {
     try {
-      const secret = request.headers['x-telegram-bot-api-secret-token'];
-      if (secret !== process.env.WEBHOOK_SECRET) {
-        logger.warn('Invalid webhook secret');
-        return reply.status(401).send({ error: 'Unauthorized' });
+      const webhookSecret = process.env.WEBHOOK_SECRET;
+      if (webhookSecret) {
+        const secret = request.headers['x-telegram-bot-api-secret-token'];
+        if (secret !== webhookSecret) {
+          logger.warn('Invalid webhook secret');
+          return reply.status(401).send({ error: 'Unauthorized' });
+        }
       }
       await bot.handleUpdate(request.body as any);
       return { ok: true };
