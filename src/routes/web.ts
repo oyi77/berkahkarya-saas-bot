@@ -321,6 +321,37 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     }
   });
 
+  // ── VIDEO ANALYZE (for repurposing) ──
+  server.post("/api/video/analyze", async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const { videoUrl } = request.body as any;
+      if (!videoUrl) return reply.status(400).send({ error: "videoUrl is required" });
+
+      const { VideoAnalysisService } = await import("@/services/video-analysis.service");
+      const result = await VideoAnalysisService.analyze(videoUrl);
+
+      if (!result.success) {
+        return reply.status(422).send({ error: result.error || "Analysis failed" });
+      }
+
+      // Don't return keyFramePaths (local file paths) to web clients
+      return {
+        ok: true,
+        niche: result.niche,
+        style: result.style,
+        totalDuration: result.totalDuration,
+        transcript: result.transcript,
+        storyboard: result.storyboard,
+        hasKeyFrames: (result.keyFramePaths?.length || 0) > 0,
+      };
+    } catch (error: any) {
+      server.log.error({ error }, "Video analyze error");
+      return reply.status(500).send({ error: error.message || "Failed to analyze video" });
+    }
+  });
+
   // ── IMAGE GENERATE ──
   server.post("/api/image/generate", async (request, reply) => {
     const user = await getUser(request, reply);

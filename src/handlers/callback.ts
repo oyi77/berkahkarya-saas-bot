@@ -54,7 +54,9 @@ import {
 } from "@/commands/admin/paymentSettings";
 import {
   getImageCreditCostAsync,
+  getVideoCreditCostAsync,
 } from "@/config/pricing";
+import { enqueueVideoGeneration } from "@/config/queue";
 import { t } from "@/i18n/translations";
 import {
   showNichePrompts,
@@ -210,6 +212,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           { text: "🔄 Clone", callback_data: "clone_video" },
           { text: "📋 Storyboard", callback_data: "storyboard_create" },
           { text: "📈 Viral", callback_data: "viral_research" },
+        ],
+        [
+          { text: "🔄 Repurpose Video", callback_data: "repurpose_video" },
+          { text: "🔍 Disassemble", callback_data: "disassemble" },
         ],
         [
           { text: "💰 Top Up", callback_data: "topup" },
@@ -1926,6 +1932,148 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         },
       );
       ctx.session.state = "DISASSEMBLE_WAITING";
+      return;
+    }
+
+    // Repurpose / Trend Replication
+    if (data === "repurpose_video") {
+      await ctx.editMessageText(
+        "🔄 *Repurpose Trending Video*\n\n" +
+        "Kirim video dengan cara:\n" +
+        "• 📎 Upload file MP4 langsung\n" +
+        "• 🔗 Paste link TikTok / Instagram Reels\n" +
+        "• 🔗 Paste link YouTube Shorts / Twitter/X\n\n" +
+        "_AI akan extract storyboard, scene prompts, dan transkrip — lalu buat ulang videonya._",
+        {
+          parse_mode: "Markdown",
+          reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] },
+        },
+      );
+      ctx.session.state = "REPURPOSE_VIDEO_URL";
+      return;
+    }
+
+    if (data === "repurpose_generate_t2v") {
+      // Use extracted storyboard prompts for t2v generation
+      const repurposeData = ctx.session.stateData?.repurposeData as any;
+      if (!repurposeData?.storyboard) {
+        await ctx.reply("❌ No analysis data found. Please start over.");
+        return;
+      }
+      // Store in videoCreation and trigger normal generation flow
+      const storyboard = repurposeData.storyboard;
+      const duration = repurposeData.totalDuration || 15;
+      const niche = repurposeData.niche || "general";
+
+      const creditCost = await getVideoCreditCostAsync(duration);
+      const telegramId = BigInt(ctx.from!.id);
+      const user = await UserService.findByTelegramId(telegramId);
+      if (!user || Number(user.creditBalance) < creditCost) {
+        await ctx.reply(`❌ Insufficient credits. Need ${creditCost} credits.`);
+        return;
+      }
+
+      await UserService.deductCredits(telegramId, creditCost);
+      const jobId = `RPR-T2V-${Date.now()}-${telegramId}`;
+      const chatId = ctx.chat!.id;
+
+      await prisma.video.create({
+        data: {
+          userId: telegramId,
+          jobId,
+          niche,
+          platform: "reels",
+          duration,
+          scenes: storyboard.length,
+          status: "processing",
+          creditsUsed: creditCost,
+          storyboard,
+        },
+      });
+
+      await enqueueVideoGeneration({
+        jobId,
+        niche,
+        platform: "reels",
+        duration,
+        scenes: storyboard.length,
+        storyboard,
+        userId: telegramId.toString(),
+        chatId,
+        enableVO: false,
+        enableSubtitles: false,
+        language: "id",
+      });
+
+      await ctx.editMessageText(
+        `✅ *Video regeneration started!*\n\n` +
+        `🎬 Job: \`${jobId}\`\n` +
+        `📊 ${storyboard.length} scenes · ${duration}s · niche: ${niche}\n\n` +
+        `_We'll send you the video when it's ready._`,
+        { parse_mode: "Markdown" },
+      );
+      return;
+    }
+
+    if (data === "repurpose_generate_i2v") {
+      const repurposeData = ctx.session.stateData?.repurposeData as any;
+      if (!repurposeData?.storyboard) {
+        await ctx.reply("❌ No analysis data found. Please start over.");
+        return;
+      }
+      const storyboard = repurposeData.storyboard;
+      const duration = repurposeData.totalDuration || 15;
+      const niche = repurposeData.niche || "general";
+      const referenceImage = repurposeData.keyFramePaths?.[0] || undefined;
+
+      const creditCost = await getVideoCreditCostAsync(duration);
+      const telegramId = BigInt(ctx.from!.id);
+      const user = await UserService.findByTelegramId(telegramId);
+      if (!user || Number(user.creditBalance) < creditCost) {
+        await ctx.reply(`❌ Insufficient credits. Need ${creditCost} credits.`);
+        return;
+      }
+
+      await UserService.deductCredits(telegramId, creditCost);
+      const jobId = `RPR-I2V-${Date.now()}-${telegramId}`;
+      const chatId = ctx.chat!.id;
+
+      await prisma.video.create({
+        data: {
+          userId: telegramId,
+          jobId,
+          niche,
+          platform: "reels",
+          duration,
+          scenes: storyboard.length,
+          status: "processing",
+          creditsUsed: creditCost,
+          storyboard,
+        },
+      });
+
+      await enqueueVideoGeneration({
+        jobId,
+        niche,
+        platform: "reels",
+        duration,
+        scenes: storyboard.length,
+        storyboard,
+        referenceImage,
+        userId: telegramId.toString(),
+        chatId,
+        enableVO: false,
+        enableSubtitles: false,
+        language: "id",
+      });
+
+      await ctx.editMessageText(
+        `✅ *Video regeneration started! (with frame reference)*\n\n` +
+        `🎬 Job: \`${jobId}\`\n` +
+        `📊 ${storyboard.length} scenes · ${duration}s · niche: ${niche}\n\n` +
+        `_We'll send you the video when it's ready._`,
+        { parse_mode: "Markdown" },
+      );
       return;
     }
 

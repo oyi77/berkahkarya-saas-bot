@@ -1050,6 +1050,121 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Repurpose video URL input
+    if (ctx.session.state === "REPURPOSE_VIDEO_URL") {
+      let videoUrl: string | undefined;
+      if ("video" in message) {
+        // Telegram compressed video
+        videoUrl = (await ctx.telegram.getFileLink((message as any).video.file_id)).toString();
+      } else if ("document" in message) {
+        // Video sent as file (uncompressed / .mp4 document)
+        const doc = (message as any).document;
+        if (doc?.mime_type?.startsWith("video/")) {
+          videoUrl = (await ctx.telegram.getFileLink(doc.file_id)).toString();
+        }
+      } else if ("text" in message) {
+        const text = message.text?.trim() || "";
+        // Accept any http(s) URL — social platforms handled by yt-dlp in the service
+        if (text.startsWith("http://") || text.startsWith("https://")) {
+          videoUrl = text;
+        }
+      }
+
+      if (!videoUrl) {
+        await ctx.reply(
+          "❌ Format tidak dikenali.\n\n" +
+          "Kirim salah satu dari:\n" +
+          "• Upload video langsung (MP4)\n" +
+          "• Link TikTok / Instagram Reels / YouTube Shorts / Twitter\n" +
+          "• URL langsung ke file video (.mp4)"
+        );
+        return;
+      }
+
+      const analyzingMsg = await ctx.reply(
+        "⏳ *Menganalisis video...*\n\n" +
+        "Extracting storyboard, prompts, dan transkrip. Tunggu sebentar...",
+        { parse_mode: "Markdown" },
+      );
+
+      try {
+        const { VideoAnalysisService } = await import("@/services/video-analysis.service");
+        const analysis = await VideoAnalysisService.analyze(videoUrl);
+
+        if (!analysis.success || !analysis.storyboard?.length) {
+          await ctx.telegram.deleteMessage(ctx.chat!.id, analyzingMsg.message_id).catch(() => {});
+          await ctx.reply(
+            "❌ Gagal menganalisis video.\n\n" +
+            (analysis.error || "Pastikan URL video bisa diakses publik."),
+          );
+          ctx.session.state = "DASHBOARD";
+          return;
+        }
+
+        // Store analysis in session
+        ctx.session.stateData = {
+          ...ctx.session.stateData,
+          repurposeData: {
+            storyboard: analysis.storyboard,
+            transcript: analysis.transcript,
+            niche: analysis.niche,
+            style: analysis.style,
+            totalDuration: analysis.totalDuration,
+            keyFramePaths: analysis.keyFramePaths,
+          },
+        };
+
+        // Format storyboard preview
+        const scenes = analysis.storyboard.slice(0, 5);
+        const sceneText = scenes
+          .map(
+            (s) =>
+              `*Scene ${s.scene}* (${s.duration}s): ${s.description.slice(0, 80)}${s.description.length > 80 ? "..." : ""}`,
+          )
+          .join("\n");
+
+        const moreScenes =
+          analysis.storyboard.length > 5
+            ? `\n_...+${analysis.storyboard.length - 5} more scenes_`
+            : "";
+        const transcriptPreview = analysis.transcript
+          ? `\n\n*Transkrip:*\n_"${analysis.transcript.slice(0, 200)}${analysis.transcript.length > 200 ? "..." : ""}"_`
+          : "";
+
+        const hasFrames = (analysis.keyFramePaths?.length || 0) > 0;
+
+        await ctx.telegram.deleteMessage(ctx.chat!.id, analyzingMsg.message_id).catch(() => {});
+
+        ctx.session.state = "REPURPOSE_CONFIRM";
+
+        await ctx.reply(
+          `✅ *Analisis Selesai!*\n\n` +
+          `🎯 *Niche:* ${analysis.niche || "general"}\n` +
+          `🎨 *Style:* ${analysis.style || "-"}\n` +
+          `⏱️ *Durasi:* ${analysis.totalDuration || "?"}s · ${analysis.storyboard.length} scenes\n\n` +
+          `*Storyboard:*\n${sceneText}${moreScenes}${transcriptPreview}\n\n` +
+          `Mau regenerate gimana?`,
+          {
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "🎬 Generate (Text-to-Video)", callback_data: "repurpose_generate_t2v" }],
+                ...(hasFrames
+                  ? [[{ text: "🖼️ Generate (Image-to-Video)", callback_data: "repurpose_generate_i2v" }]]
+                  : []),
+                [{ text: "❌ Cancel", callback_data: "main_menu" }],
+              ],
+            },
+          },
+        );
+      } catch (err: any) {
+        await ctx.telegram.deleteMessage(ctx.chat!.id, analyzingMsg.message_id).catch(() => {});
+        await ctx.reply(`❌ Error: ${err.message}`);
+        ctx.session.state = "DASHBOARD";
+      }
+      return;
+    }
+
     // Handle disassemble (video/image to prompt)
     if (ctx.session.state === "DISASSEMBLE_WAITING") {
       await handleDisassemble(ctx);
