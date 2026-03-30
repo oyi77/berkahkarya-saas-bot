@@ -4,6 +4,7 @@ const mockPrismaUser = {
   findUnique: jest.fn<any>(),
   create: jest.fn<any>(),
   update: jest.fn<any>(),
+  updateMany: jest.fn<any>(),
   count: jest.fn<any>(),
 };
 
@@ -188,7 +189,7 @@ describe("UserService", () => {
       expect(result).toEqual(createdUser);
       const createCall = mockPrismaUser.create.mock.calls[0][0] as any;
       expect(createCall.data.tier).toBe("free");
-      expect(createCall.data.creditBalance).toBe(3);
+      expect(createCall.data.creditBalance).toBe(0);
       expect(createCall.data.language).toBe("id");
       expect(createCall.data.notificationsEnabled).toBe(true);
     });
@@ -299,40 +300,43 @@ describe("UserService", () => {
 
   describe("deductCredits()", () => {
     it("should deduct credits when balance is sufficient", async () => {
-      const user = makeUser({ creditBalance: 5 });
+      // Atomic pattern: updateMany WHERE balance >= amount → count=1 means success
+      // Then findUnique is called to return the updated user
       const updatedUser = makeUser({ creditBalance: 4 });
-      mockPrismaUser.findUnique.mockResolvedValue(user);
-      mockPrismaUser.update.mockResolvedValue(updatedUser);
+      mockPrismaUser.updateMany.mockResolvedValue({ count: 1 });
+      mockPrismaUser.findUnique.mockResolvedValue(updatedUser);
 
       const result = await UserService.deductCredits(BigInt(123456789), 1);
 
       expect(result.creditBalance).toBe(4);
-      expect(mockPrismaUser.update).toHaveBeenCalledWith({
-        where: { telegramId: BigInt(123456789) },
+      expect(mockPrismaUser.updateMany).toHaveBeenCalledWith({
+        where: {
+          telegramId: BigInt(123456789),
+          creditBalance: { gte: 1 },
+        },
         data: { creditBalance: { decrement: 1 } },
       });
     });
 
-    it("should throw when user not found", async () => {
-      mockPrismaUser.findUnique.mockResolvedValue(null);
+    it("should throw when balance is insufficient (count=0)", async () => {
+      // count=0 means the WHERE condition (balance >= amount) was not met
+      mockPrismaUser.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(UserService.deductCredits(BigInt(123456789), 5)).rejects.toThrow(
+        "Insufficient credits",
+      );
+    });
+
+    it("should throw when user not found (count=0)", async () => {
+      mockPrismaUser.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(UserService.deductCredits(BigInt(999), 1)).rejects.toThrow(
         "Insufficient credits",
       );
     });
 
-    it("should throw when credits are insufficient", async () => {
-      const user = makeUser({ creditBalance: 0 });
-      mockPrismaUser.findUnique.mockResolvedValue(user);
-
-      await expect(
-        UserService.deductCredits(BigInt(123456789), 5),
-      ).rejects.toThrow("Insufficient credits");
-    });
-
     it("should throw when deducting more than available", async () => {
-      const user = makeUser({ creditBalance: 2 });
-      mockPrismaUser.findUnique.mockResolvedValue(user);
+      mockPrismaUser.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(
         UserService.deductCredits(BigInt(123456789), 3),
@@ -340,10 +344,9 @@ describe("UserService", () => {
     });
 
     it("should allow deducting exact balance", async () => {
-      const user = makeUser({ creditBalance: 3 });
       const updatedUser = makeUser({ creditBalance: 0 });
-      mockPrismaUser.findUnique.mockResolvedValue(user);
-      mockPrismaUser.update.mockResolvedValue(updatedUser);
+      mockPrismaUser.updateMany.mockResolvedValue({ count: 1 });
+      mockPrismaUser.findUnique.mockResolvedValue(updatedUser);
 
       const result = await UserService.deductCredits(BigInt(123456789), 3);
 

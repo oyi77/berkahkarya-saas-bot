@@ -23,9 +23,13 @@ const mockPrisma = {
     create: jest.fn() as any,
     findUnique: jest.fn() as any,
     update: jest.fn() as any,
+    updateMany: jest.fn() as any,
   },
   user: {
     update: jest.fn() as any,
+  },
+  pricingConfig: {
+    findMany: jest.fn<any>().mockResolvedValue([]),
   },
 };
 
@@ -199,14 +203,16 @@ describe("PaymentService", () => {
       };
 
       mockPrisma.transaction.findUnique.mockResolvedValue(mockTransaction);
-      mockPrisma.transaction.update.mockResolvedValue({});
+      // New atomic pattern: updateMany WHERE status != 'success' → count=1 means first-and-only processing
+      mockPrisma.transaction.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.user.update.mockResolvedValue({});
 
       const result = await PaymentService.handleNotification(notification);
 
       expect(result.success).toBe(true);
-      expect(mockPrisma.transaction.update).toHaveBeenCalledWith(
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: expect.objectContaining({ status: { not: "success" } }),
           data: expect.objectContaining({ status: "success" }),
         }),
       );
