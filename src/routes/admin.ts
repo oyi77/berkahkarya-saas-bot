@@ -5,6 +5,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import crypto from "crypto";
 import { prisma } from "@/config/database";
 import { getQueueStats, addNotificationJob } from "@/config/queue";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
@@ -19,6 +20,11 @@ import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 import { ProviderSettingsService } from "@/services/provider-settings.service";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+
+/** HMAC-SHA256 token derived from ADMIN_PASSWORD — not trivially reversible unlike base64 */
+function makeAdminToken(password: string): string {
+  return crypto.createHmac('sha256', 'openclaw-admin-v1').update(password).digest('hex');
+}
 
 async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (!ADMIN_PASSWORD) {
@@ -37,7 +43,7 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
     .find((c) => c.trim().startsWith("admin_token="));
   if (cookie) {
     const token = cookie.split("=")[1]?.trim();
-    if (token === Buffer.from(ADMIN_PASSWORD).toString("base64")) return;
+    if (token === makeAdminToken(ADMIN_PASSWORD)) return;
   }
 
   const query = request.query as Record<string, string>;
@@ -100,7 +106,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       .find((c) => c.trim().startsWith("admin_token="));
     if (cookie) {
       const token = cookie.split("=")[1]?.trim();
-      if (token === Buffer.from(ADMIN_PASSWORD).toString("base64")) {
+      if (token === makeAdminToken(ADMIN_PASSWORD)) {
         return reply.redirect("/admin/dashboard");
       }
     }
@@ -111,7 +117,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.post("/admin/login", async (request, reply) => {
     const { password } = request.body as { password: string };
     if (password === ADMIN_PASSWORD) {
-      const token = Buffer.from(ADMIN_PASSWORD).toString("base64");
+      const token = makeAdminToken(ADMIN_PASSWORD);
       return reply
         .header(
           "Set-Cookie",

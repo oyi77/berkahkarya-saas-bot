@@ -24,11 +24,12 @@ import {
 import { actionableError } from "@/utils/errors";
 import { t } from "@/i18n/translations";
 import { promisify } from "util";
-import { exec as execCallback } from "child_process";
+import { exec as execCallback, execFile as execFileCallback } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
 const exec = promisify(execCallback);
+const execFile = promisify(execFileCallback);
 
 // Video storage directory
 const VIDEO_DIR = process.env.VIDEO_DIR || "/tmp/videos";
@@ -650,7 +651,7 @@ async function downloadVideoToPath(
   url: string,
   outputPath: string,
 ): Promise<void> {
-  await exec(`wget -O "${outputPath}" "${url}"`);
+  await execFile('wget', ['-O', outputPath, url]);
 }
 
 /**
@@ -692,7 +693,7 @@ async function concatenateVideos(
  */
 async function downloadVideo(url: string, jobId: string): Promise<string> {
   const outputPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
-  await exec(`wget -O "${outputPath}" "${url}"`);
+  await execFile('wget', ['-O', outputPath, url]);
   return outputPath;
 }
 

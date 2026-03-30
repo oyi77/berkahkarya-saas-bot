@@ -83,10 +83,9 @@ function mapAspectRatio(ratio: string): string {
 const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
 
 async function downloadToFile(url: string, outputPath: string): Promise<void> {
-  const { exec: execCb } = await import('child_process');
+  const { execFile: execFileCb } = await import('child_process');
   const { promisify } = await import('util');
-  const execAsync = promisify(execCb);
-  await execAsync(`wget -q -O "${outputPath}" "${url}"`, { timeout: 60000 });
+  await promisify(execFileCb)('wget', ['-q', '-O', outputPath, url]);
 }
 
 function mapAspectRatioSimple(ratio: string): string {

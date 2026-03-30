@@ -10,9 +10,9 @@ import { generateVideoAsync, generateExtendedVideoAsync } from "@/commands/creat
 import { actionableError } from "@/utils/errors";
 import * as fs from "fs";
 import * as path from "path";
-import { exec as execCallback } from "child_process";
+import { execFile as execFileCallback } from "child_process";
 import { promisify } from "util";
-const exec = promisify(execCallback);
+const execFile = promisify(execFileCallback);
 
 export async function handleDisassemble(ctx: BotContext): Promise<void> {
   const message = ctx.message as any;
@@ -156,7 +156,7 @@ export async function handleVideoCreationImage(
     const imagePath = path.join(VIDEO_DIR, `${jobId}_reference.jpg`);
 
     try {
-      await exec(`wget -q -O "${imagePath}" "${primaryImageUrl}"`);
+      await execFile('wget', ['-q', '-O', imagePath, primaryImageUrl]);
     } catch (wgetErr: any) {
       logger.error("wget failed downloading reference image:", wgetErr.message);
       throw new Error(`Failed to download reference image: ${wgetErr.message}`);

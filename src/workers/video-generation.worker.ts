@@ -17,7 +17,7 @@ import { generateVideoWithFallback } from '@/services/video-fallback.service';
 import { getVideoCreditCost } from '@/config/pricing';
 import { actionableError } from '@/utils/errors';
 import { promisify } from 'util';
-import { exec as execCallback } from 'child_process';
+import { execFile as execFileCallback } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Telegram } from 'telegraf';
@@ -32,7 +32,7 @@ import { WatermarkService } from '@/services/watermark.service';
 import { prisma } from '@/config/database';
 import { getAILabel, getLangConfig } from '@/config/languages';
 
-const exec = promisify(execCallback);
+const execFile = promisify(execFileCallback);
 
 const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
 
@@ -120,7 +120,7 @@ function getStyleForNiche(niche: string): string {
 }
 
 async function downloadVideo(url: string, outputPath: string): Promise<void> {
-  await exec(`wget -q -O "${outputPath}" "${url}"`);
+  await execFile('wget', ['-q', '-O', outputPath, url]);
 }
 
 /**

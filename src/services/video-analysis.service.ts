@@ -151,7 +151,9 @@ export class VideoAnalysisService {
           { timeout: 120_000 },
         );
       } else {
-        await execAsync(`wget -q -O "${tempPath}" "${videoUrl}"`, { timeout: 60_000 });
+        const { execFile: execFileCb } = await import('child_process');
+        const { promisify: prom } = await import('util');
+        await prom(execFileCb)('wget', ['-q', '-O', tempPath, videoUrl]);
       }
       if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
         throw new Error('Downloaded file is empty');

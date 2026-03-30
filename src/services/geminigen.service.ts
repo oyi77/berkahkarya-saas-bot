@@ -286,7 +286,9 @@ async function extractLastFrameFromHistory(refHistory: string): Promise<string |
           const framePath = join(tmpDir, `${refHistory}_lastframe.png`);
 
           if (!existsSync(videoPath)) {
-            await execAsync(`wget -q -O "${videoPath}" "${videoUrl}"`);
+            const { execFile: execFileCb } = await import('child_process');
+            const { promisify: prom } = await import('util');
+            await prom(execFileCb)('wget', ['-q', '-O', videoPath, videoUrl]);
           }
 
           if (existsSync(videoPath)) {
