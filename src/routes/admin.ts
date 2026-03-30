@@ -64,6 +64,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url === "/admin/dashboard" ||
       url === "/admin/pricing" ||
       url === "/admin/prompts" ||
+      url === "/admin/settings" ||
       url.startsWith("/api/stats") ||
       url.startsWith("/api/analytics") ||
       url.startsWith("/api/users") ||
@@ -443,6 +444,10 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   server.get("/admin/prompts", async (request, reply) => {
     return reply.view("admin/prompts.ejs");
+  });
+
+  server.get("/admin/settings", async (request, reply) => {
+    return reply.view("admin/settings.ejs");
   });
 
   // API: Get all admin prompts (global, visible to all users)
