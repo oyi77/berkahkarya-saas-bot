@@ -61,7 +61,9 @@ export class UserService {
         firstName: data.firstName,
         lastName: data.lastName,
         tier: 'free',
-        creditBalance: 3, // 3 free trial credits
+        creditBalance: 0, // Standardize on reward slot system
+        welcomeBonusUsed: false,
+        dailyFreeUsed: false,
         referralCode,
         referredBy: data.referredBy,
         language: data.language || 'id',
@@ -361,33 +363,38 @@ export class UserService {
     referralCount: number;
     commissionEarned: number;
   }> {
-    const user = await this.findByTelegramId(telegramId);
-    if (!user) {
-      return { videosCreated: 0, totalSpent: 0, referralCount: 0, commissionEarned: 0 };
-    }
+    try {
+      const user = await this.findByTelegramId(telegramId);
+      if (!user) {
+        return { videosCreated: 0, totalSpent: 0, referralCount: 0, commissionEarned: 0 };
+      }
 
-    const [videos, transactions, referrals, commissions] = await Promise.all([
-      prisma.video.count({ where: { userId: telegramId } }),
-      prisma.transaction.aggregate({
+      // Run queries with individual error handling or safe defaults
+      const videosCreated = await prisma.video.count({ where: { userId: telegramId } }).catch(() => 0);
+      
+      const transactions = await prisma.transaction.aggregate({
         where: { userId: telegramId, status: 'success' },
         _sum: { amountIdr: true },
-      }),
-      prisma.user.count({ 
-        where: { 
-          referredBy: user.uuid 
-        } 
-      }),
-      prisma.commission.aggregate({
+      }).catch(() => ({ _sum: { amountIdr: 0 } }));
+
+      const referralCount = await prisma.user.count({ 
+        where: { referredBy: user.uuid } 
+      }).catch(() => 0);
+
+      const commissions = await prisma.commission.aggregate({
         where: { referrerId: telegramId },
         _sum: { amount: true },
-      }),
-    ]);
+      }).catch(() => ({ _sum: { amount: 0 } }));
 
-    return {
-      videosCreated: videos,
-      totalSpent: Number(transactions._sum.amountIdr || 0),
-      referralCount: referrals,
-      commissionEarned: Number(commissions._sum.amount || 0),
-    };
+      return {
+        videosCreated,
+        totalSpent: Number(transactions?._sum?.amountIdr || 0),
+        referralCount,
+        commissionEarned: Number(commissions?._sum?.amount || 0),
+      };
+    } catch (error) {
+      logger.error(`Error fetching stats for user ${telegramId}:`, error);
+      return { videosCreated: 0, totalSpent: 0, referralCount: 0, commissionEarned: 0 };
+    }
   }
 }

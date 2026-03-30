@@ -268,7 +268,7 @@ export async function handleDurationSelection(
         firstName: user.first_name,
         lastName: user.last_name,
       });
-      await ctx.reply(`👋 Welcome! You received 3 free credits to try.`);
+      await ctx.reply(`👋 Welcome to OpenClaw v3!`);
     }
 
     const creditCost = getVideoCreditCost(duration);

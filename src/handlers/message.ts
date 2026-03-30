@@ -16,8 +16,10 @@ import { referralCommand } from "@/commands/referral";
 import { subscriptionCommand } from "@/commands/subscription";
 import { settingsCommand } from "@/commands/settings";
 import { supportCommand } from "@/commands/support";
+import { helpCommand } from "@/commands/help";
 import { showMainMenu } from "@/menus/main";
 import { UserService } from "@/services/user.service";
+import { MetricsService } from "@/services/metrics.service";
 import {
   ImageGenerationService,
   ImageGenerationMode,
@@ -27,10 +29,13 @@ import { ContentAnalysisService } from "@/services/content-analysis.service";
 import { PostAutomationService } from "@/services/postautomation.service";
 import { generateStoryboard } from "@/services/video-generation.service";
 import { getVideoCreditCost, getImageCreditCostAsync } from "@/config/pricing";
+import { canUseDailyFree, canUseWelcomeBonus, getNextDailyFreeReset } from "@/config/free-trial";
+import { prisma } from "@/config/database";
 import {
   promptsCommand,
   dailyCommand,
   trendingCommand,
+  fingerprintCommand,
 } from "@/commands/prompts";
 import { getOmniRouteService } from "@/services/omniroute.service";
 import { sendVilonaLoading } from "@/services/vilona-animation.service";
@@ -456,6 +461,14 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             await dailyCommand(ctx);
             return;
 
+          case "🧬 Fingerprint":
+            await fingerprintCommand(ctx);
+            return;
+
+          case "📖 Help":
+            await helpCommand(ctx);
+            return;
+
           default: {
             // Natural language → route to AI chat assistant
             const trimmed = text.trim();
@@ -650,16 +663,30 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const estimatedCost = await getImageCreditCostAsync();
       const telegramIdImg = BigInt(ctx.from!.id);
       const userImg = await UserService.findByTelegramId(telegramIdImg);
+      
+      let useFreeSlot: 'daily' | 'welcome' | null = null;
+      const isLibraryPrompt = ctx.session.stateData?.selectedPrompt === description;
+
       if (!userImg || Number(userImg.creditBalance) < estimatedCost) {
-        await ctx.reply(
-          `❌ *Kredit tidak cukup*\n\n` +
-          `Image generation: ${estimatedCost} kredit\n` +
-          `Saldo kamu: ${userImg?.creditBalance || 0} kredit\n\n` +
-          `Gunakan /topup untuk menambah kredit.`,
-          { parse_mode: "Markdown" },
-        );
-        ctx.session.state = "DASHBOARD";
-        return;
+        // Check for free slots (Welcome or Daily)
+        if (isLibraryPrompt && canUseDailyFree(userImg)) {
+          useFreeSlot = 'daily';
+        } else if (isLibraryPrompt && canUseWelcomeBonus(userImg)) {
+          useFreeSlot = 'welcome';
+        } else {
+          const reason = !isLibraryPrompt 
+            ? "Prompt custom hanya tersedia untuk pengguna Premium." 
+            : "Kredit tidak cukup & Reward harian sudah habis.";
+            
+          await ctx.reply(
+            `❌ *Gagal Memulai*\n\n` +
+            `${reason}\n\n` +
+            `Gunakan /topup untuk menambah kredit agar bisa menggunakan fitur custom dan video.`,
+            { parse_mode: "Markdown" }
+          );
+          ctx.session.state = "DASHBOARD";
+          return;
+        }
       }
 
       await ctx.reply(
@@ -694,8 +721,22 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         if (result.success && result.imageUrl) {
           const isDemo = result.provider === "demo";
 
-          // Deduct credits based on actual provider used
-          if (!isDemo) {
+          // Deduct credits or consume free slot
+          if (useFreeSlot === 'daily') {
+            await prisma.user.update({
+              where: { telegramId: telegramIdImg },
+              data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() }
+            });
+            await MetricsService.increment('generation_trial_daily');
+            logger.info(`🖼️ Used Daily Free slot for user ${telegramIdImg}`);
+          } else if (useFreeSlot === 'welcome') {
+            await prisma.user.update({
+              where: { telegramId: telegramIdImg },
+              data: { welcomeBonusUsed: true }
+            });
+            await MetricsService.increment('generation_trial_welcome');
+            logger.info(`🖼️ Used Welcome Bonus slot for user ${telegramIdImg}`);
+          } else if (!isDemo) {
             const actualCost = await getImageCreditCostAsync(result.provider);
             await UserService.deductCredits(telegramIdImg, actualCost);
             logger.info(

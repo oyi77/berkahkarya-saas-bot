@@ -62,6 +62,17 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("support", supportCommand);
   bot.command("cancel", cancelCommand);
   bot.command("send", sendCommand);
+  bot.command("image", (ctx) => (ctx as any).reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
+        [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
+        [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
+        [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
+      ],
+    },
+  }));
   // AI chat (OmniRoute — cheapest/free model)
   bot.command("chat", chatCommand);
   bot.command("ask", chatCommand); // Alias
@@ -86,19 +97,20 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   // Set bot commands menu - show all features accessible
   bot.telegram.setMyCommands([
     { command: "start", description: "🏠 Start bot & main menu" },
-    { command: "prompts", description: "📚 Browse 40+ prompt templates" },
-    { command: "trending", description: "🔥 Prompt trending minggu ini" },
-    { command: "daily", description: "🎁 Mystery prompt gratis harian" },
     { command: "create", description: "🎬 Buat video baru" },
-    { command: "chat", description: "💬 Chat dengan AI" },
-    { command: "fingerprint", description: "🧬 Lihat style preference kamu" },
-    { command: "videos", description: "📁 My videos" },
-    { command: "topup", description: "💰 Top up credits" },
-    { command: "subscription", description: "⭐ Subscription plans" },
+    { command: "image", description: "🖼️ Buat foto produk/logo" },
+    { command: "chat", description: "💬 Chat dengan AI Assistant" },
+    { command: "prompts", description: "📚 Browse prompt library" },
+    { command: "trending", description: "🔥 Prompt trending minggu ini" },
+    { command: "daily", description: "🎁 Mystery prompt harian" },
+    { command: "fingerprint", description: "🧬 Style preference kamu" },
+    { command: "videos", description: "📁 Video saya" },
+    { command: "topup", description: "💰 Beli kredit" },
+    { command: "subscription", description: "⭐ Upgrade langganan" },
     { command: "referral", description: "👥 Referral & affiliate" },
-    { command: "profile", description: "👤 My profile" },
-    { command: "settings", description: "⚙️ Settings" },
-    { command: "support", description: "🆘 Get help" },
+    { command: "profile", description: "👤 Profil saya" },
+    { command: "settings", description: "⚙️ Pengaturan" },
+    { command: "support", description: "🆘 Hubungi support" },
     { command: "help", description: "📖 Panduan lengkap" },
   ]);
 

@@ -198,6 +198,9 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       credits: user.creditBalance,
       tier: user.tier,
       referralCode: user.referralCode,
+      welcomeBonusUsed: user.welcomeBonusUsed,
+      dailyFreeUsed: user.dailyFreeUsed,
+      dailyFreeResetAt: user.dailyFreeResetAt,
       createdAt: user.createdAt,
     };
   });

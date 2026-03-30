@@ -27,11 +27,12 @@ export async function showMainMenu(ctx: BotContext, isEdit = false): Promise<voi
 
     const menuButtons = {
       inline_keyboard: [
-        [{ text: '🎬 Generate Konten', callback_data: 'generate_start' }],
-        [{ text: '💳 Kredit & Paket', callback_data: 'credits_menu' }, { text: '🎞 Video Saya', callback_data: 'videos_list' }],
-        [{ text: '👤 Profil', callback_data: 'open_profile' }, { text: '📊 Dashboard', callback_data: 'open_dashboard' }],
-        [{ text: '👥 Referral', callback_data: 'open_referral' }, { text: '⚙️ Settings', callback_data: 'open_settings' }],
-        [{ text: '❓ Bantuan', callback_data: 'open_help' }],
+        [{ text: '🎬 Create Video', callback_data: 'create_video_new' }, { text: '🖼️ Generate Image', callback_data: 'img_gen_menu' }],
+        [{ text: '💬 Chat AI', callback_data: 'chat_ai' }, { text: '📚 Prompt Library', callback_data: 'prompts_menu' }],
+        [{ text: '💰 Top Up', callback_data: 'topup' }, { text: '⭐ Subscription', callback_data: 'open_subscription' }],
+        [{ text: '📁 My Videos', callback_data: 'videos_list' }, { text: '👥 Referral', callback_data: 'open_referral' }],
+        [{ text: '👤 Profile', callback_data: 'open_profile' }, { text: '⚙️ Settings', callback_data: 'open_settings' }],
+        [{ text: '🆘 Support', callback_data: 'open_help' }, { text: '📖 Help', callback_data: 'open_help_full' }],
       ],
     };
 

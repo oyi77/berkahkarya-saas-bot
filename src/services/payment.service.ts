@@ -8,8 +8,9 @@ import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { ReferralService } from '@/services/referral.service';
-import { getPackagesAsync } from '@/config/pricing';
+import { getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import crypto from 'crypto';
+import { Telegraf } from 'telegraf';
 
 // Payment gateway configuration
 const MIDTRANS_BASE_URL = process.env.MIDTRANS_ENVIRONMENT === 'production'
@@ -19,6 +20,16 @@ const MIDTRANS_BASE_URL = process.env.MIDTRANS_ENVIRONMENT === 'production'
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
 
 export class PaymentService {
+  /** Optional reference to the running Telegraf bot instance for sending fulfillment notifications. */
+  private static botInstance: Telegraf | null = null;
+
+  /**
+   * Register the bot instance so the service can send proactive messages.
+   */
+  static setBotInstance(bot: Telegraf): void {
+    this.botInstance = bot;
+  }
+
   /**
    * Create Midtrans Snap transaction
    */
@@ -190,17 +201,29 @@ export class PaymentService {
 
     // If success, add credits to user
     if (newStatus === 'success' && transaction.status !== 'success') {
+      // Update user credits AND tier
       const credits = Number(transaction.creditsAmount) || 0;
       
+      // Determine new tier based on package
+      let newTier = 'basic';
+      const plans = await getSubscriptionPlansAsync();
+      const plan = plans[transaction.packageName];
+      if (plan && plan.tier) {
+        newTier = plan.tier;
+      }
+
       await prisma.user.update({
         where: { telegramId: transaction.userId },
         data: {
           creditBalance: { increment: credits },
-          tier: 'basic',
+          tier: newTier as any,
         },
       });
 
-      logger.info(`Added ${credits} credits to user ${transaction.userId}`);
+      logger.info(`Added ${credits} credits and set tier ${newTier} for user ${transaction.userId}`);
+
+      // Send bot notification
+      this.sendFulfillmentNotification(transaction.userId, credits, newTier).catch(() => {});
 
       // Process referral commissions for this purchase
       await ReferralService.processCommissions(
@@ -239,5 +262,25 @@ export class PaymentService {
    */
   static async getPackages() {
     return getPackagesAsync();
+  }
+
+  /**
+   * Send fulfillment notification to user
+   */
+  private static async sendFulfillmentNotification(telegramId: bigint, credits: number, tier: string): Promise<void> {
+    if (!this.botInstance) return;
+    try {
+      const tierEmoji = tier === 'pro' ? '💎' : tier === 'agency' ? '👑' : '✨';
+      await this.botInstance.telegram.sendMessage(
+        telegramId.toString(),
+        `✅ *Pembayaran Berhasil!*\n\n` +
+        `💰 *${credits.toFixed(1)} Credits* telah ditambahkan ke akun Anda.\n` +
+        `🛡️ Tier Anda sekarang: *${tierEmoji} ${tier.toUpperCase()}*\n\n` +
+        `Anda sekarang bisa langsung membuat video viral! 🚀`,
+        { parse_mode: 'Markdown' }
+      );
+    } catch (err) {
+      logger.warn(`Failed to send fulfillment notification to ${telegramId}:`, err);
+    }
   }
 }

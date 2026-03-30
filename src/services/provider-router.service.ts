@@ -11,10 +11,11 @@
  * Replaces the static getProviders() ordering in video-fallback.service.ts.
  */
 
-import { PROVIDER_CONFIG, VideoProviderConfig } from '@/config/providers';
+import { VideoProviderConfig } from '@/config/providers';
 import { CircuitBreaker } from './circuit-breaker.service';
 import { redis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import { ProviderSettingsService } from './provider-settings.service';
 
 // Redis key prefix for provider history counters
 const HISTORY_PREFIX = 'provider:history:';
@@ -44,12 +45,13 @@ export class ProviderRouter {
     niche: string,
     styles: string[]
   ): Promise<Array<{ key: string; config: VideoProviderConfig; score: number }>> {
-    const entries = Object.entries(PROVIDER_CONFIG.video);
+    // Merge static config with dynamic admin overrides
+    const providers = await ProviderSettingsService.getSortedVideoProviders();
     const scored: ProviderScore[] = [];
 
-    for (const [key, config] of entries) {
-      const score = await this.scoreProvider(key, config, niche, styles);
-      scored.push({ key, config, score });
+    for (const p of providers) {
+      const score = await this.scoreProvider(p.key, p, niche, styles);
+      scored.push({ key: p.key, config: p, score: score });
     }
 
     // Sort descending by score (higher = better)

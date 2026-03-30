@@ -24,6 +24,7 @@ import { healthCheckRoutes } from "@/routes/health";
 import { webhookRoutes } from "@/routes/webhook";
 import { adminRoutes } from "@/routes/admin";
 import { webRoutes } from "@/routes/web";
+import { PaymentService } from "@/services/payment.service";
 import { initializeDatabase } from "@/config/database";
 import { initializeRedis } from "@/config/redis";
 import { initializeQueue } from "@/config/queue";
@@ -55,9 +56,9 @@ for (const envVar of requiredEnvVars) {
 
 // Initialize bot
 const bot = new Telegraf(process.env.BOT_TOKEN!);
-
-// Allow UserService to send proactive DMs (low-credit warnings, etc.)
+// Allow services to send proactive DMs
 UserService.setBotInstance(bot);
+PaymentService.setBotInstance(bot);
 
 // Global BigInt serializer patch (Prisma returns BigInt for telegramId)
 (BigInt.prototype as any).toJSON = function () { return this.toString(); };

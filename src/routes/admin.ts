@@ -130,12 +130,21 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       _sum: { amountIdr: true },
     });
 
+    const metricsToday = await MetricsService.getAll();
+    const trialDaily = metricsToday.metrics?.generation_trial_daily || 0;
+    const trialWelcome = metricsToday.metrics?.generation_trial_welcome || 0;
+
     return {
       users,
       transactions,
       videos,
       revenue: Number(revenue._sum.amountIdr || 0),
       queue: queueStats,
+      trialStats: {
+        daily: trialDaily,
+        welcome: trialWelcome,
+        total: trialDaily + trialWelcome
+      }
     };
   });
 
@@ -833,6 +842,25 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.get("/api/admin/settings/providers", async () => {
     const overrides = await ProviderSettingsService.getDynamicSettings();
     return { overrides };
+  });
+
+  /** POST /api/admin/settings/providers — Update dynamic provider overrides */
+  server.post("/api/admin/settings/providers", async (request, reply) => {
+    const body = request.body as any;
+    if (!body || typeof body !== "object") {
+      return reply.status(400).send({ error: "Invalid settings object" });
+    }
+    
+    await ProviderSettingsService.updateSettings(body);
+    
+    // Log the event for the SSE stream
+    await redis.publish("admin_events", JSON.stringify({ 
+      type: "settings_updated", 
+      category: "providers",
+      timestamp: new Date().toISOString()
+    }));
+
+    return { success: true };
   });
 
   /** GET /api/admin/transactions/transfers — P2P Transfer logs */

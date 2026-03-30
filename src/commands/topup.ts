@@ -13,24 +13,16 @@ import { TripayService } from '@/services/tripay.service';
 import { PaymentSettingsService } from '@/services/payment-settings.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import {
-  EXTRA_CREDIT_PACKAGES,
   getUnitCostAsync,
   getPackagesAsync,
-  getSubscriptionPlansAsync,
 } from '@/config/pricing';
 import { NowPaymentsService, CRYPTO_PACKAGES, CRYPTO_COINS } from '@/services/nowpayments.service';
 import { prisma } from '@/config/database';
-import axios from 'axios';
-import crypto from 'crypto';
 
 const formatIdr = (amount: number): string =>
   new Intl.NumberFormat('id-ID').format(amount);
 
-const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
-  ? 'https://passport.duitku.com'
-  : 'https://sandbox.duitku.com';
-const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
-const API_KEY = process.env.DUITKU_API_KEY || '';
+// Duitku globals removed - unused in this file
 
 // Telegram Stars pricing (Moved to dynamic or kept as is if not in DB yet)
 export const STARS_PACKAGES = [
@@ -279,7 +271,6 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
       return;
     }
 
-    const subscribed = await SubscriptionService.isSubscribed(telegramId);
     const unitCost = await getUnitCostAsync('VIDEO_15S'); 
     const amount = credits * unitCost;
     

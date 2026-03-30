@@ -86,7 +86,7 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       // ── Vilona welcome animation (non-blocking) ──────────────────────────
       await sendVilonaWelcomeAnimation(ctx);
 
-      // ── NEW: Simplified main menu (5 buttons only) ───────────────────────
+      // ── NEW: Fullset main menu (15 buttons) ───────────────────────
       const credBal = Number(existingUser.creditBalance);
       const credEmoji = credBal === 0 ? "⚠️" : credBal < 3 ? "🟡" : "🟢";
 
@@ -152,12 +152,12 @@ export async function startCommand(ctx: BotContext): Promise<void> {
 
       // ── NEW: Onboarding dengan Free Trial ────────────────────────────────
       await ctx.reply(
-        `Selamat datang di BerkahKarya AI! 🎉\n\n` +
+        `Selamat datang di OpenClaw AI! 🎉\n\n` +
           `📱 **Platform AI Content Creation Terlengkap di Indonesia**\n\n` +
-          `Kamu udah dapat **3 credits GRATIS** yang bisa dipake untuk:\n` +
-          `• 6 video pendek (5 detik)\n` +
-          `• 3 gambar HD\n` +
-          `• Atau kombinasi keduanya!\n\n` +
+          `Dapatkan **Free Trial** spesial untukmu:\n` +
+          `• 🎁 **Welcome Bonus:** 1x Gratis Tanpa Kredit\n` +
+          `• 📆 **Daily Free:** 1x Gratis SETIAP HARI\n\n` +
+          `Gunakan untuk buat foto produk HD atau coba prompt viral!\n\n` +
           `─────────────────────────────\n` +
           `**MAU BUAT APA HARI INI?**\n` +
           `─────────────────────────────\n\n` +
@@ -183,6 +183,8 @@ export async function startCommand(ctx: BotContext): Promise<void> {
               [{ text: "🚀 Mulai Sekarang!", callback_data: "onboard_start" }],
               [{ text: "📚 Lihat Prompt Library", callback_data: "prompts_menu" }],
             ],
+            keyboard: MAIN_MENU_KEYBOARD,
+            resize_keyboard: true,
           },
         },
       );

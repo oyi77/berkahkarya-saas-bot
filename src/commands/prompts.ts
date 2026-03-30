@@ -8,6 +8,7 @@ import { logger } from "@/utils/logger";
 import { UserService } from "@/services/user.service";
 import { SavedPromptService } from "@/services/saved-prompt.service";
 import { prisma } from "@/config/database";
+import { canUseDailyFree, getNextDailyFreeReset } from "@/config/free-trial";
 
 // ─── PROMPT LIBRARY DATA ────────────────────────────────────────────────────
 
@@ -841,9 +842,28 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Get today's date
-    const today = new Date();
+    const dbUser = await UserService.findByTelegramId(BigInt(userId));
+    if (!dbUser) {
+      await ctx.reply("User not found.");
+      return;
+    }
 
+    // Check if daily free is available
+    if (!canUseDailyFree(dbUser)) {
+      const resetAt = dbUser.dailyFreeResetAt || getNextDailyFreeReset();
+      const hoursLeft = Math.ceil((resetAt.getTime() - Date.now()) / (1000 * 60 * 60));
+      
+      await ctx.reply(
+        `🎁 **MYSTERY PROMPT BOX**\n\n` +
+        `⏰ **Daily reward sudah diklaim!**\n\n` +
+        `Prompt baru akan tersedia dalam: *${hoursLeft} jam*.\n\n` +
+        `_Ingin lebih banyak prompt? Jelajahi Library atau upgrade ke PRO!_`,
+        { parse_mode: "Markdown" }
+      );
+      return;
+    }
+
+    const today = new Date();
     // Get unique prompt for this user on this day
     const userPrompt = getUserDailyPrompt(userId, today);
     const niche = PROMPT_LIBRARY[userPrompt.niche];

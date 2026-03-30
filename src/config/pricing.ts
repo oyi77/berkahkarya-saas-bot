@@ -169,10 +169,13 @@ export const REFERRAL_COMMISSIONS_V3 = { TIER_1: 0.15, TIER_2: 0.05, TIER_3: 0.0
 /**
  * Main persistent keyboard (Reply Keyboard)
  */
+/**
+ * Main persistent keyboard (Reply Keyboard)
+ */
 export const MAIN_MENU_KEYBOARD = [
-  [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }],
-  [{ text: '📁 My Videos' }, { text: '💰 Top Up' }],
-  [{ text: '👤 Profile' }, { text: '👥 Referral' }],
-  [{ text: '💬 Chat AI' }, { text: '📚 Prompt Library' }],
-  [{ text: '⚙️ Settings' }, { text: '🆘 Support' }],
+  [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }, { text: '💬 Chat AI' }],
+  [{ text: '📚 Prompt Library' }, { text: '🔥 Trending' }, { text: '🎁 Daily Prompt' }],
+  [{ text: '📁 My Videos' }, { text: '🧬 Fingerprint' }, { text: '⭐ Subscription' }],
+  [{ text: '💰 Top Up' }, { text: '👤 Profile' }, { text: '👥 Referral' }],
+  [{ text: '⚙️ Settings' }, { text: '🆘 Support' }, { text: '📖 Help' }],
 ];
