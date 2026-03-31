@@ -3,6 +3,7 @@ import { Telegraf } from 'telegraf';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { prisma } from '@/config/database';
+import { sendAdminAlert } from '@/services/admin-alert.service';
 import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
 import { NowPaymentsService } from '@/services/nowpayments.service';
@@ -50,6 +51,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       return { ok: true };
     } catch (error) {
       logger.error('Midtrans webhook error:', error);
+      sendAdminAlert('critical', 'Midtrans Webhook Error', { error: String(error) });
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
@@ -103,6 +105,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       return { ok: result.success };
     } catch (error) {
       logger.error('Tripay webhook error:', error);
+      sendAdminAlert('critical', 'Tripay Webhook Error', { error: String(error) });
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
@@ -160,6 +163,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       return { ok: result.success, message: result.message };
     } catch (error) {
       logger.error('NOWPayments webhook error:', error);
+      sendAdminAlert('critical', 'NOWPayments Webhook Error', { error: String(error) });
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });
@@ -194,6 +198,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       return { ok: result.success, message: result.message };
     } catch (error) {
       logger.error('Duitku webhook error:', error);
+      sendAdminAlert('critical', 'Duitku Webhook Error', { error: String(error) });
       return reply.status(500).send({ error: 'Internal server error' });
     }
   });

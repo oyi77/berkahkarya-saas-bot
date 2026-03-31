@@ -10,6 +10,7 @@
 import { Worker, Job } from 'bullmq';
 import { redis, bullmqRedis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import { sendAdminAlert } from '@/services/admin-alert.service';
 import { VideoService } from '@/services/video.service';
 import { UserService } from '@/services/user.service';
 import { GeminiGenService } from '@/services/geminigen.service';
@@ -1107,10 +1108,14 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
 
   workerInstance.on('failed', (job, err) => {
     logger.error(`Video worker: job ${job?.id} failed:`, err);
+    sendAdminAlert('critical', 'Video Generation Failed', {
+      jobId: job?.id, error: err?.message?.slice(0, 300),
+    });
   });
 
   workerInstance.on('error', (err) => {
     logger.error('Video worker error:', err);
+    sendAdminAlert('warning', 'Video Worker Error', { error: err?.message?.slice(0, 300) });
   });
 
   logger.info('Video generation worker started (concurrency: 3)');

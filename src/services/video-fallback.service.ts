@@ -18,6 +18,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { sendAdminAlert } from '@/services/admin-alert.service';
 import { trackTokens } from '@/services/token-tracker.service';
 import { CircuitBreaker } from './circuit-breaker.service';
 import { ProviderRouter } from './provider-router.service';
@@ -888,5 +889,11 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
 
   const errorSummary = providerErrors.map(e => `${e.name}: ${e.error}`).join('; ');
   logger.error(`All ${providers.length} video providers failed: [${errorSummary}]`);
+  sendAdminAlert('critical', 'All Video Providers Failed', {
+    providers: providers.length,
+    errors: errorSummary.slice(0, 500),
+    niche: params.niche,
+    duration: params.duration,
+  });
   return { success: false, error: `All ${providers.length} providers failed: ${errorSummary}` };
 }

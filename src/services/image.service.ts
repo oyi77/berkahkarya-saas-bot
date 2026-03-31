@@ -16,6 +16,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { sendAdminAlert } from '@/services/admin-alert.service';
 import { trackTokens } from '@/services/token-tracker.service';
 import { CircuitBreaker } from './circuit-breaker.service';
 import { ContentAnalysisService } from './content-analysis.service';
@@ -1002,6 +1003,9 @@ export class ImageGenerationService {
     }
 
     logger.error(`🖼️ All ${providers.length} providers failed (${mode}) — demo fallback`);
+    sendAdminAlert('critical', 'All Image Providers Failed', {
+      mode, providers: providers.length, category: params.category,
+    });
     return this.generateDemoImage(params);
   }
 

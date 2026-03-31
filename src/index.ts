@@ -38,6 +38,7 @@ import cron from "node-cron";
 import { retentionQueue } from "@/workers/retention.worker";
 import { UserService } from "@/services/user.service";
 import { SubscriptionService } from "@/services/subscription.service";
+import { setAlertTelegram, sendAdminAlert as sendGroupAlert } from "@/services/admin-alert.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
 import axios from "axios";
 
@@ -159,8 +160,12 @@ async function main() {
       logger.warn("⚠️ Refund retry cron failed to start:", cronErr);
     }
 
-    // Set telegram instance for cleanup notifications and run startup cleanup
+    // Set telegram instance for cleanup notifications, admin alerts, and run startup cleanup
     setCleanupTelegram(bot.telegram);
+    setAlertTelegram(bot.telegram);
+    if (process.env.ADMIN_ALERT_CHAT_ID) {
+      sendGroupAlert('info', 'Bot Started', { version: 'v3.0', env: process.env.NODE_ENV || 'development' });
+    }
     try {
       const stuckCount = await cleanupStuckVideos(bot.telegram);
       if (stuckCount > 0) {
@@ -276,15 +281,16 @@ async function main() {
     process.on("unhandledRejection", (reason: any) => {
       const msg = reason?.message || String(reason);
       logger.error("unhandledRejection:", msg);
-      // Only alert for non-shutdown errors
       if (!msg.includes("Bot is not running") && !msg.includes("SIGTERM")) {
         sendAdminAlert(`Unhandled rejection:\n\`${msg.slice(0, 300)}\``);
+        sendGroupAlert('critical', 'Unhandled Rejection', { error: msg.slice(0, 300) });
       }
     });
 
     process.on("uncaughtException", (err) => {
       logger.error("uncaughtException:", err);
       sendAdminAlert(`Uncaught exception:\n\`${err.message.slice(0, 300)}\``);
+      sendGroupAlert('critical', 'Uncaught Exception', { error: err.message.slice(0, 300) });
     });
   } catch (error) {
     logger.error("Failed to start bot:", error);

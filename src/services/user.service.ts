@@ -8,6 +8,7 @@ import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { redis } from '@/config/redis';
 import { t } from '@/i18n/translations';
+import { sendAdminAlert } from '@/services/admin-alert.service';
 import { User, Prisma } from '@prisma/client';
 import { Telegraf } from 'telegraf';
 
@@ -277,6 +278,7 @@ export class UserService {
             logger.warn(`Refund retry failed (attempt ${entry.attempts}/5), re-queued: ${entry.jobId}`);
           } else {
             logger.error(`CRITICAL: Refund permanently failed after 5 attempts: ${raw}`, err);
+            sendAdminAlert('critical', 'Refund Permanently Failed', { entry: raw, error: String(err) });
           }
         } catch { /* parse failed, entry is lost — already logged */ }
       }
