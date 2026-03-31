@@ -127,7 +127,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       await ctx.reply(
         `✅ *Custom Duration: ${durLabel}*\n\n` +
         `🎬 ${presetConfig.scenesIncluded.length} scene\n` +
-        `💰 Biaya: ${presetConfig.creditCost} unit\n\n` +
+        `💰 Biaya: ${presetConfig.creditCost / 10} kredit\n\n` +
         `Pilih platform tujuan:`,
         {
           parse_mode: 'Markdown',
@@ -169,6 +169,30 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const { showProSceneReview } = await import('../flows/generate.js');
       const productDesc = ctx.session?.generateProductDesc || '';
       await showProSceneReview(ctx, productDesc);
+      return;
+    }
+
+    // ── V3 GENERATE: AWAITING REFERENCE IMAGE ────────────────────────────
+    if (ctx.session?.state === 'AWAITING_GENERATE_IMAGE') {
+      if ('photo' in message) {
+        const largest = message.photo[message.photo.length - 1];
+        const fileLink = await ctx.telegram.getFileLink(largest.file_id);
+        ctx.session.generatePhotoUrl = fileLink.toString();
+        ctx.session.state = 'DASHBOARD';
+        await ctx.reply('✅ *Foto referensi diterima!*\n\nMelanjutkan ke generate...', { parse_mode: 'Markdown' });
+        const { continueAfterImagePreference } = await import('../flows/generate.js');
+        await continueAfterImagePreference(ctx);
+        return;
+      }
+      if ('text' in message && message.text === '/skip') {
+        ctx.session.state = 'DASHBOARD';
+        delete ctx.session.generatePhotoUrl;
+        await ctx.reply('⏭️ Lanjut tanpa foto referensi.');
+        const { continueAfterImagePreference } = await import('../flows/generate.js');
+        await continueAfterImagePreference(ctx);
+        return;
+      }
+      await ctx.reply('📸 Kirim foto referensi atau ketik /skip untuk lanjut tanpa foto.');
       return;
     }
 

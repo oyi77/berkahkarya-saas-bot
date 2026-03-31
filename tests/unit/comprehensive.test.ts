@@ -436,7 +436,7 @@ describe("Credit / Payment Logic", () => {
       // Balance check happens before createJob — no job created when broke
       expect(VideoService.createJob).not.toHaveBeenCalled();
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining("Unit tidak cukup"),
+        expect.stringContaining("Kredit tidak cukup"),
         expect.anything(),
       );
     });
@@ -564,7 +564,7 @@ describe("Callback Routing", () => {
       await executeGeneration(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining("Unit tidak cukup"),
+        expect.stringContaining("Kredit tidak cukup"),
         expect.anything(),
       );
     });
@@ -602,7 +602,7 @@ describe("Callback Routing", () => {
       expect(ctx.session.state).toBe("AWAITING_PRODUCT_INPUT");
     });
 
-    it("if generateProductDesc exists + preset + platform — goes to showConfirmScreen", async () => {
+    it("if generateProductDesc exists + preset + platform — shows image preference first", async () => {
       const ctx = mockCtx("DASHBOARD", {}, {
         generateMode: "smart",
         generatePreset: "standard",
@@ -613,9 +613,9 @@ describe("Callback Routing", () => {
 
       await requestProductInput(ctx as any, "video");
 
-      // showConfirmScreen calls ctx.reply with confirm content
-      expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining("Konfirmasi"),
+      // Now shows image preference screen before confirm (editMessageText since callbackQuery exists)
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining("Foto Referensi"),
         expect.anything(),
       );
     });
@@ -708,7 +708,7 @@ describe("Generate Flow", () => {
   });
 
   describe("requestProductInput", () => {
-    it("pre-filled prompt + basic mode → showConfirmScreen without waiting for input", async () => {
+    it("pre-filled prompt + basic mode → shows image preference (not straight to confirm)", async () => {
       const ctx = mockCtx("DASHBOARD", {}, {
         generateMode: "basic",
         generateAction: "video",
@@ -717,11 +717,11 @@ describe("Generate Flow", () => {
 
       await requestProductInput(ctx as any, "video");
 
-      expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining("Konfirmasi"),
+      // Now shows image preference screen first (editMessageText since callbackQuery exists in mock)
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining("Foto Referensi"),
         expect.anything(),
       );
-      // State should not be set to AWAITING_PRODUCT_INPUT since prompt is pre-filled
       expect(ctx.session.state).not.toBe("AWAITING_PRODUCT_INPUT");
     });
 
@@ -756,7 +756,7 @@ describe("Generate Flow", () => {
   });
 
   describe("showConfirmScreen", () => {
-    it("renders confirmation with cost in units", async () => {
+    it("renders confirmation with cost in credits", async () => {
       const ctx = mockCtx("DASHBOARD", {}, {
         generateMode: "basic",
         generateAction: "video",
@@ -770,7 +770,7 @@ describe("Generate Flow", () => {
       expect(ctx.reply).toHaveBeenCalledTimes(1);
       const replyText = (ctx.reply as jest.Mock).mock.calls[0][0];
       expect(replyText).toContain("Konfirmasi");
-      expect(replyText).toContain("unit");
+      expect(replyText).toContain("kredit");
     });
   });
 });

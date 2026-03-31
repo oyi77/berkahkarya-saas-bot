@@ -590,6 +590,28 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Image preference flow (prompt library → image choice)
+    if (data === "image_pref_upload") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.state = 'AWAITING_GENERATE_IMAGE';
+      await ctx.editMessageText(
+        '📸 *Kirim Foto Referensi*\n\nKirim foto yang ingin dijadikan referensi gaya video.\n\nAtau ketik /skip untuk lanjut tanpa foto.',
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
+
+    if (data === "image_pref_skip") {
+      await ctx.answerCbQuery();
+      if (ctx.session) {
+        delete ctx.session.generatePhotoUrl;
+        ctx.session.state = 'DASHBOARD';
+      }
+      const { continueAfterImagePreference } = await import('../flows/generate.js');
+      await continueAfterImagePreference(ctx);
+      return;
+    }
+
     if (data === "generate_variation") {
       const { showGenerateMode } = await import("../flows/generate.js");
       await showGenerateMode(ctx);

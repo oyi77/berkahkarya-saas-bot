@@ -196,8 +196,8 @@ export class CampaignService {
 
     const hookList = hooks.map((h, i) => `  ${i + 1}. ${h.name} — ${h.description}`).join('\n');
 
-    return `📦 *Campaign ${size} Video*\n\n` +
-      `💰 Biaya: ${cost} unit (hemat ${savings}% vs individual)\n\n` +
+    return `📦 *Campaign ${size} Scene*\n\n` +
+      `💰 Biaya: ${cost / 10} kredit (hemat ${savings}% vs individual)\n\n` +
       `🎯 ${size} Hook berbeda:\n${hookList}\n\n` +
       `✅ Scene 2-7 KONSISTEN di semua video\n` +
       `⚡ Ideal untuk A/B testing iklan`;

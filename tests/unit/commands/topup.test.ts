@@ -589,7 +589,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Pay with Telegram Stars");
+      expect(editCall[0]).toContain("Bayar dengan Telegram Stars");
       expect(editCall[1].reply_markup.inline_keyboard.length).toBeGreaterThan(
         0,
       );
@@ -675,7 +675,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Crypto Payment");
+      expect(editCall[0]).toContain("Pembayaran Crypto");
     });
 
     it("should show all crypto packages", async () => {
@@ -723,7 +723,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("5 Units");
+      expect(editCall[0]).toContain("5 Kredit");
       expect(editCall[0]).toContain("$2.00");
     });
 

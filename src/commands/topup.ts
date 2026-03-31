@@ -261,11 +261,11 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     });
 
     await ctx.editMessageText(
-      `💳 *Quick Unit Purchase*\n\n` +
-      `Amount: Rp ${formatIdr(amount)}\n` +
-      `Units: ${credits}\n` +
+      `💳 *Beli Kredit*\n\n` +
+      `Harga: Rp ${formatIdr(amount)}\n` +
+      `Kredit: ${credits}\n` +
       `Order: \`${gatewayRes.orderId}\`\n\n` +
-      `Click below to complete payment via Duitku.`,
+      `Klik tombol di bawah untuk bayar via Duitku.`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
@@ -291,19 +291,19 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
 
     const buttons = STARS_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} — ${pkg.stars} ⭐`,
+      text: `${pkg.credits} kredit — ${pkg.stars} ⭐`,
       callback_data: `topup_stars_${pkg.credits}`,
     }]);
 
     buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
 
     await ctx.editMessageText(
-      `⭐ *Pay with Telegram Stars*\n\n` +
-      `Select a package:\n\n` +
+      `⭐ *Bayar dengan Telegram Stars*\n\n` +
+      `Pilih paket:\n\n` +
       STARS_PACKAGES.map(pkg =>
-        `• ${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} = ${pkg.stars} Stars`
+        `• ${pkg.credits} kredit = ${pkg.stars} Stars`
       ).join('\n') +
-      `\n\n_Stars are Telegram's native currency. Pay instantly from your Stars balance._`,
+      `\n\n_Stars adalah mata uang Telegram. Bayar langsung dari saldo Stars kamu._`,
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: buttons },
@@ -332,11 +332,11 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
     if (!userId) return;
 
     await (ctx as any).replyWithInvoice({
-      title: 'AI Video Units',
-      description: `${pkg.credits} Video Generation Unit${pkg.credits > 1 ? 's' : ''} for @berkahkarya_saas_bot`,
+      title: 'AI Video Credits',
+      description: `${pkg.credits} Video Generation Credit untuk @berkahkarya_saas_bot`,
       payload: `stars_${pkg.credits}_${userId}`,
       currency: 'XTR',
-      prices: [{ label: `${pkg.credits} Unit${pkg.credits > 1 ? 's' : ''}`, amount: pkg.stars }],
+      prices: [{ label: `${pkg.credits} Kredit`, amount: pkg.stars }],
       provider_token: '',
     });
   } catch (error) {
@@ -353,18 +353,18 @@ export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
 
     const buttons = CRYPTO_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)}`,
+      text: `${pkg.credits} kredit — $${pkg.usd.toFixed(2)}`,
       callback_data: `topup_crypto_pkg_${pkg.credits}`,
     }]);
     buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
 
     await ctx.editMessageText(
-      `💎 *Crypto Payment*\n\n` +
-      `Select amount:\n\n` +
+      `💎 *Pembayaran Crypto*\n\n` +
+      `Pilih jumlah:\n\n` +
       CRYPTO_PACKAGES.map(pkg =>
-        `• ${pkg.credits} unit${pkg.credits > 1 ? 's' : ''} = $${pkg.usd.toFixed(2)} USD`
+        `• ${pkg.credits} kredit = $${pkg.usd.toFixed(2)} USD`
       ).join('\n') +
-      `\n\n_Supported: USDT (BSC), BNB, MATIC, TON_`,
+      `\n\n_Didukung: USDT (BSC), BNB, MATIC, TON_`,
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: buttons },
@@ -396,8 +396,8 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
     buttons.push([{ text: '◀️ Back', callback_data: 'topup_crypto_menu' }]);
 
     await ctx.editMessageText(
-      `💎 *${credits} Unit${credits > 1 ? 's' : ''} — $${pkg.usd.toFixed(2)} USD*\n\n` +
-      `Select cryptocurrency:`,
+      `💎 *${credits} Kredit — $${pkg.usd.toFixed(2)} USD*\n\n` +
+      `Pilih cryptocurrency:`,
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: buttons },
@@ -435,7 +435,7 @@ export async function handleCryptoPayment(ctx: BotContext, credits: number, coin
       `To address:\n` +
       `\`${result.payAddress}\`\n\n` +
       `Network: *${coinLabel}*\n` +
-      `Units: *${credits}*\n` +
+      `Kredit: *${credits}*\n` +
       `Order: \`${result.orderId}\`\n\n` +
       `⏱ Payment expires in ~15 minutes.\n\n` +
       `_Credits will be added automatically once confirmed._`,

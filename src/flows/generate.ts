@@ -9,6 +9,10 @@
  * Entry: /create or tap "Generate Konten" in main menu
  */
 
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
@@ -20,6 +24,23 @@ import { ImageGenerationService } from '@/services/image.service';
 import { enqueueVideoGeneration } from '@/config/queue';
 import { generateVideoAsync } from '@/commands/create';
 import type { DurationPreset } from '@/config/hpas-engine';
+
+const execFileAsync = promisify(execFile);
+const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+
+/** Download a URL to a local file. Returns the local path or null on failure. */
+async function downloadToLocal(url: string, filename: string): Promise<string | null> {
+  try {
+    if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR, { recursive: true });
+    const localPath = path.join(VIDEO_DIR, filename);
+    await execFileAsync('wget', ['-q', '-O', localPath, url]);
+    if (fs.existsSync(localPath) && fs.statSync(localPath).size > 0) return localPath;
+    if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+  } catch (err) {
+    logger.warn('downloadToLocal failed:', err);
+  }
+  return null;
+}
 
 type GenerateMode = 'basic' | 'smart' | 'pro';
 type GenerateAction = 'image_set' | 'video' | 'clone_style' | 'campaign';
@@ -97,10 +118,17 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
   const action = session.generateAction as GenerateAction || 'video';
   const productDesc = session.generateProductDesc as string || '';
-  const photoUrl = session.generatePhotoUrl as string | undefined;
+  const rawPhotoUrl = session.generatePhotoUrl as string | undefined;
   const preset = (session.generatePreset as DurationPreset) || 'standard';
   const platform = session.generatePlatform as Platform || 'tiktok';
   const telegramId = BigInt(ctx.from!.id);
+
+  // Download reference image to local file so providers can read it (they check fs.existsSync)
+  let photoUrl: string | undefined;
+  if (rawPhotoUrl) {
+    const localRef = await downloadToLocal(rawPhotoUrl, `ref_${telegramId}_${Date.now()}.jpg`);
+    photoUrl = localRef || rawPhotoUrl; // Fall back to URL if download fails
+  }
 
   const presetConfig = preset === 'custom' && session.customPresetConfig
     ? session.customPresetConfig as typeof DURATION_PRESETS['standard']
@@ -121,8 +149,10 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     else if (action === 'campaign') cost = CampaignService.getCampaignCost((session.generateCampaignSize as 5 | 10) || 5);
 
     if (unitBalance < cost) {
+      const costCredits = cost / 10;
+      const balCredits = unitBalance / 10;
       await ctx.reply(
-        `❌ *Unit tidak cukup*\n\nDibutuhkan: ${cost} unit\nSaldo: ${unitBalance} unit\n\nGunakan /topup untuk menambah kredit.`,
+        `❌ *Kredit tidak cukup*\n\nDibutuhkan: ${costCredits} kredit\nSaldo: ${balCredits} kredit\n\nGunakan /topup untuk menambah kredit.`,
         { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Top Up Kredit', callback_data: 'topup' }]] } }
       );
       return;
@@ -272,64 +302,69 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Campaign — queue N videos, merge them in background, deliver 1 final video
+    // Campaign — 1 video with N hook-variation scenes (NOT N separate videos)
     if (action === 'campaign') {
       const campSize = (session.generateCampaignSize as 5 | 10) || 5;
       const creditCost = cost / 10;
-      const specs = CampaignService.generateCampaignSpecs(productDesc, campSize, 'standard');
-      const campaignGroupId = `cg_${Date.now()}_${telegramId.toString()}`;
+      const hookVariations = CampaignService.getHookVariations(campSize);
 
-      // Deduct credits upfront; refund below if ZERO jobs are queued successfully.
+      // Build a single storyboard: each scene = a different hook variation
+      const storyboard = hookVariations.map((hookVar, i) => {
+        const hookPrompt = hookVar.promptTemplate
+          .replace('{product}', productDesc)
+          .replace('{problem}', `masalah ${industry}`);
+        return { scene: i + 1, duration: 5, description: `[${hookVar.name}] ${hookPrompt}` };
+      });
+
+      const totalDuration = storyboard.reduce((s, sc) => s + sc.duration, 0);
       await UserService.deductCredits(telegramId, creditCost);
 
       const { VideoService: VS3 } = await import('../services/video.service.js');
-      let queued = 0;
-      for (const spec of specs) {
+      try {
+        const vid = await VS3.createJob({
+          userId: telegramId,
+          niche: industry,
+          platform,
+          duration: totalDuration,
+          scenes: campSize,
+          title: `Campaign ${campSize} Scene — ${productDesc.slice(0, 40)}`,
+        });
+
         try {
-          const vid = await VS3.createJob({
-            userId: telegramId,
-            niche: industry,
-            platform,
-            duration: DURATION_PRESETS['standard'].totalSeconds,
-            scenes: spec.scenes?.length || 7,
-            title: `Campaign video ${queued + 1} — ${spec.hookVariation?.name || 'Hook'}`,
-          });
-          await enqueueVideoGeneration({
+          const { position } = await enqueueVideoGeneration({
             jobId: vid.jobId,
             niche: industry,
             platform,
-            duration: DURATION_PRESETS['standard'].totalSeconds,
-            scenes: spec.scenes?.length || 7,
-            storyboard: (spec.scenes || []).map((s, i) => ({ scene: i + 1, duration: s.durationSeconds || 5, description: s.prompt })),
+            duration: totalDuration,
+            scenes: campSize,
+            storyboard,
             referenceImage: photoUrl || null,
             userId: telegramId.toString(),
             chatId: ctx.chat!.id,
             enableVO: true,
             enableSubtitles: true,
             language: user.language || 'id',
-            campaignGroupId,
-            campaignTotal: campSize,
           });
-          queued++;
-        } catch (jobErr) {
-          logger.warn('Campaign job failed to queue:', jobErr);
+          await ctx.reply(
+            `⏳ *Campaign ${campSize} scene masuk antrian #${position}!*\n\n` +
+            `1 video dengan ${campSize} hook berbeda.\n` +
+            `Kamu akan dinotifikasi saat selesai.`,
+            { parse_mode: 'Markdown' },
+          );
+        } catch {
+          generateVideoAsync(ctx, vid.jobId, industry, platform, totalDuration, storyboard).catch(async (err) => {
+            logger.error('Campaign generateVideoAsync failed:', err);
+            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch(() => {});
+            await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Campaign gagal diproses. Kredit dikembalikan.').catch(() => {});
+          });
+          await ctx.reply(`⏳ *Campaign ${campSize} scene sedang diproses!*\n\nKamu akan dinotifikasi saat selesai.`, { parse_mode: 'Markdown' });
         }
-      }
-
-      if (queued === 0) {
-        // Nothing queued — refund full cost and notify user
-        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'all campaign jobs failed to queue').catch(() => {});
-        await ctx.reply('❌ *Campaign Gagal*\n\nSemua video gagal masuk antrian. Kredit dikembalikan.', { parse_mode: 'Markdown' });
+      } catch (jobErr) {
+        logger.error('Campaign job creation failed:', jobErr);
+        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch(() => {});
+        await ctx.reply('❌ *Campaign Gagal*\n\nGagal membuat video. Kredit dikembalikan.', { parse_mode: 'Markdown' });
         return;
       }
-
-      await ctx.reply(
-        `⏳ *Campaign ${campSize} video sedang diproses!*\n\n` +
-        `${queued} video dibuat di background.\n` +
-        `Kamu akan mendapat **1 video gabungan** saat semua selesai.\n\n` +
-        `Estimasi: ~${Math.ceil(queued * 1.5)} menit`,
-        { parse_mode: 'Markdown' },
-      );
       await showPostDelivery(ctx);
       return;
     }
@@ -390,10 +425,10 @@ export async function showGenerateAction(ctx: BotContext, mode: GenerateMode): P
 
     const markup = {
       inline_keyboard: [
-        [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE} unit`, callback_data: 'action_image_set' }],
-        [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S} unit`, callback_data: 'action_video' }],
-        [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE} unit`, callback_data: 'action_clone_style' }],
-        [{ text: `📦 Campaign (5/10 video) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO}/${UNIT_COSTS.CAMPAIGN_10_VIDEO} unit`, callback_data: 'action_campaign' }],
+        [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE / 10} kredit`, callback_data: 'action_image_set' }],
+        [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S / 10} kredit`, callback_data: 'action_video' }],
+        [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE / 10} kredit`, callback_data: 'action_clone_style' }],
+        [{ text: `📦 Campaign (5/10 scene) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO / 10}/${UNIT_COSTS.CAMPAIGN_10_VIDEO / 10} kredit`, callback_data: 'action_campaign' }],
         [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
         [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
       ],
@@ -417,30 +452,16 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
       ctx.session.generateAction = action;
     }
 
-    // If prompt is already pre-filled from library, skip input step
+    // If prompt is already pre-filled from library, show image preference before continuing
     const prefilledPrompt = ctx.session?.generateProductDesc;
     if (prefilledPrompt && action !== 'clone_style') {
       if (ctx.session) ctx.session.state = 'DASHBOARD';
-      const mode = ctx.session?.generateMode as GenerateMode || 'basic';
-
-      if (mode === 'basic') {
-        await showConfirmScreen(ctx);
-        return;
+      // If user already uploaded a photo, skip image preference
+      if (ctx.session?.generatePhotoUrl) {
+        await continueAfterImagePreference(ctx);
+      } else {
+        await showImagePreference(ctx);
       }
-      if (mode === 'smart' && action === 'video') {
-        // If preset+platform already selected, go straight to confirm
-        if (ctx.session?.generatePreset && ctx.session?.generatePlatform) {
-          await showConfirmScreen(ctx);
-        } else {
-          await showSmartPresetSelection(ctx);
-        }
-        return;
-      }
-      if (mode === 'pro' && action === 'video') {
-        await showProSceneReview(ctx, prefilledPrompt);
-        return;
-      }
-      await showConfirmScreen(ctx);
       return;
     }
 
@@ -465,6 +486,59 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
   }
 }
 
+// ── Image Preference (for prompt library / pre-filled prompts) ────────────────
+
+/** Show image preference screen: user can upload a reference image or skip */
+export async function showImagePreference(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+
+    const text = `📸 *Foto Referensi*\n\n` +
+      `Ingin menggunakan foto referensi untuk hasil yang lebih bagus?\n\n` +
+      `• Kirim foto untuk mode *Image-to-Video*\n` +
+      `• Atau skip untuk *Text-to-Video*`;
+
+    const markup = {
+      inline_keyboard: [
+        [{ text: '📸 Upload Foto Referensi', callback_data: 'image_pref_upload' }],
+        [{ text: '🚀 Langsung Generate (Tanpa Foto)', callback_data: 'image_pref_skip' }],
+        [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showImagePreference error', err);
+  }
+}
+
+/** Continue the flow after image preference has been resolved (uploaded or skipped) */
+export async function continueAfterImagePreference(ctx: BotContext): Promise<void> {
+  const mode = ctx.session?.generateMode as GenerateMode || 'basic';
+  const action = ctx.session?.generateAction as GenerateAction || 'video';
+  const prefilledPrompt = ctx.session?.generateProductDesc as string || '';
+
+  if (mode === 'basic') {
+    await showConfirmScreen(ctx);
+    return;
+  }
+  if (mode === 'smart' && action === 'video') {
+    if (ctx.session?.generatePreset && ctx.session?.generatePlatform) {
+      await showConfirmScreen(ctx);
+    } else {
+      await showSmartPresetSelection(ctx);
+    }
+    return;
+  }
+  if (mode === 'pro' && action === 'video') {
+    await showProSceneReview(ctx, prefilledPrompt);
+    return;
+  }
+  await showConfirmScreen(ctx);
+}
+
 // ── Smart Mode: Preset Selection ──────────────────────────────────────────────
 
 export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
@@ -475,9 +549,9 @@ export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
 
     const markup = {
       inline_keyboard: [
-        [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S} unit)`, callback_data: 'preset_quick' }],
-        [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S} unit)`, callback_data: 'preset_standard' }],
-        [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S} unit)`, callback_data: 'preset_extended' }],
+        [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S / 10} kredit)`, callback_data: 'preset_quick' }],
+        [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S / 10} kredit)`, callback_data: 'preset_standard' }],
+        [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S / 10} kredit)`, callback_data: 'preset_extended' }],
         [{ text: '⏱️ Custom — Pilih Durasi Sendiri', callback_data: 'preset_custom' }],
         [{ text: '◀️ Kembali', callback_data: 'action_video' }],
         [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
@@ -596,13 +670,13 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
       `Platform: ${platformLabel[platform]}\n` +
       `Industri: ${industry}\n` +
       `Produk: ${productDesc.slice(0, 60)}${productDesc.length > 60 ? '...' : ''}\n\n` +
-      `💰 Biaya: **${cost} unit**`;
+      `💰 Biaya: **${cost / 10} kredit**`;
 
     await ctx.reply(text, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: `✅ Generate Sekarang (${cost} unit)`, callback_data: 'generate_confirm' }],
+          [{ text: `✅ Generate Sekarang (${cost / 10} kredit)`, callback_data: 'generate_confirm' }],
           [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
           [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
         ],
