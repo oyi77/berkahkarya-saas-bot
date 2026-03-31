@@ -1125,7 +1125,7 @@ it("should register GET / route", () => {
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(404);
       expect(reply.send).toHaveBeenCalledWith({
-        error: "Video file not found",
+        error: "Video file is no longer available. Please regenerate the video.",
       });
     });
 

@@ -810,16 +810,28 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       if (!video) return reply.status(404).send({ error: "Video not found" });
       if (video.userId.toString() !== payload.telegramId)
         return reply.status(403).send({ error: "Access denied" });
+
       const localPath = video.downloadUrl;
-      if (!localPath || !fs.existsSync(localPath))
-        return reply.status(404).send({ error: "Video file not found" });
-      const filename = `berkahkarya-${jobId}.mp4`;
-      const stream = fs.createReadStream(localPath);
-      const stat = fs.statSync(localPath);
-      reply.header("Content-Type", "video/mp4");
-      reply.header("Content-Disposition", `attachment; filename="${filename}"`);
-      reply.header("Content-Length", stat.size);
-      return reply.send(stream);
+
+      // Serve local file if it still exists (fastest path)
+      if (localPath && fs.existsSync(localPath)) {
+        const filename = `berkahkarya-${jobId}.mp4`;
+        const stream = fs.createReadStream(localPath);
+        const stat = fs.statSync(localPath);
+        reply.header("Content-Type", "video/mp4");
+        reply.header("Content-Disposition", `attachment; filename="${filename}"`);
+        reply.header("Content-Length", stat.size);
+        return reply.send(stream);
+      }
+
+      // Local file gone — redirect to CDN/provider URL if available
+      if (video.videoUrl) {
+        return reply.status(302).redirect(video.videoUrl);
+      }
+
+      return reply.status(404).send({
+        error: "Video file is no longer available. Please regenerate the video.",
+      });
     } catch (error) {
       server.log.error({ error }, "Video download error");
       return reply.status(500).send({ error: "Download failed" });

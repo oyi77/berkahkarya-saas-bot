@@ -717,8 +717,8 @@ async function processExtendedScenes(
     await notifyProgress(telegram, chatId, '\ud83d\udce6 Almost ready!');
   }
 
-  await VideoService.updateProgress(jobId, 100);
-  await VideoService.updateStatus(jobId, 'completed');
+  // Persist the delivery path to DB so download route can serve it
+  await VideoService.setOutput(jobId, { downloadUrl: deliveryPath });
   await job.updateProgress(100);
 
   cancelTimeout();
