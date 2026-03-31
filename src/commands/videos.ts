@@ -4,9 +4,18 @@
  * Handles /videos command - Show user's video library
  */
 
+import jwt from 'jsonwebtoken';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { VideoService } from '@/services/video.service';
+
+/** Generate a signed download URL for a video job (valid 30d). Never exposes provider CDN URLs. */
+function makeDownloadUrl(jobId: string, userId: string): string {
+  const base = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
+  const secret = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+  const token = jwt.sign({ telegramId: userId, jobId }, secret, { expiresIn: '30d' });
+  return `${base}/video/${jobId}/download?token=${token}`;
+}
 
 /**
  * Handle /videos command
@@ -116,48 +125,51 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
     (video.completedAt ? `*Completed:* ${video.completedAt.toLocaleDateString('id-ID')}\n` : '') +
     `\n*Expires:* ${video.expiresAt?.toLocaleDateString('id-ID') || 'N/A'}`;
 
-  // If video is completed and has URL, show with thumbnail and download
-  if (video.status === 'completed' && video.videoUrl && video.thumbnailUrl) {
-    try {
-      // Send thumbnail with video info
-      await ctx.editMessageMedia(
-        {
-          type: 'photo',
-          media: video.thumbnailUrl,
-          caption: message,
-          parse_mode: 'Markdown',
-        } as any
-      );
-      
-      // Send download button separately
-      await ctx.reply(
-        '⬇️ *Actions*',
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '⬇️ Download Video', url: video.downloadUrl || video.videoUrl }],
-              [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
-              [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
-              [{ text: '📋 Copy Video URL', callback_data: `video_copy_${jobId}` }],
-              [{ text: '🗑️ Delete Video', callback_data: `video_delete_${jobId}` }],
-              [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
-            ],
-          },
-        }
-      );
-    } catch (error) {
-      // If photo fails, send as text
-      await ctx.editMessageText(message, {
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '⬇️ Download Video', url: video.downloadUrl || video.videoUrl || '#' }],
-            [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
-            [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
-          ],
-        },
-      });
+  // If video is completed, show details and download
+  if (video.status === 'completed' && video.videoUrl) {
+    const dlUrl = makeDownloadUrl(jobId, video.userId.toString());
+    const textKeyboard = {
+      inline_keyboard: [
+        [{ text: '⬇️ Download Video', url: dlUrl }],
+        [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
+        [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
+      ],
+    };
+    if (video.thumbnailUrl) {
+      try {
+        // Send thumbnail photo with video info
+        await ctx.editMessageMedia(
+          {
+            type: 'photo',
+            media: video.thumbnailUrl,
+            caption: message,
+            parse_mode: 'Markdown',
+          } as any
+        );
+        // Follow-up with action buttons
+        await ctx.reply(
+          '⬇️ *Actions*',
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '⬇️ Download Video', url: dlUrl }],
+                [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
+                [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
+                [{ text: '📋 Copy Download Link', callback_data: `video_copy_${jobId}` }],
+                [{ text: '🗑️ Delete Video', callback_data: `video_delete_${jobId}` }],
+                [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
+              ],
+            },
+          }
+        );
+      } catch {
+        // Photo failed — fall back to text view with download button
+        await ctx.editMessageText(message, { parse_mode: 'Markdown', reply_markup: textKeyboard });
+      }
+    } else {
+      // No thumbnail — use text view with download button (avoids exposing provider URL via media)
+      await ctx.editMessageText(message, { parse_mode: 'Markdown', reply_markup: textKeyboard });
     }
   } else if (video.status === 'processing') {
     await ctx.editMessageText(
@@ -205,19 +217,20 @@ export async function copyVideoUrl(ctx: BotContext, jobId: string): Promise<void
     const video = await VideoService.getByJobId(jobId);
 
     if (!video || !video.videoUrl) {
-      await ctx.answerCbQuery('❌ Video URL not found');
+      await ctx.answerCbQuery('❌ Video tidak ditemukan');
       return;
     }
 
     if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
-      await ctx.answerCbQuery('❌ Access denied');
+      await ctx.answerCbQuery('❌ Akses ditolak');
       return;
     }
 
-    await ctx.answerCbQuery('URL copied!');
+    const dlUrl = makeDownloadUrl(jobId, video.userId.toString());
+    await ctx.answerCbQuery('Link disalin!');
     await ctx.reply(
-      `📋 *Video URL:*\n\n${video.videoUrl}\n\n` +
-      `_Tap and hold the URL above to copy_`,
+      `📋 *Link Download Video:*\n\n${dlUrl}\n\n` +
+      `_Tekan dan tahan link di atas untuk menyalin_`,
       { parse_mode: 'Markdown' }
     );
   } catch (error) {

@@ -981,10 +981,10 @@ async function sendVideoToUser(
           reply_markup: replyMarkup,
         });
       } catch {
-        // Telegram rejected the CDN URL (e.g. bad format) — fall back to link message
+        // Telegram rejected the CDN URL — send caption with download button only (no provider URL exposed)
         await telegram.sendMessage(
           chatId,
-          caption + `\n\n🔗 [Tonton / Download Video](${video.videoUrl || downloadUrl})`,
+          caption,
           { parse_mode: 'Markdown', reply_markup: replyMarkup },
         );
       }

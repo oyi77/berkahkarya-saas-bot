@@ -292,7 +292,11 @@
 
         // Global settings
         var g = pricingData.global || {};
-        currentMargin = g.margin_percent !== undefined ? g.margin_percent : 30;
+        // Handle both legacy {value: N} format and direct number format
+        var rawMargin = g.margin_percent;
+        currentMargin = (typeof rawMargin === 'object' && rawMargin !== null)
+          ? (rawMargin.value !== undefined ? rawMargin.value : 30)
+          : (rawMargin !== undefined ? rawMargin : 30);
         document.getElementById('global-margin').value = currentMargin;
         document.getElementById('global-image-cost').value = g.default_image_credit_cost || 1;
 

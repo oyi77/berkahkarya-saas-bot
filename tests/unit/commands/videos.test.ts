@@ -220,9 +220,12 @@ describe("Videos Command", () => {
 
       await viewVideo(ctx as any, "job_test_123");
 
+      // No thumbnail → text path with download button (download URL is our JWT URL, not provider URL)
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
       expect(editCall[0]).toContain("Video Details");
+      const dlButton = editCall[1].reply_markup.inline_keyboard[0][0];
+      expect(dlButton.url).toMatch(/\/video\/job_test_123\/download\?token=/);
     });
 
     it("should show processing video with refresh button", async () => {
@@ -287,7 +290,7 @@ describe("Videos Command", () => {
 
       await copyVideoUrl(ctx as any, "invalid_job_id");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ Video URL not found");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ Video tidak ditemukan");
     });
 
     it("should show video URL not found when no URL", async () => {
@@ -298,7 +301,7 @@ describe("Videos Command", () => {
 
       await copyVideoUrl(ctx as any, "job_test_123");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ Video URL not found");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ Video tidak ditemukan");
     });
 
     it("should copy video URL to clipboard", async () => {
@@ -309,10 +312,11 @@ describe("Videos Command", () => {
 
       await copyVideoUrl(ctx as any, "job_test_123");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("URL copied!");
+      // Returns our signed download URL, not the raw provider CDN URL
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith("Link disalin!");
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("https://example.com/video.mp4");
+      expect(replyCall[0]).toMatch(/\/video\/job_test_123\/download\?token=/);
     });
 
     it("should handle errors gracefully", async () => {

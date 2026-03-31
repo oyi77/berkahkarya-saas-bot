@@ -214,6 +214,8 @@ export class PaymentSettingsService {
 
   static async getMarginPercent(): Promise<number> {
     const config = await this.getPricingConfig('global', 'margin_percent');
+    // Handle both legacy {value: 30} format and direct number format
+    if (typeof config === 'number') return config;
     return (config as any)?.value ?? 30;
   }
 
@@ -236,13 +238,38 @@ export class PaymentSettingsService {
     return baseCost;
   }
 
+  /** Normalize any legacy {value: N} scalar wrappers to plain numbers in the DB */
+  static async normalizeLegacyScalars(): Promise<void> {
+    const scalars: Array<{ category: string; key: string }> = [
+      { category: 'global', key: 'margin_percent' },
+    ];
+    for (const { category, key } of scalars) {
+      const row = await prisma.pricingConfig.findUnique({
+        where: { category_key: { category, key } },
+      });
+      if (!row) continue;
+      const v = row.value as any;
+      if (typeof v === 'object' && v !== null && typeof v.value === 'number') {
+        await prisma.pricingConfig.update({
+          where: { category_key: { category, key } },
+          data: { value: v.value },
+        });
+        this.pricingCache.delete(`${category}:${key}`);
+      }
+    }
+  }
+
   static async initializePricingDefaults(): Promise<void> {
     const count = await prisma.pricingConfig.count();
-    if (count > 0) return; // Already seeded
+    if (count > 0) {
+      // Existing data — still run normalization to fix legacy formats
+      await this.normalizeLegacyScalars();
+      return;
+    }
 
     const defaults: Array<{ category: string; key: string; value: any }> = [
       // Global
-      { category: 'global', key: 'margin_percent', value: { value: 30 } },
+      { category: 'global', key: 'margin_percent', value: 30 },
       // Image credit
       { category: 'image_credit', key: 'default', value: { credits: 0.2 } },
       // Video credits

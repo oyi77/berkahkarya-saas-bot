@@ -824,9 +824,20 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         return reply.send(stream);
       }
 
-      // Local file gone — redirect to CDN/provider URL if available
+      // Local file gone — proxy from provider URL (never redirect to avoid exposing provider CDN URL)
       if (video.videoUrl) {
-        return reply.status(302).redirect(video.videoUrl);
+        try {
+          const providerRes = await fetch(video.videoUrl);
+          if (!providerRes.ok) throw new Error(`Upstream fetch failed: ${providerRes.status}`);
+          const filename = `berkahkarya-${jobId}.mp4`;
+          reply.header('Content-Type', 'video/mp4');
+          reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+          const contentLength = providerRes.headers.get('content-length');
+          if (contentLength) reply.header('Content-Length', contentLength);
+          return reply.send(providerRes.body);
+        } catch {
+          // Provider unavailable — fall through to 404
+        }
       }
 
       return reply.status(404).send({

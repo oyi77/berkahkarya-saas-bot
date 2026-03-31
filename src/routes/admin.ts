@@ -998,7 +998,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     await prisma.pricingConfig.upsert({
       where: { category_key: { category: 'global', key: 'margin_percent' } },
       update: {},
-      create: { category: 'global', key: 'margin_percent', value: { value: 30 } as any },
+      create: { category: 'global', key: 'margin_percent', value: 30 as any },
     });
     seeded++;
 
