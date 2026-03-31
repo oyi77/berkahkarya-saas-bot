@@ -2179,6 +2179,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '🗑️ Удалить',
     zh: '🗑️ 删除',
   },
+  'btn.settings': {
+    id: '⚙️ Pengaturan',
+    en: '⚙️ Settings',
+    ru: '⚙️ Настройки',
+    zh: '⚙️ 设置',
+  },
 
   // ── Storyboard ──
   'cb.storyboard_title': {

@@ -2806,11 +2806,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         : null;
       const enabled = user?.autoRenewal ?? false;
 
+      {
+      const lang = ctx.session?.userLang || 'id';
+      const statusText = enabled ? t('cb2.notif_enabled', lang) : t('cb2.notif_disabled', lang);
       await ctx.editMessageText(
-        "🔄 *Auto-Renewal*\n\n" +
-        `Status: ${enabled ? "✅ Enabled" : "❌ Disabled"}\n\n` +
-        "When enabled, your subscription will automatically\n" +
-        "renew at the end of each billing cycle.",
+        t('cb2.autorenewal_title', lang, { status: statusText }),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -2818,16 +2818,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [
                 {
                   text: enabled
-                    ? "❌ Disable Auto-Renewal"
-                    : "✅ Enable Auto-Renewal",
+                    ? t('cb2.disable_autorenewal', lang)
+                    : t('cb2.enable_autorenewal', lang),
                   callback_data: "toggle_autorenewal",
                 },
               ],
-              [{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "open_settings" }],
+              [{ text: t('cb2.back_to_settings', lang), callback_data: "open_settings" }],
             ],
           },
         },
       );
+      }
       return;
     }
 
@@ -2842,14 +2843,16 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const user = await UserService.findByTelegramId(BigInt(userId));
       const newValue = !(user?.autoRenewal ?? false);
       await UserService.update(BigInt(userId), { autoRenewal: newValue });
+      {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.answerCbQuery(
-        newValue ? "Auto-renewal enabled" : "Auto-renewal disabled",
+        newValue ? t('cb2.autorenewal_toggle_on', lang) : t('cb2.autorenewal_toggle_off', lang),
       );
 
+      const statusText = newValue ? t('cb2.notif_enabled', lang) : t('cb2.notif_disabled', lang);
+      const actionText = newValue ? t('cb2.notif_action_enabled', lang) : t('cb2.notif_action_disabled', lang);
       await ctx.editMessageText(
-        "🔄 *Auto-Renewal*\n\n" +
-        `Status: ${newValue ? "✅ Enabled" : "❌ Disabled"}\n\n` +
-        `Auto-renewal has been ${newValue ? "enabled" : "disabled"}.`,
+        t('cb2.autorenewal_updated', lang, { status: statusText, action: actionText }),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -2857,16 +2860,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [
                 {
                   text: newValue
-                    ? "❌ Disable Auto-Renewal"
-                    : "✅ Enable Auto-Renewal",
+                    ? t('cb2.disable_autorenewal', lang)
+                    : t('cb2.enable_autorenewal', lang),
                   callback_data: "toggle_autorenewal",
                 },
               ],
-              [{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "open_settings" }],
+              [{ text: t('cb2.back_to_settings', lang), callback_data: "open_settings" }],
             ],
           },
         },
       );
+      }
       return;
     }
 
@@ -2877,23 +2881,18 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const user = userId
         ? await UserService.findByTelegramId(BigInt(userId))
         : null;
-      const lang = user?.language === "en" ? "English" : "Bahasa Indonesia";
-      const notif = user?.notificationsEnabled ? "Enabled" : "Disabled";
-      const autoRenew = user?.autoRenewal ? "Enabled" : "Disabled";
+      const uiLang = ctx.session?.userLang || user?.language || 'id';
+      const langDisplay = getLangConfig(user?.language || 'id').label;
+      const notif = user?.notificationsEnabled ? t('cb2.notif_enabled', uiLang) : t('cb2.notif_disabled', uiLang);
+      const autoRenew = user?.autoRenewal ? t('cb2.notif_enabled', uiLang) : t('cb2.notif_disabled', uiLang);
 
-      const settingsText =
-        "⚙️ *Settings*\n\n" +
-        "Configure your preferences:\n\n" +
-        `*Language:* ${lang}\n` +
-        `*Notifications:* ${notif}\n` +
-        `*Auto-renewal:* ${autoRenew}\n\n` +
-        "What would you like to change?";
+      const settingsText = t('cb2.settings_title', uiLang, { lang: langDisplay, notif, autoRenew });
       const settingsMarkup = {
         inline_keyboard: [
-          [{ text: "🌐 Change Language", callback_data: "settings_language" }],
-          [{ text: "🔔 Notifications", callback_data: "settings_notifications" }],
-          [{ text: "🔄 Auto-renewal", callback_data: "settings_autorenewal" }],
-          [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+          [{ text: t('cb2.settings_lang_btn', uiLang), callback_data: "settings_language" }],
+          [{ text: t('cb2.settings_notif_btn', uiLang), callback_data: "settings_notifications" }],
+          [{ text: t('cb2.settings_autorenewal_btn', uiLang), callback_data: "settings_autorenewal" }],
+          [{ text: t('cb2.back_to_menu', uiLang), callback_data: "main_menu" }],
         ],
       };
       try {
@@ -2920,17 +2919,16 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           take: 10,
         });
 
+        const lang = ctx.session?.userLang || 'id';
         if (transactions.length === 0) {
           await ctx.editMessageText(
-            "📜 *Riwayat Transaksi*\n\n" +
-            "Belum ada transaksi.\n\n" +
-            "Top up kredit untuk mulai!",
+            t('cb2.tx_history_empty', lang),
             {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "💰 Top Up Now", callback_data: "topup" }],
-                  [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+                  [{ text: t('cb2.topup_now', lang), callback_data: "topup" }],
+                  [{ text: t('cb2.back_to_menu', lang), callback_data: "main_menu" }],
                 ],
               },
             },
@@ -2938,8 +2936,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           return;
         }
 
-        let message = "📜 *Riwayat Transaksi*\n\n";
-        message += "_10 transaksi terakhir:_\n\n";
+        let message = t('cb2.tx_history_title', lang) + "\n\n";
+        message += t('cb2.tx_history_recent', lang) + "\n\n";
 
         for (const tx of transactions) {
           const date = tx.createdAt.toLocaleDateString("id-ID", {
@@ -2964,18 +2962,19 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+              [{ text: t('cb2.back_to_menu', lang), callback_data: "main_menu" }],
             ],
           },
         });
       } catch (error) {
         logger.error("Transaction history error:", error);
+        const lang2 = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          t('cb.tx_history_error', ctx.session?.userLang || 'id'),
+          t('cb2.tx_history_failed', lang2),
           {
             reply_markup: {
               inline_keyboard: [
-                [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+                [{ text: t('cb2.back_to_menu', lang2), callback_data: "main_menu" }],
               ],
             },
           },
@@ -2990,18 +2989,19 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "copy_prompt") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       const extractedPrompt = ctx.session?.stateData?.extractedPrompt as
         | string
         | undefined;
 
       if (extractedPrompt) {
         await ctx.reply(
-          `📋 *Extracted Prompt:*\n\n\`\`\`\n${extractedPrompt}\n\`\`\`\n\n_Copy the text above to use it._`,
+          `${t('cb2.copy_prompt_title', lang)}\n\n\`\`\`\n${extractedPrompt}\n\`\`\`\n\n${t('cb2.copy_prompt_hint', lang)}`,
           { parse_mode: "Markdown" },
         );
       } else {
         await ctx.reply(
-          "❌ Prompt tidak ditemukan. Gunakan fitur Disassemble terlebih dahulu untuk mengekstrak prompt dari media.",
+          t('cb2.copy_prompt_not_found', lang),
           { parse_mode: "Markdown" },
         );
       }
@@ -3014,8 +3014,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "connect_account_new") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "🔗 *Connect New Account*\n\n" + "Select platform to connect:",
+        t('cb2.connect_new_account_title', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -3045,7 +3046,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "connect_account_youtube",
                 },
               ],
-              [{ text: "◀️ Back", callback_data: "manage_accounts" }],
+              [{ text: t('btn.back', lang), callback_data: "manage_accounts" }],
             ],
           },
         },
@@ -3091,23 +3092,25 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         const availableCommission = Number(availableAgg._sum.amount || 0);
         const withdrawnCommission = Number(withdrawnAgg._sum.amount || 0);
 
+        {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          "📊 *Referral Statistics*\n\n" +
-          `*Total Referrals:* ${referralCount}\n` +
-          `*Referral Tier:* ${user.referralTier}\n\n` +
-          "*Commission Summary:*\n" +
-          `• Total Earned: Rp ${totalCommission.toLocaleString("id-ID")}\n` +
-          `• Available: Rp ${availableCommission.toLocaleString("id-ID")}\n` +
-          `• Withdrawn: Rp ${withdrawnCommission.toLocaleString("id-ID")}\n\n` +
-          `*Referral Code:* \`${user.referralCode || "N/A"}\``,
+          t('cb2.referral_stats', lang, {
+            referralCount,
+            referralTier: user.referralTier,
+            totalCommission: totalCommission.toLocaleString("id-ID"),
+            availableCommission: availableCommission.toLocaleString("id-ID"),
+            withdrawnCommission: withdrawnCommission.toLocaleString("id-ID"),
+            referralCode: user.referralCode || "N/A",
+          }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "💸 Withdraw", callback_data: "referral_withdraw" }],
+                [{ text: t('cb2.withdraw_btn', lang), callback_data: "referral_withdraw" }],
                 [
                   {
-                    text: "◀️ Back to Referral",
+                    text: t('btn.back', lang),
                     callback_data: "open_referral",
                   },
                 ],
@@ -3115,6 +3118,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             },
           },
         );
+        }
       } catch (error) {
         logger.error("Referral stats error:", error);
         await ctx.reply(
@@ -3145,30 +3149,27 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
         const creditsCanConvert = Math.floor(available / SELL_RATE);
 
-        let message = "💸 *Withdraw Commission*\n\n";
-        message += `*Saldo Komisi:* Rp ${available.toLocaleString("id-ID")}\n\n`;
+        const lang = ctx.session?.userLang || 'id';
+        let message = t('cb2.withdraw_title', lang) + "\n\n";
+        message += t('cb2.withdraw_balance', lang, { available: available.toLocaleString("id-ID") }) + "\n\n";
 
         if (available <= 0) {
-          message += `❌ Belum ada komisi yang tersedia.\n\n`;
-          message += `Ajak teman untuk mulai mendapatkan komisi!`;
+          message += t('cb2.withdraw_no_commission', lang);
         } else {
-          message += `*Opsi Penarikan:*\n\n`;
-          message += `1️⃣ *Tukar ke Kredit* — ${creditsCanConvert} kredit\n`;
-          message += `   (Rate: Rp ${SELL_RATE.toLocaleString("id-ID")}/kredit)\n\n`;
-          message += `2️⃣ *Jual ke Admin* — Rp ${(available / 2).toLocaleString("id-ID")}\n`;
-          message += `   (50% dari harga beli kredit)\n\n`;
-          message += `3️⃣ *Transfer P2P* — Kirim kredit ke user lain\n`;
-          message += `   (Gunakan /send setelah konversi)\n\n`;
-          message += `_Komisi juga bisa dipakai langsung untuk generate!_`;
+          message += t('cb2.withdraw_options', lang, {
+            creditsCanConvert,
+            sellRate: SELL_RATE.toLocaleString("id-ID"),
+            cashoutHalf: (available / 2).toLocaleString("id-ID"),
+          });
         }
 
         const buttons: any[][] = [];
         if (creditsCanConvert > 0) {
-          buttons.push([{ text: `🔄 Tukar ke ${creditsCanConvert} Kredit`, callback_data: "referral_convert_credits" }]);
-          buttons.push([{ text: `💵 Jual ke Admin (Rp ${(available / 2).toLocaleString("id-ID")})`, callback_data: "referral_sell_admin" }]);
+          buttons.push([{ text: t('cb2.convert_to_credits_btn', lang, { credits: creditsCanConvert }), callback_data: "referral_convert_credits" }]);
+          buttons.push([{ text: t('cb2.sell_to_admin_btn', lang, { amount: (available / 2).toLocaleString("id-ID") }), callback_data: "referral_sell_admin" }]);
         }
-        buttons.push([{ text: "📊 Lihat Stats", callback_data: "referral_stats" }]);
-        buttons.push([{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "open_referral" }]);
+        buttons.push([{ text: t('cb2.view_stats', lang), callback_data: "referral_stats" }]);
+        buttons.push([{ text: t('btn.back', lang), callback_data: "open_referral" }]);
 
         await ctx.editMessageText(message, {
           parse_mode: "Markdown",
@@ -3241,20 +3242,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           return;
         }
 
+        {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `✅ *Konversi Berhasil!*\n\n` +
-          `Rp ${available.toLocaleString("id-ID")} komisi → *${creditsToAdd} kredit*\n\n` +
-          `Kredit sudah ditambahkan ke saldo kamu.`,
+          t('cb2.conversion_success', lang, { available: available.toLocaleString("id-ID"), credits: creditsToAdd }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
-                [{ text: t('btn.main_menu', ctx.session?.userLang || 'id'), callback_data: "main_menu" }],
+                [{ text: t('cb2.create_video_btn', lang), callback_data: "create_video_new" }],
+                [{ text: t('cb2.main_menu', lang), callback_data: "main_menu" }],
               ],
             },
           },
         );
+        }
       } catch (error) {
         logger.error("Referral convert credits error:", error);
         const lang = ctx.session?.userLang || 'id';
@@ -3310,34 +3312,34 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         // Notify admin
         const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").filter(Boolean);
         const user = await UserService.findByTelegramId(telegramId);
+        const userName = user?.firstName || user?.username || String(telegramId);
         for (const adminId of adminIds) {
           try {
             await ctx.telegram.sendMessage(
               adminId.trim(),
-              `💸 *Cashout Request*\n\n` +
-              `User: ${user?.firstName || user?.username || telegramId}\n` +
-              `TG ID: ${telegramId}\n` +
-              `Komisi: Rp ${available.toLocaleString("id-ID")}\n` +
-              `Cashout (50%): *Rp ${cashoutAmount.toLocaleString("id-ID")}*\n\n` +
-              `Transfer ke rekening user, lalu ketik:\n` +
-              `/grant_credits ${telegramId} 0 cashout_approved`,
+              t('cb2.cashout_admin_notify', 'id', {
+                userName,
+                telegramId: String(telegramId),
+                available: available.toLocaleString("id-ID"),
+                cashoutAmount: cashoutAmount.toLocaleString("id-ID"),
+              }),
               { parse_mode: "Markdown" },
             );
           } catch { /* admin unreachable */ }
         }
 
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `✅ *Permintaan Cashout Dikirim!*\n\n` +
-          `Komisi: Rp ${available.toLocaleString("id-ID")}\n` +
-          `Cashout (50%): *Rp ${cashoutAmount.toLocaleString("id-ID")}*\n\n` +
-          `Admin akan memproses dalam 1-3 hari kerja.\n` +
-          `Kamu akan dinotifikasi saat transfer selesai.`,
+          t('cb2.cashout_sent', lang, {
+            available: available.toLocaleString("id-ID"),
+            cashoutAmount: cashoutAmount.toLocaleString("id-ID"),
+          }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "📊 Lihat Stats", callback_data: "referral_stats" }],
-                [{ text: t('btn.main_menu', ctx.session?.userLang || 'id'), callback_data: "main_menu" }],
+                [{ text: t('cb2.view_stats', lang), callback_data: "referral_stats" }],
+                [{ text: t('cb2.main_menu', lang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -3367,7 +3369,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const uploadedPhotos = ctx.session.videoCreation.uploadedPhotos || [];
       if (uploadedPhotos.length === 0) {
         await ctx.reply(
-          "Belum ada foto. Kirim gambar referensi dulu, atau /skip untuk lanjut tanpa foto.",
+          t('cb2.no_photos_yet', ctx.session?.userLang || 'id'),
         );
         return;
       }
@@ -3382,7 +3384,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const count = ctx.session?.videoCreation?.uploadedPhotos?.length || 0;
       const remaining = 5 - count;
       await ctx.reply(
-        `Send up to ${remaining} more photo(s).\n\nYou can also tap "Generate Now" when ready.`,
+        t('cb2.add_more_photos', ctx.session?.userLang || 'id', { remaining }),
       );
       return;
     }
@@ -3417,10 +3419,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "contact_support") {
       await ctx.answerCbQuery();
       await ctx.reply(
-        "💬 *Butuh Bantuan?*\n\n" +
-        "Hubungi tim support kami:\n" +
-        "• Telegram: @BerkahKaryaSupport\n\n" +
-        "Sertakan screenshot error dan username kamu saat menghubungi.",
+        t('cb2.contact_support', ctx.session?.userLang || 'id'),
         { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[btnBackMain(ctx.session?.userLang || 'id')]] } },
       );
       return;
@@ -3443,10 +3442,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           data: { notificationsEnabled: false },
         });
       }
+      {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.reply(
-        "🔕 Notifikasi dinonaktifkan.\n\nKamu bisa mengaktifkan kembali di ⚙️ Settings.",
-        { reply_markup: { inline_keyboard: [[{ text: "⚙️ Settings", callback_data: "open_settings" }]] } },
+        t('cb2.notif_unsubscribed', lang),
+        { reply_markup: { inline_keyboard: [[{ text: t('btn.settings', lang), callback_data: "open_settings" }]] } },
       );
+      }
       return;
     }
 
@@ -3476,7 +3478,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
       const sceneNum = sceneIndex >= 0 ? sceneIndex + 1 : "?";
       await ctx.reply(
-        `✏️ *Edit Scene ${sceneNum}*\n\nKetik deskripsi baru untuk scene ini.\nAtau ketik /skip untuk membatalkan.`,
+        t('cb2.edit_scene', ctx.session?.userLang || 'id', { sceneNum }),
         { parse_mode: "Markdown" },
       );
       return;
@@ -3526,17 +3528,16 @@ async function handlePublishVideo(ctx: BotContext, jobId: string) {
     BigInt(userId),
   );
 
+  const lang = ctx.session?.userLang || 'id';
   if (!hasAccounts) {
     await ctx.editMessageText(
-      "📤 *Publish to Social Media*\n\n" +
-      "You haven't connected any social media accounts yet.\n\n" +
-      "Connect your accounts first to publish videos.",
+      t('cb2.publish_no_accounts', lang),
       {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🔗 Connect Accounts", callback_data: "manage_accounts" }],
-            [{ text: "❌ Cancel", callback_data: "videos_list" }],
+            [{ text: t('cb2.connect_accounts_btn', lang), callback_data: "manage_accounts" }],
+            [{ text: t('btn.cancel', lang), callback_data: "videos_list" }],
           ],
         },
       },
@@ -3572,13 +3573,12 @@ async function handlePublishVideo(ctx: BotContext, jobId: string) {
   });
 
   keyboard.push([
-    { text: "✅ Post Now", callback_data: `confirm_publish_${jobId}` },
+    { text: t('cb2.publish_now_btn', lang), callback_data: `confirm_publish_${jobId}` },
   ]);
-  keyboard.push([{ text: "❌ Cancel", callback_data: "videos_list" }]);
+  keyboard.push([{ text: t('btn.cancel', lang), callback_data: "videos_list" }]);
 
   await ctx.editMessageText(
-    "📤 *Publish to Social Media*\n\n" +
-    "Select the platform(s) to publish this video:",
+    t('cb2.publish_select_platform', lang),
     {
       parse_mode: "Markdown",
       reply_markup: {
@@ -3635,21 +3635,20 @@ async function handlePublishPlatformSelection(
     return;
   }
 
+  const lang2 = ctx.session?.userLang || 'id';
   await ctx.editMessageText(
-    `📤 *Publish Video*\n\n` +
-    `✅ ${selectedCount} platform(s) selected\n\n` +
-    `Ready to publish?`,
+    t('cb2.publish_ready', lang2, { count: selectedCount }),
     {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: "✅ Publish Now",
+              text: t('cb2.publish_now_btn', lang2),
               callback_data: `confirm_publish_${jobId}`,
             },
           ],
-          [{ text: "❌ Cancel", callback_data: "videos_list" }],
+          [{ text: t('btn.cancel', lang2), callback_data: "videos_list" }],
         ],
       },
     },
@@ -3663,8 +3662,9 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
   const userId = ctx.from?.id;
   if (!userId) return;
 
+  const lang = ctx.session?.userLang || 'id';
   await ctx.editMessageText(
-    "⏳ *Publishing...*\n\n" + "Uploading to selected platforms...",
+    t('cb2.publishing_progress', lang),
     { parse_mode: "Markdown" },
   );
 
@@ -3721,8 +3721,8 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "📁 My Videos", callback_data: "videos_list" }],
-          [{ text: "🎬 Buat Video Lagi", callback_data: "back_prompts" }],
+          [{ text: t('cb2.my_videos', lang), callback_data: "videos_list" }],
+          [{ text: t('cb2.create_video_again', lang), callback_data: "back_prompts" }],
         ],
       },
     });
@@ -3773,14 +3773,13 @@ async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
     );
     if (accounts.length === 0) {
       await ctx.reply(
-        "❌ No connected social accounts found.\n\n" +
-        "Connect your accounts first to auto-post.",
+        t('cb2.no_connected_accounts', lang),
         {
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "🔗 Connect Accounts",
+                  text: t('cb2.connect_accounts_btn', lang),
                   callback_data: "manage_accounts",
                 },
               ],
@@ -3796,8 +3795,7 @@ async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
       .map((a) => `${getPlatformEmoji(a.platform)} ${a.platform}`)
       .join(", ");
     await ctx.reply(
-      `⏳ *Auto-Posting to ${accounts.length} account(s)...*\n\n` +
-      `Platforms: ${platformNames}`,
+      t('cb2.auto_posting', lang, { count: accounts.length, platforms: platformNames }),
       { parse_mode: "Markdown" },
     );
 
@@ -3839,28 +3837,26 @@ async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🎬 Buat Video Lagi", callback_data: "back_prompts" }],
-          [{ text: "📁 My Videos", callback_data: "videos_list" }],
+          [{ text: t('cb2.create_video_again', lang), callback_data: "back_prompts" }],
+          [{ text: t('cb2.my_videos', lang), callback_data: "videos_list" }],
         ],
       },
     });
   } catch (error: any) {
     logger.error("Auto-post failed:", error);
     await ctx.reply(
-      `❌ *Auto-Post Failed*\n\n` +
-      `Error: ${error.message}\n\n` +
-      `You can still publish manually.`,
+      t('cb2.auto_post_failed', lang, { error: error.message }),
       {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: "📤 Publish Manually",
+                text: t('cb2.publish_manually_btn', lang),
                 callback_data: `publish_video_${jobId}`,
               },
             ],
-            [{ text: "📁 My Videos", callback_data: "videos_list" }],
+            [{ text: t('cb2.my_videos', lang), callback_data: "videos_list" }],
           ],
         },
       },
@@ -3877,11 +3873,10 @@ async function handleManageAccounts(ctx: BotContext) {
 
   const accounts = await PostAutomationService.getUserAccounts(BigInt(userId));
 
+  const lang = ctx.session?.userLang || 'id';
   if (accounts.length === 0) {
     await ctx.editMessageText(
-      "🔗 *Connect Social Accounts*\n\n" +
-      "Connect your social media accounts to publish videos directly.\n\n" +
-      "Select platform to connect:",
+      t('cb2.connect_social_empty', lang),
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -3906,7 +3901,7 @@ async function handleManageAccounts(ctx: BotContext) {
               },
             ],
             [{ text: "📺 YouTube", callback_data: "connect_account_youtube" }],
-            [{ text: "❌ Cancel", callback_data: "main_menu" }],
+            [{ text: t('btn.cancel', lang), callback_data: "main_menu" }],
           ],
         },
       },
@@ -3915,7 +3910,7 @@ async function handleManageAccounts(ctx: BotContext) {
   }
 
   // Show connected accounts
-  let message = "🔗 *Connected Accounts*\n\n";
+  let message = t('cb2.connected_accounts_title', lang) + "\n\n";
   const keyboard: any[][] = [];
 
   accounts.forEach((acc) => {
@@ -3923,17 +3918,17 @@ async function handleManageAccounts(ctx: BotContext) {
     message += `${emoji} ${acc.platform.toUpperCase()}: ${acc.username}\n`;
     keyboard.push([
       {
-        text: `❌ Disconnect ${acc.platform} (${acc.username})`,
+        text: t('cb2.disconnect_btn', lang, { platform: acc.platform, username: acc.username }),
         callback_data: `disconnect_account_${acc.id}`,
       },
     ]);
   });
 
-  message += "\nConnect more accounts:";
+  message += t('cb2.connect_more', lang);
   keyboard.push([
-    { text: "➕ Connect New Account", callback_data: "connect_account_new" },
+    { text: t('cb2.connect_new_btn', lang), callback_data: "connect_account_new" },
   ]);
-  keyboard.push([{ text: "◀️ Back", callback_data: "main_menu" }]);
+  keyboard.push([{ text: t('btn.back', lang), callback_data: "main_menu" }]);
 
   await ctx.editMessageText(message, {
     parse_mode: "Markdown",
@@ -3949,25 +3944,20 @@ async function handleManageAccounts(ctx: BotContext) {
 async function handleConnectAccount(ctx: BotContext, platform: string) {
   // In production, this would redirect to OAuth flow
   // For now, we'll show instructions
+  const lang = ctx.session?.userLang || 'id';
   await ctx.editMessageText(
-    `🔗 *Connect ${platform.toUpperCase()}*\n\n` +
-    `To connect your ${platform} account:\n\n` +
-    `1. Go to PostBridge Dashboard\n` +
-    `2. Connect your ${platform} account\n` +
-    `3. Copy your Account ID\n` +
-    `4. Paste it here\n\n` +
-    `Or use the link below:`,
+    t('cb2.connect_platform', lang, { platform: platform.toUpperCase() }),
     {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: `🔗 Open PostBridge`,
+              text: t('cb2.open_postbridge', lang),
               url: "https://post-bridge.com/dashboard",
             },
           ],
-          [{ text: "◀️ Back", callback_data: "manage_accounts" }],
+          [{ text: t('btn.back', lang), callback_data: "manage_accounts" }],
         ],
       },
     },
@@ -4036,10 +4026,12 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
       useClonePrompt: true,
     };
 
+    const lang = ctx.session?.userLang || 'id';
     await ctx.editMessageText(
-      `🖼️ *Generate ${categoryNames[category] || category}*\n\n` +
-      `Using cloned prompt:\n_${existingClonePrompt.slice(0, 200)}${existingClonePrompt.length > 200 ? "..." : ""}_\n\n` +
-      `Generating image...`,
+      t('cb2.image_generating', lang, {
+        category: categoryNames[category] || category,
+        prompt: existingClonePrompt.slice(0, 200) + (existingClonePrompt.length > 200 ? "..." : ""),
+      }),
       { parse_mode: "Markdown" },
     );
 
@@ -4063,21 +4055,21 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
           await UserService.deductCredits(telegramId, imgCreditCost);
           try {
             await telegramClient.sendPhoto(chatId, result.imageUrl, {
-              caption: `✅ *Gambar Berhasil Dibuat!*\n\n_Prompt: ${existingClonePrompt.slice(0, 100)}${existingClonePrompt.length > 100 ? "..." : ""}_`,
+              caption: t('cb2.image_success', lang, { prompt: existingClonePrompt.slice(0, 100) + (existingClonePrompt.length > 100 ? "..." : "") }),
               parse_mode: "Markdown",
             });
           } catch (sendErr) {
             logger.error('sendPhoto failed after credit deduction, refunding:', sendErr);
             await UserService.refundCredits(telegramId, imgCreditCost, 'clone-img', 'sendPhoto failed')
               .catch((refundErr) => logger.error('CRITICAL: image refund failed', { telegramId: telegramId.toString(), err: refundErr }));
-            await telegramClient.sendMessage(chatId, '❌ Gagal mengirim gambar. Kredit dikembalikan.');
+            await telegramClient.sendMessage(chatId, t('cb2.image_send_failed', lang));
           }
         } else {
-          await telegramClient.sendMessage(chatId, `❌ Gagal generate gambar. Kredit tidak ditagih.\n\n${result.error || ""}`);
+          await telegramClient.sendMessage(chatId, t('cb2.image_gen_failed', lang) + (result.error ? `\n\n${result.error}` : ""));
         }
       } catch (err) {
         logger.error("useClonePrompt generation error", err);
-        await telegramClient.sendMessage(chatId, "❌ Gagal generate gambar. Coba lagi.");
+        await telegramClient.sendMessage(chatId, t('cb2.image_gen_error', lang));
       }
     })();
 
