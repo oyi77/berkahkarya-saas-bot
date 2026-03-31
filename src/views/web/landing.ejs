@@ -454,22 +454,28 @@
     <div class="nav-inner">
       <div class="logo">🎬 Vilona OpenClaw</div>
       <div class="nav-links">
-        <a href="#fitur" class="hide-mobile">Fitur</a>
-        <a href="#harga" class="hide-mobile">Harga</a>
-        <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_nav_click')">Coba Gratis</a>
+        <a href="#fitur" class="hide-mobile" data-i18n="nav_features">Fitur</a>
+        <a href="#harga" class="hide-mobile" data-i18n="nav_pricing">Harga</a>
+        <select id="lang-switch" onchange="switchLang(this.value)" style="background:#1a1a2e;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer;">
+          <option value="id">🇮🇩 ID</option>
+          <option value="en">🇺🇸 EN</option>
+          <option value="ru">🇷🇺 RU</option>
+          <option value="zh">🇨🇳 ZH</option>
+        </select>
+        <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_nav_click')" data-i18n="cta_free">Coba Gratis</a>
       </div>
     </div>
   </nav>
 
       <section class="hero">
     <div class="container">
-      <div class="hero-pain">⚠️ Kompetitor Posting 10 Video/Hari, Kamu Masih Stuck di 1 Video/Minggu?</div>
+      <div class="hero-pain" data-i18n="hero_pain">⚠️ Kompetitor Posting 10 Video/Hari, Kamu Masih Stuck di 1 Video/Minggu?</div>
       <% if (landingConfig && landingConfig.headline) { %>
         <h1><%- landingConfig.headline %></h1>
       <% } else { %>
-        <h1>Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik</h1>
+        <h1 data-i18n="hero_title">Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik</h1>
       <% } %>
-      <p class="subhead"><%= (landingConfig && landingConfig.subheadline) ? landingConfig.subheadline : 'Platform AI yang mengubah foto produk menjadi video iklan profesional dengan struktur HPAS (Hook-Problem-Agitate-Solution). Langsung dari Telegram. Tanpa skill editing. Bayar pakai VA/e-wallet.' %></p>
+      <p class="subhead" data-i18n="hero_subhead"><%= (landingConfig && landingConfig.subheadline) ? landingConfig.subheadline : 'Platform AI yang mengubah foto produk menjadi video iklan profesional dengan struktur HPAS (Hook-Problem-Agitate-Solution). Langsung dari Telegram. Tanpa skill editing. Bayar pakai VA/e-wallet.' %></p>
 
             <!-- Real Product Screenshot -->
       <div class="hero-screenshot" style="max-width: 900px; margin: 40px auto 32px;">
@@ -480,9 +486,9 @@
       </div>
 
       <div class="cta-row">
-        <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_hero_click')"><%= (landingConfig && landingConfig.ctaText) ? landingConfig.ctaText : '🎁 Mulai Gratis — 1 Video Gratis' %></a>
+        <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_hero_click')" data-i18n="hero_cta"><%= (landingConfig && landingConfig.ctaText) ? landingConfig.ctaText : '🎁 Mulai Gratis — 1 Video Gratis' %></a>
       </div>
-      <p class="trust-line">✅ <strong>Tanpa Kartu Kredit</strong> • ✅ <strong>100% di Telegram</strong> • ✅ <strong>Bayar VA/GoPay/OVO</strong></p>
+      <p class="trust-line" data-i18n="hero_trust" data-i18n-html="true">✅ <strong>Tanpa Kartu Kredit</strong> • ✅ <strong>100% di Telegram</strong> • ✅ <strong>Bayar VA/GoPay/OVO</strong></p>
     </div>
   </section>
 
@@ -490,32 +496,32 @@
 
   <div class="proof-bar">
     <div class="proof-grid">
-      <div class="proof-item"><div class="proof-num">22+</div><div class="proof-label">AI Providers (Auto-Failover)</div></div>
-      <div class="proof-item"><div class="proof-num">60 detik</div><div class="proof-label">Generate Time</div></div>
-      <div class="proof-item"><div class="proof-num">7 Scene</div><div class="proof-label">HPAS Framework</div></div>
-      <div class="proof-item"><div class="proof-num">0%</div><div class="proof-label">Skill Editing Required</div></div>
+      <div class="proof-item"><div class="proof-num">22+</div><div class="proof-label" data-i18n="proof_providers">AI Providers (Auto-Failover)</div></div>
+      <div class="proof-item"><div class="proof-num" data-i18n="proof_time_num">60 detik</div><div class="proof-label" data-i18n="proof_time_label">Generate Time</div></div>
+      <div class="proof-item"><div class="proof-num">7 Scene</div><div class="proof-label" data-i18n="proof_hpas">HPAS Framework</div></div>
+      <div class="proof-item"><div class="proof-num">0%</div><div class="proof-label" data-i18n="proof_skill">Skill Editing Required</div></div>
     </div>
   </div>
 
   <section class="section">
     <div class="container">
-      <div class="section-title">Kenapa Konten Kamu Stuck?</div>
-      <div class="section-sub">3 masalah terbesar UMKM Indonesia yang bikin kalah saing di TikTok/IG</div>
+      <div class="section-title" data-i18n="problem_title">Kenapa Konten Kamu Stuck?</div>
+      <div class="section-sub" data-i18n="problem_sub">3 masalah terbesar UMKM Indonesia yang bikin kalah saing di TikTok/IG</div>
       <div class="problem-grid">
         <div class="problem-card">
           <div class="icon">💸</div>
-          <h3>Editor Mahal, Hasil Lambat</h3>
-          <p>Hire editor IDR 150K-300K per video. Revisi 3-5 hari. Budget habis sebelum viral. Kompetitor udah posting 10 video, kamu baru 1.</p>
+          <h3 data-i18n="problem1_title">Editor Mahal, Hasil Lambat</h3>
+          <p data-i18n="problem1_desc">Hire editor IDR 150K-300K per video. Revisi 3-5 hari. Budget habis sebelum viral. Kompetitor udah posting 10 video, kamu baru 1.</p>
         </div>
         <div class="problem-card">
           <div class="icon">⏰</div>
-          <h3>Gak Ada Waktu Belajar Editing</h3>
-          <p>Belajar CapCut/Premiere 6 bulan? Kamu butuh konten SEKARANG, bukan tahun depan. Algoritma TikTok gak nunggu kamu jago editing.</p>
+          <h3 data-i18n="problem2_title">Gak Ada Waktu Belajar Editing</h3>
+          <p data-i18n="problem2_desc">Belajar CapCut/Premiere 6 bulan? Kamu butuh konten SEKARANG, bukan tahun depan. Algoritma TikTok gak nunggu kamu jago editing.</p>
         </div>
         <div class="problem-card">
           <div class="icon">💳</div>
-          <h3>Tools Luar Minta Kartu Kredit</h3>
-          <p>Canva $10/bln, InVideo $28/bln — semua USD, semua kartu kredit. UMKM Indonesia gak punya. Butuh solusi lokal, bayar IDR.</p>
+          <h3 data-i18n="problem3_title">Tools Luar Minta Kartu Kredit</h3>
+          <p data-i18n="problem3_desc">Canva $10/bln, InVideo $28/bln — semua USD, semua kartu kredit. UMKM Indonesia gak punya. Butuh solusi lokal, bayar IDR.</p>
         </div>
       </div>
     </div>
@@ -523,72 +529,72 @@
 
   <section id="fitur" class="section solution">
     <div class="container">
-      <div class="section-title">Solusi: AI Video Studio di Telegram</div>
-      <div class="section-sub">Semua yang kamu butuhkan untuk bikin konten viral, tanpa skill editing</div>
+      <div class="section-title" data-i18n="solution_title">Solusi: AI Video Studio di Telegram</div>
+      <div class="section-sub" data-i18n="solution_sub">Semua yang kamu butuhkan untuk bikin konten viral, tanpa skill editing</div>
       <div class="solution-grid">
         <div class="solution-card">
           <div class="icon">🎬</div>
-          <h3>HPAS Framework (7 Scene)</h3>
-          <p>Setiap video mengikuti struktur Hook-Problem-Agitate-Solution. Terbukti convert. Konsistensi karakter di setiap scene.</p>
+          <h3 data-i18n="solution1_title">HPAS Framework (7 Scene)</h3>
+          <p data-i18n="solution1_desc">Setiap video mengikuti struktur Hook-Problem-Agitate-Solution. Terbukti convert. Konsistensi karakter di setiap scene.</p>
         </div>
         <div class="solution-card">
           <div class="icon">🤖</div>
-          <h3>3 Mode Generate</h3>
-          <p>Basic (full auto), Smart (pilih preset), Pro (full control). Dari pemula sampai agency, semua bisa pakai.</p>
+          <h3 data-i18n="solution2_title">3 Mode Generate</h3>
+          <p data-i18n="solution2_desc">Basic (full auto), Smart (pilih preset), Pro (full control). Dari pemula sampai agency, semua bisa pakai.</p>
         </div>
         <div class="solution-card">
           <div class="icon">📱</div>
-          <h3>100% di Telegram</h3>
-          <p>Gak perlu buka browser, gak perlu signup. Chat bot @berkahkarya_saas_bot, upload foto, done. 60 detik total.</p>
+          <h3 data-i18n="solution3_title">100% di Telegram</h3>
+          <p data-i18n="solution3_desc">Gak perlu buka browser, gak perlu signup. Chat bot @berkahkarya_saas_bot, upload foto, done. 60 detik total.</p>
         </div>
         <div class="solution-card">
           <div class="icon">💳</div>
-          <h3>Bayar Pakai VA/E-Wallet</h3>
-          <p>BCA, Mandiri, BNI, GoPay, OVO, DANA, Telegram Stars, Crypto. Gak perlu kartu kredit. Harga IDR, bukan USD.</p>
+          <h3 data-i18n="solution4_title">Bayar Pakai VA/E-Wallet</h3>
+          <p data-i18n="solution4_desc">BCA, Mandiri, BNI, GoPay, OVO, DANA, Telegram Stars, Crypto. Gak perlu kartu kredit. Harga IDR, bukan USD.</p>
         </div>
         <div class="solution-card">
           <div class="icon">🎨</div>
-          <h3>Clone Style Kompetitor</h3>
-          <p>Screenshot iklan kompetitor → Upload foto produk kamu → AI tiru gaya visual mereka. Legal, cuma gaya, bukan konten.</p>
+          <h3 data-i18n="solution5_title">Clone Style Kompetitor</h3>
+          <p data-i18n="solution5_desc">Screenshot iklan kompetitor → Upload foto produk kamu → AI tiru gaya visual mereka. Legal, cuma gaya, bukan konten.</p>
         </div>
         <div class="solution-card">
           <div class="icon">🚀</div>
-          <h3>Campaign Builder (A/B Test)</h3>
-          <p>Generate 5-10 video sekaligus dengan hook berbeda. Test mana yang paling convert. Data-driven marketing.</p>
+          <h3 data-i18n="solution6_title">Campaign Builder (A/B Test)</h3>
+          <p data-i18n="solution6_desc">Generate 5-10 video sekaligus dengan hook berbeda. Test mana yang paling convert. Data-driven marketing.</p>
         </div>
       </div>
     </div>
   </section>
   <section id="harga" class="section pricing">
     <div class="container">
-      <div class="section-title">Harga Terjangkau untuk UMKM Indonesia</div>
-      <div class="section-sub">Mulai gratis (1 video), scale sesuai kebutuhan bisnis. Bayar pakai VA/e-wallet, bukan kartu kredit.</div>
+      <div class="section-title" data-i18n="pricing_title">Harga Terjangkau untuk UMKM Indonesia</div>
+      <div class="section-sub" data-i18n="pricing_sub">Mulai gratis (1 video), scale sesuai kebutuhan bisnis. Bayar pakai VA/e-wallet, bukan kartu kredit.</div>
       <div class="pricing-grid">
         <% packages.forEach(pkg => { %>
         <div class="price-card <%= pkg.isPopular ? 'popular' : '' %>">
           <% if (pkg.isPopular) { %>
-            <div class="popular-badge">⭐ PALING LARIS</div>
+            <div class="popular-badge" data-i18n="pricing_popular">⭐ PALING LARIS</div>
           <% } %>
           <h3><%= pkg.name %></h3>
           <div class="price">IDR <%= (pkg.priceIdr / 1000).toFixed(0) %>K</div>
           <div class="credits"><%= pkg.credits + (pkg.bonus || 0) %> Kredit</div>
           <ul>
-            <li>~<%= pkg.credits + (pkg.bonus || 0) %> video 30 detik</li>
-            <li>Semua mode (Basic/Smart/Pro)</li>
-            <li>HPAS Framework</li>
-            <li>Download HD</li>
-            <li>Multi platform output</li>
+            <li data-i18n="pricing_feat_videos" data-i18n-param="<%= pkg.credits + (pkg.bonus || 0) %>">~<%= pkg.credits + (pkg.bonus || 0) %> video 30 detik</li>
+            <li data-i18n="pricing_feat_modes">Semua mode (Basic/Smart/Pro)</li>
+            <li data-i18n="pricing_feat_hpas">HPAS Framework</li>
+            <li data-i18n="pricing_feat_hd">Download HD</li>
+            <li data-i18n="pricing_feat_multi">Multi platform output</li>
           </ul>
-          <a href="https://t.me/<%= botUsername %>" class="btn <%= pkg.isPopular ? 'btn-primary' : 'btn-outline' %>" onclick="trackCTA('cta_<%= pkg.id %>_click')">
+          <a href="https://t.me/<%= botUsername %>" class="btn <%= pkg.isPopular ? 'btn-primary' : 'btn-outline' %>" onclick="trackCTA('cta_<%= pkg.id %>_click')" data-i18n="<%= pkg.id === 'agency_pkg' ? 'pricing_contact_sales' : 'pricing_start_now' %>">
             <%= pkg.id === 'agency_pkg' ? 'Hubungi Sales' : 'Mulai Sekarang' %>
           </a>
         </div>
         <% }) %>
       </div>
-      <p style="text-align:center; margin-top:32px; color:var(--dim); font-size:14px;">
+      <p style="text-align:center; margin-top:32px; color:var(--dim); font-size:14px;" data-i18n="pricing_payment_methods">
         💳 Metode Pembayaran: VA BCA/Mandiri/BNI • GoPay • OVO • DANA • Telegram Stars • Crypto (BTC/USDT/ETH/BNB/MATIC/TON)
       </p>
-      <p style="text-align:center; margin-top:16px; color:var(--dim); font-size:13px;">
+      <p style="text-align:center; margin-top:16px; color:var(--dim); font-size:13px;" data-i18n="pricing_bonus" data-i18n-html="true">
         🎁 <strong>Bonus User Baru:</strong> 1x generate image GRATIS (sekali seumur hidup, bukan harian)
       </p>
     </div>
@@ -596,21 +602,290 @@
 
   <section class="urgency">
     <div class="urgency-box">
-      <h2>⏰ Kompetitor Kamu Udah Posting 10 Video Hari Ini</h2>
-      <p>Sementara kamu masih mikir, kompetitor kamu udah generate 10 video, post ke TikTok/IG, dan closing 5 customer. Algoritma TikTok reward yang konsisten posting. Mau tunggu sampai kapan?</p>
-      <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_urgency_click')">🎁 Coba Gratis Sekarang — 1 Video Gratis</a>
-      <p style="margin-top:16px; font-size:13px; color:var(--dim);">✅ Tanpa Kartu Kredit • ✅ 100% di Telegram • ✅ 60 Detik Generate</p>
+      <h2 data-i18n="urgency_title">⏰ Kompetitor Kamu Udah Posting 10 Video Hari Ini</h2>
+      <p data-i18n="urgency_desc">Sementara kamu masih mikir, kompetitor kamu udah generate 10 video, post ke TikTok/IG, dan closing 5 customer. Algoritma TikTok reward yang konsisten posting. Mau tunggu sampai kapan?</p>
+      <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_urgency_click')" data-i18n="urgency_cta">🎁 Coba Gratis Sekarang — 1 Video Gratis</a>
+      <p style="margin-top:16px; font-size:13px; color:var(--dim);" data-i18n="urgency_trust">✅ Tanpa Kartu Kredit • ✅ 100% di Telegram • ✅ 60 Detik Generate</p>
     </div>
   </section>
 
   <footer>
-    <p>© 2026 OpenClaw AI — All rights reserved.</p>
+    <p data-i18n="footer_copy">© 2026 OpenClaw AI — All rights reserved.</p>
     <p style="margin-top:8px">
       <a href="https://t.me/<%= botUsername %>">Telegram Bot</a> ·
       <a href="/app">Web App</a> ·
       <a href="https://t.me/codergaboets">Support</a>
     </p>
   </footer>
+
+  <script>
+    // ===== Multi-language i18n =====
+    const LANDING_I18N = {
+      id: {
+        nav_features: 'Fitur',
+        nav_pricing: 'Harga',
+        cta_free: 'Coba Gratis',
+        hero_pain: '⚠️ Kompetitor Posting 10 Video/Hari, Kamu Masih Stuck di 1 Video/Minggu?',
+        hero_title: 'Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik',
+        hero_subhead: 'Platform AI yang mengubah foto produk menjadi video iklan profesional dengan struktur HPAS (Hook-Problem-Agitate-Solution). Langsung dari Telegram. Tanpa skill editing. Bayar pakai VA/e-wallet.',
+        hero_cta: '🎁 Mulai Gratis — 1 Video Gratis',
+        hero_trust: '✅ <strong>Tanpa Kartu Kredit</strong> • ✅ <strong>100% di Telegram</strong> • ✅ <strong>Bayar VA/GoPay/OVO</strong>',
+        proof_providers: 'AI Providers (Auto-Failover)',
+        proof_time_num: '60 detik',
+        proof_time_label: 'Generate Time',
+        proof_hpas: 'HPAS Framework',
+        proof_skill: 'Skill Editing Required',
+        problem_title: 'Kenapa Konten Kamu Stuck?',
+        problem_sub: '3 masalah terbesar UMKM Indonesia yang bikin kalah saing di TikTok/IG',
+        problem1_title: 'Editor Mahal, Hasil Lambat',
+        problem1_desc: 'Hire editor IDR 150K-300K per video. Revisi 3-5 hari. Budget habis sebelum viral. Kompetitor udah posting 10 video, kamu baru 1.',
+        problem2_title: 'Gak Ada Waktu Belajar Editing',
+        problem2_desc: 'Belajar CapCut/Premiere 6 bulan? Kamu butuh konten SEKARANG, bukan tahun depan. Algoritma TikTok gak nunggu kamu jago editing.',
+        problem3_title: 'Tools Luar Minta Kartu Kredit',
+        problem3_desc: 'Canva $10/bln, InVideo $28/bln — semua USD, semua kartu kredit. UMKM Indonesia gak punya. Butuh solusi lokal, bayar IDR.',
+        solution_title: 'Solusi: AI Video Studio di Telegram',
+        solution_sub: 'Semua yang kamu butuhkan untuk bikin konten viral, tanpa skill editing',
+        solution1_title: 'HPAS Framework (7 Scene)',
+        solution1_desc: 'Setiap video mengikuti struktur Hook-Problem-Agitate-Solution. Terbukti convert. Konsistensi karakter di setiap scene.',
+        solution2_title: '3 Mode Generate',
+        solution2_desc: 'Basic (full auto), Smart (pilih preset), Pro (full control). Dari pemula sampai agency, semua bisa pakai.',
+        solution3_title: '100% di Telegram',
+        solution3_desc: 'Gak perlu buka browser, gak perlu signup. Chat bot @berkahkarya_saas_bot, upload foto, done. 60 detik total.',
+        solution4_title: 'Bayar Pakai VA/E-Wallet',
+        solution4_desc: 'BCA, Mandiri, BNI, GoPay, OVO, DANA, Telegram Stars, Crypto. Gak perlu kartu kredit. Harga IDR, bukan USD.',
+        solution5_title: 'Clone Style Kompetitor',
+        solution5_desc: 'Screenshot iklan kompetitor → Upload foto produk kamu → AI tiru gaya visual mereka. Legal, cuma gaya, bukan konten.',
+        solution6_title: 'Campaign Builder (A/B Test)',
+        solution6_desc: 'Generate 5-10 video sekaligus dengan hook berbeda. Test mana yang paling convert. Data-driven marketing.',
+        pricing_title: 'Harga Terjangkau untuk UMKM Indonesia',
+        pricing_sub: 'Mulai gratis (1 video), scale sesuai kebutuhan bisnis. Bayar pakai VA/e-wallet, bukan kartu kredit.',
+        pricing_popular: '⭐ PALING LARIS',
+        pricing_feat_videos: '~{n} video 30 detik',
+        pricing_feat_modes: 'Semua mode (Basic/Smart/Pro)',
+        pricing_feat_hpas: 'HPAS Framework',
+        pricing_feat_hd: 'Download HD',
+        pricing_feat_multi: 'Multi platform output',
+        pricing_start_now: 'Mulai Sekarang',
+        pricing_contact_sales: 'Hubungi Sales',
+        pricing_payment_methods: '💳 Metode Pembayaran: VA BCA/Mandiri/BNI • GoPay • OVO • DANA • Telegram Stars • Crypto (BTC/USDT/ETH/BNB/MATIC/TON)',
+        pricing_bonus: '🎁 <strong>Bonus User Baru:</strong> 1x generate image GRATIS (sekali seumur hidup, bukan harian)',
+        urgency_title: '⏰ Kompetitor Kamu Udah Posting 10 Video Hari Ini',
+        urgency_desc: 'Sementara kamu masih mikir, kompetitor kamu udah generate 10 video, post ke TikTok/IG, dan closing 5 customer. Algoritma TikTok reward yang konsisten posting. Mau tunggu sampai kapan?',
+        urgency_cta: '🎁 Coba Gratis Sekarang — 1 Video Gratis',
+        urgency_trust: '✅ Tanpa Kartu Kredit • ✅ 100% di Telegram • ✅ 60 Detik Generate',
+        footer_copy: '© 2026 OpenClaw AI — All rights reserved.'
+      },
+      en: {
+        nav_features: 'Features',
+        nav_pricing: 'Pricing',
+        cta_free: 'Try Free',
+        hero_pain: '⚠️ Competitors Post 10 Videos/Day — You\'re Still Stuck at 1 Video/Week?',
+        hero_title: 'Turn 1 Photo Into a <span class="highlight">Viral Ad Video</span><br>in 60 Seconds',
+        hero_subhead: 'AI platform that transforms product photos into professional ad videos using the HPAS (Hook-Problem-Agitate-Solution) framework. Directly from Telegram. No editing skills needed. Pay with local methods.',
+        hero_cta: '🎁 Start Free — 1 Free Video',
+        hero_trust: '✅ <strong>No Credit Card</strong> • ✅ <strong>100% on Telegram</strong> • ✅ <strong>Pay via Bank/E-Wallet</strong>',
+        proof_providers: 'AI Providers (Auto-Failover)',
+        proof_time_num: '60 sec',
+        proof_time_label: 'Generate Time',
+        proof_hpas: 'HPAS Framework',
+        proof_skill: 'Editing Skills Required',
+        problem_title: 'Why Is Your Content Stuck?',
+        problem_sub: 'The 3 biggest problems holding small businesses back on TikTok/IG',
+        problem1_title: 'Expensive Editors, Slow Results',
+        problem1_desc: 'Hiring editors costs $10-20 per video. Revisions take 3-5 days. Budget runs out before going viral. Competitors already posted 10 videos while you finished 1.',
+        problem2_title: 'No Time to Learn Editing',
+        problem2_desc: 'Spend 6 months learning CapCut/Premiere? You need content NOW, not next year. TikTok\'s algorithm won\'t wait for you to become an editing pro.',
+        problem3_title: 'Foreign Tools Need Credit Cards',
+        problem3_desc: 'Canva $10/mo, InVideo $28/mo — all USD, all credit cards. Many small businesses don\'t have one. You need a local solution with local payments.',
+        solution_title: 'Solution: AI Video Studio on Telegram',
+        solution_sub: 'Everything you need to create viral content, no editing skills required',
+        solution1_title: 'HPAS Framework (7 Scenes)',
+        solution1_desc: 'Every video follows the Hook-Problem-Agitate-Solution structure. Proven to convert. Consistent character across every scene.',
+        solution2_title: '3 Generation Modes',
+        solution2_desc: 'Basic (full auto), Smart (choose preset), Pro (full control). From beginners to agencies, everyone can use it.',
+        solution3_title: '100% on Telegram',
+        solution3_desc: 'No browser needed, no signup required. Chat the bot, upload a photo, done. 60 seconds total.',
+        solution4_title: 'Pay with Bank/E-Wallet',
+        solution4_desc: 'Bank transfer, GoPay, OVO, DANA, Telegram Stars, Crypto. No credit card needed. Local currency pricing.',
+        solution5_title: 'Clone Competitor Styles',
+        solution5_desc: 'Screenshot a competitor\'s ad → Upload your product photo → AI replicates their visual style. Legal — just the style, not the content.',
+        solution6_title: 'Campaign Builder (A/B Test)',
+        solution6_desc: 'Generate 5-10 videos at once with different hooks. Test which converts best. Data-driven marketing.',
+        pricing_title: 'Affordable Pricing for Small Businesses',
+        pricing_sub: 'Start free (1 video), scale as your business grows. Pay with bank transfer/e-wallet, no credit card.',
+        pricing_popular: '⭐ MOST POPULAR',
+        pricing_feat_videos: '~{n} videos (30 sec each)',
+        pricing_feat_modes: 'All modes (Basic/Smart/Pro)',
+        pricing_feat_hpas: 'HPAS Framework',
+        pricing_feat_hd: 'HD Download',
+        pricing_feat_multi: 'Multi-platform output',
+        pricing_start_now: 'Get Started',
+        pricing_contact_sales: 'Contact Sales',
+        pricing_payment_methods: '💳 Payment Methods: Bank Transfer • GoPay • OVO • DANA • Telegram Stars • Crypto (BTC/USDT/ETH/BNB/MATIC/TON)',
+        pricing_bonus: '🎁 <strong>New User Bonus:</strong> 1x free image generation (one-time, not daily)',
+        urgency_title: '⏰ Your Competitors Already Posted 10 Videos Today',
+        urgency_desc: 'While you\'re still thinking, your competitors generated 10 videos, posted to TikTok/IG, and closed 5 customers. TikTok\'s algorithm rewards consistent posting. How long will you wait?',
+        urgency_cta: '🎁 Try Free Now — 1 Free Video',
+        urgency_trust: '✅ No Credit Card • ✅ 100% on Telegram • ✅ 60 Second Generation',
+        footer_copy: '© 2026 OpenClaw AI — All rights reserved.'
+      },
+      ru: {
+        nav_features: 'Функции',
+        nav_pricing: 'Цены',
+        cta_free: 'Попробовать',
+        hero_pain: '⚠️ Конкуренты публикуют 10 видео в день — а вы всё ещё на 1 видео в неделю?',
+        hero_title: 'Превратите 1 фото в <span class="highlight">вирусное рекламное видео</span><br>за 60 секунд',
+        hero_subhead: 'AI-платформа, которая превращает фото товаров в профессиональные рекламные видео по структуре HPAS (Крючок-Проблема-Усиление-Решение). Прямо из Telegram. Без навыков монтажа.',
+        hero_cta: '🎁 Начать бесплатно — 1 видео в подарок',
+        hero_trust: '✅ <strong>Без банковской карты</strong> • ✅ <strong>100% в Telegram</strong> • ✅ <strong>Оплата банком/кошельком</strong>',
+        proof_providers: 'AI-провайдеров (авто-переключение)',
+        proof_time_num: '60 сек',
+        proof_time_label: 'Время генерации',
+        proof_hpas: 'Фреймворк HPAS',
+        proof_skill: 'Навыки монтажа',
+        problem_title: 'Почему ваш контент буксует?',
+        problem_sub: '3 главные проблемы малого бизнеса, мешающие успеху в TikTok/IG',
+        problem1_title: 'Дорогие редакторы, медленный результат',
+        problem1_desc: 'Найм видеомонтажёра стоит $10-20 за ролик. Правки занимают 3-5 дней. Бюджет кончается быстрее, чем приходит вирусность. Конкуренты уже выложили 10 видео, а вы — одно.',
+        problem2_title: 'Нет времени учиться монтажу',
+        problem2_desc: '6 месяцев изучать CapCut/Premiere? Контент нужен СЕЙЧАС, а не через год. Алгоритм TikTok не будет ждать, пока вы станете профи.',
+        problem3_title: 'Зарубежные сервисы требуют карту',
+        problem3_desc: 'Canva $10/мес, InVideo $28/мес — всё в долларах, всё по карте. Нужно локальное решение с удобной оплатой.',
+        solution_title: 'Решение: AI-видеостудия в Telegram',
+        solution_sub: 'Всё, что нужно для создания вирусного контента — без навыков монтажа',
+        solution1_title: 'Фреймворк HPAS (7 сцен)',
+        solution1_desc: 'Каждое видео следует структуре Крючок-Проблема-Усиление-Решение. Доказанная конверсия. Последовательность персонажа в каждой сцене.',
+        solution2_title: '3 режима генерации',
+        solution2_desc: 'Basic (полный авто), Smart (выбор пресета), Pro (полный контроль). От новичков до агентств — подходит всем.',
+        solution3_title: '100% в Telegram',
+        solution3_desc: 'Не нужен браузер, не нужна регистрация. Напишите боту, загрузите фото — готово. 60 секунд.',
+        solution4_title: 'Оплата банком/кошельком',
+        solution4_desc: 'Банковский перевод, GoPay, OVO, DANA, Telegram Stars, крипто. Без банковской карты. Цены в местной валюте.',
+        solution5_title: 'Клонирование стиля конкурентов',
+        solution5_desc: 'Скриншот рекламы конкурента → Загрузите фото своего товара → AI воспроизведёт визуальный стиль. Легально — только стиль, не контент.',
+        solution6_title: 'Конструктор кампаний (A/B тест)',
+        solution6_desc: 'Генерируйте 5-10 видео с разными крючками. Тестируйте, что конвертирует лучше. Маркетинг на основе данных.',
+        pricing_title: 'Доступные цены для малого бизнеса',
+        pricing_sub: 'Начните бесплатно (1 видео), масштабируйте по мере роста. Оплата банком/кошельком.',
+        pricing_popular: '⭐ САМЫЙ ПОПУЛЯРНЫЙ',
+        pricing_feat_videos: '~{n} видео (по 30 сек)',
+        pricing_feat_modes: 'Все режимы (Basic/Smart/Pro)',
+        pricing_feat_hpas: 'Фреймворк HPAS',
+        pricing_feat_hd: 'Скачивание в HD',
+        pricing_feat_multi: 'Мультиплатформенный вывод',
+        pricing_start_now: 'Начать сейчас',
+        pricing_contact_sales: 'Связаться с отделом продаж',
+        pricing_payment_methods: '💳 Способы оплаты: Банковский перевод • GoPay • OVO • DANA • Telegram Stars • Крипто (BTC/USDT/ETH/BNB/MATIC/TON)',
+        pricing_bonus: '🎁 <strong>Бонус для новых пользователей:</strong> 1 бесплатная генерация изображения (одноразово)',
+        urgency_title: '⏰ Ваши конкуренты уже опубликовали 10 видео сегодня',
+        urgency_desc: 'Пока вы думаете, конкуренты сгенерировали 10 видео, выложили в TikTok/IG и закрыли 5 клиентов. Алгоритм TikTok вознаграждает регулярный постинг. Сколько ещё будете ждать?',
+        urgency_cta: '🎁 Попробовать бесплатно — 1 видео в подарок',
+        urgency_trust: '✅ Без банковской карты • ✅ 100% в Telegram • ✅ Генерация за 60 секунд',
+        footer_copy: '© 2026 OpenClaw AI — Все права защищены.'
+      },
+      zh: {
+        nav_features: '功能',
+        nav_pricing: '价格',
+        cta_free: '免费试用',
+        hero_pain: '⚠️ 竞争对手每天发10个视频，你还在一周1个视频的节奏？',
+        hero_title: '1张照片变成<span class="highlight">病毒式广告视频</span><br>只需60秒',
+        hero_subhead: 'AI平台，将产品照片转化为专业广告视频，采用HPAS（钩子-问题-激化-解决方案）框架。直接在Telegram操作。无需剪辑技能。支持本地支付。',
+        hero_cta: '🎁 免费开始 — 赠送1个视频',
+        hero_trust: '✅ <strong>无需信用卡</strong> • ✅ <strong>100%在Telegram</strong> • ✅ <strong>支持银行/电子钱包支付</strong>',
+        proof_providers: 'AI供应商（自动切换）',
+        proof_time_num: '60秒',
+        proof_time_label: '生成时间',
+        proof_hpas: 'HPAS框架',
+        proof_skill: '剪辑技能要求',
+        problem_title: '为什么你的内容卡住了？',
+        problem_sub: '中小企业在TikTok/IG上落后的3大问题',
+        problem1_title: '编辑贵，出片慢',
+        problem1_desc: '请编辑每个视频花费10-20美元。修改需要3-5天。预算在爆款之前就耗尽了。竞争对手已发10个视频，你才做完1个。',
+        problem2_title: '没时间学剪辑',
+        problem2_desc: '花6个月学CapCut/Premiere？你现在就需要内容，不是明年。TikTok算法不会等你变成剪辑高手。',
+        problem3_title: '海外工具需要信用卡',
+        problem3_desc: 'Canva每月10美元，InVideo每月28美元——全是美元，全要信用卡。你需要本地化的解决方案和本地支付。',
+        solution_title: '解决方案：Telegram上的AI视频工作室',
+        solution_sub: '创作病毒式内容所需的一切，无需剪辑技能',
+        solution1_title: 'HPAS框架（7个场景）',
+        solution1_desc: '每个视频遵循钩子-问题-激化-解决方案结构。经验证的高转化率。每个场景保持角色一致性。',
+        solution2_title: '3种生成模式',
+        solution2_desc: 'Basic（全自动）、Smart（选择预设）、Pro（完全控制）。从新手到代理商，人人都能用。',
+        solution3_title: '100%在Telegram',
+        solution3_desc: '无需浏览器，无需注册。给机器人发消息，上传照片，搞定。总共60秒。',
+        solution4_title: '银行/电子钱包支付',
+        solution4_desc: '银行转账、GoPay、OVO、DANA、Telegram Stars、加密货币。无需信用卡。本地货币定价。',
+        solution5_title: '克隆竞品风格',
+        solution5_desc: '截图竞品广告 → 上传你的产品照片 → AI复刻他们的视觉风格。合法——只是风格，不是内容。',
+        solution6_title: '营销活动构建器（A/B测试）',
+        solution6_desc: '一次生成5-10个不同钩子的视频。测试哪个转化最好。数据驱动营销。',
+        pricing_title: '中小企业都能负担的价格',
+        pricing_sub: '免费开始（1个视频），按业务需求扩展。银行/电子钱包支付，无需信用卡。',
+        pricing_popular: '⭐ 最受欢迎',
+        pricing_feat_videos: '~{n}个视频（每个30秒）',
+        pricing_feat_modes: '所有模式（Basic/Smart/Pro）',
+        pricing_feat_hpas: 'HPAS框架',
+        pricing_feat_hd: 'HD高清下载',
+        pricing_feat_multi: '多平台输出',
+        pricing_start_now: '立即开始',
+        pricing_contact_sales: '联系销售',
+        pricing_payment_methods: '💳 支付方式：银行转账 • GoPay • OVO • DANA • Telegram Stars • 加密货币（BTC/USDT/ETH/BNB/MATIC/TON）',
+        pricing_bonus: '🎁 <strong>新用户福利：</strong>免费生成1张图片（终身一次，非每日）',
+        urgency_title: '⏰ 你的竞争对手今天已经发了10个视频',
+        urgency_desc: '当你还在犹豫，竞争对手已经生成了10个视频，发布到TikTok/IG，成交了5个客户。TikTok算法奖励持续发布的创作者。你还要等多久？',
+        urgency_cta: '🎁 立即免费试用 — 赠送1个视频',
+        urgency_trust: '✅ 无需信用卡 • ✅ 100%在Telegram • ✅ 60秒生成',
+        footer_copy: '© 2026 OpenClaw AI — 保留所有权利。'
+      }
+    };
+
+    function switchLang(lang) {
+      if (!LANDING_I18N[lang]) lang = 'id';
+      var dict = LANDING_I18N[lang];
+      var els = document.querySelectorAll('[data-i18n]');
+      for (var i = 0; i < els.length; i++) {
+        var el = els[i];
+        var key = el.getAttribute('data-i18n');
+        if (!dict[key]) continue;
+        var text = dict[key];
+        // Handle parameterized text like "~{n} video 30 detik"
+        var param = el.getAttribute('data-i18n-param');
+        if (param) {
+          text = text.replace('{n}', param);
+        }
+        // Use innerHTML for elements that contain HTML markup
+        if (el.getAttribute('data-i18n-html') === 'true' || key === 'hero_title' || key === 'hero_trust' || key === 'pricing_bonus') {
+          el.innerHTML = text;
+        } else {
+          el.textContent = text;
+        }
+      }
+      // Update html lang attribute
+      document.documentElement.lang = lang;
+      // Sync the select dropdown
+      var sel = document.getElementById('lang-switch');
+      if (sel) sel.value = lang;
+      // Persist choice
+      try { localStorage.setItem('oc_lang', lang); } catch(e) {}
+    }
+
+    // Auto-detect language on load
+    (function() {
+      var stored = null;
+      try { stored = localStorage.getItem('oc_lang'); } catch(e) {}
+      if (stored && LANDING_I18N[stored]) {
+        switchLang(stored);
+        return;
+      }
+      // Detect from browser
+      var navLang = (navigator.language || navigator.userLanguage || 'id').toLowerCase();
+      var detected = 'id';
+      if (navLang.startsWith('en')) detected = 'en';
+      else if (navLang.startsWith('ru')) detected = 'ru';
+      else if (navLang.startsWith('zh')) detected = 'zh';
+      switchLang(detected);
+    })();
+  </script>
 
   <script>
     // Track scroll depth for LTV analysis
