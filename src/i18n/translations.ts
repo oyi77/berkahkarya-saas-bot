@@ -3622,6 +3622,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '✏️ Только описание (без референса)',
     zh: '✏️ 仅描述 (无参考)',
   },
+  'prompts.library_menu': {
+    id: '📚 **PROMPT LIBRARY — 40+ Templates Profesional**\n\nPilih niche bisnismu untuk lihat prompt yang relevan:\n\n────────────────────────────────────────────\n🍔 **F&B** — Restaurant, cafe, food stall\n👗 **Fashion** — Clothing, hijab, accessories\n📱 **Tech** — Gadget, software, gaming\n💪 **Health** — Skincare, supplement, fitness\n✈️ **Travel** — Hotel, tour, destination\n📚 **Education** — Course, training, tutorial\n💰 **Finance** — Investment, insurance, fintech\n🎭 **Entertainment** — Event, content creator\n────────────────────────────────────────────\n\n🔥 **Trending Now** — Prompt paling populer minggu ini\n\nKetik niche atau `/prompts [niche]`\nContoh: `/prompts fnb` atau `/prompts fashion`',
+    en: '📚 **PROMPT LIBRARY — 40+ Professional Templates**\n\nChoose your business niche to see relevant prompts:\n\n────────────────────────────────────────────\n🍔 **F&B** — Restaurant, cafe, food stall\n👗 **Fashion** — Clothing, hijab, accessories\n📱 **Tech** — Gadget, software, gaming\n💪 **Health** — Skincare, supplement, fitness\n✈️ **Travel** — Hotel, tour, destination\n📚 **Education** — Course, training, tutorial\n💰 **Finance** — Investment, insurance, fintech\n🎭 **Entertainment** — Event, content creator\n────────────────────────────────────────────\n\n🔥 **Trending Now** — Most popular prompts this week\n\nType a niche or `/prompts [niche]`\nExample: `/prompts fnb` or `/prompts fashion`',
+    ru: '📚 **БИБЛИОТЕКА ПРОМПТОВ — 40+ Профессиональных шаблонов**\n\nВыберите нишу вашего бизнеса:\n\n────────────────────────────────────────────\n🍔 **F&B** — Рестораны, кафе\n👗 **Fashion** — Одежда, аксессуары\n📱 **Tech** — Гаджеты, софт, игры\n💪 **Health** — Уход, фитнес\n✈️ **Travel** — Отели, туры\n📚 **Education** — Курсы, обучение\n💰 **Finance** — Инвестиции, финтех\n🎭 **Entertainment** — Контент, события\n────────────────────────────────────────────\n\n🔥 **Тренды** — Популярные промпты за неделю\n\nВведите нишу или `/prompts [ниша]`',
+    zh: '📚 **提示词库 — 40+ 专业模板**\n\n选择您的业务类别查看相关提示词:\n\n────────────────────────────────────────────\n🍔 **餐饮** — 餐厅、咖啡厅\n👗 **时尚** — 服装、配饰\n📱 **科技** — 数码、软件、游戏\n💪 **健康** — 护肤、健身\n✈️ **旅游** — 酒店、旅行\n📚 **教育** — 课程、培训\n💰 **金融** — 投资、保险\n🎭 **娱乐** — 活动、创作者\n────────────────────────────────────────────\n\n🔥 **热门** — 本周最受欢迎的提示词\n\n输入类别或 `/prompts [类别]`',
+  },
 };
 
 /**

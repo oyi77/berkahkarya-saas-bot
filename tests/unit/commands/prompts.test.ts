@@ -147,7 +147,7 @@ describe("Prompts Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("PROMPT LIBRARY");
-      expect(replyCall[0]).toContain("40+ Template");
+      expect(replyCall[0]).toContain("40+");
     });
 
     it("should show all niche buttons", async () => {

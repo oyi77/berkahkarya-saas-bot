@@ -484,22 +484,9 @@ export async function promptsCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
+    const lang = ctx.session?.userLang || ctx.from?.language_code || 'id';
     await ctx.reply(
-      "📚 **PROMPT LIBRARY — 40+ Templates Profesional**\n\n" +
-        "Pilih niche bisnismu untuk lihat prompt yang relevan:\n\n" +
-        "────────────────────────────────────────────\n" +
-        "🍔 **F&B** — Restaurant, cafe, food stall\n" +
-        "👗 **Fashion** — Clothing, hijab, accessories\n" +
-        "📱 **Tech** — Gadget, software, gaming\n" +
-        "💪 **Health** — Skincare, supplement, fitness\n" +
-        "✈️ **Travel** — Hotel, tour, destination\n" +
-        "📚 **Education** — Course, training, tutorial\n" +
-        "💰 **Finance** — Investment, insurance, fintech\n" +
-        "🎭 **Entertainment** — Event, content creator\n" +
-        "────────────────────────────────────────────\n\n" +
-        "🔥 **Trending Now** — Prompt yang paling banyak dipake minggu ini\n\n" +
-        "Ketik niche atau `/prompts [niche]`\n" +
-        "Contoh: `/prompts fnb` atau `/prompts fashion`",
+      t('prompts.library_menu', lang),
       {
         parse_mode: "Markdown",
         reply_markup: {
