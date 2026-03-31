@@ -152,6 +152,26 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // ── PRO MODE: AWAITING SCENE EDIT ─────────────────────────────────────
+    if (ctx.session?.state === 'AWAITING_SCENE_EDIT' && 'text' in message) {
+      const newDesc = message.text?.trim();
+      const editingSceneId = (ctx.session.stateData as Record<string, string> | null)?.editingSceneId;
+      if (newDesc && editingSceneId && ctx.session.generateScenes) {
+        ctx.session.generateScenes = ctx.session.generateScenes.map((s) =>
+          s.sceneId === editingSceneId ? { ...s, prompt: newDesc } : s
+        );
+      }
+      // Clear editing state and re-show scene review
+      if (ctx.session) {
+        ctx.session.stateData = undefined;
+        ctx.session.state = 'DASHBOARD';
+      }
+      const { showProSceneReview } = await import('../flows/generate.js');
+      const productDesc = ctx.session?.generateProductDesc || '';
+      await showProSceneReview(ctx, productDesc);
+      return;
+    }
+
     // ── NEW VIDEO CREATION FLOW HANDLERS ──────────────────────────────────
     // Handle VIDEO_CREATE_UPLOAD (photo upload for new flow)
     if (ctx.session?.state === "VIDEO_CREATE_UPLOAD" && "photo" in message) {

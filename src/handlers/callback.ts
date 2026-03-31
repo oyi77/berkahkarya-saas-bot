@@ -2818,8 +2818,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Open settings menu (back navigation target)
-    if (data === "open_settings") {
+    // Open settings menu (back navigation target + "settings" alias from profile menu)
+    if (data === "open_settings" || data === "settings") {
       await ctx.answerCbQuery();
       const userId = ctx.from?.id;
       const user = userId
@@ -2829,40 +2829,26 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const notif = user?.notificationsEnabled ? "Enabled" : "Disabled";
       const autoRenew = user?.autoRenewal ? "Enabled" : "Disabled";
 
-      await ctx.editMessageText(
+      const settingsText =
         "⚙️ *Settings*\n\n" +
         "Configure your preferences:\n\n" +
         `*Language:* ${lang}\n` +
         `*Notifications:* ${notif}\n` +
         `*Auto-renewal:* ${autoRenew}\n\n` +
-        "What would you like to change?",
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "🌐 Change Language",
-                  callback_data: "settings_language",
-                },
-              ],
-              [
-                {
-                  text: "🔔 Notifications",
-                  callback_data: "settings_notifications",
-                },
-              ],
-              [
-                {
-                  text: "🔄 Auto-renewal",
-                  callback_data: "settings_autorenewal",
-                },
-              ],
-              [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
-            ],
-          },
-        },
-      );
+        "What would you like to change?";
+      const settingsMarkup = {
+        inline_keyboard: [
+          [{ text: "🌐 Change Language", callback_data: "settings_language" }],
+          [{ text: "🔔 Notifications", callback_data: "settings_notifications" }],
+          [{ text: "🔄 Auto-renewal", callback_data: "settings_autorenewal" }],
+          [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+        ],
+      };
+      try {
+        await ctx.editMessageText(settingsText, { parse_mode: "Markdown", reply_markup: settingsMarkup });
+      } catch {
+        await ctx.reply(settingsText, { parse_mode: "Markdown", reply_markup: settingsMarkup });
+      }
       return;
     }
 
@@ -3340,6 +3326,94 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "skip_reference_image") {
       await ctx.answerCbQuery();
       await handleSkipImageReference(ctx);
+      return;
+    }
+
+    // =========================================================================
+    // PREVIOUSLY UNHANDLED CALLBACKS
+    // =========================================================================
+
+    // niche_* — photo upload flow niche selection (different from select_niche_*)
+    if (data.startsWith("niche_")) {
+      const nicheKey = data.replace("niche_", "");
+      await handleNicheSelection(ctx, nicheKey);
+      return;
+    }
+
+    // open_topup — Top Up button from /profile
+    if (data === "open_topup") {
+      await ctx.answerCbQuery();
+      await ctx.deleteMessage().catch(() => {});
+      await topupCommand(ctx);
+      return;
+    }
+
+    // contact_support — shown in error messages
+    if (data === "contact_support") {
+      await ctx.answerCbQuery();
+      await ctx.reply(
+        "💬 *Butuh Bantuan?*\n\n" +
+        "Hubungi tim support kami:\n" +
+        "• Telegram: @BerkahKaryaSupport\n\n" +
+        "Sertakan screenshot error dan username kamu saat menghubungi.",
+        { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] } },
+      );
+      return;
+    }
+
+    // referral_menu — Refer Teman button after video generation
+    if (data === "referral_menu") {
+      await ctx.answerCbQuery();
+      await referralCommand(ctx);
+      return;
+    }
+
+    // notif_unsubscribe — Unsubscribe button in retention notifications
+    if (data === "notif_unsubscribe") {
+      await ctx.answerCbQuery();
+      const uid = ctx.from?.id;
+      if (uid) {
+        await prisma.user.update({
+          where: { telegramId: BigInt(uid) },
+          data: { notificationsEnabled: false },
+        });
+      }
+      await ctx.reply(
+        "🔕 Notifikasi dinonaktifkan.\n\nKamu bisa mengaktifkan kembali di ⚙️ Settings.",
+        { reply_markup: { inline_keyboard: [[{ text: "⚙️ Settings", callback_data: "open_settings" }]] } },
+      );
+      return;
+    }
+
+    // admin_menu — Back to Admin Menu from payment settings
+    if (data === "admin_menu") {
+      await ctx.answerCbQuery();
+      await paymentSettingsCommand(ctx);
+      return;
+    }
+
+    // pro_select_duration — Pro mode scene review → duration selection
+    if (data === "pro_select_duration") {
+      const { showSmartPresetSelection } = await import("../flows/generate.js");
+      await showSmartPresetSelection(ctx);
+      return;
+    }
+
+    // edit_scene_* — Pro mode individual scene editing
+    if (data.startsWith("edit_scene_")) {
+      await ctx.answerCbQuery();
+      const sceneId = data.replace("edit_scene_", "");
+      const scenes = ctx.session?.generateScenes || [];
+      const sceneIndex = scenes.findIndex((s) => s.sceneId === sceneId);
+      if (ctx.session) {
+        ctx.session.stateData = { ...(ctx.session.stateData as object || {}), editingSceneId: sceneId };
+        ctx.session.state = "AWAITING_SCENE_EDIT";
+      }
+      const sceneNum = sceneIndex >= 0 ? sceneIndex + 1 : "?";
+      await ctx.reply(
+        `✏️ *Edit Scene ${sceneNum}*\n\nKetik deskripsi baru untuk scene ini.\nAtau ketik /skip untuk membatalkan.`,
+        { parse_mode: "Markdown" },
+      );
       return;
     }
 

@@ -272,18 +272,18 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Campaign — queue one video per spec
+    // Campaign — queue N videos, merge them in background, deliver 1 final video
     if (action === 'campaign') {
       const campSize = (session.generateCampaignSize as 5 | 10) || 5;
       const creditCost = cost / 10;
       const specs = CampaignService.generateCampaignSpecs(productDesc, campSize, 'standard');
+      const campaignGroupId = `cg_${Date.now()}_${telegramId.toString()}`;
 
       // Deduct credits upfront; refund below if ZERO jobs are queued successfully.
       await UserService.deductCredits(telegramId, creditCost);
 
       const { VideoService: VS3 } = await import('../services/video.service.js');
       let queued = 0;
-      const queuedJobIds: string[] = [];
       for (const spec of specs) {
         try {
           const vid = await VS3.createJob({
@@ -307,9 +307,10 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
             enableVO: true,
             enableSubtitles: true,
             language: user.language || 'id',
+            campaignGroupId,
+            campaignTotal: campSize,
           });
           queued++;
-          queuedJobIds.push(vid.jobId);
         } catch (jobErr) {
           logger.warn('Campaign job failed to queue:', jobErr);
         }
@@ -323,9 +324,10 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       }
 
       await ctx.reply(
-        `✅ *Campaign ${campSize} video dibuat!*\n\n` +
-        `${queued}/${specs.length} video masuk antrian.\n` +
-        `Kamu akan dinotifikasi saat setiap video selesai.`,
+        `⏳ *Campaign ${campSize} video sedang diproses!*\n\n` +
+        `${queued} video dibuat di background.\n` +
+        `Kamu akan mendapat **1 video gabungan** saat semua selesai.\n\n` +
+        `Estimasi: ~${Math.ceil(queued * 1.5)} menit`,
         { parse_mode: 'Markdown' },
       );
       await showPostDelivery(ctx);

@@ -83,6 +83,8 @@ export interface VideoGenerationJobData {
   enableVO?: boolean;
   enableSubtitles?: boolean;
   language?: string;
+  campaignGroupId?: string;
+  campaignTotal?: number;
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -467,7 +469,16 @@ async function processSingleScene(
   await job.updateProgress(100);
 
   cancelTimeout();
-  await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
+
+  if (job.data.campaignGroupId) {
+    await handleCampaignJobComplete(
+      telegram, chatId,
+      job.data.campaignGroupId, job.data.campaignTotal || 5,
+      deliveryPath, result.videoUrl || '', niche,
+    );
+  } else {
+    await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
+  }
 }
 
 // ── Multi-scene (extended) generation ──
@@ -711,7 +722,16 @@ async function processExtendedScenes(
   await job.updateProgress(100);
 
   cancelTimeout();
-  await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
+
+  if (job.data.campaignGroupId) {
+    await handleCampaignJobComplete(
+      telegram, chatId,
+      job.data.campaignGroupId, job.data.campaignTotal || 5,
+      deliveryPath, '', niche,
+    );
+  } else {
+    await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
+  }
 
   // Cleanup scene files
   for (const sp of sceneVideos) {
@@ -791,6 +811,113 @@ function generateCaption(
   const hashtags = selectedTags.map((t) => `#${t}`).join(' ');
 
   return { text: captionText, hashtags };
+}
+
+// ── Campaign merge helper ──
+
+/**
+ * Called after each campaign job completes instead of notifying the user directly.
+ * Tracks completion via Redis. When all jobs are done it merges all videos into one
+ * and sends the merged result to the user.
+ */
+async function handleCampaignJobComplete(
+  telegram: Telegram,
+  chatId: number,
+  campaignGroupId: string,
+  campaignTotal: number,
+  localPath: string,
+  videoUrl: string,
+  niche?: string,
+): Promise<void> {
+  const urlsKey = `campaign_grp:${campaignGroupId}:urls`;
+  const mergeKey = `campaign_grp:${campaignGroupId}:merging`;
+
+  // Store this job's result (prefer local path which includes VO/subtitles)
+  await redis.rpush(urlsKey, JSON.stringify({ localPath, videoUrl }));
+  await redis.expire(urlsKey, 86400);
+
+  const completedCount = await redis.llen(urlsKey);
+  if (completedCount < campaignTotal) {
+    logger.info(`Campaign ${campaignGroupId}: ${completedCount}/${campaignTotal} jobs done`);
+    return;
+  }
+
+  // All jobs done — acquire merge lock (prevents duplicate merge if race condition)
+  // Acquire merge lock — only the first worker to set the key proceeds
+  const lockAcquired = await redis.setnx(mergeKey, '1');
+  await redis.expire(mergeKey, 3600);
+  if (!lockAcquired) return; // another worker is already merging
+
+  try {
+    const rawEntries = await redis.lrange(urlsKey, 0, -1);
+    const tmpPaths: string[] = [];
+
+    for (let i = 0; i < rawEntries.length; i++) {
+      let entry: { localPath?: string; videoUrl?: string };
+      try { entry = JSON.parse(rawEntries[i]); } catch { continue; }
+
+      // Prefer local file (still has VO+subs processing)
+      if (entry.localPath && fs.existsSync(entry.localPath)) {
+        tmpPaths.push(entry.localPath);
+        continue;
+      }
+      // Fall back to downloading from CDN
+      if (entry.videoUrl) {
+        const dlPath = path.join(VIDEO_DIR, `campaign_${campaignGroupId}_dl${i}.mp4`);
+        try {
+          await downloadVideo(entry.videoUrl, dlPath);
+          tmpPaths.push(dlPath);
+        } catch (dlErr) {
+          logger.warn(`Campaign ${campaignGroupId}: failed to download part ${i}:`, dlErr);
+        }
+      }
+    }
+
+    if (tmpPaths.length === 0) {
+      await telegram.sendMessage(chatId, '❌ Campaign gagal — tidak ada video yang berhasil diproses.');
+      return;
+    }
+
+    if (tmpPaths.length === 1) {
+      // Only one video succeeded — just send it directly
+      await telegram.sendVideo(chatId, { source: tmpPaths[0] }, {
+        caption: `✅ *Campaign Selesai*\n\n1/${campaignTotal} video berhasil diproses.`,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: [[{ text: '🎬 Buat Lagi', callback_data: 'create_video_new' }]] },
+      });
+    } else {
+      const mergedPath = path.join(VIDEO_DIR, `campaign_merged_${campaignGroupId}.mp4`);
+      try {
+        await concatenateVideos(tmpPaths, mergedPath, niche);
+        await telegram.sendVideo(chatId, { source: mergedPath }, {
+          caption:
+            `✅ *Campaign Selesai!*\n\n` +
+            `🎬 ${tmpPaths.length}/${campaignTotal} video berhasil digabungkan.\n` +
+            `Durasi total: ~${tmpPaths.length * 30} detik`,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🎬 Buat Campaign Lagi', callback_data: 'action_campaign' }],
+              [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+            ],
+          },
+        });
+      } catch (mergeErr) {
+        logger.error(`Campaign merge failed for ${campaignGroupId}:`, mergeErr);
+        // Fallback: send first video with note
+        await telegram.sendVideo(chatId, { source: tmpPaths[0] }, {
+          caption: `✅ Campaign selesai — mengirim video pertama (merge gagal).`,
+          parse_mode: 'Markdown',
+        });
+      } finally {
+        try { fs.unlinkSync(mergedPath); } catch (_) {}
+      }
+    }
+  } finally {
+    // Cleanup Redis
+    await redis.del(urlsKey).catch(() => {});
+    await redis.del(mergeKey).catch(() => {});
+  }
 }
 
 // ── Notification helper ──

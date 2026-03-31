@@ -111,6 +111,7 @@ export type BotState =
   | 'AWAITING_PRODUCT_INPUT'
   | 'AWAITING_CLONE_REF'
   | 'AWAITING_CLONE_PRODUCT'
+  | 'AWAITING_SCENE_EDIT'
   | 'GENERATE_PROCESSING';
 
 // =============================================================================
