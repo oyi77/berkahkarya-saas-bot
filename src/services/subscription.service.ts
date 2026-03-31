@@ -44,11 +44,15 @@ export class SubscriptionService {
       },
     });
 
+    const creditsToGrant = billingCycle === 'annual'
+      ? (planConfig.monthlyCredits || 0) * 12
+      : (planConfig.monthlyCredits || 0);
+
     await prisma.user.update({
       where: { telegramId },
       data: {
         tier: planConfig.tier || (plan as string === 'pro' ? 'pro' : (plan as string === 'agency' ? 'agency' : 'basic')),
-        creditBalance: { increment: planConfig.monthlyCredits },
+        creditBalance: { increment: creditsToGrant },
         creditExpiresAt: periodEnd,
       },
     });
@@ -65,6 +69,10 @@ export class SubscriptionService {
     logger.info(`Subscription cancellation scheduled for user ${telegramId}`);
   }
 
+  /**
+   * Renew subscription after payment confirmation.
+   * Called ONLY from payment webhook handlers — never from auto-renewal cron.
+   */
   static async renewSubscription(subscriptionId: bigint): Promise<void> {
     const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
     if (!sub || sub.status !== 'active') return;
@@ -82,6 +90,10 @@ export class SubscriptionService {
       newEnd.setMonth(newEnd.getMonth() + 1);
     }
 
+    const creditsToGrant = sub.billingCycle === 'annual'
+      ? (planConfig.monthlyCredits || 0) * 12
+      : (planConfig.monthlyCredits || 0);
+
     await prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
@@ -93,12 +105,12 @@ export class SubscriptionService {
     await prisma.user.update({
       where: { telegramId: sub.userId },
       data: {
-        creditBalance: { increment: planConfig.monthlyCredits },
+        creditBalance: { increment: creditsToGrant },
         creditExpiresAt: newEnd,
       },
     });
 
-    logger.info(`Subscription renewed: ${plan} for user ${sub.userId}`);
+    logger.info(`Subscription renewed: ${plan}/${sub.billingCycle} for user ${sub.userId} (+${creditsToGrant} credits)`);
   }
 
   static async getActiveSubscription(telegramId: bigint): Promise<Subscription | null> {
@@ -136,6 +148,9 @@ export class SubscriptionService {
       logger.info(`Subscription expired for user ${sub.userId}`);
     }
 
+    // Subscriptions that expired without cancelAtPeriodEnd (no auto-payment system):
+    // Expire and notify user to re-subscribe manually.
+    // Credits are NOT auto-granted — that would be giving away free credits.
     const dueForRenewal = await prisma.subscription.findMany({
       where: {
         status: 'active',
@@ -146,20 +161,21 @@ export class SubscriptionService {
 
     for (const sub of dueForRenewal) {
       try {
-        await SubscriptionService.renewSubscription(sub.id);
-        logger.info(`Subscription auto-renewed: ${sub.plan} for user ${sub.userId}`);
-      } catch (err) {
-        logger.error(`Auto-renewal failed for sub ${sub.id} (user ${sub.userId}):`, err);
-        // On failure, expire gracefully
-        await prisma.subscription.update({ where: { id: sub.id }, data: { status: 'expired' } });
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'expired' },
+        });
         await prisma.user.update({
           where: { telegramId: sub.userId },
           data: { tier: 'free', creditExpiresAt: null },
         });
+        logger.info(`Subscription expired (renewal needed): ${sub.plan} for user ${sub.userId}`);
+      } catch (err) {
+        logger.error(`Failed to expire sub ${sub.id} (user ${sub.userId}):`, err);
       }
     }
 
-    logger.info(`Processed ${expiredCancelled.length} cancelled + ${dueForRenewal.length} manual-renewal subscriptions`);
+    logger.info(`Processed ${expiredCancelled.length} cancelled + ${dueForRenewal.length} expired subscriptions`);
     return expiredCancelled.length + dueForRenewal.length;
   }
 

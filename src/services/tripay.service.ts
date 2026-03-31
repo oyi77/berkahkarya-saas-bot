@@ -8,6 +8,7 @@ import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { getPackagesAsync } from '@/config/pricing';
+import { ReferralService } from '@/services/referral.service';
 import crypto from 'crypto';
 
 const TRIPAY_API_KEY = process.env.TRIPAY_API_KEY || '';
@@ -158,6 +159,13 @@ export class TripayService {
           },
         });
         logger.info(`Added ${transaction.creditsAmount} credits to user ${transaction.userId} via Tripay`);
+
+        // Process referral commissions (same as Duitku/Midtrans)
+        await ReferralService.processCommissions(
+          merchant_ref,
+          Number(transaction.amountIdr),
+          transaction.userId
+        ).catch(err => logger.warn('Tripay referral commission failed (non-blocking):', err));
       }
 
       return { success: true, message: 'Callback processed' };

@@ -56,7 +56,7 @@ const GENERATION_COSTS: Record<string, number> = {
   default_gen:     0.03,
 };
 
-const USD_TO_IDR = 16000;
+const USD_TO_IDR = Number(process.env.USD_TO_IDR_RATE) || 16000;
 
 export function estimateCost(
   model: string,

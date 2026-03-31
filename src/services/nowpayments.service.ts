@@ -84,7 +84,7 @@ export class NowPaymentsService {
         userId: params.userId,
         type: 'topup',
         packageName: `crypto_${params.credits}`,
-        amountIdr: Math.round(pkg.usd * (Number(process.env.USD_TO_IDR_RATE) || 15750)),
+        amountIdr: Math.round(pkg.usd * (Number(process.env.USD_TO_IDR_RATE) || 16000)),
         creditsAmount: params.credits,
         gateway: 'nowpayments',
         status: 'pending',

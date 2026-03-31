@@ -3158,25 +3158,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       try {
         const telegramId = BigInt(userId);
-        const availableAgg = await prisma.commission.aggregate({
-          where: { referrerId: telegramId, status: "available" },
-          _sum: { amount: true },
-        });
-        const available = Number(availableAgg._sum.amount || 0);
         const sellRateStr = await PaymentSettingsService.get('referral_sell_rate');
         const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
-        const creditsToAdd = Math.floor(available / SELL_RATE);
 
-        if (creditsToAdd <= 0) {
-          await ctx.editMessageText("❌ Komisi tidak cukup untuk ditukar ke kredit.", {
-            parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
+        // Execute conversion atomically — read balance INSIDE transaction to prevent race condition
+        const result = await prisma.$transaction(async (tx) => {
+          const availableAgg = await tx.commission.aggregate({
+            where: { referrerId: telegramId, status: "available" },
+            _sum: { amount: true },
           });
-          return;
-        }
+          const available = Number(availableAgg._sum.amount || 0);
+          const creditsToAdd = Math.floor(available / SELL_RATE);
 
-        // Execute conversion in transaction
-        await prisma.$transaction(async (tx) => {
+          if (creditsToAdd <= 0) return { creditsToAdd: 0, available: 0 };
+
           // Mark commissions as withdrawn
           await tx.commission.updateMany({
             where: { referrerId: telegramId, status: "available" },
@@ -3200,7 +3195,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               paymentMethod: "referral_commission",
             },
           });
+          return { creditsToAdd, available };
         });
+
+        const { creditsToAdd, available } = result;
+        if (creditsToAdd <= 0) {
+          await ctx.editMessageText("❌ Komisi tidak cukup untuk ditukar ke kredit.", {
+            parse_mode: "Markdown",
+            reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
+          });
+          return;
+        }
 
         await ctx.editMessageText(
           `✅ *Konversi Berhasil!*\n\n` +

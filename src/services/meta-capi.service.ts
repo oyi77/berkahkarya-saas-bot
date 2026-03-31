@@ -194,7 +194,7 @@ export class MetaCAPIService {
     await this.sendEvent({
       eventName: 'InitiateCheckout',
       userData,
-      customData: { content_ids: [packageId], value: priceIdr / 15000, currency: 'IDR', num_items: 1 },
+      customData: { content_ids: [packageId], value: priceIdr / (Number(process.env.USD_TO_IDR_RATE) || 16000), currency: 'IDR', num_items: 1 },
     });
   }
 
@@ -219,7 +219,7 @@ export class MetaCAPIService {
       userData,
       customData: {
         order_id: orderId,
-        value: priceIdr / 15000,
+        value: priceIdr / (Number(process.env.USD_TO_IDR_RATE) || 16000),
         currency: 'IDR',
         content_ids: [packageId],
         content_type: 'product',
@@ -308,7 +308,7 @@ export class MetaCAPIService {
       customData: {
         event_type: 'SubscriptionStart',
         plan,
-        value: priceIdr / 15000,
+        value: priceIdr / (Number(process.env.USD_TO_IDR_RATE) || 16000),
         currency: 'IDR',
       },
     });

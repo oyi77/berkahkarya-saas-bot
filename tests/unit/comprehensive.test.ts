@@ -14,7 +14,9 @@ import { Decimal } from "@prisma/client/runtime/library.js";
 jest.mock("@/config/redis", () => ({
   redis: {
     get: jest.fn(),
+    set: jest.fn().mockResolvedValue('OK'),
     setex: jest.fn(),
+    del: jest.fn().mockResolvedValue(1),
   },
 }));
 

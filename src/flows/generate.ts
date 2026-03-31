@@ -116,12 +116,22 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
   const session = ctx.session;
   if (!session) return;
 
+  const telegramId = BigInt(ctx.from!.id);
+
+  // Idempotency lock: prevent double-click from deducting credits twice
+  const { redis } = await import('../config/redis.js');
+  const lockKey = `generating:${telegramId}`;
+  const lockAcquired = await redis.set(lockKey, '1', 'EX', 30, 'NX');
+  if (lockAcquired !== 'OK') {
+    await ctx.reply('⏳ Sedang diproses... mohon tunggu.');
+    return;
+  }
+
   const action = session.generateAction as GenerateAction || 'video';
   const productDesc = session.generateProductDesc as string || '';
   const rawPhotoUrl = session.generatePhotoUrl as string | undefined;
   const preset = (session.generatePreset as DurationPreset) || 'standard';
   const platform = session.generatePlatform as Platform || 'tiktok';
-  const telegramId = BigInt(ctx.from!.id);
 
   // Download reference image to local file so providers can read it (they check fs.existsSync)
   let photoUrl: string | undefined;
@@ -238,7 +248,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       } catch {
         generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Video generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(() => {});
+          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
           await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Video gagal diproses. Kredit dikembalikan.').catch(() => {});
         });
         await ctx.reply('✅ Video sedang diproses. Kamu akan dinotifikasi saat selesai.');
@@ -295,7 +305,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       } catch {
         generateVideoAsync(ctx, video2.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Clone style generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch(() => {});
+          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
           await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Clone Style gagal diproses. Kredit dikembalikan.').catch(() => {});
         });
         await ctx.reply('✅ Clone Style video sedang diproses. Kamu akan dinotifikasi saat selesai.');
@@ -356,14 +366,14 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         } catch {
           generateVideoAsync(ctx, vid.jobId, industry, platform, totalDuration, storyboard).catch(async (err) => {
             logger.error('Campaign generateVideoAsync failed:', err);
-            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch(() => {});
+            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
             await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Campaign gagal diproses. Kredit dikembalikan.').catch(() => {});
           });
           await ctx.reply(`⏳ *Campaign ${campSize} scene sedang diproses!*\n\nKamu akan dinotifikasi saat selesai.`, { parse_mode: 'Markdown' });
         }
       } catch (jobErr) {
         logger.error('Campaign job creation failed:', jobErr);
-        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch(() => {});
+        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
         await ctx.reply('❌ *Campaign Gagal*\n\nGagal membuat video. Kredit dikembalikan.', { parse_mode: 'Markdown' });
         return;
       }
@@ -374,6 +384,9 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
   } catch (err) {
     logger.error('executeGeneration error', err);
     await ctx.reply('❌ Gagal generate. Coba lagi atau hubungi /support.');
+  } finally {
+    // Release idempotency lock
+    await redis.del(lockKey).catch(() => {});
   }
 }
 
