@@ -109,7 +109,7 @@ export async function handleDurationSelection(
         firstName: user.first_name,
         lastName: user.last_name,
       });
-      await ctx.reply(`👋 Welcome to OpenClaw v3!`);
+      await ctx.reply(`👋 Welcome to BK Vilona!`);
     }
 
     const creditCost = getVideoCreditCost(duration);

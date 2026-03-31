@@ -65,5 +65,5 @@ export function actionableError(
   }
 
   // Default fallback
-  return 'Something unexpected happened. Please try again or contact @openclaw_support for help.';
+  return 'Something unexpected happened. Please try again or contact @codergaboets for help.';
 }

@@ -46,7 +46,7 @@ const MESSAGES = {
   free_1h: (name: string) =>
     `${name}, tadi hasilnya gimana? 😊\n\nKalau mau generate lagi, paket paling terjangkau cuma Rp 25.000 (1 credit). Bisa untuk image set 7 scene + 1 video!\n\n👉 Tap /topup`,
   free_24h: (name: string) =>
-    `${name}! 100+ UMKM sudah pakai OpenClaw bulan ini 📊\n\n_"Kontennya bagus, hemat waktu banget"_ — owner kafe Surabaya\n_"Video-nya langsung viral di TikTok"_ — toko fashion Jakarta\n\nMau bergabung? Mulai dari Rp 25.000 👉 /topup`,
+    `${name}! 100+ UMKM sudah pakai BK Vilona bulan ini 📊\n\n_"Kontennya bagus, hemat waktu banget"_ — owner kafe Surabaya\n_"Video-nya langsung viral di TikTok"_ — toko fashion Jakarta\n\nMau bergabung? Mulai dari Rp 25.000 👉 /topup`,
   free_3d: (name: string) =>
     `${name}, spesial buat kamu yang udah coba! 🎁\n\nDiskon Rp 10.000 untuk paket pertama (Rp 99.000 → Rp 89.000)\nBerlaku 24 jam aja.\n\n👉 /topup`,
   free_7d: (name: string) =>
@@ -56,7 +56,7 @@ const MESSAGES = {
   used_3d: (name: string) =>
     `${name}, video yang kemarin udah di-post belum? 📱\n\nUser yang post rutin 3-5x/minggu rata-rata engagement-nya 3x lebih tinggi. Mau buat konten baru?`,
   used_7d: (name: string) =>
-    `${name}! Tips: buat 5 variasi video dengan hook berbeda, test mana yang paling banyak klik 📈\n\nFitur Campaign Builder di OpenClaw bisa bantu kamu. Mau coba?`,
+    `${name}! Tips: buat 5 variasi video dengan hook berbeda, test mana yang paling banyak klik 📈\n\nFitur Campaign Builder di BK Vilona bisa bantu kamu. Mau coba?`,
   used_14d: (name: string) =>
     `${name}, ada fitur Campaign Builder nih — generate 5-10 video sekaligus dengan hook berbeda untuk A/B testing iklan! 📦\n\nCocok banget untuk kamu yang mau scale konten. /create`,
   used_21d: (name: string) =>
@@ -64,15 +64,15 @@ const MESSAGES = {
 
   // Type 4: Active no affiliate
   active_3rd_gen: (name: string) =>
-    `${name}, tau gak bisa dapat credit gratis? 💰\n\nDaftarkan teman-temanmu ke OpenClaw, setiap kali mereka isi saldo, kamu dapat 15% komisi otomatis!\n\n👉 /referral`,
+    `${name}, tau gak bisa dapat credit gratis? 💰\n\nDaftarkan teman-temanmu ke BK Vilona, setiap kali mereka isi saldo, kamu dapat 15% komisi otomatis!\n\n👉 /referral`,
   active_5th_gen: (name: string) =>
-    `${name}, kamu aktif banget nih! 🔥\n\nShare OpenClaw ke teman-teman UMKM kamu. Mereka dapat tools powerful, kamu dapat passive income 15% dari setiap deposit mereka.\n\n👉 /referral`,
+    `${name}, kamu aktif banget nih! 🔥\n\nShare BK Vilona ke teman-teman UMKM kamu. Mereka dapat tools powerful, kamu dapat passive income 15% dari setiap deposit mereka.\n\n👉 /referral`,
   active_10th_gen: (name: string) =>
     `${name}! User lain yang rajin refer bisa dapat Rp 500k+ credit per bulan 💎\n\nGratis, tinggal share link. /referral`,
 
   // Type 5: Churned
   churn_30d: (name: string) =>
-    `Hai ${name}! Lama gak jumpa 😊\n\nOpenClaw baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nSpecial comeback offer: paket Starter Rp 99k → Rp 69k. Berlaku 72 jam. /topup`,
+    `Hai ${name}! Lama gak jumpa 😊\n\nBK Vilona baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nSpecial comeback offer: paket Starter Rp 99k → Rp 69k. Berlaku 72 jam. /topup`,
   churn_60d: (name: string) =>
     `${name}, ini pesan terakhir dari kami.\n\nSemoga bisnis kamu makin berkembang ya! Kalau mau balik, kami selalu di sini 🙏\n\nTap /start kapan saja.`,
 

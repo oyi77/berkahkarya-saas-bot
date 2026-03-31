@@ -176,7 +176,7 @@ export class MetaCAPIService {
     await this.sendEvent({
       eventName: 'ViewContent',
       userData,
-      customData: { content_name: contentName || 'OpenClaw Bot Start', content_category: 'ai_tool' },
+      customData: { content_name: contentName || 'BK Vilona Bot Start', content_category: 'ai_tool' },
     });
   }
 
