@@ -16,6 +16,13 @@ import crypto from 'crypto';
 const formatIdr = (amount: number): string =>
   new Intl.NumberFormat('id-ID').format(amount);
 
+const USD_RATE = () => Number(process.env.USD_TO_IDR_RATE) || 16000;
+function formatPrice(idr: number, lang: string): string {
+  if (lang === 'id') return `Rp ${formatIdr(idr)}`;
+  const usd = (idr / USD_RATE()).toFixed(2);
+  return `$${usd} (~Rp ${formatIdr(idr)})`;
+}
+
 const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
   ? 'https://passport.duitku.com'
   : 'https://sandbox.duitku.com';
@@ -51,13 +58,14 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
       statusText = `📌 *Current Plan:* Free\n💳 Credits: ${dbUser.creditBalance}\n\n`;
     }
 
+    const lang = dbUser?.language || ctx.from?.language_code || 'id';
     const planKeys = Object.keys(SUBSCRIPTION_PLANS) as PlanKey[];
-    let plansText = '*Available Plans:*\n\n';
+    let plansText = `*${lang === 'id' ? 'Paket Tersedia' : 'Available Plans'}:*\n\n`;
     for (const key of planKeys) {
       const plan = SUBSCRIPTION_PLANS[key];
       plansText +=
-        `*${plan.name}* — ${plan.monthlyCredits} credits/mo\n` +
-        `Monthly: Rp ${formatIdr(plan.monthlyPriceIdr)} | Annual: Rp ${formatIdr(plan.annualPriceIdr)} _(Save 2 months!)_\n` +
+        `*${plan.name}* — ${plan.monthlyCredits} ${lang === 'id' ? 'kredit/bln' : 'credits/mo'}\n` +
+        `${lang === 'id' ? 'Bulanan' : 'Monthly'}: ${formatPrice(plan.monthlyPriceIdr, lang)} | ${lang === 'id' ? 'Tahunan' : 'Annual'}: ${formatPrice(plan.annualPriceIdr, lang)} _(${lang === 'id' ? 'Hemat 2 bulan!' : 'Save 2 months!'})_\n` +
         plan.features.map(f => `  • ${f}`).join('\n') + '\n\n';
     }
 
@@ -69,8 +77,8 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
     const planRows = planKeys.map(key => {
       const plan = SUBSCRIPTION_PLANS[key];
       return [
-        { text: `${plan.name} /mo Rp ${formatIdr(plan.monthlyPriceIdr)}`, callback_data: `subscribe_${key}_monthly` },
-        { text: `${plan.name} /yr Rp ${formatIdr(plan.annualPriceIdr)}`, callback_data: `subscribe_${key}_annual` },
+        { text: `${plan.name} /mo ${formatPrice(plan.monthlyPriceIdr, lang)}`, callback_data: `subscribe_${key}_monthly` },
+        { text: `${plan.name} /yr ${formatPrice(plan.annualPriceIdr, lang)}`, callback_data: `subscribe_${key}_annual` },
       ];
     });
 

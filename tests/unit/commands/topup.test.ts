@@ -439,7 +439,7 @@ describe("Topup Command", () => {
       expect(DuitkuService.createTransaction).not.toHaveBeenCalled();
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Pilih Metode Pembayaran");
+      expect(editCall[0]).toContain("Payment Method");
     });
 
     it("should show pay now and check payment buttons", async () => {

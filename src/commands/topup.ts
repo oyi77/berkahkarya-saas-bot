@@ -23,6 +23,17 @@ import { t } from '@/i18n/translations';
 const formatIdr = (amount: number): string =>
   new Intl.NumberFormat('id-ID').format(amount);
 
+const USD_RATE = () => Number(process.env.USD_TO_IDR_RATE) || 16000;
+
+/** Format price with dual currency based on user language */
+function formatPrice(idr: number, lang: string): string {
+  if (lang === 'id') return `Rp ${formatIdr(idr)}`;
+  const usd = (idr / USD_RATE()).toFixed(2);
+  if (lang === 'ru') return `$${usd} (~${formatIdr(idr)} IDR)`;
+  if (lang === 'zh') return `$${usd} (≈${formatIdr(idr)} IDR)`;
+  return `$${usd} (~Rp ${formatIdr(idr)})`;
+}
+
 /** Resolve user UI language from DB or Telegram lang code. */
 async function getLang(ctx: BotContext): Promise<string> {
   try {
@@ -63,12 +74,14 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
 
     const packages = await getPackagesAsync();
 
+    const lang = dbUser.language || ctx.from?.language_code || 'id';
+
     let message =
       `💰 *Top Up Credits*\n\n` +
-      `Current Balance: ${dbUser.creditBalance} credits\n\n`;
+      `${t('profile.credits', lang)}: ${dbUser.creditBalance}\n\n`;
 
     if (subscribed) {
-      message += `✅ *Subscriber* — enjoy priority generation\n\n`;
+      message += `✅ *Subscriber* — priority generation\n\n`;
     } else {
       message += `_Subscribe to save up to 50%!_\n\n`;
     }
@@ -76,7 +89,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     message += '*Bulk Packages:*';
 
     const packageButtons = packages.map(pkg => [{
-      text: `${pkg.name} — Rp ${formatIdr(pkg.priceIdr)} (${pkg.credits + (pkg.bonus || 0)} credits)`,
+      text: `${pkg.name} — ${formatPrice(pkg.priceIdr, lang)} (${pkg.credits + (pkg.bonus || 0)} cr)`,
       callback_data: `topup_pkg_${pkg.id}`,
     }]);
 
@@ -259,11 +272,11 @@ export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: strin
     methodButtons.push([{ text: t('btn.back', lang), callback_data: 'topup' }]);
 
     await ctx.editMessageText(
-      `🏦 *Pilih Metode Pembayaran*\n\n` +
-      `Paket: *${pkg.name}*\n` +
-      `Harga: Rp ${formatIdr(price)}\n` +
-      `Kredit: ${pkg.credits + (pkg.bonus || 0)}\n\n` +
-      `Pilih metode pembayaran:`,
+      `🏦 *${lang === 'id' ? 'Pilih Metode Pembayaran' : lang === 'ru' ? 'Выберите способ оплаты' : lang === 'zh' ? '选择付款方式' : 'Select Payment Method'}*\n\n` +
+      `${lang === 'id' ? 'Paket' : 'Package'}: *${pkg.name}*\n` +
+      `${lang === 'id' ? 'Harga' : 'Price'}: ${formatPrice(price, lang)}\n` +
+      `${t('profile.credits', lang)}: ${pkg.credits + (pkg.bonus || 0)}\n\n` +
+      `${lang === 'id' ? 'Pilih metode pembayaran:' : lang === 'ru' ? 'Выберите способ оплаты:' : lang === 'zh' ? '选择付款方式:' : 'Select payment method:'}`,
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: methodButtons },
@@ -399,9 +412,10 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
 export async function handleStarsMenu(ctx: BotContext): Promise<void> {
   try {
     await ctx.answerCbQuery();
+    const lang = await getLang(ctx);
 
     const buttons = STARS_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} kredit — ${pkg.stars} ⭐`,
+      text: `${pkg.credits} ${lang === 'id' ? 'kredit' : 'credits'} — ${pkg.stars} ⭐`,
       callback_data: `topup_stars_${pkg.credits}`,
     }]);
 
@@ -461,9 +475,10 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
 export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
   try {
     await ctx.answerCbQuery();
+    const lang = await getLang(ctx);
 
     const buttons = CRYPTO_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} kredit — $${pkg.usd.toFixed(2)}`,
+      text: `${pkg.credits} ${lang === 'id' ? 'kredit' : 'credits'} — $${pkg.usd.toFixed(2)}`,
       callback_data: `topup_crypto_pkg_${pkg.credits}`,
     }]);
     buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);

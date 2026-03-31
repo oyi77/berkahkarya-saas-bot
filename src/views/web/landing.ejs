@@ -576,7 +576,7 @@
             <div class="popular-badge" data-i18n="pricing_popular">⭐ PALING LARIS</div>
           <% } %>
           <h3><%= pkg.name %></h3>
-          <div class="price">IDR <%= (pkg.priceIdr / 1000).toFixed(0) %>K</div>
+          <div class="price" data-price-idr="<%= pkg.priceIdr %>">IDR <%= (pkg.priceIdr / 1000).toFixed(0) %>K</div>
           <div class="credits"><%= pkg.credits + (pkg.bonus || 0) %> Kredit</div>
           <ul>
             <li data-i18n="pricing_feat_videos" data-i18n-param="<%= pkg.credits + (pkg.bonus || 0) %>">~<%= pkg.credits + (pkg.bonus || 0) %> video 30 detik</li>
@@ -865,6 +865,18 @@
       // Sync the select dropdown
       var sel = document.getElementById('lang-switch');
       if (sel) sel.value = lang;
+      // Convert prices based on language
+      var USD_RATE = 16000;
+      var priceEls = document.querySelectorAll('[data-price-idr]');
+      for (var p = 0; p < priceEls.length; p++) {
+        var idr = parseInt(priceEls[p].getAttribute('data-price-idr'));
+        if (lang === 'id') {
+          priceEls[p].textContent = 'IDR ' + (idr / 1000).toFixed(0) + 'K';
+        } else {
+          var usd = (idr / USD_RATE).toFixed(2);
+          priceEls[p].textContent = '$' + usd + ' USD';
+        }
+      }
       // Persist choice
       try { localStorage.setItem('oc_lang', lang); } catch(e) {}
     }
