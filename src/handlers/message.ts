@@ -43,6 +43,7 @@ import { PROMPT_LIBRARY as _PL } from "@/commands/prompts";
 import { actionableError } from "@/utils/errors";
 import { redis } from "@/config/redis";
 import { VideoAnalysisService } from "@/services/video-analysis.service";
+import { t } from "@/i18n/translations";
 
 const SESSION_TTL = 86400; // 24h
 
@@ -174,21 +175,22 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
     // ── V3 GENERATE: AWAITING REFERENCE IMAGE ────────────────────────────
     if (ctx.session?.state === 'AWAITING_GENERATE_IMAGE') {
+      const lang = ctx.session?.userLang || 'id';
       if ('photo' in message) {
         const largest = message.photo[message.photo.length - 1];
         const fileSize = largest.file_size || 0;
         if (fileSize > 0 && fileSize < 10000) {
-          await ctx.reply('❌ Foto terlalu kecil (min 10KB). Kirim foto dengan resolusi lebih tinggi.');
+          await ctx.reply(t('msg.photo_too_small', lang));
           return;
         }
         if (fileSize > 20 * 1024 * 1024) {
-          await ctx.reply('❌ Foto terlalu besar (maks 20MB). Kirim foto yang lebih kecil.');
+          await ctx.reply(t('msg.photo_too_large', lang));
           return;
         }
         const fileLink = await ctx.telegram.getFileLink(largest.file_id);
         ctx.session.generatePhotoUrl = fileLink.toString();
         ctx.session.state = 'DASHBOARD';
-        await ctx.reply('✅ *Foto referensi diterima!*\n\nMelanjutkan ke generate...', { parse_mode: 'Markdown' });
+        await ctx.reply(t('msg.photo_received', lang), { parse_mode: 'Markdown' });
         const { continueAfterImagePreference } = await import('../flows/generate.js');
         await continueAfterImagePreference(ctx);
         return;
@@ -196,12 +198,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       if ('text' in message && message.text === '/skip') {
         ctx.session.state = 'DASHBOARD';
         delete ctx.session.generatePhotoUrl;
-        await ctx.reply('⏭️ Lanjut tanpa foto referensi.');
+        await ctx.reply(t('msg.skip_photo', lang));
         const { continueAfterImagePreference } = await import('../flows/generate.js');
         await continueAfterImagePreference(ctx);
         return;
       }
-      await ctx.reply('📸 Kirim foto referensi atau ketik /skip untuk lanjut tanpa foto.');
+      await ctx.reply(t('msg.send_photo_or_skip', lang));
       return;
     }
 

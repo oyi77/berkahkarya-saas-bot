@@ -32,6 +32,7 @@ import { QualityCheckService } from '@/services/quality-check.service';
 import { WatermarkService } from '@/services/watermark.service';
 import { prisma } from '@/config/database';
 import { getAILabel, getLangConfig } from '@/config/languages';
+import { t } from '@/i18n/translations';
 
 const execFile = promisify(execFileCallback);
 
@@ -287,7 +288,7 @@ async function applyVOPipeline(
         return result.outputPath;
       }
       logger.warn(`Full VO pipeline failed for ${jobId}: ${result.error}. Delivering raw video.`);
-      await telegram.sendMessage(chatId, '⚠️ Voice-over tidak dapat ditambahkan. Video dikirim tanpa audio narasi.').catch(() => {});
+      await telegram.sendMessage(chatId, t('worker.vo_failed', options.language || 'id')).catch(() => {});
       return videoPath;
     }
 
@@ -334,7 +335,7 @@ async function applyVOPipeline(
     return videoPath;
   } catch (err: any) {
     logger.error(`VO pipeline error for ${jobId}: ${err.message}. Delivering raw video.`);
-    await telegram.sendMessage(chatId, '⚠️ Voice-over/subtitle tidak dapat ditambahkan ke video ini. Video dikirim tanpa audio narasi.').catch(() => {});
+    await telegram.sendMessage(chatId, t('worker.vo_failed', options.language || 'id')).catch(() => {});
     return videoPath;
   }
 }
@@ -659,8 +660,9 @@ async function processExtendedScenes(
     if (refundAmount > 0) {
       await UserService.refundCredits(telegramId, refundAmount, jobId, `${failedSceneCount}/${scenes} scenes failed`)
         .catch((err) => logger.error('CRITICAL: partial scene refund failed', { jobId, refundAmount, err }));
+      const workerLang = job.data.language || 'id';
       await telegram.sendMessage(chatId,
-        `💰 Refund: ${refundAmount} kredit dikembalikan untuk ${failedSceneCount} scene yang gagal.`
+        t('worker.partial_refund', workerLang, { amount: refundAmount, count: failedSceneCount })
       ).catch(() => {});
     }
   }

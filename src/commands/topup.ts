@@ -18,9 +18,21 @@ import {
 } from '@/config/pricing';
 import { NowPaymentsService, CRYPTO_PACKAGES, CRYPTO_COINS } from '@/services/nowpayments.service';
 import { prisma } from '@/config/database';
+import { t } from '@/i18n/translations';
 
 const formatIdr = (amount: number): string =>
   new Intl.NumberFormat('id-ID').format(amount);
+
+/** Resolve user UI language from DB or Telegram lang code. */
+async function getLang(ctx: BotContext): Promise<string> {
+  try {
+    if (ctx.from) {
+      const dbUser = await UserService.findByTelegramId(BigInt(ctx.from.id));
+      if (dbUser?.language) return dbUser.language;
+    }
+  } catch { /* fall through */ }
+  return ctx.from?.language_code || 'id';
+}
 
 // Duitku globals removed - unused in this file
 
@@ -97,7 +109,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Memproses...');
+    await ctx.answerCbQuery('...');
 
     const enabledGateways = await PaymentSettingsService.getEnabledGateways();
 
@@ -137,7 +149,8 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Membuat pembayaran...');
+    const lang = await getLang(ctx);
+    await ctx.answerCbQuery('...');
 
     let transaction: any;
     let gatewayDisplayName = 'Payment Gateway';
@@ -167,23 +180,20 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     const paymentUrl = transaction.paymentUrl || transaction.redirectUrl || '';
 
     await ctx.editMessageText(
-      `💳 *Pembayaran Siap!*\n\n` +
-      `Order: \`${transaction.orderId}\`\n` +
-      `Metode: *${gatewayDisplayName}*\n\n` +
-      `Klik tombol di bawah untuk menyelesaikan pembayaran.`,
+      t('topup.payment_ready', lang, { orderId: transaction.orderId, method: gatewayDisplayName }),
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: '💳 Bayar Sekarang',
+                text: t('topup.btn_pay', lang),
                 url: paymentUrl,
               },
             ],
             [
               {
-                text: '✅ Sudah Bayar',
+                text: t('topup.btn_paid', lang),
                 callback_data: `check_payment_${transaction.orderId}`,
               },
             ],
@@ -193,7 +203,7 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     );
   } catch (error: any) {
     logger.error('Error handling payment gateway:', error);
-    await ctx.editMessageText(`❌ Gagal membuat pembayaran: ${error.message}. Coba lagi.`);
+    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
   }
 }
 
@@ -202,10 +212,11 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
  */
 export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: string): Promise<void> {
   try {
+    const lang = await getLang(ctx);
     const packages = await getPackagesAsync();
     const pkg = packages.find(p => p.id === packageId);
     if (!pkg) {
-      await ctx.editMessageText('❌ Paket tidak ditemukan.');
+      await ctx.editMessageText(t('topup.not_found', lang));
       return;
     }
 
@@ -223,14 +234,14 @@ export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: strin
       });
       const paymentUrl = transaction.paymentUrl || '';
       await ctx.editMessageText(
-        `💳 *Pembayaran Duitku*\n\nOrder: \`${transaction.orderId}\`\n\nKlik tombol di bawah untuk memilih metode pembayaran.`,
+        t('topup.payment_ready', lang, { orderId: transaction.orderId, method: 'Duitku' }),
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [{ text: '💳 Bayar Sekarang', url: paymentUrl }],
-              [{ text: '✅ Sudah Bayar', callback_data: `check_payment_${transaction.orderId}` }],
-              [{ text: '◀️ Kembali', callback_data: 'topup' }],
+              [{ text: t('topup.btn_pay', lang), url: paymentUrl }],
+              [{ text: t('topup.btn_paid', lang), callback_data: `check_payment_${transaction.orderId}` }],
+              [{ text: t('btn.back', lang), callback_data: 'topup' }],
             ],
           },
         }
@@ -243,7 +254,7 @@ export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: strin
       text: `${m.paymentName}${m.totalFee && Number(m.totalFee) > 0 ? ` (+Rp ${formatIdr(Number(m.totalFee))})` : ''}`,
       callback_data: `duitku_method_${packageId}_${m.paymentMethod}`,
     }]);
-    methodButtons.push([{ text: '◀️ Kembali', callback_data: 'topup' }]);
+    methodButtons.push([{ text: t('btn.back', lang), callback_data: 'topup' }]);
 
     await ctx.editMessageText(
       `🏦 *Pilih Metode Pembayaran*\n\n` +
@@ -258,7 +269,7 @@ export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: strin
     );
   } catch (error: any) {
     logger.error('Error showing Duitku payment methods:', error);
-    await ctx.editMessageText('❌ Gagal memuat metode pembayaran. Coba lagi.');
+    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
   }
 }
 
@@ -270,7 +281,8 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Membuat pembayaran...');
+    const lang = await getLang(ctx);
+    await ctx.answerCbQuery('...');
 
     const transaction = await DuitkuService.createTransaction({
       userId: BigInt(user.id),
@@ -282,24 +294,21 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
     const paymentUrl = transaction.paymentUrl || '';
 
     await ctx.editMessageText(
-      `💳 *Pembayaran Siap!*\n\n` +
-      `Order: \`${transaction.orderId}\`\n` +
-      `Gateway: *Duitku*\n\n` +
-      `Klik tombol di bawah untuk menyelesaikan pembayaran.`,
+      t('topup.payment_ready', lang, { orderId: transaction.orderId, method: 'Duitku' }),
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '💳 Bayar Sekarang', url: paymentUrl }],
-            [{ text: '✅ Sudah Bayar', callback_data: `check_payment_${transaction.orderId}` }],
-            [{ text: '◀️ Kembali', callback_data: 'topup' }],
+            [{ text: t('topup.btn_pay', lang), url: paymentUrl }],
+            [{ text: t('topup.btn_paid', lang), callback_data: `check_payment_${transaction.orderId}` }],
+            [{ text: t('btn.back', lang), callback_data: 'topup' }],
           ],
         },
       }
     );
   } catch (error: any) {
     logger.error('Error creating Duitku payment:', error);
-    await ctx.editMessageText(`❌ Gagal membuat pembayaran: ${error.message}. Coba lagi.`);
+    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
   }
 }
 
@@ -308,30 +317,29 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
  */
 export async function checkPayment(ctx: BotContext, orderId: string): Promise<void> {
   try {
-    await ctx.answerCbQuery('Mengecek status pembayaran...');
+    const lang = await getLang(ctx);
+    await ctx.answerCbQuery('...');
 
     // Try multiple gateways if necessary, or check DB
     const transaction = await prisma.transaction.findUnique({ where: { orderId } });
     if (!transaction) {
-      await ctx.editMessageText('❌ Transaksi tidak ditemukan.');
+      await ctx.editMessageText(t('topup.not_found', lang));
       return;
     }
 
     if (transaction.status === 'success') {
       await ctx.editMessageText(
-        `✅ *Pembayaran Berhasil!*\n\n` +
-        `Kredit ditambahkan: ${transaction.creditsAmount}\n\n` +
-        `Terima kasih! 🎉`,
+        t('topup.success', lang, { credits: Number(transaction.creditsAmount) }),
         { parse_mode: 'Markdown' }
       );
     } else if (transaction.status === 'pending') {
-      await ctx.answerCbQuery('Pembayaran masih pending. Selesaikan pembayaran terlebih dahulu.', { show_alert: true });
+      await ctx.answerCbQuery(t('topup.pending', lang), { show_alert: true });
     } else {
-      await ctx.editMessageText(`❌ Status pembayaran: *${transaction.status}*. Hubungi /support jika sudah membayar.`, { parse_mode: 'Markdown' });
+      await ctx.editMessageText(t('topup.failed_status', lang, { status: transaction.status }), { parse_mode: 'Markdown' });
     }
   } catch (error) {
     logger.error('Error checking payment:', error);
-    await ctx.answerCbQuery('Gagal cek status. Coba lagi.');
+    await ctx.answerCbQuery(t('error.generic', await getLang(ctx)));
   }
 }
 
@@ -340,14 +348,15 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Membuat pembayaran...');
+    await ctx.answerCbQuery('...');
 
     const telegramId = BigInt(user.id);
     const dbUser = await UserService.findByTelegramId(telegramId);
     if (!dbUser) {
-      await ctx.editMessageText('❌ User not found. Please /start first.');
+      await ctx.editMessageText(t('error.user_not_found', ctx.from?.language_code || 'id'));
       return;
     }
+    const lang = dbUser.language || 'id';
 
     const unitCost = await getUnitCostAsync('VIDEO_15S'); 
     const amount = credits * unitCost;
@@ -364,25 +373,21 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     });
 
     await ctx.editMessageText(
-      `💳 *Beli Kredit*\n\n` +
-      `Harga: Rp ${formatIdr(amount)}\n` +
-      `Kredit: ${credits}\n` +
-      `Order: \`${gatewayRes.orderId}\`\n\n` +
-      `Klik tombol di bawah untuk bayar via Duitku.`,
+      t('topup.payment_ready', lang, { orderId: gatewayRes.orderId, method: 'Duitku' }),
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '💳 Pay Now', url: gatewayRes.paymentUrl }],
-            [{ text: '✅ I\'ve Paid', callback_data: `check_payment_${gatewayRes.orderId}` }],
-            [{ text: '◀️ Back', callback_data: 'topup' }]
+            [{ text: t('topup.btn_pay', lang), url: gatewayRes.paymentUrl }],
+            [{ text: t('topup.btn_paid', lang), callback_data: `check_payment_${gatewayRes.orderId}` }],
+            [{ text: t('btn.back', lang), callback_data: 'topup' }]
           ],
         },
       }
     );
   } catch (error) {
     logger.error('Error creating extra credit payment:', error);
-    await ctx.editMessageText('❌ Gagal membuat pembayaran. Coba lagi.');
+    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
   }
 }
 
@@ -423,7 +428,7 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
  */
 export async function handleStarsInvoice(ctx: BotContext, credits: number): Promise<void> {
   try {
-    await ctx.answerCbQuery('Membuat invoice...');
+    await ctx.answerCbQuery('...');
 
     const pkg = STARS_PACKAGES.find(p => p.credits === credits);
     if (!pkg) {

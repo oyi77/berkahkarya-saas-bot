@@ -745,6 +745,368 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '❌ Максимум {max} аватаров. Сначала удалите один.',
     zh: '❌ 最多 {max} 个头像。请先删除一个。',
   },
+
+  // ---------------------------------------------------------------------------
+  // Generate flow (V3)
+  // ---------------------------------------------------------------------------
+  'gen.analyzing_photo': {
+    id: '🔍 *Menganalisis foto produk...*',
+    en: '🔍 *Analyzing product photo...*',
+    ru: '🔍 *Анализируем фото товара...*',
+    zh: '🔍 *正在分析产品照片...*',
+  },
+  'gen.send_photo_or_text': {
+    id: '❌ Kirim foto produk atau ketik deskripsi produk.',
+    en: '❌ Please send a product photo or type a description.',
+    ru: '❌ Отправьте фото товара или введите описание.',
+    zh: '❌ 请发送产品照片或输入描述。',
+  },
+  'gen.input_failed': {
+    id: '❌ Gagal memproses input. Coba lagi.',
+    en: '❌ Failed to process input. Try again.',
+    ru: '❌ Не удалось обработать ввод. Попробуйте снова.',
+    zh: '❌ 处理输入失败，请重试。',
+  },
+  'gen.already_processing': {
+    id: '⏳ Sedang diproses... mohon tunggu.',
+    en: '⏳ Already processing... please wait.',
+    ru: '⏳ Уже обрабатывается... подождите.',
+    zh: '⏳ 正在处理中...请稍候。',
+  },
+  'gen.user_not_found': {
+    id: '❌ User tidak ditemukan.',
+    en: '❌ User not found.',
+    ru: '❌ Пользователь не найден.',
+    zh: '❌ 用户未找到。',
+  },
+  'gen.insufficient_credits': {
+    id: '❌ *Kredit tidak cukup*\n\nDibutuhkan: {cost} kredit\nSaldo: {balance} kredit\n\nGunakan /topup untuk menambah kredit.',
+    en: '❌ *Insufficient credits*\n\nRequired: {cost} credits\nBalance: {balance} credits\n\nUse /topup to add credits.',
+    ru: '❌ *Недостаточно кредитов*\n\nТребуется: {cost}\nБаланс: {balance}\n\nИспользуйте /topup для пополнения.',
+    zh: '❌ *积分不足*\n\n需要: {cost} 积分\n余额: {balance} 积分\n\n使用 /topup 充值。',
+  },
+  'gen.generating': {
+    id: '⏳ *Generating konten...*\n\nMohon tunggu ~30-60 detik 🚀',
+    en: '⏳ *Generating content...*\n\nPlease wait ~30-60 seconds 🚀',
+    ru: '⏳ *Генерируем контент...*\n\nПодождите ~30-60 секунд 🚀',
+    zh: '⏳ *正在生成内容...*\n\n请等待约30-60秒 🚀',
+  },
+  'gen.scene_generating': {
+    id: '🎨 Generating scene {n}/7: *{name}*...',
+    en: '🎨 Generating scene {n}/7: *{name}*...',
+    ru: '🎨 Генерация сцены {n}/7: *{name}*...',
+    zh: '🎨 正在生成场景 {n}/7: *{name}*...',
+  },
+  'gen.all_scenes_failed': {
+    id: '❌ Gagal generate semua scene. Kredit tidak ditagih.',
+    en: '❌ All scenes failed to generate. No credits charged.',
+    ru: '❌ Все сцены не удались. Кредиты не списаны.',
+    zh: '❌ 所有场景生成失败。未扣费。',
+  },
+  'gen.video_queued': {
+    id: '✅ Video masuk antrian #{position}\n\nKamu akan dinotifikasi saat selesai.',
+    en: '✅ Video queued at #{position}\n\nYou\'ll be notified when ready.',
+    ru: '✅ Видео в очереди #{position}\n\nМы уведомим вас, когда будет готово.',
+    zh: '✅ 视频已排队 #{position}\n\n完成后会通知您。',
+  },
+  'gen.video_processing': {
+    id: '✅ Video sedang diproses. Kamu akan dinotifikasi saat selesai.',
+    en: '✅ Video is processing. You\'ll be notified when ready.',
+    ru: '✅ Видео обрабатывается. Мы уведомим вас.',
+    zh: '✅ 视频正在处理中，完成后会通知您。',
+  },
+  'gen.generation_failed': {
+    id: '❌ Gagal generate. Coba lagi atau hubungi /support.',
+    en: '❌ Generation failed. Try again or contact /support.',
+    ru: '❌ Генерация не удалась. Попробуйте снова или обратитесь в /support.',
+    zh: '❌ 生成失败。请重试或联系 /support。',
+  },
+  'gen.video_failed_refund': {
+    id: '❌ Video gagal diproses. Kredit dikembalikan.',
+    en: '❌ Video processing failed. Credits refunded.',
+    ru: '❌ Обработка видео не удалась. Кредиты возвращены.',
+    zh: '❌ 视频处理失败。积分已退还。',
+  },
+  'gen.campaign_processing': {
+    id: '⏳ *Campaign {size} scene masuk antrian #{position}!*\n\n1 video dengan {size} hook berbeda.\nKamu akan dinotifikasi saat selesai.',
+    en: '⏳ *Campaign {size} scenes queued at #{position}!*\n\n1 video with {size} different hooks.\nYou\'ll be notified when ready.',
+    ru: '⏳ *Кампания {size} сцен в очереди #{position}!*\n\n1 видео с {size} разными хуками.\nМы уведомим вас.',
+    zh: '⏳ *{size} 场景活动已排队 #{position}！*\n\n1个视频包含 {size} 个不同的开场。\n完成后会通知您。',
+  },
+  'gen.campaign_failed': {
+    id: '❌ *Campaign Gagal*\n\nGagal membuat video. Kredit dikembalikan.',
+    en: '❌ *Campaign Failed*\n\nFailed to create video. Credits refunded.',
+    ru: '❌ *Кампания не удалась*\n\nНе удалось создать видео. Кредиты возвращены.',
+    zh: '❌ *活动失败*\n\n创建视频失败。积分已退还。',
+  },
+
+  // Image preference
+  'gen.image_pref_title': {
+    id: '📸 *Foto Referensi*\n\nIngin menggunakan foto referensi untuk hasil yang lebih bagus?\n\n• Kirim foto untuk mode *Image-to-Video*\n• Atau skip untuk *Text-to-Video*',
+    en: '📸 *Reference Photo*\n\nWant to use a reference photo for better results?\n\n• Send a photo for *Image-to-Video* mode\n• Or skip for *Text-to-Video*',
+    ru: '📸 *Референсное фото*\n\nХотите использовать фото для лучших результатов?\n\n• Отправьте фото для режима *Image-to-Video*\n• Или пропустите для *Text-to-Video*',
+    zh: '📸 *参考照片*\n\n想使用参考照片获得更好的效果吗？\n\n• 发送照片使用 *图生视频* 模式\n• 或跳过使用 *文生视频*',
+  },
+  'gen.btn_upload_ref': {
+    id: '📸 Upload Foto Referensi',
+    en: '📸 Upload Reference Photo',
+    ru: '📸 Загрузить фото',
+    zh: '📸 上传参考照片',
+  },
+  'gen.btn_skip_ref': {
+    id: '🚀 Langsung Generate (Tanpa Foto)',
+    en: '🚀 Generate Now (No Photo)',
+    ru: '🚀 Создать сразу (без фото)',
+    zh: '🚀 直接生成（无照片）',
+  },
+
+  // Prompt source
+  'gen.prompt_source_title': {
+    id: '📝 *Pilih Sumber Prompt*\n\nMau buat {action} dari mana?',
+    en: '📝 *Choose Prompt Source*\n\nHow do you want to create your {action}?',
+    ru: '📝 *Выберите источник промпта*\n\nОткуда создать {action}?',
+    zh: '📝 *选择提示来源*\n\n想从哪里创建 {action}？',
+  },
+  'gen.btn_prompt_library': {
+    id: '📚 Pilih dari Prompt Library',
+    en: '📚 Choose from Prompt Library',
+    ru: '📚 Выбрать из библиотеки',
+    zh: '📚 从提示库选择',
+  },
+  'gen.btn_custom_prompt': {
+    id: '✍️ Tulis Prompt Sendiri',
+    en: '✍️ Write Custom Prompt',
+    ru: '✍️ Написать свой промпт',
+    zh: '✍️ 自定义提示',
+  },
+  'gen.custom_prompt_input': {
+    id: '✍️ *Tulis Prompt Sendiri*\n\nKirim foto produk atau ketik deskripsi produk.\n\nOutput: {action}',
+    en: '✍️ *Write Custom Prompt*\n\nSend a product photo or type a description.\n\nOutput: {action}',
+    ru: '✍️ *Напишите свой промпт*\n\nОтправьте фото товара или введите описание.\n\nВывод: {action}',
+    zh: '✍️ *自定义提示*\n\n发送产品照片或输入描述。\n\n输出: {action}',
+  },
+
+  // Confirm screen
+  'gen.confirm_title': {
+    id: '✅ *Konfirmasi Generate*',
+    en: '✅ *Confirm Generation*',
+    ru: '✅ *Подтверждение генерации*',
+    zh: '✅ *确认生成*',
+  },
+  'gen.confirm_cost': {
+    id: '💰 Biaya: **{cost} kredit**',
+    en: '💰 Cost: **{cost} credits**',
+    ru: '💰 Стоимость: **{cost} кредитов**',
+    zh: '💰 费用: **{cost} 积分**',
+  },
+  'gen.btn_generate_now': {
+    id: '✅ Generate Sekarang ({cost} kredit)',
+    en: '✅ Generate Now ({cost} credits)',
+    ru: '✅ Создать сейчас ({cost} кредитов)',
+    zh: '✅ 立即生成（{cost} 积分）',
+  },
+  'gen.post_delivery': {
+    id: '✨ *Konten berhasil dibuat!*\n\nMau apa selanjutnya?',
+    en: '✨ *Content created!*\n\nWhat\'s next?',
+    ru: '✨ *Контент создан!*\n\nЧто дальше?',
+    zh: '✨ *内容已创建！*\n\n接下来做什么？',
+  },
+
+  // Smart mode
+  'gen.smart_select_duration': {
+    id: '🎯 *Smart Mode*\n\nPilih durasi video:',
+    en: '🎯 *Smart Mode*\n\nSelect video duration:',
+    ru: '🎯 *Smart Mode*\n\nВыберите длительность видео:',
+    zh: '🎯 *智能模式*\n\n选择视频时长:',
+  },
+
+  // Buttons
+  'btn.back': {
+    id: '◀️ Kembali', en: '◀️ Back', ru: '◀️ Назад', zh: '◀️ 返回',
+  },
+  'btn.main_menu': {
+    id: '🏠 Menu Utama', en: '🏠 Main Menu', ru: '🏠 Главное меню', zh: '🏠 主菜单',
+  },
+  'btn.topup': {
+    id: '💳 Top Up Kredit', en: '💳 Top Up Credits', ru: '💳 Пополнить кредиты', zh: '💳 充值积分',
+  },
+  'btn.variation': {
+    id: '🔄 Variasi Lain', en: '🔄 Another Variation', ru: '🔄 Ещё вариант', zh: '🔄 其他变体',
+  },
+  'btn.campaign': {
+    id: '📦 Campaign', en: '📦 Campaign', ru: '📦 Кампания', zh: '📦 活动',
+  },
+
+  // Message handler
+  'msg.photo_received': {
+    id: '✅ *Foto referensi diterima!*\n\nMelanjutkan ke generate...',
+    en: '✅ *Reference photo received!*\n\nContinuing to generate...',
+    ru: '✅ *Референсное фото получено!*\n\nПродолжаем...',
+    zh: '✅ *参考照片已收到！*\n\n继续生成...',
+  },
+  'msg.skip_photo': {
+    id: '⏭️ Lanjut tanpa foto referensi.',
+    en: '⏭️ Continuing without reference photo.',
+    ru: '⏭️ Продолжаем без референсного фото.',
+    zh: '⏭️ 不使用参考照片继续。',
+  },
+  'msg.send_photo_or_skip': {
+    id: '📸 Kirim foto referensi atau ketik /skip untuk lanjut tanpa foto.',
+    en: '📸 Send a reference photo or type /skip to continue without one.',
+    ru: '📸 Отправьте референсное фото или /skip для продолжения без него.',
+    zh: '📸 发送参考照片或输入 /skip 跳过。',
+  },
+  'msg.photo_too_small': {
+    id: '❌ Foto terlalu kecil (min 10KB). Kirim foto dengan resolusi lebih tinggi.',
+    en: '❌ Photo too small (min 10KB). Send a higher resolution photo.',
+    ru: '❌ Фото слишком маленькое (мин. 10КБ). Отправьте в более высоком разрешении.',
+    zh: '❌ 照片太小（最小10KB）。请发送更高分辨率的照片。',
+  },
+  'msg.photo_too_large': {
+    id: '❌ Foto terlalu besar (maks 20MB). Kirim foto yang lebih kecil.',
+    en: '❌ Photo too large (max 20MB). Send a smaller photo.',
+    ru: '❌ Фото слишком большое (макс. 20МБ). Отправьте поменьше.',
+    zh: '❌ 照片太大（最大20MB）。请发送较小的照片。',
+  },
+
+  // Topup
+  'topup.payment_ready': {
+    id: '💳 *Pembayaran Siap!*\n\nOrder: `{orderId}`\nMetode: *{method}*\n\nKlik tombol di bawah untuk menyelesaikan pembayaran.',
+    en: '💳 *Payment Ready!*\n\nOrder: `{orderId}`\nMethod: *{method}*\n\nClick the button below to complete payment.',
+    ru: '💳 *Оплата готова!*\n\nЗаказ: `{orderId}`\nМетод: *{method}*\n\nНажмите кнопку ниже для оплаты.',
+    zh: '💳 *付款就绪！*\n\n订单: `{orderId}`\n方式: *{method}*\n\n点击下方按钮完成付款。',
+  },
+  'topup.btn_pay': {
+    id: '💳 Bayar Sekarang', en: '💳 Pay Now', ru: '💳 Оплатить', zh: '💳 立即支付',
+  },
+  'topup.btn_paid': {
+    id: '✅ Sudah Bayar', en: '✅ I\'ve Paid', ru: '✅ Я оплатил', zh: '✅ 已付款',
+  },
+  'topup.success': {
+    id: '✅ *Pembayaran Berhasil!*\n\nKredit ditambahkan: {credits}\n\nTerima kasih! 🎉',
+    en: '✅ *Payment Successful!*\n\nCredits added: {credits}\n\nThank you! 🎉',
+    ru: '✅ *Оплата успешна!*\n\nДобавлено кредитов: {credits}\n\nСпасибо! 🎉',
+    zh: '✅ *支付成功！*\n\n已添加积分: {credits}\n\n谢谢！🎉',
+  },
+  'topup.pending': {
+    id: 'Pembayaran masih pending. Selesaikan pembayaran terlebih dahulu.',
+    en: 'Payment still pending. Please complete payment first.',
+    ru: 'Оплата ещё в ожидании. Сначала завершите оплату.',
+    zh: '付款仍在处理中。请先完成付款。',
+  },
+  'topup.not_found': {
+    id: '❌ Transaksi tidak ditemukan.',
+    en: '❌ Transaction not found.',
+    ru: '❌ Транзакция не найдена.',
+    zh: '❌ 未找到交易。',
+  },
+  'topup.failed_status': {
+    id: '❌ Status pembayaran: *{status}*. Hubungi /support jika sudah membayar.',
+    en: '❌ Payment status: *{status}*. Contact /support if you already paid.',
+    ru: '❌ Статус оплаты: *{status}*. Обратитесь в /support если уже оплатили.',
+    zh: '❌ 付款状态: *{status}*。如已付款请联系 /support。',
+  },
+  'topup.create_failed': {
+    id: '❌ Gagal membuat pembayaran. Coba lagi.',
+    en: '❌ Failed to create payment. Try again.',
+    ru: '❌ Не удалось создать платёж. Попробуйте снова.',
+    zh: '❌ 创建支付失败。请重试。',
+  },
+
+  // Profile
+  'profile.title': {
+    id: '*Profil Kamu*', en: '*Your Profile*', ru: '*Ваш профиль*', zh: '*个人资料*',
+  },
+  // profile.tier and profile.credits already defined above
+  'profile.videos_created': {
+    id: 'Video Dibuat', en: 'Videos Created', ru: 'Видео создано', zh: '已创建视频',
+  },
+  'profile.referral_code': {
+    id: 'Kode', en: 'Code', ru: 'Код', zh: '代码',
+  },
+  'profile.total_referrals': {
+    id: 'Total Referral', en: 'Total Referrals', ru: 'Всего рефералов', zh: '总推荐数',
+  },
+  'profile.commission': {
+    id: 'Komisi', en: 'Commission', ru: 'Комиссия', zh: '佣金',
+  },
+  'profile.total_spent': {
+    id: 'Total', en: 'Total Spent', ru: 'Всего потрачено', zh: '总消费',
+  },
+  'profile.subscription_plan': {
+    id: 'Plan', en: 'Plan', ru: 'Тариф', zh: '计划',
+  },
+  'profile.renews_in': {
+    id: '{action} dalam: {days} hari',
+    en: '{action} in: {days} days',
+    ru: '{action} через: {days} дней',
+    zh: '{action}还有: {days} 天',
+  },
+
+  // Videos
+  'videos.copy_link': {
+    id: '📋 *Link Download Video:*\n\n{url}\n\n_Tekan dan tahan link di atas untuk menyalin_',
+    en: '📋 *Video Download Link:*\n\n{url}\n\n_Tap and hold the link above to copy_',
+    ru: '📋 *Ссылка для скачивания:*\n\n{url}\n\n_Нажмите и удерживайте ссылку для копирования_',
+    zh: '📋 *视频下载链接:*\n\n{url}\n\n_长按链接复制_',
+  },
+  'videos.not_found': {
+    id: '❌ Video tidak ditemukan',
+    en: '❌ Video not found',
+    ru: '❌ Видео не найдено',
+    zh: '❌ 视频未找到',
+  },
+  'videos.link_copied': {
+    id: 'Link disalin!', en: 'Link copied!', ru: 'Ссылка скопирована!', zh: '链接已复制！',
+  },
+
+  // Worker notifications
+  'worker.vo_failed': {
+    id: '⚠️ Voice-over tidak dapat ditambahkan ke video ini. Video dikirim tanpa audio narasi.',
+    en: '⚠️ Voice-over could not be added to this video. Video sent without narration.',
+    ru: '⚠️ Озвучка не может быть добавлена. Видео отправлено без аудио.',
+    zh: '⚠️ 无法添加语音旁白。视频已发送（无旁白）。',
+  },
+  'worker.partial_refund': {
+    id: '💰 Refund: {amount} kredit dikembalikan untuk {count} scene yang gagal.',
+    en: '💰 Refund: {amount} credits returned for {count} failed scene(s).',
+    ru: '💰 Возврат: {amount} кредитов за {count} неудавшихся сцен.',
+    zh: '💰 退款: {amount} 积分已退还（{count} 个场景失败）。',
+  },
+
+  // Common errors (error.generic already defined above)
+  'error.no_session': {
+    id: 'Tidak ada sesi pembuatan video aktif. Gunakan /create untuk mulai.',
+    en: 'No active video creation session. Use /create to start.',
+    ru: 'Нет активного сеанса создания видео. Используйте /create.',
+    zh: '没有活动的视频创建会话。使用 /create 开始。',
+  },
+  'error.no_photos': {
+    id: 'Belum ada foto. Kirim gambar referensi atau /skip.',
+    en: 'No photos uploaded. Send a reference image or /skip.',
+    ru: 'Фото не загружены. Отправьте референс или /skip.',
+    zh: '尚未上传照片。发送参考图或 /skip。',
+  },
+
+  // Payment failure notification
+  'payment.failed': {
+    id: '❌ *Pembayaran Gagal*\n\nOrder: `{orderId}`\n\nSilakan coba lagi atau pilih metode pembayaran lain.',
+    en: '❌ *Payment Failed*\n\nOrder: `{orderId}`\n\nPlease try again or choose a different payment method.',
+    ru: '❌ *Оплата не удалась*\n\nЗаказ: `{orderId}`\n\nПопробуйте снова или выберите другой способ оплаты.',
+    zh: '❌ *支付失败*\n\nOrder: `{orderId}`\n\n请重试或选择其他支付方式。',
+  },
+  'payment.expired': {
+    id: '❌ *Pembayaran Kedaluwarsa*\n\nOrder: `{orderId}`\n\nSilakan coba lagi.',
+    en: '❌ *Payment Expired*\n\nOrder: `{orderId}`\n\nPlease try again.',
+    ru: '❌ *Оплата истекла*\n\nЗаказ: `{orderId}`\n\nПопробуйте снова.',
+    zh: '❌ *支付已过期*\n\nOrder: `{orderId}`\n\n请重试。',
+  },
+  'payment.crypto_success': {
+    id: '✅ *Pembayaran Crypto Berhasil!*\n\n💰 {amount} {coin} diterima\n🎬 Kredit sudah ditambahkan ke akun kamu\n\nGunakan /create untuk buat video sekarang! 🚀',
+    en: '✅ *Crypto Payment Confirmed!*\n\n💰 {amount} {coin} received\n🎬 Credits added to your account\n\nUse /create to generate your video now! 🚀',
+    ru: '✅ *Крипто-оплата подтверждена!*\n\n💰 {amount} {coin} получено\n🎬 Кредиты добавлены\n\nИспользуйте /create для создания видео! 🚀',
+    zh: '✅ *加密支付成功！*\n\n💰 {amount} {coin} 已收到\n🎬 积分已添加到您的账户\n\n使用 /create 开始制作视频！🚀',
+  },
 };
 
 /**

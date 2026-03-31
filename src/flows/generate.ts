@@ -24,6 +24,7 @@ import { ContentAnalysisService } from '@/services/content-analysis.service';
 import { ImageGenerationService } from '@/services/image.service';
 import { enqueueVideoGeneration } from '@/config/queue';
 import { generateVideoAsync } from '@/commands/create';
+import { t } from '@/i18n/translations';
 import type { DurationPreset } from '@/config/hpas-engine';
 
 const execFileAsync = promisify(execFile);
@@ -61,14 +62,15 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
       const fileLink = await ctx.telegram.getFileLink(largest.file_id);
       photoUrl = fileLink.toString();
 
-      await ctx.reply('🔍 *Menganalisis foto produk...*', { parse_mode: 'Markdown' });
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.reply(t('gen.analyzing_photo', lang), { parse_mode: 'Markdown' });
 
       const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
       productDesc = analysis.success && analysis.prompt ? analysis.prompt : 'produk dari foto yang dikirim';
     } else if (message.text && !message.text.startsWith('/')) {
       productDesc = message.text;
     } else {
-      await ctx.reply('❌ Kirim foto produk atau ketik deskripsi produk.');
+      await ctx.reply(t('gen.send_photo_or_text', ctx.session?.userLang || 'id'));
       return;
     }
 
@@ -107,7 +109,7 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
     await showConfirmScreen(ctx);
   } catch (err) {
     logger.error('handleProductInput error', err);
-    await ctx.reply('❌ Gagal memproses input. Coba lagi.');
+    await ctx.reply(t('gen.input_failed', ctx.session?.userLang || 'id'));
   }
 }
 
@@ -124,7 +126,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
   const lockKey = `generating:${telegramId}`;
   const lockAcquired = await redis.set(lockKey, '1', 'EX', 30, 'NX');
   if (lockAcquired !== 'OK') {
-    await ctx.reply('⏳ Sedang diproses... mohon tunggu.');
+    await ctx.reply(t('gen.already_processing', ctx.session?.userLang || 'id'));
     return;
   }
 
@@ -148,7 +150,10 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
   try {
     const user = await UserService.findByTelegramId(telegramId);
-    if (!user) { await ctx.reply('❌ User tidak ditemukan.'); return; }
+    if (!user) { await ctx.reply(t('gen.user_not_found', 'id')); return; }
+
+    const lang = user.language || 'id';
+    if (ctx.session) ctx.session.userLang = lang;
 
     const unitBalance = creditsToUnits(Number(user.creditBalance));
 
@@ -177,13 +182,13 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       const costCredits = cost / 10;
       const balCredits = unitBalance / 10;
       await ctx.reply(
-        `❌ *Kredit tidak cukup*\n\nDibutuhkan: ${costCredits} kredit\nSaldo: ${balCredits} kredit\n\nGunakan /topup untuk menambah kredit.`,
-        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Top Up Kredit', callback_data: 'topup' }]] } }
+        t('gen.insufficient_credits', lang, { cost: costCredits, balance: balCredits }),
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }]] } }
       );
       return;
     }
 
-    await ctx.reply('⏳ *Generating konten...*\n\nMohon tunggu ~30-60 detik 🚀', { parse_mode: 'Markdown' });
+    await ctx.reply(t('gen.generating', lang), { parse_mode: 'Markdown' });
 
     // Image Set (7 scene HPAS)
     if (action === 'image_set') {
@@ -202,7 +207,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       };
       for (let i = 0; i < Math.min(scenes.length, 7); i++) {
         const scene = scenes[i];
-        await ctx.reply(`🎨 Generating scene ${i + 1}/7: *${HPAS_SCENES[scene.sceneId]?.nameId || scene.sceneId}*...`, { parse_mode: 'Markdown' });
+        await ctx.reply(t('gen.scene_generating', lang, { n: i + 1, name: HPAS_SCENES[scene.sceneId]?.nameId || scene.sceneId }), { parse_mode: 'Markdown' });
         let result = await ImageGenerationService.generateImage({ prompt: scene.prompt, ...imgParams });
         // Single retry on failure before skipping
         if (!result.success || !result.imageUrl) {
@@ -213,7 +218,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       }
 
       if (results.length === 0) {
-        await ctx.reply('❌ Gagal generate semua scene. Kredit tidak ditagih.');
+        await ctx.reply(t('gen.all_scenes_failed', lang));
         return;
       }
 
@@ -264,14 +269,14 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           enableSubtitles: true,
           language: user.language || 'id',
         });
-        await ctx.reply(`✅ Video masuk antrian #${position}\n\nKamu akan dinotifikasi saat selesai.`);
+        await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
         generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Video generateVideoAsync failed:', err);
           await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
-          await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Video gagal diproses. Kredit dikembalikan.').catch(() => {});
+          await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.video_failed_refund', lang)).catch(() => {});
         });
-        await ctx.reply('✅ Video sedang diproses. Kamu akan dinotifikasi saat selesai.');
+        await ctx.reply(t('gen.video_processing', lang));
       }
       await showPostDelivery(ctx);
       return;
@@ -321,14 +326,14 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           enableSubtitles: true,
           language: user.language || 'id',
         });
-        await ctx.reply(`✅ Clone Style video masuk antrian #${position}\n\nKamu akan dinotifikasi saat selesai.`);
+        await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
         generateVideoAsync(ctx, video2.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Clone style generateVideoAsync failed:', err);
           await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
-          await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Clone Style gagal diproses. Kredit dikembalikan.').catch(() => {});
+          await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.video_failed_refund', lang)).catch(() => {});
         });
-        await ctx.reply('✅ Clone Style video sedang diproses. Kamu akan dinotifikasi saat selesai.');
+        await ctx.reply(t('gen.video_processing', lang));
       }
       await showPostDelivery(ctx);
       return;
@@ -378,23 +383,21 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
             language: user.language || 'id',
           });
           await ctx.reply(
-            `⏳ *Campaign ${campSize} scene masuk antrian #${position}!*\n\n` +
-            `1 video dengan ${campSize} hook berbeda.\n` +
-            `Kamu akan dinotifikasi saat selesai.`,
+            t('gen.campaign_processing', lang, { size: campSize, position }),
             { parse_mode: 'Markdown' },
           );
         } catch {
           generateVideoAsync(ctx, vid.jobId, industry, platform, totalDuration, storyboard).catch(async (err) => {
             logger.error('Campaign generateVideoAsync failed:', err);
             await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
-            await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Campaign gagal diproses. Kredit dikembalikan.').catch(() => {});
+            await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.campaign_failed', lang)).catch(() => {});
           });
-          await ctx.reply(`⏳ *Campaign ${campSize} scene sedang diproses!*\n\nKamu akan dinotifikasi saat selesai.`, { parse_mode: 'Markdown' });
+          await ctx.reply(t('gen.video_processing', lang));
         }
       } catch (jobErr) {
         logger.error('Campaign job creation failed:', jobErr);
         await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
-        await ctx.reply('❌ *Campaign Gagal*\n\nGagal membuat video. Kredit dikembalikan.', { parse_mode: 'Markdown' });
+        await ctx.reply(t('gen.campaign_failed', lang), { parse_mode: 'Markdown' });
         return;
       }
       await showPostDelivery(ctx);
@@ -403,7 +406,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
   } catch (err) {
     logger.error('executeGeneration error', err);
-    await ctx.reply('❌ Gagal generate. Coba lagi atau hubungi /support.');
+    await ctx.reply(t('gen.generation_failed', ctx.session?.userLang || 'id'));
   } finally {
     // Release idempotency lock
     await redis.del(lockKey).catch(() => {});
@@ -532,16 +535,14 @@ export async function showImagePreference(ctx: BotContext): Promise<void> {
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
-    const text = `📸 *Foto Referensi*\n\n` +
-      `Ingin menggunakan foto referensi untuk hasil yang lebih bagus?\n\n` +
-      `• Kirim foto untuk mode *Image-to-Video*\n` +
-      `• Atau skip untuk *Text-to-Video*`;
+    const lang = ctx.session?.userLang || 'id';
+    const text = t('gen.image_pref_title', lang);
 
     const markup = {
       inline_keyboard: [
-        [{ text: '📸 Upload Foto Referensi', callback_data: 'image_pref_upload' }],
-        [{ text: '🚀 Langsung Generate (Tanpa Foto)', callback_data: 'image_pref_skip' }],
-        [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
+        [{ text: t('gen.btn_upload_ref', lang), callback_data: 'image_pref_upload' }],
+        [{ text: t('gen.btn_skip_ref', lang), callback_data: 'image_pref_skip' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
       ],
     };
     try {
@@ -591,17 +592,17 @@ export async function showPromptSourceSelection(ctx: BotContext): Promise<void> 
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
+    const lang = ctx.session?.userLang || 'id';
     const action = ctx.session?.generateAction as GenerateAction || 'video';
     const actionLabel = action === 'image_set' ? 'gambar' : action === 'campaign' ? 'campaign' : 'video';
 
-    const text = `📝 *Pilih Sumber Prompt*\n\n` +
-      `Mau buat ${actionLabel} dari mana?`;
+    const text = t('gen.prompt_source_title', lang, { action: actionLabel });
 
     const markup = {
       inline_keyboard: [
-        [{ text: '📚 Pilih dari Prompt Library', callback_data: 'prompt_source_library' }],
-        [{ text: '✍️ Tulis Prompt Sendiri', callback_data: 'prompt_source_custom' }],
-        [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
+        [{ text: t('gen.btn_prompt_library', lang), callback_data: 'prompt_source_library' }],
+        [{ text: t('gen.btn_custom_prompt', lang), callback_data: 'prompt_source_custom' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
       ],
     };
     try {
@@ -619,16 +620,17 @@ export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
-    const text = `🎯 *Smart Mode*\n\nPilih durasi video:`;
+    const lang = ctx.session?.userLang || 'id';
+    const text = t('gen.smart_select_duration', lang);
 
     const markup = {
       inline_keyboard: [
-        [{ text: `⚡ Quick — 15 detik (${UNIT_COSTS.VIDEO_15S / 10} kredit)`, callback_data: 'preset_quick' }],
-        [{ text: `🎯 Standard — 30 detik (${UNIT_COSTS.VIDEO_30S / 10} kredit)`, callback_data: 'preset_standard' }],
-        [{ text: `📽️ Extended — 60 detik (${UNIT_COSTS.VIDEO_60S / 10} kredit)`, callback_data: 'preset_extended' }],
-        [{ text: '⏱️ Custom — Pilih Durasi Sendiri', callback_data: 'preset_custom' }],
-        [{ text: '◀️ Kembali', callback_data: 'action_video' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+        [{ text: `⚡ Quick — 15s (${UNIT_COSTS.VIDEO_15S / 10} cr)`, callback_data: 'preset_quick' }],
+        [{ text: `🎯 Standard — 30s (${UNIT_COSTS.VIDEO_30S / 10} cr)`, callback_data: 'preset_standard' }],
+        [{ text: `📽️ Extended — 60s (${UNIT_COSTS.VIDEO_60S / 10} cr)`, callback_data: 'preset_extended' }],
+        [{ text: '⏱️ Custom', callback_data: 'preset_custom' }],
+        [{ text: t('btn.back', lang), callback_data: 'action_video' }],
+        [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],
     };
     try {
@@ -648,7 +650,8 @@ export async function showSmartPlatformSelection(ctx: BotContext, preset: Durati
       ctx.session.generatePreset = preset;
     }
 
-    const text = `Platform tujuan:`;
+    const lang = ctx.session?.userLang || 'id';
+    const text = `Platform:`;
 
     const markup = {
       inline_keyboard: [
@@ -656,8 +659,8 @@ export async function showSmartPlatformSelection(ctx: BotContext, preset: Durati
         [{ text: '📸 Instagram (9:16)', callback_data: 'platform_instagram' }],
         [{ text: '▶️ YouTube (16:9)', callback_data: 'platform_youtube' }],
         [{ text: '⬛ Square (1:1)', callback_data: 'platform_square' }],
-        [{ text: '◀️ Kembali', callback_data: 'action_video' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+        [{ text: t('btn.back', lang), callback_data: 'action_video' }],
+        [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],
     };
     try {
@@ -738,21 +741,22 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     const modeLabel = mode === 'basic' ? '⚡ Basic' : mode === 'smart' ? '🎯 Smart' : '👑 Pro';
     const platformLabel: Record<Platform, string> = { tiktok: '🎵 TikTok 9:16', instagram: '📸 Instagram 9:16', youtube: '▶️ YouTube 16:9', square: '⬛ Square 1:1' };
 
-    const text = `✅ *Konfirmasi Generate*\n\n` +
+    const lang = ctx.session?.userLang || 'id';
+    const text = t('gen.confirm_title', lang) + `\n\n` +
       `Mode: ${modeLabel}\n` +
       `Aksi: ${actionLabel}\n` +
       `Platform: ${platformLabel[platform]}\n` +
       `Industri: ${industry}\n` +
       `Produk: ${productDesc.slice(0, 60)}${productDesc.length > 60 ? '...' : ''}\n\n` +
-      `💰 Biaya: **${cost / 10} kredit**`;
+      t('gen.confirm_cost', lang, { cost: cost / 10 });
 
     await ctx.reply(text, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: `✅ Generate Sekarang (${cost / 10} kredit)`, callback_data: 'generate_confirm' }],
-          [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
-          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+          [{ text: t('gen.btn_generate_now', lang, { cost: cost / 10 }), callback_data: 'generate_confirm' }],
+          [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+          [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
         ],
       },
     });
@@ -778,21 +782,22 @@ export async function showPostDelivery(ctx: BotContext): Promise<void> {
       delete ctx.session.customPresetConfig;
     }
 
-    const text = `✨ *Konten berhasil dibuat!*\n\nMau apa selanjutnya?`;
+    const lang = ctx.session?.userLang || 'id';
+    const text = t('gen.post_delivery', lang);
 
     await ctx.reply(text, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '🔄 Variasi Lain', callback_data: 'generate_start' },
-            { text: '📦 Campaign', callback_data: 'action_campaign' },
+            { text: t('btn.variation', lang), callback_data: 'generate_start' },
+            { text: t('btn.campaign', lang), callback_data: 'action_campaign' },
           ],
           [
-            { text: '⭐ Rate Hasil', callback_data: 'generate_rate' },
-            { text: '👥 Refer Teman', callback_data: 'referral_menu' },
+            { text: '⭐ Rate', callback_data: 'generate_rate' },
+            { text: '👥 Refer', callback_data: 'referral_menu' },
           ],
-          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+          [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
         ],
       },
     });

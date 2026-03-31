@@ -7,6 +7,8 @@ import { sendAdminAlert } from '@/services/admin-alert.service';
 import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
 import { NowPaymentsService } from '@/services/nowpayments.service';
+import { UserService } from '@/services/user.service';
+import { t } from '@/i18n/translations';
 import crypto from 'crypto';
 
 interface WebhookOptions {
@@ -94,9 +96,12 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         try {
           const tx = await prisma.transaction.findUnique({ where: { orderId: body.merchant_ref } });
           if (tx?.userId) {
+            const dbUser = await UserService.findByTelegramId(BigInt(tx.userId));
+            const lang = dbUser?.language || 'id';
+            const tKey = body.status === 'EXPIRED' ? 'payment.expired' : 'payment.failed';
             await bot.telegram.sendMessage(tx.userId.toString(),
-              `❌ *Pembayaran ${body.status === 'EXPIRED' ? 'Kedaluwarsa' : 'Gagal'}*\n\nOrder: \`${body.merchant_ref}\`\n\nSilakan coba lagi.`,
-              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Coba Lagi', callback_data: 'topup' }]] } }
+              t(tKey, lang, { orderId: body.merchant_ref }),
+              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }]] } }
             ).catch(() => {});
           }
         } catch { /* best-effort notification */ }
@@ -146,12 +151,11 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
           if (telegramId && /^\d+$/.test(telegramId) && bot) {
             const coin = body.pay_currency?.toUpperCase() || 'CRYPTO';
             const amount = body.price_amount ? `$${body.price_amount}` : '';
+            const dbUser = await UserService.findByTelegramId(BigInt(telegramId));
+            const lang = dbUser?.language || 'id';
             await bot.telegram.sendMessage(
               telegramId,
-              `✅ *Pembayaran Crypto Berhasil!*\n\n` +
-              `💰 ${amount} ${coin} diterima\n` +
-              `🎬 Kredit sudah ditambahkan ke akun kamu\n\n` +
-              `Gunakan /create untuk buat video sekarang! 🚀`,
+              t('payment.crypto_success', lang, { amount, coin }),
               { parse_mode: 'Markdown' }
             );
           }
@@ -187,9 +191,11 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         try {
           const tx = await prisma.transaction.findUnique({ where: { orderId: body.merchantOrderId } });
           if (tx?.userId) {
+            const dbUser = await UserService.findByTelegramId(BigInt(tx.userId));
+            const lang = dbUser?.language || 'id';
             await bot.telegram.sendMessage(tx.userId.toString(),
-              `❌ *Pembayaran Gagal*\n\nOrder: \`${body.merchantOrderId}\`\n\nSilakan coba lagi atau pilih metode pembayaran lain.`,
-              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Coba Lagi', callback_data: 'topup' }]] } }
+              t('payment.failed', lang, { orderId: body.merchantOrderId }),
+              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }]] } }
             ).catch(() => {});
           }
         } catch { /* best-effort notification */ }

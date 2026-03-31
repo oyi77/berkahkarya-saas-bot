@@ -8,6 +8,8 @@ import jwt from 'jsonwebtoken';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { VideoService } from '@/services/video.service';
+import { UserService } from '@/services/user.service';
+import { t } from '@/i18n/translations';
 
 /** Generate a signed download URL for a video job (valid 30d). Never exposes provider CDN URLs. */
 function makeDownloadUrl(jobId: string, userId: string): string {
@@ -86,10 +88,16 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
  * View video details with download option
  */
 export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
+  let lang = ctx.from?.language_code || 'id';
+  if (ctx.from) {
+    const dbUser = await UserService.findByTelegramId(BigInt(ctx.from.id));
+    if (dbUser?.language) lang = dbUser.language;
+  }
+
   const video = await VideoService.getByJobId(jobId);
 
   if (!video) {
-    await ctx.answerCbQuery('❌ Video not found');
+    await ctx.answerCbQuery(t('videos.not_found', lang));
     return;
   }
 
@@ -214,28 +222,33 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
  */
 export async function copyVideoUrl(ctx: BotContext, jobId: string): Promise<void> {
   try {
+    let lang = 'id';
+    if (ctx.from) {
+      const dbUser = await UserService.findByTelegramId(BigInt(ctx.from.id));
+      lang = dbUser?.language || ctx.from.language_code || 'id';
+    }
+
     const video = await VideoService.getByJobId(jobId);
 
     if (!video || !video.videoUrl) {
-      await ctx.answerCbQuery('❌ Video tidak ditemukan');
+      await ctx.answerCbQuery(t('videos.not_found', lang));
       return;
     }
 
     if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
-      await ctx.answerCbQuery('❌ Akses ditolak');
+      await ctx.answerCbQuery('❌ Access denied');
       return;
     }
 
     const dlUrl = makeDownloadUrl(jobId, video.userId.toString());
-    await ctx.answerCbQuery('Link disalin!');
+    await ctx.answerCbQuery(t('videos.link_copied', lang));
     await ctx.reply(
-      `📋 *Link Download Video:*\n\n${dlUrl}\n\n` +
-      `_Tekan dan tahan link di atas untuk menyalin_`,
+      t('videos.copy_link', lang, { url: dlUrl }),
       { parse_mode: 'Markdown' }
     );
   } catch (error) {
     logger.error('copyVideoUrl error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
+    try { await ctx.reply(t('error.generic', 'en')); } catch { /* ignore */ }
   }
 }
 

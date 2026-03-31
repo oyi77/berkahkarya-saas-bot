@@ -290,7 +290,8 @@ describe("Videos Command", () => {
 
       await copyVideoUrl(ctx as any, "invalid_job_id");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ Video tidak ditemukan");
+      // Mock language_code is "en" so uses English translation
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining("not found"));
     });
 
     it("should show video URL not found when no URL", async () => {
@@ -301,7 +302,7 @@ describe("Videos Command", () => {
 
       await copyVideoUrl(ctx as any, "job_test_123");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ Video tidak ditemukan");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining("not found"));
     });
 
     it("should copy video URL to clipboard", async () => {
@@ -313,7 +314,7 @@ describe("Videos Command", () => {
       await copyVideoUrl(ctx as any, "job_test_123");
 
       // Returns our signed download URL, not the raw provider CDN URL
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("Link disalin!");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining("copied"));
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toMatch(/\/video\/job_test_123\/download\?token=/);
@@ -327,7 +328,7 @@ describe("Videos Command", () => {
       await copyVideoUrl(ctx as any, "job_test_123");
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "❌ Terjadi kesalahan. Silakan coba lagi.",
+        expect.stringContaining("❌"),
       );
     });
   });

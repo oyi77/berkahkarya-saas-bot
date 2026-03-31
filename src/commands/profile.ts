@@ -7,6 +7,7 @@
 import { BotContext } from '@/types';
 import { UserService } from '@/services/user.service';
 import { logger } from '@/utils/logger';
+import { t } from '@/i18n/translations';
 
 const BOT_USERNAME = process.env.BOT_USERNAME || 'berkahkarya_saas_bot';
 
@@ -32,6 +33,7 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
+    const lang = user.language || 'id';
     const stats = await UserService.getStats(telegramId);
 
     const tierLabel = user.tier.charAt(0).toUpperCase() + user.tier.slice(1);
@@ -49,35 +51,36 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
     let subInfo = '';
     if (activeSub) {
       const daysLeft = Math.max(0, Math.ceil((new Date(activeSub.currentPeriodEnd).getTime() - Date.now()) / 86400000));
-      subInfo = `\n*Subscription:*\n` +
-        `- Plan: ${activeSub.plan.charAt(0).toUpperCase() + activeSub.plan.slice(1)} (${activeSub.billingCycle})\n` +
-        `- ${activeSub.cancelAtPeriodEnd ? 'Expires' : 'Renews'} in: ${daysLeft} hari\n`;
+      const action = activeSub.cancelAtPeriodEnd ? 'Expires' : 'Renews';
+      subInfo = `\n*${t('profile.subscription_plan', lang)}:*\n` +
+        `- ${t('profile.subscription_plan', lang)}: ${activeSub.plan.charAt(0).toUpperCase() + activeSub.plan.slice(1)} (${activeSub.billingCycle})\n` +
+        `- ${t('profile.renews_in', lang, { action, days: daysLeft })}\n`;
     }
 
     await ctx.reply(
-      '*Profil Kamu*\n\n' +
+      `${t('profile.title', lang)}\n\n` +
       `*Nama:* ${user.firstName} ${user.lastName || ''}\n` +
       `*Username:* @${user.username || 'N/A'}\n` +
       `*ID:* ${from.id}\n\n` +
       '*Info Akun:*\n' +
       `- Tier: ${tierLabel}\n` +
-      `- Kredit: ${creditBalance}\n` +
-      `- Video Dibuat: ${stats.videosCreated}\n` +
+      `- ${t('profile.credits', lang)}: ${creditBalance}\n` +
+      `- ${t('profile.videos_created', lang)}: ${stats.videosCreated}\n` +
       subInfo + '\n' +
       '*Info Referral:*\n' +
-      `- Kode: \`${referralCode}\`\n` +
-      `- Total Referral: ${stats.referralCount}\n` +
-      `- Komisi: ${formatRupiah(stats.commissionEarned)}\n\n` +
-      '*Pengeluaran:*\n' +
-      `- Total: ${formatRupiah(stats.totalSpent)}`,
+      `- ${t('profile.referral_code', lang)}: \`${referralCode}\`\n` +
+      `- ${t('profile.total_referrals', lang)}: ${stats.referralCount}\n` +
+      `- ${t('profile.commission', lang)}: ${formatRupiah(stats.commissionEarned)}\n\n` +
+      `*${t('profile.total_spent', lang)}:*\n` +
+      `- ${t('profile.total_spent', lang)}: ${formatRupiah(stats.totalSpent)}`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '💰 Top Up Credits', callback_data: 'open_topup' }],
+            [{ text: t('btn.topup', lang), callback_data: 'open_topup' }],
             [{ text: '📤 Share Referral', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Join and create amazing AI videos! Use my referral link:')}` }],
             [{ text: '⚙️ Settings', callback_data: 'settings' }],
-            [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+            [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
           ],
         },
       }

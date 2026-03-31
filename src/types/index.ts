@@ -72,6 +72,7 @@ export interface SessionData {
   generatePhotoUrl?: string;
   customPresetConfig?: any; // DurationPresetConfig for custom durations
   cloneRefUrl?: string;
+  userLang?: string; // Cached user language for i18n (set during generation flows)
 }
 
 export type BotState =
