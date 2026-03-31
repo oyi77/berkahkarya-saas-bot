@@ -995,7 +995,7 @@ export async function handleVOToggle(
 ): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("No active video creation");
+      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
       return;
     }
 
@@ -1059,7 +1059,7 @@ export async function handleVOToggle(
 export async function handleVOContinue(ctx: BotContext): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("No active video creation");
+      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
       return;
     }
 
@@ -1156,7 +1156,7 @@ export async function handleCustomPromptRequest(
 ): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("No active video creation");
+      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
       return;
     }
 
@@ -1181,7 +1181,7 @@ export async function handleCustomPromptRequest(
 export async function handleSkipPrompt(ctx: BotContext): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("No active video creation");
+      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
       return;
     }
 

@@ -97,7 +97,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Processing...');
+    await ctx.answerCbQuery('Memproses...');
 
     const enabledGateways = await PaymentSettingsService.getEnabledGateways();
 
@@ -137,7 +137,7 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Creating payment...');
+    await ctx.answerCbQuery('Membuat pembayaran...');
 
     let transaction: any;
     let gatewayDisplayName = 'Payment Gateway';
@@ -167,23 +167,23 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     const paymentUrl = transaction.paymentUrl || transaction.redirectUrl || '';
 
     await ctx.editMessageText(
-      `💳 **Payment Ready**\n\n` +
-      `Order ID: \`${transaction.orderId}\`\n` +
-      `Method: *${gatewayDisplayName}*\n\n` +
-      `Please click the button below to complete your payment securely.`,
+      `💳 *Pembayaran Siap!*\n\n` +
+      `Order: \`${transaction.orderId}\`\n` +
+      `Metode: *${gatewayDisplayName}*\n\n` +
+      `Klik tombol di bawah untuk menyelesaikan pembayaran.`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: '💳 Complete Payment',
+                text: '💳 Bayar Sekarang',
                 url: paymentUrl,
               },
             ],
             [
               {
-                text: '✅ I\'ve Paid',
+                text: '✅ Sudah Bayar',
                 callback_data: `check_payment_${transaction.orderId}`,
               },
             ],
@@ -193,7 +193,7 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     );
   } catch (error: any) {
     logger.error('Error handling payment gateway:', error);
-    await ctx.editMessageText(`❌ Failed to create payment: ${error.message}. Please try again.`);
+    await ctx.editMessageText(`❌ Gagal membuat pembayaran: ${error.message}. Coba lagi.`);
   }
 }
 
@@ -308,30 +308,30 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
  */
 export async function checkPayment(ctx: BotContext, orderId: string): Promise<void> {
   try {
-    await ctx.answerCbQuery('Checking payment status...');
+    await ctx.answerCbQuery('Mengecek status pembayaran...');
 
     // Try multiple gateways if necessary, or check DB
     const transaction = await prisma.transaction.findUnique({ where: { orderId } });
     if (!transaction) {
-      await ctx.editMessageText('❌ Transaction not found.');
+      await ctx.editMessageText('❌ Transaksi tidak ditemukan.');
       return;
     }
 
     if (transaction.status === 'success') {
       await ctx.editMessageText(
-        `✅ **Payment Successful!**\n\n` +
-        `Credits added: ${transaction.creditsAmount}\n\n` +
-        `Thank you for your purchase! 🎉`,
+        `✅ *Pembayaran Berhasil!*\n\n` +
+        `Kredit ditambahkan: ${transaction.creditsAmount}\n\n` +
+        `Terima kasih! 🎉`,
         { parse_mode: 'Markdown' }
       );
     } else if (transaction.status === 'pending') {
-      await ctx.answerCbQuery('Payment still pending. Please complete payment first.', { show_alert: true });
+      await ctx.answerCbQuery('Pembayaran masih pending. Selesaikan pembayaran terlebih dahulu.', { show_alert: true });
     } else {
-      await ctx.editMessageText(`❌ Payment state: *${transaction.status}*. Please contact support if you have already paid.`);
+      await ctx.editMessageText(`❌ Status pembayaran: *${transaction.status}*. Hubungi /support jika sudah membayar.`, { parse_mode: 'Markdown' });
     }
   } catch (error) {
     logger.error('Error checking payment:', error);
-    await ctx.answerCbQuery('Failed to check status. Please try again.');
+    await ctx.answerCbQuery('Gagal cek status. Coba lagi.');
   }
 }
 
@@ -340,7 +340,7 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Creating payment...');
+    await ctx.answerCbQuery('Membuat pembayaran...');
 
     const telegramId = BigInt(user.id);
     const dbUser = await UserService.findByTelegramId(telegramId);
@@ -382,7 +382,7 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     );
   } catch (error) {
     logger.error('Error creating extra credit payment:', error);
-    await ctx.editMessageText('❌ Failed to create payment. Please try again.');
+    await ctx.editMessageText('❌ Gagal membuat pembayaran. Coba lagi.');
   }
 }
 
@@ -423,7 +423,7 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
  */
 export async function handleStarsInvoice(ctx: BotContext, credits: number): Promise<void> {
   try {
-    await ctx.answerCbQuery('Creating invoice...');
+    await ctx.answerCbQuery('Membuat invoice...');
 
     const pkg = STARS_PACKAGES.find(p => p.credits === credits);
     if (!pkg) {

@@ -637,7 +637,7 @@ describe("Create Command", () => {
       await handleVOToggle(ctx as any, "vo");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "No active video creation",
+        "Tidak ada sesi pembuatan video aktif",
       );
     });
 
@@ -705,7 +705,7 @@ describe("Create Command", () => {
       await handleVOContinue(ctx as any);
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "No active video creation",
+        "Tidak ada sesi pembuatan video aktif",
       );
     });
 
@@ -760,7 +760,7 @@ describe("Create Command", () => {
       await handleCustomPromptRequest(ctx as any);
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "No active video creation",
+        "Tidak ada sesi pembuatan video aktif",
       );
     });
 
@@ -799,7 +799,7 @@ describe("Create Command", () => {
       await handleSkipPrompt(ctx as any);
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "No active video creation",
+        "Tidak ada sesi pembuatan video aktif",
       );
     });
 

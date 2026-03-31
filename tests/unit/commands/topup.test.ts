@@ -423,7 +423,7 @@ describe("Topup Command", () => {
       expect(PaymentService.createTransaction).toHaveBeenCalled();
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Payment Ready");
+      expect(editCall[0]).toContain("Pembayaran Siap");
       expect(editCall[0]).toContain("Midtrans");
     });
 
@@ -452,7 +452,7 @@ describe("Topup Command", () => {
 
       const editCall = ctx.editMessageText.mock.calls[0];
       const keyboard = editCall[1].reply_markup.inline_keyboard;
-      expect(keyboard[0][0].text).toContain("Complete Payment");
+      expect(keyboard[0][0].text).toContain("Bayar Sekarang");
       expect(keyboard[1][0].callback_data).toBe("check_payment_ORDER-123");
     });
 
@@ -464,7 +464,7 @@ describe("Topup Command", () => {
       await handlePaymentGateway(ctx as any, "starter", "midtrans");
 
       expect(ctx.editMessageText).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to create payment"),
+        expect.stringContaining("Gagal membuat pembayaran"),
       );
     });
   });
@@ -481,7 +481,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Payment Successful");
+      expect(editCall[0]).toContain("Pembayaran Berhasil");
       expect(editCall[0]).toContain("6");
     });
 
@@ -494,7 +494,7 @@ describe("Topup Command", () => {
       await checkPayment(ctx as any, "ORDER-123");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Payment still pending. Please complete payment first.",
+        "Pembayaran masih pending. Selesaikan pembayaran terlebih dahulu.",
         { show_alert: true },
       );
     });
@@ -509,6 +509,7 @@ describe("Topup Command", () => {
 
       expect(ctx.editMessageText).toHaveBeenCalledWith(
         expect.stringContaining("failed"),
+        expect.anything(),
       );
     });
 
@@ -518,7 +519,7 @@ describe("Topup Command", () => {
       await checkPayment(ctx as any, "ORDER-123");
 
       expect(ctx.editMessageText).toHaveBeenCalledWith(
-        "❌ Transaction not found.",
+        "❌ Transaksi tidak ditemukan.",
       );
     });
 
@@ -530,7 +531,7 @@ describe("Topup Command", () => {
       await checkPayment(ctx as any, "ORDER-123");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Failed to check status. Please try again.",
+        "Gagal cek status. Coba lagi.",
       );
     });
   });
@@ -580,7 +581,7 @@ describe("Topup Command", () => {
       await handleTopupExtraCredit(ctx as any, 5);
 
       expect(ctx.editMessageText).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to create payment"),
+        expect.stringContaining("Gagal membuat pembayaran"),
       );
     });
   });
