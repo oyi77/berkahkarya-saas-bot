@@ -612,6 +612,30 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Prompt source selection: library or custom
+    if (data === "prompt_source_library") {
+      await ctx.answerCbQuery();
+      await ctx.deleteMessage().catch(() => {});
+      await promptsCommand(ctx);
+      return;
+    }
+
+    if (data === "prompt_source_custom") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.state = 'AWAITING_PRODUCT_INPUT';
+      const action = ctx.session?.generateAction || 'video';
+      const actionLabels: Record<string, string> = {
+        image_set: '7 gambar (1 per scene HPAS)',
+        video: 'video iklan HPAS',
+        campaign: '5 atau 10 video batch',
+      };
+      await ctx.editMessageText(
+        `✍️ *Tulis Prompt Sendiri*\n\nKirim foto produk atau ketik deskripsi produk.\n\nOutput: ${actionLabels[action] || action}`,
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
+
     if (data === "generate_variation") {
       const { showGenerateMode } = await import("../flows/generate.js");
       await showGenerateMode(ctx);

@@ -591,7 +591,7 @@ describe("Callback Routing", () => {
   });
 
   describe("platform_tiktok (smart flow)", () => {
-    it("if no generateProductDesc — goes to requestProductInput (state: AWAITING_PRODUCT_INPUT)", async () => {
+    it("if no generateProductDesc — shows image preference (not direct AWAITING_PRODUCT_INPUT)", async () => {
       const ctx = mockCtx("DASHBOARD", {}, {
         generateMode: "smart",
         generatePreset: "standard",
@@ -601,7 +601,11 @@ describe("Callback Routing", () => {
 
       await requestProductInput(ctx as any, "video");
 
-      expect(ctx.session.state).toBe("AWAITING_PRODUCT_INPUT");
+      // Now shows image preference first, not AWAITING_PRODUCT_INPUT directly
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining("Foto Referensi"),
+        expect.anything(),
+      );
     });
 
     it("if generateProductDesc exists + preset + platform — shows image preference first", async () => {
@@ -744,7 +748,7 @@ describe("Generate Flow", () => {
       expect(ctx.session.state).not.toBe("AWAITING_PRODUCT_INPUT");
     });
 
-    it("no pre-filled prompt → state set to AWAITING_PRODUCT_INPUT", async () => {
+    it("no pre-filled prompt → shows image preference then prompt source (not direct input)", async () => {
       const ctx = mockCtx("DASHBOARD", {}, {
         generateMode: "basic",
         generateAction: "video",
@@ -753,7 +757,11 @@ describe("Generate Flow", () => {
 
       await requestProductInput(ctx as any, "video");
 
-      expect(ctx.session.state).toBe("AWAITING_PRODUCT_INPUT");
+      // Shows image preference first (user must choose photo or skip before prompt input)
+      expect(ctx.editMessageText).toHaveBeenCalledWith(
+        expect.stringContaining("Foto Referensi"),
+        expect.anything(),
+      );
     });
   });
 

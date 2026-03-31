@@ -491,11 +491,20 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
       ctx.session.generateAction = action;
     }
 
-    // If prompt is already pre-filled from library, show image preference before continuing
+    // Clone style has its own flow — skip image preference & prompt source
+    if (action === 'clone_style') {
+      if (ctx.session) ctx.session.state = 'AWAITING_PRODUCT_INPUT';
+      await ctx.reply(
+        `🔄 *Clone Style*\n\nKirim foto **referensi gaya** yang ingin ditiru.\n(Setelah itu kirim foto produk kamu)`,
+        { parse_mode: 'Markdown' },
+      );
+      return;
+    }
+
+    // If prompt is already pre-filled from library → image preference → confirm
     const prefilledPrompt = ctx.session?.generateProductDesc;
-    if (prefilledPrompt && action !== 'clone_style') {
+    if (prefilledPrompt) {
       if (ctx.session) ctx.session.state = 'DASHBOARD';
-      // If user already uploaded a photo, skip image preference
       if (ctx.session?.generatePhotoUrl) {
         await continueAfterImagePreference(ctx);
       } else {
@@ -504,22 +513,13 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
       return;
     }
 
-    if (ctx.session) {
-      ctx.session.state = 'AWAITING_PRODUCT_INPUT';
+    // Normal flow (no prompt yet): show image preference first, then prompt source
+    if (ctx.session?.generatePhotoUrl) {
+      // Photo already uploaded — go straight to prompt source selection
+      await showPromptSourceSelection(ctx);
+    } else {
+      await showImagePreference(ctx);
     }
-
-    const actionLabels: Record<GenerateAction, string> = {
-      image_set: '7 gambar (1 per scene HPAS)',
-      video: 'video iklan HPAS',
-      clone_style: 'clone style + generate',
-      campaign: '5 atau 10 video batch',
-    };
-
-    const text = action === 'clone_style'
-      ? `🔄 *Clone Style*\n\nKirim foto **referensi gaya** yang ingin ditiru.\n(Setelah itu kirim foto produk kamu)`
-      : `📸 *Upload Foto Produk*\n\nKirim foto produk atau ketik deskripsi produk.\n\nOutput: ${actionLabels[action]}`;
-
-    await ctx.reply(text, { parse_mode: 'Markdown' });
   } catch (err) {
     logger.error('requestProductInput error', err);
   }
@@ -555,9 +555,17 @@ export async function showImagePreference(ctx: BotContext): Promise<void> {
 
 /** Continue the flow after image preference has been resolved (uploaded or skipped) */
 export async function continueAfterImagePreference(ctx: BotContext): Promise<void> {
+  const prefilledPrompt = ctx.session?.generateProductDesc as string || '';
+
+  // No prompt yet → ask user to choose prompt source (library or custom)
+  if (!prefilledPrompt) {
+    await showPromptSourceSelection(ctx);
+    return;
+  }
+
+  // Prompt exists → continue to preset/confirm based on mode
   const mode = ctx.session?.generateMode as GenerateMode || 'basic';
   const action = ctx.session?.generateAction as GenerateAction || 'video';
-  const prefilledPrompt = ctx.session?.generateProductDesc as string || '';
 
   if (mode === 'basic') {
     await showConfirmScreen(ctx);
@@ -576,6 +584,33 @@ export async function continueAfterImagePreference(ctx: BotContext): Promise<voi
     return;
   }
   await showConfirmScreen(ctx);
+}
+
+/** Show prompt source selection: library or custom input */
+export async function showPromptSourceSelection(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+
+    const action = ctx.session?.generateAction as GenerateAction || 'video';
+    const actionLabel = action === 'image_set' ? 'gambar' : action === 'campaign' ? 'campaign' : 'video';
+
+    const text = `📝 *Pilih Sumber Prompt*\n\n` +
+      `Mau buat ${actionLabel} dari mana?`;
+
+    const markup = {
+      inline_keyboard: [
+        [{ text: '📚 Pilih dari Prompt Library', callback_data: 'prompt_source_library' }],
+        [{ text: '✍️ Tulis Prompt Sendiri', callback_data: 'prompt_source_custom' }],
+        [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showPromptSourceSelection error', err);
+  }
 }
 
 // ── Smart Mode: Preset Selection ──────────────────────────────────────────────
