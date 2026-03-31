@@ -195,7 +195,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       // Always track — use actual metadata or estimate if missing
       const promptTokens = usageMeta?.promptTokenCount || (mediaType === 'video' ? 3000 : 2000);
       const completionTokens = usageMeta?.candidatesTokenCount || (mediaType === 'video' ? 2000 : 1500);
-      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'content_analysis', promptTokens, completionTokens }).catch(() => {});
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'content_analysis', promptTokens, completionTokens }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
 
       return parseGeminiResponse(generatedText);
 
@@ -286,7 +286,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
 
       // Track clone video analysis cost
       const cloneVideoMeta = response.data?.usageMetadata;
-      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'clone_video', promptTokens: cloneVideoMeta?.promptTokenCount || 3000, completionTokens: cloneVideoMeta?.candidatesTokenCount || 2500 }).catch(() => {});
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'clone_video', promptTokens: cloneVideoMeta?.promptTokenCount || 3000, completionTokens: cloneVideoMeta?.candidatesTokenCount || 2500 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
 
       const result = parseGeminiResponse(generatedText);
 
@@ -369,7 +369,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
 
       // Track clone image analysis cost
       const cloneImgMeta = response.data?.usageMetadata;
-      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'clone_image', promptTokens: cloneImgMeta?.promptTokenCount || 2000, completionTokens: cloneImgMeta?.candidatesTokenCount || 1500 }).catch(() => {});
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'clone_image', promptTokens: cloneImgMeta?.promptTokenCount || 2000, completionTokens: cloneImgMeta?.candidatesTokenCount || 1500 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
 
       return parseGeminiResponse(generatedText);
 

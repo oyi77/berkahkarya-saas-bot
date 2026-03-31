@@ -802,15 +802,15 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
         const enrichedParams = { ...params, prompt: promptForProvider };
         const result = await provider.generate(enrichedParams);
         if (result.success) {
-          await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
-          await ProviderRouter.recordSuccess(provider.key).catch(() => {});
+          await CircuitBreaker.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
+          await ProviderRouter.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
           logger.info(`${provider.name} succeeded!`);
-          trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen', promptTokens: 0, completionTokens: 0 }).catch(() => {});
+          trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen', promptTokens: 0, completionTokens: 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
           return result;
         }
       } catch (error: any) {
-        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
-        await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
+        await ProviderRouter.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
         providerErrors.push({ name: provider.name, error: error.message?.slice(0, 80) || 'unknown' });
         logger.warn(`${provider.name} failed: ${error.message}`);
       }
@@ -862,10 +862,10 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
           }
 
           if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
-            await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
-            await ProviderRouter.recordSuccess(provider.key).catch(() => {});
+            await CircuitBreaker.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
+            await ProviderRouter.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
             logger.info(`${provider.name} succeeded via multi-scene: ${scenesNeeded}×${sceneDuration}s = ~${params.duration}s`);
-            trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen_multiscene', promptTokens: 0, completionTokens: 0 }).catch(() => {});
+            trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen_multiscene', promptTokens: 0, completionTokens: 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
             return { success: true, videoUrl: outputPath, provider: provider.key };
           }
         }
@@ -874,13 +874,13 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
         for (const sp of sceneVideos) {
           try { fs.unlinkSync(sp); } catch { /* ignore */ }
         }
-        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
-        await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
+        await ProviderRouter.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
         providerErrors.push({ name: provider.name, error: 'multi-scene concatenation failed' });
         logger.warn(`${provider.name} multi-scene failed`);
       } catch (error: any) {
-        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
-        await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
+        await ProviderRouter.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
         providerErrors.push({ name: provider.name, error: error.message?.slice(0, 80) || 'unknown' });
         logger.warn(`${provider.name} multi-scene error: ${error.message}`);
       }

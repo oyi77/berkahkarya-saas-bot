@@ -179,7 +179,7 @@ export class QualityCheckService {
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const usageMeta = response.data?.usageMetadata;
     if (usageMeta) {
-      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'quality_check', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'quality_check', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
     }
     return this.parseResponse(text);
   }

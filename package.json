@@ -105,6 +105,7 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "forceExit": true,
     "roots": [
       "<rootDir>/src",
       "<rootDir>/tests"
@@ -140,7 +141,8 @@
       }
     },
     "setupFiles": [
-      "<rootDir>/tests/setup-env.ts"
+      "<rootDir>/tests/setup-env.ts",
+      "<rootDir>/tests/setup-mocks.ts"
     ]
   }
 }

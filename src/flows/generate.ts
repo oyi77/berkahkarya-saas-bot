@@ -428,7 +428,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     await ctx.reply(t('gen.generation_failed', ctx.session?.userLang || 'id'));
   } finally {
     // Release idempotency lock
-    await redis.del(lockKey).catch(() => {});
+    await redis.del(lockKey).catch(err => logger.warn('Redis cleanup failed', { error: err.message }));
     // Cleanup temp reference image file
     if (photoUrl && !photoUrl.startsWith('http') && fs.existsSync(photoUrl)) {
       try { fs.unlinkSync(photoUrl); } catch { /* ignore */ }

@@ -32,6 +32,7 @@ import { getOmniRouteService } from "@/services/omniroute.service";
 import jwt from "jsonwebtoken";
 import * as fs from "fs";
 import * as path from "path";
+import { logger } from "@/utils/logger";
 import crypto from "crypto";
 import { validateUrl } from "@/utils/url-validator";
 
@@ -352,7 +353,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (jobError: any) {
         // Refund credits — job was never actually created/queued
-        await UserService.refundCredits(user.telegramId, creditCost, jobId, jobError?.message || 'job creation failed').catch(() => {});
+        await UserService.refundCredits(user.telegramId, creditCost, jobId, jobError?.message || 'job creation failed').catch(err => logger.error('Refund failed', { error: err.message }));
         throw jobError;
       }
 
@@ -446,7 +447,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         });
       } catch (genError: any) {
         // Refund on exception (service crash)
-        await UserService.refundCredits(user.telegramId, IMAGE_CREDIT_COST, `IMG-REFUND-${Date.now()}`, genError?.message || 'exception').catch(() => {});
+        await UserService.refundCredits(user.telegramId, IMAGE_CREDIT_COST, `IMG-REFUND-${Date.now()}`, genError?.message || 'exception').catch(err => logger.error('Refund failed', { error: err.message }));
         throw genError;
       }
 

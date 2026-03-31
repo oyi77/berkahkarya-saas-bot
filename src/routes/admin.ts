@@ -1349,26 +1349,26 @@ You are an expert system administrator and architect for this platform. Give spe
     let dailyRevenue: any[] = [];
     let dailyCosts: any[] = [];
     try {
-      dailyRevenue = await prisma.$queryRawUnsafe(`
+      dailyRevenue = await prisma.$queryRaw`
         SELECT DATE(created_at) as date,
                COALESCE(SUM(amount_idr), 0)::float as revenue_idr,
                COUNT(*)::int as transactions
         FROM transactions
-        WHERE status = 'success' AND created_at >= $1
+        WHERE status = 'success' AND created_at >= ${since}
         GROUP BY DATE(created_at)
         ORDER BY date
-      `, since);
+      `;
 
-      dailyCosts = await prisma.$queryRawUnsafe(`
+      dailyCosts = await prisma.$queryRaw`
         SELECT DATE(created_at) as date,
                COALESCE(SUM(cost_idr), 0)::float as cost_idr,
                COALESCE(SUM(cost_usd), 0)::float as cost_usd,
                COUNT(*)::int as api_calls
         FROM token_usage
-        WHERE created_at >= $1
+        WHERE created_at >= ${since}
         GROUP BY DATE(created_at)
         ORDER BY date
-      `, since);
+      `;
     } catch { /* raw queries may fail on some DB configs */ }
 
     const totalRevenueIdr = Number(revenue._sum.amountIdr || 0);

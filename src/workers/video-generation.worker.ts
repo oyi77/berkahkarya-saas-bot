@@ -159,7 +159,7 @@ async function concatenateVideos(
 async function generateVOScript(
   niche: string,
   storyboard: Array<{ scene?: number; duration: number; description: string }>,
-  platform: string,
+  _platform: string,
   totalDuration: number,
   language: string = 'id'
 ): Promise<string> {
@@ -226,7 +226,7 @@ Requirements:
   const usageMeta = response.data?.usageMetadata;
   if (usageMeta) {
     const { trackTokens } = await import('../services/token-tracker.service.js');
-    trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'vo_script_generation', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
+    trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'vo_script_generation', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
   }
 
   return text.trim();
@@ -236,7 +236,7 @@ Requirements:
  * Template-based VO script fallback when Gemini is unavailable.
  */
 function generateVOScriptTemplate(
-  niche: string,
+  _niche: string,
   storyboard: Array<{ scene?: number; duration: number; description: string }>,
   language: string
 ): string {
@@ -983,8 +983,8 @@ async function handleCampaignJobComplete(
     }
   } finally {
     // Cleanup Redis
-    await redis.del(urlsKey).catch(() => {});
-    await redis.del(mergeKey).catch(() => {});
+    await redis.del(urlsKey).catch(err => logger.warn('Redis cleanup failed', { error: err.message }));
+    await redis.del(mergeKey).catch(err => logger.warn('Redis cleanup failed', { error: err.message }));
   }
 }
 
@@ -1005,7 +1005,8 @@ async function sendVideoToUser(
     const webhookUrl = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
     const video = await VideoService.getByJobId(jobId);
     const userId = video?.userId?.toString() || '0';
-    const jwtSecret = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) throw new Error('JWT_SECRET environment variable is required');
     const downloadToken = (await import('jsonwebtoken')).default.sign(
       { telegramId: userId, jobId },
       jwtSecret,

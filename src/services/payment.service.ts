@@ -220,7 +220,7 @@ export class PaymentService {
             notification.order_id
           );
           logger.info(`Subscription activated: ${plan}/${billingCycle} for user ${transaction.userId} via Midtrans`);
-          this.sendFulfillmentNotification(transaction.userId, credits, plan).catch(() => {});
+          this.sendFulfillmentNotification(transaction.userId, credits, plan).catch(err => logger.error('Fulfillment notification failed', { error: err.message }));
         } else {
           const plans = await getSubscriptionPlansAsync();
           const planConfig = plans[transaction.packageName];
@@ -236,7 +236,7 @@ export class PaymentService {
 
           const tierLabel = planConfig?.tier || 'unchanged';
           logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${tierLabel})`);
-          this.sendFulfillmentNotification(transaction.userId, credits, planConfig?.tier || '').catch(() => {});
+          this.sendFulfillmentNotification(transaction.userId, credits, planConfig?.tier || '').catch(err => logger.error('Fulfillment notification failed', { error: err.message }));
         }
 
         await ReferralService.processCommissions(

@@ -89,7 +89,7 @@ Respond with ONLY the JSON, no other text.`,
       // Track Gemini Vision API cost
       const usageMeta = response.data?.usageMetadata;
       if (usageMeta) {
-        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_detection', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
+        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_detection', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
       }
 
       // Parse JSON from response (handle markdown code blocks)
@@ -288,7 +288,7 @@ Respond with ONLY the JSON, no other text.`,
       // Track Gemini Vision API cost
       const usageMeta2 = response.data?.usageMetadata;
       if (usageMeta2) {
-        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_clean', promptTokens: usageMeta2.promptTokenCount || 0, completionTokens: usageMeta2.candidatesTokenCount || 0 }).catch(() => {});
+        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_clean', promptTokens: usageMeta2.promptTokenCount || 0, completionTokens: usageMeta2.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
       }
 
       const jsonStr = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();

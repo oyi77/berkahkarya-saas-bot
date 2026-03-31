@@ -172,7 +172,7 @@ export class UserService {
     // Fire-and-forget low credit warning
     const remaining = Number(updated.creditBalance);
     if (remaining > 0 && remaining < 1) {
-      this.sendLowCreditWarning(telegramId, remaining, updated.language || 'id').catch(() => {});
+      this.sendLowCreditWarning(telegramId, remaining, updated.language || 'id').catch(err => logger.warn('Failed to send low credit warning', { error: err.message }));
     }
 
     return updated;
@@ -247,7 +247,7 @@ export class UserService {
    */
   static async queueRefundRetry(telegramId: bigint, amount: number, jobId: string, reason: string): Promise<void> {
     const entry = JSON.stringify({ telegramId: telegramId.toString(), amount, jobId, reason, attempts: 0, createdAt: Date.now() });
-    await redis.lpush('refund_retry', entry).catch(() => {});
+    await redis.lpush('refund_retry', entry).catch(err => logger.error('Failed to queue refund retry', { error: err.message }));
     logger.warn(`Refund queued for retry: ${jobId} (${amount} credits for user ${telegramId})`);
   }
 

@@ -996,7 +996,7 @@ export class ImageGenerationService {
         }
 
         if (result.success) {
-          await CircuitBreaker.recordSuccess(provider.key).catch(() => {});
+          await CircuitBreaker.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
           logger.info(`🖼️ ${provider.name} succeeded (${mode})`);
           // Track image generation (use fixed token estimate — not token-based billing)
           trackTokens({
@@ -1005,11 +1005,11 @@ export class ImageGenerationService {
             service: 'image_gen',
             promptTokens: 0,
             completionTokens: 0,
-          }).catch(() => {});
+          }).catch(err => logger.warn('Image provider tracking failed', { error: err.message }));
           return result;
         }
       } catch (error: any) {
-        await CircuitBreaker.recordFailure(provider.key).catch(() => {});
+        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
         logger.warn(`🖼️ ${provider.name} failed (${mode}): ${error.message}`);
       }
     }

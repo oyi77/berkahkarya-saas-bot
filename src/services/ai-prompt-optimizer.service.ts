@@ -111,7 +111,7 @@ async function tryGemini(metaPrompt: string): Promise<string | null> {
           service: 'prompt_optimizer',
           promptTokens: usage.promptTokenCount || 0,
           completionTokens: usage.candidatesTokenCount || 0,
-        }).catch(() => {});
+        }).catch(err => logger.warn('Prompt optimizer tracking failed', { error: err.message }));
       }
       logger.info('[AIPromptOptimizer] Gemini succeeded');
       return text.trim();
@@ -152,7 +152,7 @@ async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
           service: 'prompt_optimizer',
           promptTokens: usage.prompt_tokens || 0,
           completionTokens: usage.completion_tokens || 0,
-        }).catch(() => {});
+        }).catch(err => logger.warn('Prompt optimizer tracking failed', { error: err.message }));
       }
       logger.info('[AIPromptOptimizer] OmniRoute succeeded');
       return content.trim();

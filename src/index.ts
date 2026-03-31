@@ -82,7 +82,7 @@ async function main() {
     logger.info("✅ Database connected");
 
     // Seed pricing defaults (first run only)
-    await PaymentSettingsService.initializePricingDefaults().catch(() => {});
+    await PaymentSettingsService.initializePricingDefaults().catch(err => logger.error('Failed to initialize pricing defaults', { error: err.message }));
     logger.info("✅ Pricing config ready");
 
     // Initialize Redis

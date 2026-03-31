@@ -235,7 +235,7 @@ export class OmniRouteService {
           service: 'chat',
           promptTokens: usage.prompt_tokens || 0,
           completionTokens: usage.completion_tokens || 0,
-        }).catch(() => {});
+        }).catch(err => logger.warn('OmniRoute tracking failed', { error: err.message }));
       }
 
       history.push({ role: 'assistant', content });

@@ -7,6 +7,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { trackTokens } from '@/services/token-tracker.service';
+import { logger } from '@/utils/logger';
 
 export interface GrokAskRequest {
   proxy?: string;
@@ -204,7 +205,7 @@ export class GrokApiService {
       if (content) {
         const usage = (resp.data as any)?.usage;
         if (usage) {
-          trackTokens({ provider: 'metaclaw', model: 'meta/llama-3.3-70b-instruct', service: 'grok_chat', promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 }).catch(() => {});
+          trackTokens({ provider: 'metaclaw', model: 'meta/llama-3.3-70b-instruct', service: 'grok_chat', promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
         }
         return { status: 'success', response: content };
       }

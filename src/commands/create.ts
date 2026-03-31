@@ -842,7 +842,8 @@ async function sendSuccessNotification(
     process.env.WEBHOOK_URL || "http://localhost:3000"
   ).replace(/\/webhook.*$/, "");
   const videoUserId = video.userId.toString();
-  const jwtSecret = process.env.JWT_SECRET || "dev-only-secret-do-not-use-in-production";
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) throw new Error('JWT_SECRET environment variable is required');
   const downloadToken = (await import("jsonwebtoken")).default.sign(
     { telegramId: videoUserId, jobId },
     jwtSecret,

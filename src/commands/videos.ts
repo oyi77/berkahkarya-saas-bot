@@ -14,7 +14,8 @@ import { t } from '@/i18n/translations';
 /** Generate a signed download URL for a video job (valid 30d). Never exposes provider CDN URLs. */
 function makeDownloadUrl(jobId: string, userId: string): string {
   const base = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
-  const secret = process.env.JWT_SECRET || 'dev-only-secret-do-not-use-in-production';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET environment variable is required');
   const token = jwt.sign({ telegramId: userId, jobId }, secret, { expiresIn: '30d' });
   return `${base}/video/${jobId}/download?token=${token}`;
 }
