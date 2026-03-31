@@ -17,7 +17,8 @@ export class ProviderSettingsService {
   }
 
   static async updateSettings(settings: { video?: Record<string, { priority: number; enabled?: boolean }>; image?: Record<string, { priority: number; enabled?: boolean }> }) {
-    await redis.set(PROVIDER_KEY, JSON.stringify(settings));
+    // Set with 24h TTL as safety net against stale/corrupt configs
+    await redis.set(PROVIDER_KEY, JSON.stringify(settings), 'EX', 86400);
   }
 
   static async getSortedVideoProviders(): Promise<Array<{ key: string } & VideoProviderConfig>> {

@@ -77,7 +77,8 @@ export class DuitkuService {
     const price = pkg.priceIdr || (pkg as any).price;
     const credits = pkg.credits + (pkg.bonus || 0);
 
-    const orderId = `OC-${Date.now()}-${params.userId}`;
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const orderId = `OC-${Date.now()}-${params.userId}-${random}`;
     const signature = crypto.createHash('md5')
       .update(MERCHANT_CODE + orderId + price + API_KEY)
       .digest('hex');
@@ -154,6 +155,7 @@ export class DuitkuService {
     let newStatus = transaction.status;
     if (params.resultCode === '00') newStatus = 'success';
     else if (params.resultCode === '01') newStatus = 'pending';
+    else if (params.resultCode === '02') newStatus = 'refunded';
     else newStatus = 'failed';
 
     const updateResult = await prisma.transaction.updateMany({
@@ -203,7 +205,39 @@ export class DuitkuService {
         Number(transaction.amountIdr),
         transaction.userId
       );
+    } else if (newStatus === 'refunded') {
+      // Refund: reverse previously granted credits
+      const refundResult = await prisma.transaction.updateMany({
+        where: { orderId: params.merchantOrderId, status: 'success' },
+        data: {
+          status: 'refunded',
+          gatewayTransactionId: params.reference,
+        },
+      });
 
+      if (refundResult.count === 1) {
+        const credits = Number(transaction.creditsAmount) || 0;
+        if (credits > 0) {
+          const user = await prisma.user.findUnique({
+            where: { telegramId: transaction.userId },
+            select: { creditBalance: true },
+          });
+          const currentBalance = Number(user?.creditBalance) || 0;
+          const decrementAmount = Math.min(credits, currentBalance);
+          if (decrementAmount > 0) {
+            await prisma.user.update({
+              where: { telegramId: transaction.userId },
+              data: { creditBalance: { decrement: decrementAmount } },
+            });
+          }
+          logger.info(`Duitku refund: reversed ${decrementAmount} credits for user ${transaction.userId} (order ${params.merchantOrderId})`);
+        }
+      } else {
+        logger.warn(`Duitku refund for ${params.merchantOrderId} — transaction was not in success state, skipping credit reversal`);
+      }
+    }
+
+    if (newStatus === 'success') {
       // Track purchase event
       try {
         const user = await prisma.user.findUnique({

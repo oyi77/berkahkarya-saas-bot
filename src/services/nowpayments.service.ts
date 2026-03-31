@@ -9,6 +9,7 @@ import axios from 'axios';
 import { prisma } from '@/config/database';
 import { getSubscriptionPlansAsync } from '@/config/pricing';
 import { ReferralService } from '@/services/referral.service';
+import { AnalyticsService } from '@/services/analytics.service';
 import { logger } from '@/utils/logger';
 
 const BASE_URL = 'https://api.nowpayments.io/v1';
@@ -54,7 +55,8 @@ export class NowPaymentsService {
     const validCoin = CRYPTO_COINS.find(c => c.id === params.coin);
     if (!validCoin) throw new Error('Invalid coin');
 
-    const orderId = `CRYPTO-${Date.now()}-${params.userId}`;
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const orderId = `CRYPTO-${Date.now()}-${params.userId}-${random}`;
 
     // Create payment on NOWPayments
     const response = await axios.post(
@@ -169,10 +171,92 @@ export class NowPaymentsService {
       }
 
       logger.info(`NOWPayments: ${credits} credits added for user ${transaction.userId} (order ${order_id})`);
+
+      // Track purchase analytics
+      try {
+        const user = await prisma.user.findUnique({
+          where: { telegramId: transaction.userId },
+          select: {
+            username: true,
+            utmSource: true,
+            utmCampaign: true,
+            utmContent: true,
+            lpVariant: true,
+            fbc: true,
+            fbp: true,
+            ttclid: true,
+            createdAt: true,
+          },
+        });
+
+        const daysToConversion = user?.createdAt
+          ? Math.floor((Date.now() - user.createdAt.getTime()) / 86400000)
+          : 0;
+
+        await AnalyticsService.trackPurchase({
+          user_id: transaction.userId.toString(),
+          amount_idr: Number(transaction.amountIdr),
+          transaction_id: order_id,
+          event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+          utm_source: user?.utmSource,
+          utm_campaign: user?.utmCampaign,
+          utm_content: user?.utmContent,
+          lp_variant: user?.lpVariant,
+          fbc: user?.fbc,
+          fbp: user?.fbp,
+          ttclid: user?.ttclid,
+          days_to_conversion: daysToConversion,
+        });
+
+        await prisma.transaction.update({
+          where: { orderId: order_id },
+          data: {
+            utmCampaign: user?.utmCampaign,
+            utmContent: user?.utmContent,
+            lpVariant: user?.lpVariant,
+            daysToConversion,
+          },
+        });
+
+        logger.info(`Analytics tracked for NOWPayments purchase: ${order_id}`);
+      } catch (analyticsError) {
+        logger.warn(`Analytics tracking failed for NOWPayments (non-blocking): ${analyticsError}`);
+      }
+
       return { success: true, message: 'Credits added' };
     }
 
-    if (payment_status === 'failed' || payment_status === 'expired' || payment_status === 'refunded') {
+    if (payment_status === 'refunded') {
+      // Refund: reverse previously granted credits
+      const refundResult = await prisma.transaction.updateMany({
+        where: { orderId: order_id, status: 'success' },
+        data: { status: 'refunded' },
+      });
+
+      if (refundResult.count === 1) {
+        const credits = Number(transaction.creditsAmount) || 0;
+        if (credits > 0) {
+          const user = await prisma.user.findUnique({
+            where: { telegramId: transaction.userId },
+            select: { creditBalance: true },
+          });
+          const currentBalance = Number(user?.creditBalance) || 0;
+          const decrementAmount = Math.min(credits, currentBalance);
+          if (decrementAmount > 0) {
+            await prisma.user.update({
+              where: { telegramId: transaction.userId },
+              data: { creditBalance: { decrement: decrementAmount } },
+            });
+          }
+          logger.info(`NOWPayments refund: reversed ${decrementAmount} credits for user ${transaction.userId} (order ${order_id})`);
+        }
+      } else {
+        logger.warn(`NOWPayments refund for ${order_id} — transaction was not in success state, skipping credit reversal`);
+      }
+      return { success: true, message: 'Payment refunded' };
+    }
+
+    if (payment_status === 'failed' || payment_status === 'expired') {
       await prisma.transaction.update({
         where: { orderId: order_id },
         data: { status: 'failed' },

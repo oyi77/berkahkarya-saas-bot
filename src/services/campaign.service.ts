@@ -172,8 +172,13 @@ export class CampaignService {
   /**
    * Calculate total unit cost for campaign
    */
-  static getCampaignCost(size: CampaignSize): number {
-    return size === 5 ? UNIT_COSTS.CAMPAIGN_5_VIDEO : UNIT_COSTS.CAMPAIGN_10_VIDEO;
+  static getCampaignCost(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): number {
+    const baseCost = size === 5 ? UNIT_COSTS.CAMPAIGN_5_VIDEO : UNIT_COSTS.CAMPAIGN_10_VIDEO;
+    // Scale campaign cost based on duration preset — base cost is for 'standard' (30s)
+    const standardCreditCost = DURATION_PRESETS.standard.creditCost;
+    const presetCreditCost = DURATION_PRESETS[preset].creditCost;
+    const durationMultiplier = presetCreditCost / standardCreditCost;
+    return Math.round(baseCost * durationMultiplier);
   }
 
   /**
@@ -182,7 +187,7 @@ export class CampaignService {
   static getCampaignSavings(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): number {
     const presetCost = DURATION_PRESETS[preset].creditCost;
     const individualTotal = presetCost * size;
-    const campaignCost = this.getCampaignCost(size);
+    const campaignCost = this.getCampaignCost(size, preset);
     return Math.round(((individualTotal - campaignCost) / individualTotal) * 100);
   }
 
@@ -190,7 +195,7 @@ export class CampaignService {
    * Format campaign pricing message for Telegram
    */
   static formatCampaignMessage(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): string {
-    const cost = this.getCampaignCost(size);
+    const cost = this.getCampaignCost(size, preset);
     const savings = this.getCampaignSavings(size, preset);
     const hooks = this.getHookVariations(size);
 

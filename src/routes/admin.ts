@@ -34,6 +34,19 @@ function trackingVars() {
   };
 }
 
+/** Timing-safe string comparison to prevent timing attacks */
+function timingSafeCompare(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    // Compare against self to keep constant time, then return false
+    crypto.timingSafeEqual(bufA, bufA);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 /** HMAC-SHA256 token derived from ADMIN_PASSWORD — not trivially reversible unlike base64 */
 function makeAdminToken(password: string): string {
   return crypto.createHmac('sha256', 'openclaw-admin-v1').update(password).digest('hex');
@@ -48,7 +61,7 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (authHeader?.startsWith("Basic ")) {
     const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
     const [, password] = decoded.split(":");
-    if (password === ADMIN_PASSWORD) return;
+    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) return;
   }
 
   const cookie = (request.headers.cookie || "")
@@ -56,7 +69,7 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
     .find((c) => c.trim().startsWith("admin_token="));
   if (cookie) {
     const token = cookie.split("=")[1]?.trim();
-    if (token === makeAdminToken(ADMIN_PASSWORD)) return;
+    if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD))) return;
   }
 
   reply
@@ -116,7 +129,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       .find((c) => c.trim().startsWith("admin_token="));
     if (cookie) {
       const token = cookie.split("=")[1]?.trim();
-      if (token === makeAdminToken(ADMIN_PASSWORD)) {
+      if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD))) {
         return reply.redirect("/admin/dashboard");
       }
     }
@@ -145,13 +158,14 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     }
 
     const { password } = request.body as { password: string };
-    if (password === ADMIN_PASSWORD) {
+    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) {
       await redis.del(rateLimitKey);
       const token = makeAdminToken(ADMIN_PASSWORD);
+      const secureSuffix = process.env.NODE_ENV === 'production' ? '; Secure' : '';
       return reply
         .header(
           "Set-Cookie",
-          `admin_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
+          `admin_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400${secureSuffix}`,
         )
         .send({ success: true });
     }
@@ -1201,6 +1215,15 @@ You are an expert system administrator and architect for this platform. Give spe
     if (!body || typeof body !== 'object') {
       return reply.status(400).send({ error: "Invalid payload" });
     }
+
+    // Validate pixel IDs to prevent XSS injection
+    const PIXEL_ID_REGEX = /^[a-zA-Z0-9_-]*$/;
+    for (const [key, val] of Object.entries({ fbPixelId: body.fbPixelId, ga4Id: body.ga4Id, ttPixelId: body.ttPixelId })) {
+      if (val && typeof val === 'string' && !PIXEL_ID_REGEX.test(val)) {
+        return reply.status(400).send({ error: `Invalid ${key}: only alphanumeric characters, hyphens, and underscores are allowed` });
+      }
+    }
+
     const config = {
       fbPixelId: body.fbPixelId || '',
       ga4Id: body.ga4Id || '',

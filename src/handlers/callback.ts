@@ -1088,7 +1088,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       if (startPayload?.startsWith("ref_")) {
         const refCode = startPayload.replace("ref_", "");
         const referrer = await UserService.findByReferralCode(refCode);
-        if (referrer) {
+        if (referrer && referrer.telegramId !== BigInt(userId)) {
           referredBy = referrer.uuid;
         }
       }
@@ -3289,11 +3289,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       try {
         const telegramId = BigInt(userId);
-        const sellRateStr = await PaymentSettingsService.get('referral_sell_rate');
-        const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
 
-        // Execute conversion atomically — read balance INSIDE transaction to prevent race condition
+        // Execute conversion atomically — read SELL_RATE and balance INSIDE transaction to prevent race condition
         const result = await prisma.$transaction(async (tx) => {
+          const sellRateStr = await PaymentSettingsService.get('referral_sell_rate');
+          const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
+
           const availableAgg = await tx.commission.aggregate({
             where: { referrerId: telegramId, status: "available" },
             _sum: { amount: true },
@@ -3587,7 +3588,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
   } catch (error) {
     logger.error("Error in callback handler:", error);
     const lang = ctx.session?.userLang || 'id';
-    await ctx.answerCbQuery(t('error.generic', lang));
+    // Reset state to DASHBOARD so user doesn't get stuck
+    if (ctx.session) {
+      ctx.session.state = 'DASHBOARD';
+      ctx.session.stateData = {};
+    }
+    try {
+      await ctx.answerCbQuery(t('error.generic', lang));
+    } catch { /* answer may have already been sent */ }
   }
 }
 

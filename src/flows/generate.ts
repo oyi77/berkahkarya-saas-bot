@@ -171,13 +171,19 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     // Free trial check for image_set (welcome bonus / daily free)
     let useFreeSlot = false;
     if (unitBalance < cost && action === 'image_set') {
-      const { canUseWelcomeBonus, canUseDailyFree } = await import('../config/free-trial.js');
+      const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
       if (canUseWelcomeBonus(user)) {
+        // Atomic check-and-set to prevent double-claim on concurrent requests
+        const updated = await prisma.user.updateMany({
+          where: { id: user.id, welcomeBonusUsed: false },
+          data: { welcomeBonusUsed: true },
+        });
+        if (updated.count > 0) {
+          useFreeSlot = true;
+        }
+      }
+      if (!useFreeSlot && canUseDailyFree(user)) {
         useFreeSlot = true;
-        await prisma.user.update({ where: { id: user.id }, data: { welcomeBonusUsed: true } });
-      } else if (canUseDailyFree(user)) {
-        useFreeSlot = true;
-        const { getNextDailyFreeReset } = await import('../config/free-trial.js');
         await prisma.user.update({ where: { id: user.id }, data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() } });
       }
     }

@@ -5,14 +5,14 @@
  * for storyboard / transcript / scene prompt extraction.
  */
 
-import { exec } from 'child_process';
+import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '@/utils/logger';
 import axios from 'axios';
 
-const execAsync = promisify(exec);
+const execFile = promisify(execFileCb);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -145,11 +145,10 @@ export class VideoAnalysisService {
         // Use full path because pm2/child_process may not include ~/.local/bin in PATH
         const ytdlpBin = '/home/openclaw/.local/bin/yt-dlp';
         const ytdlpCmd = require('fs').existsSync(ytdlpBin) ? ytdlpBin : 'yt-dlp';
-        await execAsync(
-          `${ytdlpCmd} --no-playlist -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" ` +
-          `--merge-output-format mp4 -o "${tempPath}" "${videoUrl}"`,
-          { timeout: 120_000 },
-        );
+        await execFile(ytdlpCmd, [
+          '--no-playlist', '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+          '--merge-output-format', 'mp4', '-o', tempPath, videoUrl,
+        ], { timeout: 120_000 });
       } else {
         const { execFile: execFileCb } = await import('child_process');
         const { promisify: prom } = await import('util');
@@ -168,10 +167,9 @@ export class VideoAnalysisService {
     // ── 2. Get duration ────────────────────────────────────────────────────
     let totalDuration = 15;
     try {
-      const { stdout } = await execAsync(
-        `ffprobe -v error -show_entries format=duration -of csv=p=0 "${tempPath}"`,
-        { timeout: 15_000 },
-      );
+      const { stdout } = await execFile('ffprobe', [
+        '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', tempPath,
+      ], { timeout: 15_000 });
       const parsed = parseFloat(stdout.trim());
       if (!isNaN(parsed)) totalDuration = Math.round(parsed);
     } catch (err: any) {
@@ -181,10 +179,10 @@ export class VideoAnalysisService {
     // ── 3. Extract frames (1 per 5s, max 8) ───────────────────────────────
     const keyFramePaths: string[] = [];
     try {
-      await execAsync(
-        `ffmpeg -y -i "${tempPath}" -vf "fps=1/5,scale=640:-1" -q:v 2 "${framesDir}/frame_%03d.jpg"`,
-        { timeout: 15_000 },
-      );
+      await execFile('ffmpeg', [
+        '-y', '-i', tempPath, '-vf', 'fps=1/5,scale=640:-1', '-q:v', '2',
+        path.join(framesDir, 'frame_%03d.jpg'),
+      ], { timeout: 15_000 });
       const files = fs.readdirSync(framesDir)
         .filter(f => f.endsWith('.jpg'))
         .sort()

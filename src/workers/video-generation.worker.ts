@@ -391,6 +391,12 @@ async function processSingleScene(
 
   if (!result.success || !result.videoUrl) {
     cancelTimeout();
+    // Check if already refunded (prevent double refund on BullMQ retry)
+    const existingVideo = await VideoService.getByJobId(jobId);
+    if (existingVideo?.status === 'failed') {
+      logger.warn(`Job ${jobId} already failed/refunded — skipping duplicate refund`);
+      return;
+    }
     const creditCost = getVideoCreditCost(duration);
     await VideoService.updateStatus(jobId, 'failed', result.error);
     await UserService.refundCredits(telegramId, creditCost, jobId, result.error || 'Generation failed');
@@ -605,6 +611,12 @@ async function processExtendedScenes(
     await notifyProgress(telegram, chatId, `\ud83c\udfac Scene 1/${scenes} complete (${percent}%)`);
   } catch (err: any) {
     cancelTimeout();
+    // Check if already refunded (prevent double refund on BullMQ retry)
+    const existingVideo = await VideoService.getByJobId(jobId);
+    if (existingVideo?.status === 'failed') {
+      logger.warn(`Job ${jobId} already failed/refunded (scene 1) — skipping duplicate refund`);
+      return;
+    }
     const creditCost = getVideoCreditCost(duration);
     await VideoService.updateStatus(jobId, 'failed', err.message);
     await UserService.refundCredits(telegramId, creditCost, jobId, err.message);
@@ -671,6 +683,12 @@ async function processExtendedScenes(
   const successfulScenes = sceneVideos.filter(p => p && fs.existsSync(p));
   if (successfulScenes.length === 0) {
     cancelTimeout();
+    // Check if already refunded (prevent double refund on BullMQ retry)
+    const existingVideo = await VideoService.getByJobId(jobId);
+    if (existingVideo?.status === 'failed') {
+      logger.warn(`Job ${jobId} already failed/refunded (all scenes) — skipping duplicate refund`);
+      return;
+    }
     const creditCost = getVideoCreditCost(duration);
     await VideoService.updateStatus(jobId, 'failed', 'All scenes failed');
     await UserService.refundCredits(telegramId, creditCost, jobId, 'All scenes failed');
@@ -1110,15 +1128,21 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
 
         // Last-resort refund and notification
         try {
-          const telegramId = BigInt(job.data.userId);
-          const creditCost = getVideoCreditCost(job.data.duration);
-          await VideoService.updateStatus(job.data.jobId, 'failed', error.message);
-          await UserService.refundCredits(telegramId, creditCost, job.data.jobId, error.message);
-          const workerUserMessage = actionableError(error.message, { jobId: job.data.jobId });
-          await telegram.sendMessage(
-            job.data.chatId,
-            `Video generation failed\n\nJob ID: ${job.data.jobId}\n${workerUserMessage}\n\nCredits refunded.`,
-          );
+          // Check if already refunded (prevent double refund on BullMQ retry)
+          const existingVideo = await VideoService.getByJobId(job.data.jobId);
+          if (existingVideo?.status === 'failed') {
+            logger.warn(`Job ${job.data.jobId} already failed/refunded (catch) — skipping duplicate refund`);
+          } else {
+            const telegramId = BigInt(job.data.userId);
+            const creditCost = getVideoCreditCost(job.data.duration);
+            await VideoService.updateStatus(job.data.jobId, 'failed', error.message);
+            await UserService.refundCredits(telegramId, creditCost, job.data.jobId, error.message);
+            const workerUserMessage = actionableError(error.message, { jobId: job.data.jobId });
+            await telegram.sendMessage(
+              job.data.chatId,
+              `Video generation failed\n\nJob ID: ${job.data.jobId}\n${workerUserMessage}\n\nCredits refunded.`,
+            );
+          }
         } catch (refundErr) {
           logger.error('Failed to handle job failure cleanup:', refundErr);
         }

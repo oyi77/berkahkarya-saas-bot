@@ -333,10 +333,14 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
           // Deduct 0.2 credits for paid users
           await UserService.deductCredits(telegramId, 0.2);
         } else if (bonusType === "welcome") {
-          await prisma.user.update({
-            where: { id: dbUser.id },
+          // Atomic check-and-set to prevent double-claim on concurrent requests
+          const updated = await prisma.user.updateMany({
+            where: { id: dbUser.id, welcomeBonusUsed: false },
             data: { welcomeBonusUsed: true },
           });
+          if (updated.count === 0) {
+            throw new Error("Welcome bonus already used");
+          }
         } else {
           await prisma.user.update({
             where: { id: dbUser.id },

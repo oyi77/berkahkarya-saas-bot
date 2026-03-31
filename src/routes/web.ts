@@ -33,12 +33,12 @@ import jwt from "jsonwebtoken";
 import * as fs from "fs";
 import * as path from "path";
 import crypto from "crypto";
+import { validateUrl } from "@/utils/url-validator";
 
-const getJwtSecret = () =>
-  process.env.JWT_SECRET || "dev-only-secret-do-not-use-in-production";
-if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is required in production");
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
 }
+const getJwtSecret = (): string => process.env.JWT_SECRET!;
 const BOT_TOKEN = process.env.BOT_TOKEN || "";
 
 // ─── Landing Page ───────────────────────────────────────────────────────────
@@ -262,9 +262,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         hashtags: [`#${niche}`, "#AIVideo", "#BerkahKarya", "#ViralContent"],
       };
     } catch (error: any) {
+      server.log.error({ error }, "Storyboard error");
       return reply
         .status(500)
-        .send({ error: error.message || "Failed to generate storyboard" });
+        .send({ error: "Failed to generate storyboard" });
     }
   });
 
@@ -283,6 +284,15 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       } = request.body as any;
       if (!niche || !duration)
         return reply.status(400).send({ error: "niche and duration required" });
+
+      // Validate user-supplied URL to prevent SSRF
+      if (referenceImageUrl) {
+        try {
+          validateUrl(referenceImageUrl);
+        } catch (urlErr: any) {
+          return reply.status(400).send({ error: urlErr.message });
+        }
+      }
 
       const creditCost = await getVideoCreditCostAsync(duration);
       if (Number(user.creditBalance) < creditCost) {
@@ -351,7 +361,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       server.log.error({ error }, "Video create error");
       return reply
         .status(500)
-        .send({ error: error.message || "Failed to create video" });
+        .send({ error: "Failed to create video" });
     }
   });
 
@@ -362,6 +372,12 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     try {
       const { videoUrl } = request.body as any;
       if (!videoUrl) return reply.status(400).send({ error: "videoUrl is required" });
+
+      try {
+        validateUrl(videoUrl);
+      } catch (urlErr: any) {
+        return reply.status(400).send({ error: urlErr.message });
+      }
 
       const { VideoAnalysisService } = await import("@/services/video-analysis.service.js");
       const result = await VideoAnalysisService.analyze(videoUrl);
@@ -382,7 +398,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       };
     } catch (error: any) {
       server.log.error({ error }, "Video analyze error");
-      return reply.status(500).send({ error: error.message || "Failed to analyze video" });
+      return reply.status(500).send({ error: "Failed to analyze video" });
     }
   });
 
@@ -397,6 +413,17 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       } = request.body as any;
       if (!prompt)
         return reply.status(400).send({ error: "prompt is required" });
+
+      // Validate user-supplied URLs to prevent SSRF
+      for (const url of [referenceImageUrl, avatarImageUrl]) {
+        if (url) {
+          try {
+            validateUrl(url);
+          } catch (urlErr: any) {
+            return reply.status(400).send({ error: urlErr.message });
+          }
+        }
+      }
 
       const IMAGE_CREDIT_COST = await getImageCreditCostAsync();
       if (Number(user.creditBalance) < IMAGE_CREDIT_COST) {
@@ -436,7 +463,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       };
     } catch (error: any) {
       server.log.error({ error }, "Image generate error");
-      return reply.status(500).send({ error: error.message || "Failed to generate image" });
+      return reply.status(500).send({ error: "Failed to generate image" });
     }
   });
 
@@ -447,6 +474,12 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     try {
       const { imageUrl } = request.body as any;
       if (!imageUrl) return reply.status(400).send({ error: "imageUrl is required" });
+
+      try {
+        validateUrl(imageUrl);
+      } catch (urlErr: any) {
+        return reply.status(400).send({ error: urlErr.message });
+      }
 
       const { ContentAnalysisService } = await import("@/services/content-analysis.service.js");
       const result = await ContentAnalysisService.extractPrompt(imageUrl, "image");
@@ -463,7 +496,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       };
     } catch (error: any) {
       server.log.error({ error }, "Image describe error");
-      return reply.status(500).send({ error: error.message || "Failed to describe image" });
+      return reply.status(500).send({ error: "Failed to describe image" });
     }
   });
 
@@ -504,7 +537,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       }
       return result;
     } catch (error: any) {
-      return reply.status(500).send({ error: error.message });
+      server.log.error({ error }, "Payment create error");
+      return reply.status(500).send({ error: "Failed to create payment" });
     }
   });
 
@@ -554,7 +588,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return { ok: true };
     } catch (error: any) {
       server.log.error({ error }, "Video delete error");
-      return reply.status(500).send({ error: error.message || "Failed to delete video" });
+      return reply.status(500).send({ error: "Failed to delete video" });
     }
   });
 
@@ -577,7 +611,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         createdAt: video.createdAt,
       };
     } catch (error: any) {
-      return reply.status(500).send({ error: error.message || "Failed to get video status" });
+      server.log.error({ error }, "Video status error");
+      return reply.status(500).send({ error: "Failed to get video status" });
     }
   });
 
@@ -610,7 +645,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         sellRate,
       };
     } catch (error: any) {
-      return reply.status(500).send({ error: error.message || "Failed to fetch referral info" });
+      server.log.error({ error }, "Referral info error");
+      return reply.status(500).send({ error: "Failed to fetch referral info" });
     }
   });
 
@@ -691,7 +727,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return { ok: true, action: "sell_admin", cashoutAmount, commissionUsed: available };
     } catch (error: any) {
       server.log.error({ error }, "Referral withdraw error");
-      return reply.status(500).send({ error: error.message || "Failed to process withdrawal" });
+      return reply.status(500).send({ error: "Failed to process withdrawal" });
     }
   });
 
@@ -772,7 +808,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return { ok: true, ...result, plan: planKey, cycle: billingCycle, amountIdr: price };
     } catch (error: any) {
       server.log.error({ error }, "Subscription buy error");
-      return reply.status(500).send({ error: error.message || "Failed to create subscription payment" });
+      return reply.status(500).send({ error: "Failed to create subscription payment" });
     }
   });
 
@@ -786,7 +822,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return { ok: true };
     } catch (error: any) {
       server.log.error({ error }, "Subscription cancel error");
-      return reply.status(500).send({ error: error.message || "Failed to cancel subscription" });
+      return reply.status(500).send({ error: "Failed to cancel subscription" });
     }
   });
 

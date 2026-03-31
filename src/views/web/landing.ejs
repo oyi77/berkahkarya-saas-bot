@@ -898,8 +898,12 @@
     <!-- Video Showcase - Clean Thumbnail -->
   <section class="video-showcase-clean">
     <div class="container">
+        <!-- Video Showcase - Clean Thumbnail -->
+  <section class="video-showcase-clean">
+    <div class="container">
       <h2 class="showcase-title" id="showcase-title">Lihat Hasil Nyata dari AI Kami 🎬</h2>
       <p class="showcase-desc" id="showcase-desc">Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik</p>
+      </p>
       </p>
       
       <div class="video-cards-grid">
@@ -989,7 +993,7 @@
       document.body.style.overflow = "auto";
     }    
     // Language toggle for showcase i18n
-    function toggleLanguage() {
+        function toggleLanguage() {
       var currentLang = localStorage.getItem('oc_lang') || 'id';
       var newLang = currentLang === 'id' ? 'en' : 'id';
       localStorage.setItem('oc_lang', newLang);
@@ -997,14 +1001,16 @@
       // Update button
       document.getElementById('langBtn').textContent = newLang === 'id' ? 'ID' : 'EN';
       
-      // Update showcase text
-      var titleText = newLang === 'id' ? 'Lihat Hasil Nyata dari AI Kami 🎬' : 'See Real Results from Our AI 🎬';
-      var descText = newLang === 'id' ? 'Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik' : 'These viral videos were created with Vilona OpenClaw — from just 1 product photo to professional video in 60 seconds';
-      var ctaText = newLang === 'id' ? '🚀 Buat Video Seperti Ini Sekarang' : '🚀 Create Videos Like This Now';
-      
-      document.getElementById('showcase-title').textContent = titleText;
-      document.getElementById('showcase-desc').textContent = descText;
-      document.getElementById('showcase-cta').textContent = ctaText;
+      // Update showcase text SINGLE
+      if (newLang === 'en') {
+        document.getElementById('showcase-title').textContent = 'See Real Results from Our AI 🎬';
+        document.getElementById('showcase-desc').textContent = 'These viral videos were created with Vilona OpenClaw — from just 1 product photo to professional video in 60 seconds';
+        document.getElementById('showcase-cta').textContent = '🚀 Create Videos Like This Now';
+      } else {
+        document.getElementById('showcase-title').textContent = 'Lihat Hasil Nyata dari AI Kami 🎬';
+        document.getElementById('showcase-desc').textContent = 'Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik';
+        document.getElementById('showcase-cta').textContent = '🚀 Buat Video Seperti Ini Sekarang';
+      }
     });
       document.querySelectorAll('[data-i18n-en]').forEach(function(el) {
         el.style.display = newLang === 'en' ? '' : 'none';

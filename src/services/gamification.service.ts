@@ -121,7 +121,10 @@ export class GamificationService {
     newBadges: BadgeDefinition[];
     streakMessage?: string;
   }> {
-    const today = new Date();
+    // Use WIB (UTC+7) for streak tracking since most users are in Indonesia
+    const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+    const nowWib = new Date(Date.now() + WIB_OFFSET_MS);
+    const today = new Date(nowWib);
     today.setHours(0, 0, 0, 0);
 
     let rewardCredit = 0;
@@ -219,17 +222,22 @@ export class GamificationService {
 
       for (const badge of Object.values(BADGES)) {
         if (!existingIds.has(badge.id) && badge.condition(stats)) {
-          await (prisma as any).userBadge.create({
-            data: { userId, badgeId: badge.id },
-          });
-          newBadges.push(badge);
+          // Use upsert to prevent duplicate badge award from concurrent calls
+          const created = await (prisma as any).userBadge.upsert({
+            where: { userId_badgeId: { userId, badgeId: badge.id } },
+            update: {}, // no-op if already exists
+            create: { userId, badgeId: badge.id },
+          }).catch(() => null);
 
-          // Award badge credit if any
-          if (badge.creditReward) {
-            await prisma.user.update({
-              where: { id: userId },
-              data: { creditBalance: { increment: badge.creditReward } },
-            });
+          // Only award credit if we actually created a new badge (not a no-op upsert)
+          if (created) {
+            newBadges.push(badge);
+            if (badge.creditReward) {
+              await prisma.user.update({
+                where: { id: userId },
+                data: { creditBalance: { increment: badge.creditReward } },
+              });
+            }
           }
         }
       }
@@ -295,24 +303,25 @@ export class GamificationService {
 
     const rewards = [2.0, 1.0, 0.5]; // Top 3 credit rewards
 
-    const result = await Promise.all(
-      leaderboard.map(async (entry, index) => {
-        const user = await prisma.user.findUnique({
-          where: { id: entry.userId },
-          select: { firstName: true, username: true },
-        });
-        return {
-          rank: index + 1,
-          userId: entry.userId,
-          firstName: user?.firstName || 'User',
-          username: user?.username || undefined,
-          generateCount: entry._count.id,
-          creditReward: rewards[index] || 0,
-        };
-      })
-    );
+    // Batch fetch all users in one query instead of N+1
+    const userIds = leaderboard.map(e => e.userId);
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, username: true },
+    });
+    const userMap = new Map(users.map(u => [u.id.toString(), u]));
 
-    return result;
+    return leaderboard.map((entry, index) => {
+      const user = userMap.get(entry.userId.toString());
+      return {
+        rank: index + 1,
+        userId: entry.userId,
+        firstName: user?.firstName || 'User',
+        username: user?.username || undefined,
+        generateCount: entry._count.id,
+        creditReward: rewards[index] || 0,
+      };
+    });
   }
 
   /**

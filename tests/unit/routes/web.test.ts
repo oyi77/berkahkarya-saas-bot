@@ -636,7 +636,7 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Generation failed" });
+      expect(reply.send).toHaveBeenCalledWith({ error: "Failed to generate storyboard" });
     });
   });
 
@@ -789,7 +789,7 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Deduct failed" });
+      expect(reply.send).toHaveBeenCalledWith({ error: "Failed to create video" });
     });
   });
 
@@ -929,7 +929,7 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Payment failed" });
+      expect(reply.send).toHaveBeenCalledWith({ error: "Failed to create payment" });
     });
   });
 

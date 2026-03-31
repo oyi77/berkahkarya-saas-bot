@@ -8,7 +8,9 @@ import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { ReferralService } from '@/services/referral.service';
-import { getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
+import { SubscriptionService } from '@/services/subscription.service';
+import { AnalyticsService } from '@/services/analytics.service';
+import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import crypto from 'crypto';
 import { Telegraf } from 'telegraf';
 
@@ -203,36 +205,131 @@ export class PaymentService {
       });
 
       if (updateResult.count === 1) {
-        // This process won the race — add credits exactly once.
+        // This process won the race — process exactly once.
         const credits = Number(transaction.creditsAmount) || 0;
 
-        const plans = await getSubscriptionPlansAsync();
-        const plan = plans[transaction.packageName];
-        const userUpdateData: any = { creditBalance: { increment: credits } };
-        if (plan && plan.tier) {
-          userUpdateData.tier = plan.tier; // Only set tier for subscription packages
+        if (transaction.type === 'subscription') {
+          const parts = transaction.packageName.split('_');
+          const plan = parts[0] as PlanKey;
+          const billingCycle: BillingCycle = parts[1] === 'annual' ? 'annual' : 'monthly';
+
+          await SubscriptionService.createSubscription(
+            transaction.userId,
+            plan,
+            billingCycle,
+            notification.order_id
+          );
+          logger.info(`Subscription activated: ${plan}/${billingCycle} for user ${transaction.userId} via Midtrans`);
+          this.sendFulfillmentNotification(transaction.userId, credits, plan).catch(() => {});
+        } else {
+          const plans = await getSubscriptionPlansAsync();
+          const planConfig = plans[transaction.packageName];
+          const userUpdateData: any = { creditBalance: { increment: credits } };
+          if (planConfig && planConfig.tier) {
+            userUpdateData.tier = planConfig.tier;
+          }
+
+          await prisma.user.update({
+            where: { telegramId: transaction.userId },
+            data: userUpdateData,
+          });
+
+          const tierLabel = planConfig?.tier || 'unchanged';
+          logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${tierLabel})`);
+          this.sendFulfillmentNotification(transaction.userId, credits, planConfig?.tier || '').catch(() => {});
         }
-
-        await prisma.user.update({
-          where: { telegramId: transaction.userId },
-          data: userUpdateData,
-        });
-
-        const tierLabel = plan?.tier || 'unchanged';
-        logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${tierLabel})`);
-
-        this.sendFulfillmentNotification(transaction.userId, credits, plan?.tier || '').catch(() => {});
 
         await ReferralService.processCommissions(
           notification.order_id,
           Number(transaction.amountIdr),
           transaction.userId
         );
+
+        // Track purchase analytics
+        try {
+          const user = await prisma.user.findUnique({
+            where: { telegramId: transaction.userId },
+            select: {
+              username: true,
+              utmSource: true,
+              utmCampaign: true,
+              utmContent: true,
+              lpVariant: true,
+              fbc: true,
+              fbp: true,
+              ttclid: true,
+              createdAt: true,
+            },
+          });
+
+          const daysToConversion = user?.createdAt
+            ? Math.floor((Date.now() - user.createdAt.getTime()) / 86400000)
+            : 0;
+
+          await AnalyticsService.trackPurchase({
+            user_id: transaction.userId.toString(),
+            amount_idr: Number(transaction.amountIdr),
+            transaction_id: notification.order_id,
+            event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+            utm_source: user?.utmSource,
+            utm_campaign: user?.utmCampaign,
+            utm_content: user?.utmContent,
+            lp_variant: user?.lpVariant,
+            fbc: user?.fbc,
+            fbp: user?.fbp,
+            ttclid: user?.ttclid,
+            days_to_conversion: daysToConversion,
+          });
+
+          await prisma.transaction.update({
+            where: { orderId: notification.order_id },
+            data: {
+              utmCampaign: user?.utmCampaign,
+              utmContent: user?.utmContent,
+              lpVariant: user?.lpVariant,
+              daysToConversion,
+            },
+          });
+
+          logger.info(`Analytics tracked for Midtrans purchase: ${notification.order_id}`);
+        } catch (analyticsError) {
+          logger.warn(`Analytics tracking failed for Midtrans (non-blocking): ${analyticsError}`);
+        }
       } else {
         logger.warn(`Duplicate webhook for ${notification.order_id} — already processed, skipping credit addition`);
       }
+    } else if (newStatus === 'refunded') {
+      // Refund: reverse previously granted credits
+      const refundResult = await prisma.transaction.updateMany({
+        where: { orderId: notification.order_id, status: 'success' },
+        data: {
+          status: 'refunded',
+          paymentMethod: notification.payment_type,
+        },
+      });
+
+      if (refundResult.count === 1) {
+        const credits = Number(transaction.creditsAmount) || 0;
+        if (credits > 0) {
+          const user = await prisma.user.findUnique({
+            where: { telegramId: transaction.userId },
+            select: { creditBalance: true },
+          });
+          const currentBalance = Number(user?.creditBalance) || 0;
+          const decrementAmount = Math.min(credits, currentBalance);
+          if (decrementAmount > 0) {
+            await prisma.user.update({
+              where: { telegramId: transaction.userId },
+              data: { creditBalance: { decrement: decrementAmount } },
+            });
+          }
+          logger.info(`Refund: reversed ${decrementAmount} credits for user ${transaction.userId} (order ${notification.order_id})`);
+        }
+      } else {
+        logger.warn(`Refund webhook for ${notification.order_id} — transaction was not in success state, skipping credit reversal`);
+      }
     } else {
-      // Non-success (pending, failed, expired, refunded): plain update.
+      // Non-success (pending, failed, expired): plain update.
       await prisma.transaction.update({
         where: { orderId: notification.order_id },
         data: {

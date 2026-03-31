@@ -195,6 +195,45 @@ async function main() {
       viewExt: "ejs",
     });
 
+    // ── Security headers ──────────────────────────────────────────────────
+    server.addHook('onSend', async (_request, reply) => {
+      reply.header('X-Content-Type-Options', 'nosniff');
+      reply.header('X-Frame-Options', 'DENY');
+      reply.header('X-XSS-Protection', '1; mode=block');
+    });
+
+    // ── CORS ────────────────────────────────────────────────────────────────
+    const corsOrigin = process.env.CORS_ORIGIN || process.env.WEBHOOK_URL || process.env.WEB_APP_URL || '';
+    server.addHook('onSend', async (request, reply) => {
+      const origin = request.headers.origin;
+      if (origin && corsOrigin) {
+        const allowedOrigins = corsOrigin.split(',').map((o: string) => o.trim());
+        if (allowedOrigins.includes(origin)) {
+          reply.header('Access-Control-Allow-Origin', origin);
+          reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+          reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+          reply.header('Access-Control-Allow-Credentials', 'true');
+          reply.header('Vary', 'Origin');
+        }
+      }
+    });
+
+    // Handle CORS preflight
+    server.options('/*', async (request, reply) => {
+      const origin = request.headers.origin;
+      if (origin && corsOrigin) {
+        const allowedOrigins = corsOrigin.split(',').map((o: string) => o.trim());
+        if (allowedOrigins.includes(origin)) {
+          reply.header('Access-Control-Allow-Origin', origin);
+          reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+          reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+          reply.header('Access-Control-Allow-Credentials', 'true');
+          reply.header('Access-Control-Max-Age', '86400');
+        }
+      }
+      return reply.status(204).send();
+    });
+
     logger.info("🌐 Setting up routes...");
     await server.register(healthCheckRoutes);
     await server.register(webhookRoutes, { bot });

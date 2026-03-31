@@ -239,6 +239,7 @@ describe('GamificationService.getWeeklyLeaderboard', () => {
   it('returns empty array when no videos this week', async () => {
     // groupBy returns empty
     (mockPrisma as any).video.groupBy = jest.fn<any>().mockResolvedValue([]);
+    (mockPrisma as any).user.findMany = jest.fn<any>().mockResolvedValue([]);
     const board = await GamificationService.getWeeklyLeaderboard();
     expect(Array.isArray(board)).toBe(true);
     expect(board.length).toBe(0);
@@ -248,9 +249,9 @@ describe('GamificationService.getWeeklyLeaderboard', () => {
     (mockPrisma as any).video.groupBy = jest.fn<any>().mockResolvedValue([
       { userId: 1001n, _count: { id: 8 } },
     ]);
-    (mockPrisma as any).user.findUnique = jest.fn<any>().mockResolvedValue({
-      firstName: 'Alice', username: 'alice',
-    });
+    (mockPrisma as any).user.findMany = jest.fn<any>().mockResolvedValue([
+      { id: 1001n, firstName: 'Alice', username: 'alice' },
+    ]);
     const board = await GamificationService.getWeeklyLeaderboard();
     expect(Array.isArray(board)).toBe(true);
     if (board.length > 0) {

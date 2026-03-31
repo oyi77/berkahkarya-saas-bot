@@ -874,7 +874,23 @@ export class ImageGenerationService {
 
     logger.info(`🖼️ Enriched prompt (${enriched.full.length} chars): ${enriched.full.slice(0, 100)}...`);
 
-    const providers = getProviders();
+    let providers = getProviders();
+
+    // Apply admin dynamic overrides (disable/reorder providers via dashboard)
+    try {
+      const { ProviderSettingsService } = await import('./provider-settings.service.js');
+      const overrides = await ProviderSettingsService.getDynamicSettings();
+      const imageOverrides = overrides?.image || {};
+      if (Object.keys(imageOverrides).length > 0) {
+        providers = providers
+          .map(p => {
+            const ov = imageOverrides[p.key];
+            if (ov?.enabled === false) return { ...p, enabled: false };
+            return p;
+          })
+          .filter(p => p.enabled);
+      }
+    } catch { /* ignore — use default ordering */ }
 
     // ── Smart routing: try native providers first, then universal fallback ──
 

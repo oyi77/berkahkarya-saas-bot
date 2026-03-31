@@ -39,7 +39,8 @@ export function canUseWelcomeBonus(user: any): boolean {
 
 export function canUseDailyFree(user: any): boolean {
   if (!FREE_TRIAL_CONFIG.dailyFree.enabled) return false;
-  if (!user.dailyFreeResetAt) return true;
+  // If no reset time is set but daily free was already used, deny access
+  if (!user.dailyFreeResetAt) return !user.dailyFreeUsed;
 
   const now = new Date();
   const resetAt = new Date(user.dailyFreeResetAt);
@@ -47,9 +48,11 @@ export function canUseDailyFree(user: any): boolean {
 }
 
 export function getNextDailyFreeReset(): Date {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0); // 00:00 WIB
-  return tomorrow;
+  // Calculate "tomorrow midnight" in WIB (UTC+7), then convert back to UTC
+  const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const nowWib = new Date(Date.now() + WIB_OFFSET_MS);
+  const tomorrowWib = new Date(nowWib);
+  tomorrowWib.setUTCDate(tomorrowWib.getUTCDate() + 1);
+  tomorrowWib.setUTCHours(0, 0, 0, 0);
+  return new Date(tomorrowWib.getTime() - WIB_OFFSET_MS);
 }

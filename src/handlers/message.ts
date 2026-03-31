@@ -776,10 +776,14 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               });
               await MetricsService.increment('generation_trial_daily');
             } else if (useFreeSlot === 'welcome') {
-              await prisma.user.update({
-                where: { telegramId: telegramIdImg },
+              // Atomic check-and-set to prevent double-claim on concurrent requests
+              const updated = await prisma.user.updateMany({
+                where: { telegramId: telegramIdImg, welcomeBonusUsed: false },
                 data: { welcomeBonusUsed: true },
               });
+              if (updated.count === 0) {
+                logger.warn(`Welcome bonus already used for user ${telegramIdImg} — skipping charge`);
+              }
               await MetricsService.increment('generation_trial_welcome');
             } else if (!isDemo) {
               const actualCost = await getImageCreditCostAsync(result.provider);

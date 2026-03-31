@@ -21,6 +21,10 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
   server.post('/webhook/telegram', async (request, reply) => {
     try {
       const webhookSecret = process.env.WEBHOOK_SECRET;
+      if (!webhookSecret && process.env.NODE_ENV === 'production') {
+        logger.error('WEBHOOK_SECRET is not set in production — rejecting Telegram webhook');
+        return reply.status(503).send({ error: 'Webhook secret not configured' });
+      }
       if (webhookSecret) {
         const secret = request.headers['x-telegram-bot-api-secret-token'];
         if (secret !== webhookSecret) {
@@ -49,7 +53,24 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         transaction_status: body.transaction_status,
         payment_type: body.payment_type,
       });
-      
+
+      // Notify user on payment failure/expiry
+      const midtransFailStatuses = ['deny', 'cancel', 'expire'];
+      if (midtransFailStatuses.includes(body.transaction_status) && body.order_id && bot) {
+        try {
+          const tx = await prisma.transaction.findUnique({ where: { orderId: body.order_id } });
+          if (tx?.userId) {
+            const dbUser = await UserService.findByTelegramId(BigInt(tx.userId));
+            const lang = dbUser?.language || 'id';
+            const tKey = body.transaction_status === 'expire' ? 'payment.expired' : 'payment.failed';
+            await bot.telegram.sendMessage(tx.userId.toString(),
+              t(tKey, lang, { orderId: body.order_id }),
+              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }]] } }
+            ).catch(() => {});
+          }
+        } catch { /* best-effort notification */ }
+      }
+
       return { ok: true };
     } catch (error) {
       logger.error('Midtrans webhook error:', error);
@@ -121,6 +142,10 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
 
       // Verify IPN signature — mandatory when NOWPAYMENTS_IPN_SECRET is configured
       const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
+      if (!ipnSecret && process.env.NODE_ENV === 'production') {
+        logger.error('NOWPAYMENTS_IPN_SECRET is not set in production — rejecting webhook');
+        return reply.status(503).send({ error: 'IPN secret not configured' });
+      }
       if (ipnSecret) {
         const signature = request.headers['x-nowpayments-sig'] as string;
         if (!signature) {
@@ -140,6 +165,23 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       logger.info('NOWPayments webhook received:', body);
 
       const result = await NowPaymentsService.handleWebhook(body);
+
+      // Notify user on payment failure
+      const nowFailStatuses = ['failed', 'expired'];
+      if (nowFailStatuses.includes(body.payment_status) && body.order_id && bot) {
+        try {
+          const tx = await prisma.transaction.findUnique({ where: { orderId: body.order_id } });
+          if (tx?.userId) {
+            const dbUser = await UserService.findByTelegramId(BigInt(tx.userId));
+            const lang = dbUser?.language || 'id';
+            const tKey = body.payment_status === 'expired' ? 'payment.expired' : 'payment.failed';
+            await bot.telegram.sendMessage(tx.userId.toString(),
+              t(tKey, lang, { orderId: body.order_id }),
+              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }]] } }
+            ).catch(() => {});
+          }
+        } catch { /* best-effort notification */ }
+      }
 
       // Send Telegram notification if credits were added
       if (result.success && result.message === 'Credits added' && body.order_id) {

@@ -13,11 +13,11 @@ import { logger } from '@/utils/logger';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
-import { exec as execCallback } from 'child_process';
+import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
 import { trackTokens } from '@/services/token-tracker.service';
 
-const exec = promisify(execCallback);
+const execFile = promisify(execFileCb);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -119,9 +119,10 @@ Respond with ONLY the JSON, no other text.`,
     if (regions.length === 0) return inputPath;
 
     // Get image dimensions
-    const { stdout: probeOut } = await exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${inputPath}"`,
-    );
+    const { stdout: probeOut } = await execFile('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height', '-of', 'csv=p=0', inputPath,
+    ]);
     const [imgW, imgH] = probeOut.trim().split(',').map(Number);
     if (!imgW || !imgH) return inputPath;
 
@@ -137,7 +138,7 @@ Respond with ONLY the JSON, no other text.`,
     const outputPath = inputPath.replace(/(\.\w+)$/, '_clean$1');
     const filterStr = filters.join(',');
 
-    await exec(`ffmpeg -y -i "${inputPath}" -vf "${filterStr}" "${outputPath}" 2>/dev/null`);
+    await execFile('ffmpeg', ['-y', '-i', inputPath, '-vf', filterStr, outputPath]);
 
     if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
       logger.info(`🧹 Watermark removed from image: ${outputPath}`);
@@ -157,9 +158,10 @@ Respond with ONLY the JSON, no other text.`,
     if (regions.length === 0) return inputPath;
 
     // Get video dimensions
-    const { stdout: probeOut } = await exec(
-      `ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${inputPath}"`,
-    );
+    const { stdout: probeOut } = await execFile('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0',
+      '-show_entries', 'stream=width,height', '-of', 'csv=p=0', inputPath,
+    ]);
     const [vidW, vidH] = probeOut.trim().split(',').map(Number);
     if (!vidW || !vidH) return inputPath;
 
@@ -174,10 +176,7 @@ Respond with ONLY the JSON, no other text.`,
     const outputPath = inputPath.replace(/(\.\w+)$/, '_clean$1');
     const filterStr = filters.join(',');
 
-    await exec(
-      `ffmpeg -y -i "${inputPath}" -vf "${filterStr}" -c:a copy "${outputPath}" 2>/dev/null`,
-      { timeout: 120000 },
-    );
+    await execFile('ffmpeg', ['-y', '-i', inputPath, '-vf', filterStr, '-c:a', 'copy', outputPath], { timeout: 120000 });
 
     if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
       logger.info(`🧹 Watermark removed from video: ${outputPath}`);
@@ -233,9 +232,9 @@ Respond with ONLY the JSON, no other text.`,
     try {
       // Extract a frame from the middle to detect watermarks
       const framePath = path.join(WORK_DIR, `wm_frame_${Date.now()}.jpg`);
-      await exec(
-        `ffmpeg -y -i "${videoPath}" -vf "select=eq(n\\,30)" -frames:v 1 "${framePath}" 2>/dev/null`,
-      );
+      await execFile('ffmpeg', [
+        '-y', '-i', videoPath, '-vf', 'select=eq(n\\,30)', '-frames:v', '1', framePath,
+      ]);
 
       if (!fs.existsSync(framePath)) return videoPath;
 

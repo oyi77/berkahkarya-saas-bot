@@ -24,11 +24,10 @@ import {
 import { actionableError } from "@/utils/errors";
 import { t } from "@/i18n/translations";
 import { promisify } from "util";
-import { exec as execCallback, execFile as execFileCallback } from "child_process";
+import { execFile as execFileCallback } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 
-const exec = promisify(execCallback);
 const execFile = promisify(execFileCallback);
 
 // Video storage directory
@@ -670,21 +669,25 @@ async function concatenateVideos(
 
   // Concatenate with xfade crossfade
   if (inputPaths.length === 2) {
-    await exec(
-      `ffmpeg -i "${inputPaths[0]}" -i "${inputPaths[1]}" -filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.5:offset=4.5[v]" -map "[v]" "${outputPath}"`,
-    );
+    await execFile('ffmpeg', [
+      '-i', inputPaths[0], '-i', inputPaths[1],
+      '-filter_complex', '[0:v][1:v]xfade=transition=fade:duration=0.5:offset=4.5[v]',
+      '-map', '[v]', outputPath,
+    ]);
   } else if (inputPaths.length === 3) {
-    await exec(
-      `ffmpeg -i "${inputPaths[0]}" -i "${inputPaths[1]}" -i "${inputPaths[2]}" -filter_complex "[0:v][1:v]xfade=transition=fade:duration=0.5:offset=4.5[v1];[v1][2:v]xfade=transition=fade:duration=0.5:offset=9.5[v]" -map "[v]" "${outputPath}"`,
-    );
+    await execFile('ffmpeg', [
+      '-i', inputPaths[0], '-i', inputPaths[1], '-i', inputPaths[2],
+      '-filter_complex', '[0:v][1:v]xfade=transition=fade:duration=0.5:offset=4.5[v1];[v1][2:v]xfade=transition=fade:duration=0.5:offset=9.5[v]',
+      '-map', '[v]', outputPath,
+    ]);
   } else {
     // Fallback: simple concat without crossfade
     const simpleListPath = path.join(VIDEO_DIR, "simple_list.txt");
     const simpleListContent = inputPaths.map((p) => `file '${p}'`).join("\n");
     fs.writeFileSync(simpleListPath, simpleListContent);
-    await exec(
-      `ffmpeg -f concat -safe 0 -i "${simpleListPath}" -c copy "${outputPath}"`,
-    );
+    await execFile('ffmpeg', [
+      '-f', 'concat', '-safe', '0', '-i', simpleListPath, '-c', 'copy', outputPath,
+    ]);
   }
 }
 

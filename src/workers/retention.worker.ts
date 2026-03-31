@@ -168,7 +168,7 @@ export class RetentionScheduler {
           videos: { none: {} },
           notificationsEnabled: true,
           isBanned: false,
-          updatedAt: { gte: cutoffPrev, lt: cutoff },
+          createdAt: { gte: cutoffPrev, lt: cutoff },
         },
         take: 50,
       });
@@ -318,13 +318,15 @@ export class RetentionScheduler {
 
   private static async canSend(userId: bigint, category: string): Promise<boolean> {
     // Atomic check using Redis setnx to prevent race condition
-    // (two concurrent calls both reading count=0 and both passing)
     const lockKey = `retention_lock:${userId}:${category}`;
     try {
       const { redis } = await import('../config/redis.js');
       const locked = await redis.set(lockKey, '1', 'EX', 10, 'NX');
       if (locked !== 'OK') return false; // Another call is already processing
-    } catch { /* Redis unavailable — fall through to DB check */ }
+    } catch {
+      // Redis unavailable — refuse to send to prevent double-send
+      return false;
+    }
 
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);

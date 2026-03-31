@@ -7,8 +7,10 @@
 import axios from 'axios';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { getPackagesAsync } from '@/config/pricing';
+import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import { ReferralService } from '@/services/referral.service';
+import { SubscriptionService } from '@/services/subscription.service';
+import { AnalyticsService } from '@/services/analytics.service';
 import crypto from 'crypto';
 
 const TRIPAY_API_KEY = process.env.TRIPAY_API_KEY || '';
@@ -53,7 +55,8 @@ export class TripayService {
 
       const price = pkg.priceIdr || (pkg as any).price;
       const credits = pkg.credits + (pkg.bonus || 0);
-      const orderId = `TRP-${Date.now()}-${params.userId}`;
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const orderId = `TRP-${Date.now()}-${params.userId}-${random}`;
 
       const payload = {
         method: 'BRIVA',
@@ -137,6 +140,8 @@ export class TripayService {
         newStatus = 'expired';
       } else if (status === 'FAILED') {
         newStatus = 'failed';
+      } else if (status === 'REFUND') {
+        newStatus = 'refunded';
       }
 
       const updateResult = await prisma.transaction.updateMany({
@@ -152,13 +157,33 @@ export class TripayService {
           // Already processed or status is already success — skip credit grant
           return { success: true, message: 'Already processed' };
         }
-        await prisma.user.update({
-          where: { telegramId: transaction.userId },
-          data: {
-            creditBalance: { increment: Number(transaction.creditsAmount) || 0 },
-          },
-        });
-        logger.info(`Added ${transaction.creditsAmount} credits to user ${transaction.userId} via Tripay`);
+
+        if (transaction.type === 'subscription') {
+          const parts = transaction.packageName.split('_');
+          const plan = parts[0] as PlanKey;
+          const billingCycle: BillingCycle = parts[1] === 'annual' ? 'annual' : 'monthly';
+
+          await SubscriptionService.createSubscription(
+            transaction.userId,
+            plan,
+            billingCycle,
+            merchant_ref
+          );
+          logger.info(`Subscription activated: ${plan}/${billingCycle} for user ${transaction.userId} via Tripay`);
+        } else {
+          const credits = Number(transaction.creditsAmount) || 0;
+          const plans = await getSubscriptionPlansAsync();
+          const plan = plans[transaction.packageName];
+          const userUpdateData: any = { creditBalance: { increment: credits } };
+          if (plan && plan.tier) {
+            userUpdateData.tier = plan.tier;
+          }
+          await prisma.user.update({
+            where: { telegramId: transaction.userId },
+            data: userUpdateData,
+          });
+          logger.info(`Added ${credits} credits to user ${transaction.userId} via Tripay (tier: ${plan?.tier || 'unchanged'})`);
+        }
 
         // Process referral commissions (same as Duitku/Midtrans)
         await ReferralService.processCommissions(
@@ -166,6 +191,84 @@ export class TripayService {
           Number(transaction.amountIdr),
           transaction.userId
         ).catch(err => logger.warn('Tripay referral commission failed (non-blocking):', err));
+
+        // Track purchase analytics
+        try {
+          const user = await prisma.user.findUnique({
+            where: { telegramId: transaction.userId },
+            select: {
+              username: true,
+              utmSource: true,
+              utmCampaign: true,
+              utmContent: true,
+              lpVariant: true,
+              fbc: true,
+              fbp: true,
+              ttclid: true,
+              createdAt: true,
+            },
+          });
+
+          const daysToConversion = user?.createdAt
+            ? Math.floor((Date.now() - user.createdAt.getTime()) / 86400000)
+            : 0;
+
+          await AnalyticsService.trackPurchase({
+            user_id: transaction.userId.toString(),
+            amount_idr: Number(transaction.amountIdr),
+            transaction_id: merchant_ref,
+            event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+            utm_source: user?.utmSource,
+            utm_campaign: user?.utmCampaign,
+            utm_content: user?.utmContent,
+            lp_variant: user?.lpVariant,
+            fbc: user?.fbc,
+            fbp: user?.fbp,
+            ttclid: user?.ttclid,
+            days_to_conversion: daysToConversion,
+          });
+
+          await prisma.transaction.update({
+            where: { orderId: merchant_ref },
+            data: {
+              utmCampaign: user?.utmCampaign,
+              utmContent: user?.utmContent,
+              lpVariant: user?.lpVariant,
+              daysToConversion,
+            },
+          });
+
+          logger.info(`Analytics tracked for Tripay purchase: ${merchant_ref}`);
+        } catch (analyticsError) {
+          logger.warn(`Analytics tracking failed for Tripay (non-blocking): ${analyticsError}`);
+        }
+      } else if (newStatus === 'refunded') {
+        // Refund: reverse previously granted credits
+        const refundResult = await prisma.transaction.updateMany({
+          where: { orderId: merchant_ref, status: 'success' },
+          data: { status: 'refunded' },
+        });
+
+        if (refundResult.count === 1) {
+          const credits = Number(transaction.creditsAmount) || 0;
+          if (credits > 0) {
+            const user = await prisma.user.findUnique({
+              where: { telegramId: transaction.userId },
+              select: { creditBalance: true },
+            });
+            const currentBalance = Number(user?.creditBalance) || 0;
+            const decrementAmount = Math.min(credits, currentBalance);
+            if (decrementAmount > 0) {
+              await prisma.user.update({
+                where: { telegramId: transaction.userId },
+                data: { creditBalance: { decrement: decrementAmount } },
+              });
+            }
+            logger.info(`Tripay refund: reversed ${decrementAmount} credits for user ${transaction.userId} (order ${merchant_ref})`);
+          }
+        } else {
+          logger.warn(`Tripay refund for ${merchant_ref} — transaction was not in success state, skipping credit reversal`);
+        }
       }
 
       return { success: true, message: 'Callback processed' };
