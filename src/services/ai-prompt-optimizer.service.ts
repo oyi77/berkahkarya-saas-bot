@@ -41,6 +41,9 @@ function buildMetaPrompt(rawPrompt: string, context: AIPromptOptimizerContext): 
     ? `\nCRITICAL: A reference image IS provided. THE SUBJECT IN THE REFERENCE IMAGE IS THE REAL SUBJECT. If the original prompt mentions a specific subject (e.g., "steak", "burger", "watch") that differs from the visual category of the reference image, IGNORE that specific subject name and replace it with a general description of the reference image's subject while keeping the STYLE, LIGHTING, and VIBE of the original prompt.`
     : '';
 
+  // Add variation seed so same prompt produces different enrichments each time
+  const variationSeed = Math.random().toString(36).slice(2, 6);
+
   return (
     `You are an expert AI image/video prompt engineer. Your task is to optimize this prompt for maximum quality in AI generation.\n\n` +
     `Original prompt: ${rawPrompt}\n` +
@@ -49,16 +52,19 @@ function buildMetaPrompt(rawPrompt: string, context: AIPromptOptimizerContext): 
     `Rules:\n` +
     `1. Keep the core intent and technical style unchanged.\n` +
     `2. Add specific technical photography/videography terms.\n` +
-    `3. Add lighting, camera, and composition details.\n` +
+    `3. Add lighting, camera, and composition details — choose DIFFERENT lighting setups, camera angles, and color palettes each time.\n` +
     `4. If reference image exists, add "Maintain exact visual identity and subject from the provided reference image."\n` +
     `5. Keep under 200 words.\n` +
-    `6. Output ONLY the optimized prompt, nothing else.\n\n` +
+    `6. Output ONLY the optimized prompt, nothing else.\n` +
+    `7. Add creative variation: choose different composition, mood, time of day, or visual accent for uniqueness. Variation seed: ${variationSeed}\n\n` +
     `Optimized prompt:`
   );
 }
 
 function buildCacheKey(rawPrompt: string, context: AIPromptOptimizerContext): string {
-  const input = `${rawPrompt}|${context.niche}|${context.style}|${context.category || ''}|${context.hasReferenceImage ? '1' : '0'}`;
+  // Include timestamp to ensure each generation gets unique optimization
+  // (otherwise same prompt always gets same cached result = identical images)
+  const input = `${rawPrompt}|${context.niche}|${context.style}|${context.category || ''}|${context.hasReferenceImage ? '1' : '0'}|${Date.now()}`;
   return CACHE_PREFIX + createHash('md5').update(input).digest('hex');
 }
 
