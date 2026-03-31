@@ -17,20 +17,18 @@ export async function errorHandler(err: Error, ctx: BotContext): Promise<void> {
     update: ctx.update,
   });
 
+  // Don't show internal errors to users — they're confusing.
+  // Only log for admin. The specific handler should have already
+  // sent a user-friendly message before the error escaped here.
+  // If we DO need to notify (e.g., completely unhandled), keep it minimal.
   try {
-    // Notify user
-    await ctx.reply(
-      '❌ Oops! Something went wrong.\n\n' +
-      'Our team has been notified. Please try again later or contact support.',
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '💬 Contact Support', callback_data: 'contact_support' }],
-          ],
-        },
-      }
-    );
+    // Only reply if this is a callback query (user tapped a button) — prevents spam
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery('').catch(() => {});
+    }
+    // Don't send error message to user — handlers already handle errors gracefully.
+    // The global error handler is a safety net for truly unhandled exceptions.
   } catch (replyError) {
-    logger.error('Failed to send error message:', replyError);
+    logger.error('Failed in error handler:', replyError);
   }
 }

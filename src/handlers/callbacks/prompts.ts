@@ -5,6 +5,7 @@ import { logger } from "@/utils/logger";
 import { t } from "@/i18n/translations";
 
 export async function handlePromptsCallback(ctx: BotContext, data: string): Promise<boolean> {
+  try {
     // ── PROMPT LIBRARY HANDLERS ───────────────────────────────────────────
     if (data.startsWith("prompts_niche_")) {
       const niche = data.replace("prompts_niche_", "");
@@ -140,12 +141,15 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
         ? `💳 Biaya: 0.2 kredit (sisa: ${dbUser.creditBalance})`
         : `🎁 Menggunakan: ${bonusType}`;
 
+      const lang = dbUser?.language || ctx.from?.language_code || 'id';
+      const promptPreview = prompt.prompt.length > 150 ? prompt.prompt.slice(0, 150) + '...' : prompt.prompt;
       await ctx.editMessageText(
         `✅ *Prompt Dipilih!*\n\n` +
-        `📋 ${prompt.title}\n` +
+        `📋 *${prompt.title}*\n` +
         `🎨 Niche: ${prompt.niche.toUpperCase()}\n\n` +
-        `${costInfo}\n` +
-        `🎬 **Opsi Generate:**`,
+        `📝 _${promptPreview}_\n\n` +
+        `${costInfo}\n\n` +
+        `🎬 *Opsi:*`,
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -158,8 +162,20 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
               ],
               [
                 {
-                  text: "🎨 Generate Image Saja",
+                  text: "🖼️ Generate Image (Text-to-Image)",
                   callback_data: `generate_free_${prompt.id}`,
+                },
+              ],
+              [
+                {
+                  text: "📸 Generate Image + Foto Referensi (i2i)",
+                  callback_data: `generate_i2i_${prompt.id}`,
+                },
+              ],
+              [
+                {
+                  text: "✏️ Edit Prompt Dulu",
+                  callback_data: `edit_prompt_${prompt.id}`,
                 },
               ],
               [
@@ -171,6 +187,61 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
             ],
           },
         },
+      );
+      return true;
+    }
+
+    // i2i from prompt library — ask user to upload reference image first
+    if (data.startsWith("generate_i2i_")) {
+      const promptId = data.replace("generate_i2i_", "");
+      await ctx.answerCbQuery().catch(() => {});
+
+      const { findAnyPrompt } = await import("../../commands/prompts.js");
+      const found = await findAnyPrompt(promptId);
+      if (!found) {
+        await ctx.reply(t('cb.prompt_not_found', ctx.session?.userLang || 'id'));
+        return true;
+      }
+
+      // Save prompt to session and ask for reference image
+      if (ctx.session) {
+        ctx.session.generateProductDesc = found.prompt;
+        ctx.session.state = 'AWAITING_GENERATE_IMAGE';
+        ctx.session.stateData = { ...(ctx.session.stateData || {}), selectedPrompt: found.prompt, selectedPromptId: found.id };
+      }
+      await ctx.editMessageText(
+        `📸 *Image-to-Image Mode*\n\n` +
+        `📋 Prompt: _${found.title}_\n\n` +
+        `Kirim foto referensi untuk generate gambar berdasarkan gaya foto tersebut.\n\nAtau ketik /skip untuk generate tanpa referensi.`,
+        { parse_mode: 'Markdown' },
+      );
+      return true;
+    }
+
+    // Edit prompt before generating
+    if (data.startsWith("edit_prompt_")) {
+      const promptId = data.replace("edit_prompt_", "");
+      await ctx.answerCbQuery().catch(() => {});
+
+      const { findAnyPrompt } = await import("../../commands/prompts.js");
+      const found = await findAnyPrompt(promptId);
+      if (!found) {
+        await ctx.reply(t('cb.prompt_not_found', ctx.session?.userLang || 'id'));
+        return true;
+      }
+
+      // Save prompt to session and let user edit
+      if (ctx.session) {
+        ctx.session.generateProductDesc = found.prompt;
+        ctx.session.state = 'AWAITING_PRODUCT_INPUT';
+        ctx.session.stateData = { ...(ctx.session.stateData || {}), editingPromptId: found.id, editingPromptNiche: found.niche };
+      }
+      await ctx.editMessageText(
+        `✏️ *Edit Prompt*\n\n` +
+        `Prompt saat ini:\n\`${found.prompt}\`\n\n` +
+        `Ketik prompt baru atau modifikasi di atas, lalu kirim.\n` +
+        `Atau kirim foto produk + teks untuk mengganti prompt.`,
+        { parse_mode: 'Markdown' },
       );
       return true;
     }
@@ -351,4 +422,9 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
     }
 
     return false;
+  } catch (err) {
+    logger.error('handlePromptsCallback error:', err);
+    try { await ctx.reply(t('error.generic', ctx.session?.userLang || 'id')); } catch { /* ignore */ }
+    return true;
+  }
 }
