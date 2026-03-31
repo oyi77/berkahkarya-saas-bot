@@ -192,9 +192,10 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       }
 
       const usageMeta = response.data?.usageMetadata;
-      if (usageMeta) {
-        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'content_analysis', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
-      }
+      // Always track — use actual metadata or estimate if missing
+      const promptTokens = usageMeta?.promptTokenCount || (mediaType === 'video' ? 3000 : 2000);
+      const completionTokens = usageMeta?.candidatesTokenCount || (mediaType === 'video' ? 2000 : 1500);
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'content_analysis', promptTokens, completionTokens }).catch(() => {});
 
       return parseGeminiResponse(generatedText);
 
@@ -283,6 +284,10 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
         return fallback;
       }
 
+      // Track clone video analysis cost
+      const cloneVideoMeta = response.data?.usageMetadata;
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'clone_video', promptTokens: cloneVideoMeta?.promptTokenCount || 3000, completionTokens: cloneVideoMeta?.candidatesTokenCount || 2500 }).catch(() => {});
+
       const result = parseGeminiResponse(generatedText);
 
       // Parse storyboard from the response
@@ -361,6 +366,10 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
         fallback.prompt = `Clone style: ${fallback.prompt}`;
         return fallback;
       }
+
+      // Track clone image analysis cost
+      const cloneImgMeta = response.data?.usageMetadata;
+      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'clone_image', promptTokens: cloneImgMeta?.promptTokenCount || 2000, completionTokens: cloneImgMeta?.candidatesTokenCount || 1500 }).catch(() => {});
 
       return parseGeminiResponse(generatedText);
 

@@ -222,6 +222,13 @@ Requirements:
   const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty Gemini response');
 
+  // Track VO script generation cost
+  const usageMeta = response.data?.usageMetadata;
+  if (usageMeta) {
+    const { trackTokens } = await import('../services/token-tracker.service.js');
+    trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'vo_script_generation', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
+  }
+
   return text.trim();
 }
 

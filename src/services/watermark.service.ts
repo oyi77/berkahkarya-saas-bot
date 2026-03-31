@@ -15,6 +15,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { exec as execCallback } from 'child_process';
 import { promisify } from 'util';
+import { trackTokens } from '@/services/token-tracker.service';
 
 const exec = promisify(execCallback);
 
@@ -84,6 +85,12 @@ Respond with ONLY the JSON, no other text.`,
       });
 
       const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      // Track Gemini Vision API cost
+      const usageMeta = response.data?.usageMetadata;
+      if (usageMeta) {
+        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_detection', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(() => {});
+      }
 
       // Parse JSON from response (handle markdown code blocks)
       const jsonStr = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
@@ -278,6 +285,13 @@ Respond with ONLY the JSON, no other text.`,
       });
 
       const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      // Track Gemini Vision API cost
+      const usageMeta2 = response.data?.usageMetadata;
+      if (usageMeta2) {
+        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_clean', promptTokens: usageMeta2.promptTokenCount || 0, completionTokens: usageMeta2.candidatesTokenCount || 0 }).catch(() => {});
+      }
+
       const jsonStr = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       const result = JSON.parse(jsonStr);
 
