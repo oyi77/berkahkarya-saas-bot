@@ -42,8 +42,12 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
         entertainment: "🎬 Entertainment",
       };
 
+      const nicheListLang = ctx.session?.userLang || ctx.from?.language_code || 'id';
       let message = `📚 *Prompt Library: ${nicheLabels[niche] || niche}*\n\n`;
-      message += `Pilih prompt profesional untuk generate image:\n\n`;
+      message += nicheListLang === 'id' ? `Pilih prompt profesional untuk generate image:\n\n`
+        : nicheListLang === 'ru' ? `Выберите профессиональный промпт для генерации изображения:\n\n`
+        : nicheListLang === 'zh' ? `选择专业提示词来生成图片:\n\n`
+        : `Choose a professional prompt to generate images:\n\n`;
 
       const buttons: Array<Array<{ text: string; callback_data: string }>> = [];
 
@@ -60,9 +64,9 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       });
 
       buttons.push([
-        { text: "◀️ Pilih Niche Lain", callback_data: "onboard_claim_trial" },
+        { text: t('prompt.btn_pick_niche', nicheListLang), callback_data: "onboard_claim_trial" },
       ]);
-      buttons.push([{ text: "🏠 Menu Utama", callback_data: "main_menu" }]);
+      buttons.push([{ text: t('prompt.btn_main_menu', nicheListLang), callback_data: "main_menu" }]);
 
       await ctx.editMessageText(message, {
         parse_mode: "Markdown",
@@ -113,18 +117,16 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const canUseDaily = canUseDailyFree(dbUser);
 
       // If user has credits, bypass free trial
+      const lang = dbUser?.language || ctx.from?.language_code || 'id';
       if (!hasCredits && !canUseWelcome && !canUseDaily) {
         await ctx.editMessageText(
-          `⚠️ *Free Trial sudah habis!*\n\n` +
-          `Welcome Bonus: ❌ Sudah digunakan\n` +
-          `Daily Free: ❌ Belum reset\n\n` +
-          `Beli kredit untuk melanjutkan.`,
+          t('prompt.free_trial_exhausted', lang),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+                [{ text: t('prompt.btn_buy_credits', lang), callback_data: "topup" }],
+                [{ text: t('prompt.btn_back', lang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -138,49 +140,48 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
           ? "Welcome Bonus"
           : "Daily Free";
       const costInfo = hasCredits
-        ? `💳 Biaya: 0.2 kredit (sisa: ${dbUser.creditBalance})`
-        : `🎁 Menggunakan: ${bonusType}`;
+        ? t('prompt.cost_credit', lang).replace('{cost}', '0.2').replace('{balance}', String(dbUser.creditBalance))
+        : t('prompt.cost_bonus', lang).replace('{bonusType}', bonusType);
 
-      const lang = dbUser?.language || ctx.from?.language_code || 'id';
       const promptPreview = prompt.prompt.length > 150 ? prompt.prompt.slice(0, 150) + '...' : prompt.prompt;
       await ctx.editMessageText(
-        `✅ *Prompt Dipilih!*\n\n` +
+        `${t('prompt.selected', lang)}\n\n` +
         `📋 *${prompt.title}*\n` +
         `🎨 Niche: ${prompt.niche.toUpperCase()}\n\n` +
         `📝 _${promptPreview}_\n\n` +
         `${costInfo}\n\n` +
-        `🎬 *Opsi:*`,
+        t('prompt.options_label', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "🎥 Buat Video (HPAS V3)",
+                  text: t('prompt.btn_create_video_hpas', lang),
                   callback_data: "create_video_new",
                 },
               ],
               [
                 {
-                  text: "🖼️ Generate Image (Text-to-Image)",
+                  text: t('prompt.btn_generate_image', lang),
                   callback_data: `generate_free_${prompt.id}`,
                 },
               ],
               [
                 {
-                  text: "📸 Generate Image + Foto Referensi (i2i)",
+                  text: t('prompt.btn_generate_i2i', lang),
                   callback_data: `generate_i2i_${prompt.id}`,
                 },
               ],
               [
                 {
-                  text: "✏️ Edit Prompt Dulu",
+                  text: t('prompt.btn_edit_prompt', lang),
                   callback_data: `edit_prompt_${prompt.id}`,
                 },
               ],
               [
                 {
-                  text: "◀️ Pilih Prompt Lain",
+                  text: t('prompt.btn_pick_another', lang),
                   callback_data: `prompts_niche_${prompt.niche}`,
                 },
               ],
@@ -236,11 +237,9 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
         ctx.session.state = 'AWAITING_PRODUCT_INPUT';
         ctx.session.stateData = { ...(ctx.session.stateData || {}), editingPromptId: found.id, editingPromptNiche: found.niche };
       }
+      const editLang = ctx.session?.userLang || ctx.from?.language_code || 'id';
       await ctx.editMessageText(
-        `✏️ *Edit Prompt*\n\n` +
-        `Prompt saat ini:\n\`${found.prompt}\`\n\n` +
-        `Ketik prompt baru atau modifikasi di atas, lalu kirim.\n` +
-        `Atau kirim foto produk + teks untuk mengganti prompt.`,
+        t('prompt.edit_prompt_msg', editLang).replace('{prompt}', found.prompt),
         { parse_mode: 'Markdown' },
       );
       return true;
@@ -280,15 +279,16 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const canUseDaily = canUseDailyFree(dbUser);
 
       // If user has no credits and no free trial, block
+      const lang2 = dbUser?.language || ctx.from?.language_code || 'id';
       if (!hasCredits && !canUseWelcome && !canUseDaily) {
         await ctx.editMessageText(
-          `⚠️ *Free Trial sudah habis!*\n\n` + `Beli kredit untuk melanjutkan.`,
+          t('prompt.free_trial_exhausted', lang2),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+                [{ text: t('prompt.btn_buy_credits', lang2), callback_data: "topup" }],
+                [{ text: t('prompt.btn_back', lang2), callback_data: "main_menu" }],
               ],
             },
           },
@@ -302,16 +302,13 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
           ? "welcome"
           : "daily";
       const costText = hasCredits
-        ? "0.2 kredit"
+        ? "0.2 credits"
         : bonusType === "welcome"
           ? "Welcome Bonus"
           : "Daily Free";
 
       await ctx.editMessageText(
-        `⏳ *Generating...*\n\n` +
-        `📋 ${prompt.name}\n` +
-        `💳 Menggunakan: ${costText}\n\n` +
-        `Mohon tunggu 10-30 detik...`,
+        t('prompt.generating', lang2).replace('{name}', prompt.name).replace('{cost}', costText),
         { parse_mode: "Markdown" },
       );
 
@@ -354,28 +351,28 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
         const updatedUser = await UserService.findByTelegramId(telegramId);
         const balanceText =
           bonusType === "credit"
-            ? `💳 Sisa kredit: ${updatedUser?.creditBalance || 0}`
-            : `🎁 ${bonusType === "welcome" ? "Welcome Bonus" : "Daily Free"} digunakan`;
+            ? t('prompt.balance_credit', lang2).replace('{balance}', String(updatedUser?.creditBalance || 0))
+            : t('prompt.balance_bonus_used', lang2).replace('{bonusType}', bonusType === "welcome" ? "Welcome Bonus" : "Daily Free");
 
         // Send image — refund if Telegram rejects
         try {
           await ctx.replyWithPhoto(result.imageUrl, {
             caption:
-              `✅ *Gambar Berhasil!*\n\n` +
+              `${t('prompt.image_success', lang2)}\n\n` +
               `📋 ${prompt.name}\n` +
               `${balanceText}\n\n` +
-              `Suka hasilnya? Generate lebih banyak!`,
+              t('prompt.like_result', lang2),
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "🔄 Generate Lagi",
+                    text: t('prompt.btn_generate_again', lang2),
                     callback_data: `prompts_niche_${prompt.niche}`,
                   },
                 ],
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('prompt.btn_buy_credits', lang2), callback_data: "topup" }],
+                [{ text: t('prompt.btn_main_menu', lang2), callback_data: "main_menu" }],
               ],
             },
           });
@@ -385,33 +382,30 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
             await UserService.refundCredits(telegramId, 0.2, `prompt-img-${prompt.id}`, 'sendPhoto failed')
               .catch((err: any) => logger.error('CRITICAL: prompt image refund failed', err));
           }
-          await ctx.reply(t('cb.video_process_failed_refund', ctx.session?.userLang || 'id'));
+          await ctx.reply(t('cb.video_process_failed_refund', lang2));
         }
       } catch (error) {
         console.error("Free trial generation error:", error);
 
         await ctx.reply(
-          `❌ *Generation Gagal*\n\n` +
-          `Terjadi error saat generate image.\n` +
-          `Bonus Anda tidak terpakai.\n\n` +
-          `Silakan coba lagi atau hubungi support.`,
+          t('prompt.generation_failed', lang2),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "🔄 Coba Lagi",
+                    text: t('prompt.btn_try_again', lang2),
                     callback_data: `generate_free_${promptId}`,
                   },
                 ],
                 [
                   {
-                    text: "◀️ Pilih Prompt Lain",
+                    text: t('prompt.btn_pick_another', lang2),
                     callback_data: `prompts_niche_${prompt.niche}`,
                   },
                 ],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('prompt.btn_main_menu', lang2), callback_data: "main_menu" }],
               ],
             },
           },

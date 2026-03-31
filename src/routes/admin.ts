@@ -18,6 +18,7 @@ import { HOOK_VARIATIONS } from "@/services/campaign.service";
 import { CREDIT_PACKAGES_V3, SUBSCRIPTION_PLANS_V3, UNIT_COSTS, REFERRAL_COMMISSIONS_V3 } from "@/config/pricing";
 import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 import { ProviderSettingsService } from "@/services/provider-settings.service";
+import { getOmniRouteService } from "@/services/omniroute.service";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
@@ -198,11 +199,17 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // API: List users
   server.get("/api/users", async (request, _reply) => {
-    const query = request.query as { limit?: string; offset?: string };
+    const query = request.query as { limit?: string; offset?: string; isBanned?: string; tier?: string };
     const limit = Math.min(Math.max(1, parseInt(query.limit || "50") || 50), 200);
     const offset = Math.max(0, parseInt(query.offset || "0") || 0);
 
+    const where: any = {};
+    if (query.isBanned === 'true') where.isBanned = true;
+    else if (query.isBanned === 'false') where.isBanned = false;
+    if (query.tier) where.tier = query.tier.toLowerCase();
+
     const users = await prisma.user.findMany({
+      where,
       take: limit,
       skip: offset,
       orderBy: { createdAt: "desc" },
@@ -224,19 +231,23 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // API: Get user by ID
   server.get("/api/users/:id", async (request, reply) => {
     const params = request.params as { id: string };
-    const user = await prisma.user.findUnique({
-      where: { telegramId: BigInt(params.id) },
-      include: {
-        transactions: { take: 10, orderBy: { createdAt: "desc" } },
-        videos: { take: 10, orderBy: { createdAt: "desc" } },
-      },
-    });
+    try {
+      const user = await prisma.user.findUnique({
+        where: { telegramId: BigInt(params.id) },
+        include: {
+          transactions: { take: 10, orderBy: { createdAt: "desc" } },
+          videos: { take: 10, orderBy: { createdAt: "desc" } },
+        },
+      });
 
-    if (!user) {
-      return reply.status(404).send({ error: "User not found" });
+      if (!user) {
+        return reply.status(404).send({ error: "User not found" });
+      }
+
+      return user;
+    } catch (error: any) {
+      return reply.status(400).send({ error: "Invalid user ID" });
     }
-
-    return user;
   });
 
   // API: Grant credits
@@ -248,31 +259,39 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: "Invalid amount" });
     }
 
-    const user = await prisma.user.update({
-      where: { telegramId: BigInt(params.id) },
-      data: {
-        creditBalance: { increment: body.amount },
-      },
-    });
+    try {
+      const user = await prisma.user.update({
+        where: { telegramId: BigInt(params.id) },
+        data: {
+          creditBalance: { increment: body.amount },
+        },
+      });
 
-    return { success: true, newBalance: user.creditBalance };
+      return { success: true, newBalance: user.creditBalance };
+    } catch (error: any) {
+      return reply.status(404).send({ error: "User not found or invalid ID" });
+    }
   });
 
   // API: Ban/Unban user
-  server.post("/api/users/:id/ban", async (request, _reply) => {
+  server.post("/api/users/:id/ban", async (request, reply) => {
     const params = request.params as { id: string };
     const body = request.body as { banned: boolean; reason?: string };
 
-    const user = await prisma.user.update({
-      where: { telegramId: BigInt(params.id) },
-      data: {
-        isBanned: body.banned,
-        banReason: body.reason,
-        bannedAt: body.banned ? new Date() : null,
-      },
-    });
+    try {
+      const user = await prisma.user.update({
+        where: { telegramId: BigInt(params.id) },
+        data: {
+          isBanned: body.banned,
+          banReason: body.reason,
+          bannedAt: body.banned ? new Date() : null,
+        },
+      });
 
-    return { success: true, isBanned: user.isBanned };
+      return { success: true, isBanned: user.isBanned };
+    } catch (error: any) {
+      return reply.status(404).send({ error: "User not found or invalid ID" });
+    }
   });
 
   // API: List transactions
@@ -725,12 +744,16 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     const { id } = request.params as { id: string };
     const { tier } = request.body as { tier: string };
     const validTiers = ["free", "basic", "lite", "pro", "agency"];
-    if (!validTiers.includes(tier.toLowerCase())) return reply.status(400).send({ error: "Invalid tier" });
-    const user = await prisma.user.update({
-      where: { telegramId: BigInt(id) },
-      data: { tier: tier.toLowerCase() },
-    });
-    return { success: true, tier: user.tier };
+    if (!tier || !validTiers.includes(tier.toLowerCase())) return reply.status(400).send({ error: "Invalid tier" });
+    try {
+      const user = await prisma.user.update({
+        where: { telegramId: BigInt(id) },
+        data: { tier: tier.toLowerCase() },
+      });
+      return { success: true, tier: user.tier };
+    } catch (error: any) {
+      return reply.status(404).send({ error: "User not found or invalid ID" });
+    }
   });
 
   // ── System Health ──
@@ -931,19 +954,27 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.post('/api/v3/retention/trigger', async (request: any, reply) => {
     const { type } = request.body as { type: string };
     if (!type) return reply.status(400).send({ error: 'type required' });
-    await retentionQueue.add('run_checks', { type });
-    return { queued: true, type };
+    try {
+      await retentionQueue.add('run_checks', { type });
+      return { queued: true, type };
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'Failed to queue retention check' });
+    }
   });
 
   /** GET /api/v3/users/:id/gamification */
-  server.get('/api/v3/users/:id/gamification', async (request: any, _reply) => {
-    const userId = BigInt(request.params.id);
-    const [summary, streak, badges] = await Promise.all([
-      GamificationService.getUserGamificationSummary(userId),
-      (prisma as any).userStreak.findUnique({ where: { userId } }),
-      (prisma as any).userBadge.findMany({ where: { userId } }),
-    ]);
-    return { summary, streak, badges }; // used here so maybe it was not unused?
+  server.get('/api/v3/users/:id/gamification', async (request: any, reply) => {
+    try {
+      const userId = BigInt(request.params.id);
+      const [summary, streak, badges] = await Promise.all([
+        GamificationService.getUserGamificationSummary(userId),
+        (prisma as any).userStreak.findUnique({ where: { userId } }),
+        (prisma as any).userBadge.findMany({ where: { userId } }),
+      ]);
+      return { summary, streak, badges };
+    } catch (error: any) {
+      return reply.status(404).send({ error: "User not found or invalid ID" });
+    }
   });
 
   /** GET /api/v3/campaign/hooks — List available hook variations */
@@ -974,19 +1005,25 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     reply.raw.setHeader("Cache-Control", "no-cache");
     reply.raw.setHeader("Connection", "keep-alive");
 
-    const subscriber = redis.duplicate();
-    await subscriber.connect();
+    try {
+      const subscriber = redis.duplicate();
+      await subscriber.connect();
 
-    // Send initial ping
-    reply.raw.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+      // Send initial ping
+      reply.raw.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
 
-    await subscriber.subscribe("admin_events", (message) => {
-      reply.raw.write(`data: ${message}\n\n`);
-    });
+      await subscriber.subscribe("admin_events", (message) => {
+        try { reply.raw.write(`data: ${message}\n\n`); } catch {}
+      });
 
-    request.raw.on("close", async () => {
-      await subscriber.quit();
-    });
+      request.raw.on("close", async () => {
+        try { await subscriber.quit(); } catch {}
+      });
+    } catch (error: any) {
+      // SSE connection failed — send error event and close
+      reply.raw.write(`data: ${JSON.stringify({ type: "error", message: "SSE connection failed" })}\n\n`);
+      reply.raw.end();
+    }
   });
 
   /** GET /api/admin/settings/providers — Dynamic provider overrides */
@@ -1013,6 +1050,94 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
     return { success: true };
   });
+
+  // ── Admin AI Chat ──────────────────────────────────────────────────────────
+  const adminChatRateMap = new Map<string, { count: number; resetAt: number }>();
+
+  server.post("/api/admin/ai-chat", async (request, reply) => {
+    const ip = request.ip;
+    const now = Date.now();
+    const limit = adminChatRateMap.get(ip);
+    if (limit && limit.resetAt > now) {
+      if (limit.count >= 10) {
+        return reply.status(429).send({ error: "Rate limit: 10 messages per minute" });
+      }
+      limit.count++;
+    } else {
+      adminChatRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
+    }
+
+    const { message } = request.body as { message?: string };
+    if (!message || typeof message !== "string" || message.trim().length === 0) {
+      return reply.status(400).send({ error: "Message is required" });
+    }
+    if (message.length > 2000) {
+      return reply.status(400).send({ error: "Message too long (max 2000 chars)" });
+    }
+
+    // Gather live system context for the AI
+    let systemContext = "";
+    try {
+      const [stats, providerOverrides, exchangeRate, profitData] = await Promise.all([
+        prisma.user.count().then(async (userCount) => {
+          const videoCount = await prisma.video.count();
+          const txCount = await prisma.transaction.count({ where: { status: "success" } });
+          return { userCount, videoCount, txCount };
+        }),
+        ProviderSettingsService.getDynamicSettings(),
+        redis.get("admin:exchange_rate"),
+        prisma.transaction.aggregate({
+          where: { status: "success", createdAt: { gte: new Date(Date.now() - 30 * 86400000) } },
+          _sum: { amountIdr: true },
+          _count: true,
+        }),
+      ]);
+
+      systemContext = `
+LIVE SYSTEM CONTEXT (as of ${new Date().toISOString()}):
+- Total users: ${stats.userCount}
+- Total videos generated: ${stats.videoCount}
+- Successful transactions: ${stats.txCount}
+- Last 30d revenue: Rp ${Number(profitData._sum.amountIdr || 0).toLocaleString()} (${profitData._count} transactions)
+- USD/IDR rate: ${exchangeRate || process.env.USD_TO_IDR_RATE || '16000'}
+- Provider overrides: ${JSON.stringify(providerOverrides || {})}
+
+ARCHITECTURE:
+- Stack: Node.js + Telegraf + Fastify + Prisma + BullMQ + Redis
+- Video pipeline: 9-tier provider fallback (BytePlus > XAI > LaoZhang > EvoLink > Hypereal > SiliconFlow > Fal.ai > Kie.ai > Remotion)
+- Payment: Midtrans + Tripay + DuitKu gateways
+- Pricing: Dynamic from DB (PricingConfig table), 1 Credit = 10 Units
+- AI Chat: OmniRoute proxy to multiple LLM providers
+
+You are an expert system administrator and architect for this platform. Give specific, actionable advice. Reference actual config values and stats when relevant.`;
+    } catch {
+      systemContext = "System context unavailable.";
+    }
+
+    const omni = getOmniRouteService();
+    const sessionId = `admin_chat_${ip}`;
+
+    // Only inject system context on the first message of the session
+    const isFirstMessage = !(omni as any).conversationHistory?.has(sessionId);
+    const fullMessage = isFirstMessage
+      ? systemContext + "\n\nADMIN QUESTION: " + message.trim()
+      : message.trim();
+    const result = await omni.chat(sessionId, fullMessage);
+
+    if (!result.success) {
+      return reply.status(500).send({ error: "AI is temporarily unavailable" });
+    }
+
+    return { reply: result.content, model: result.model };
+  });
+
+  // Clean up admin chat rate limits
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of adminChatRateMap) {
+      if (val.resetAt <= now) adminChatRateMap.delete(key);
+    }
+  }, 300_000);
 
   /** GET /api/settings/landing — Landing page config */
   server.get("/api/settings/landing", async () => {

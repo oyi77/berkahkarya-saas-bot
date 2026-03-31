@@ -12,6 +12,16 @@ const mockPrismaVideoCreate = jest.fn();
 const mockPrismaVideoFindMany = jest.fn();
 const mockPrismaTransactionFindMany = jest.fn();
 
+jest.mock("@/utils/logger", () => ({
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock("@/services/omniroute.service", () => ({
+  getOmniRouteService: jest.fn(() => ({
+    chat: jest.fn().mockResolvedValue({ success: true, content: "test reply" }),
+  })),
+}));
+
 jest.mock("@/config/database", () => ({
   prisma: {
     video: { create: mockPrismaVideoCreate, findMany: mockPrismaVideoFindMany },

@@ -171,6 +171,7 @@
     <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
     <div class="nav-item" data-section="profit">💹 Revenue</div>
     <div class="nav-item" data-section="settings">⚙️ Settings</div>
+    <div class="nav-item" data-section="ai-assistant" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">🤖 AI Assistant</div>
   </nav>
   <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
     <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
@@ -615,6 +616,30 @@
     </div>
   </div>
 
+  <!-- ====== AI ASSISTANT ====== -->
+  <div id="section-ai-assistant" class="section">
+    <div class="section-title">AI Assistant</div>
+    <div class="section-sub">Chat with AI about system architecture, pricing, providers, and configuration</div>
+
+    <div style="display:flex;flex-direction:column;height:calc(100vh - 200px);max-height:700px;background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <div id="ai-chat-messages" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.1) transparent;">
+        <div class="ai-msg bot" style="align-self:flex-start;max-width:80%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);padding:12px 16px;border-radius:14px;border-bottom-left-radius:4px;font-size:13px;line-height:1.6;">
+          Hello! I'm your AI assistant for the OpenClaw admin panel. I can help you with:<br><br>
+          - System architecture and configuration<br>
+          - Pricing strategy and recommendations<br>
+          - Provider status and optimization<br>
+          - User analytics and insights<br>
+          - Code improvement suggestions<br><br>
+          Ask me anything about your system!
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.2);">
+        <textarea id="ai-chat-input" placeholder="Ask about system config, pricing, providers..." style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;font-family:inherit;outline:none;resize:none;min-height:42px;max-height:100px;" rows="1" maxlength="2000"></textarea>
+        <button id="ai-chat-send" onclick="sendAdminChat()" class="btn btn-primary" style="padding:10px 20px;white-space:nowrap;">Send</button>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <!-- ======= MODALS ======= -->
@@ -856,6 +881,7 @@ function loadSection(sec) {
   else if (sec === 'tokens') loadTokenStats();
   else if (sec === 'profit') loadProfitReport();
   else if (sec === 'settings') loadSettings();
+  // ai-assistant section is static, no load needed
 }
 
 // ===================== CLOCK =====================
@@ -1737,6 +1763,76 @@ async function saveReferralRates() {
   const res = await api('/api/settings/referral', { method: 'POST', body: { sellRate, buyRate } });
   res !== null ? toast('Referral rates saved!') : toast('Failed to save rates', 'error');
 }
+
+// ===================== AI ASSISTANT =====================
+let aiChatBusy = false;
+
+async function sendAdminChat() {
+  const input = document.getElementById('ai-chat-input');
+  const msg = input.value.trim();
+  if (!msg || aiChatBusy) return;
+
+  const messagesEl = document.getElementById('ai-chat-messages');
+
+  // Add user message
+  const userDiv = document.createElement('div');
+  userDiv.className = 'ai-msg user';
+  userDiv.style.cssText = 'align-self:flex-end;max-width:80%;background:rgba(0,217,255,0.12);border:1px solid rgba(0,217,255,0.15);padding:12px 16px;border-radius:14px;border-bottom-right-radius:4px;font-size:13px;line-height:1.6;';
+  userDiv.textContent = msg;
+  messagesEl.appendChild(userDiv);
+
+  input.value = '';
+  input.style.height = 'auto';
+  aiChatBusy = true;
+  document.getElementById('ai-chat-send').disabled = true;
+
+  // Add typing indicator
+  const typing = document.createElement('div');
+  typing.className = 'ai-msg bot';
+  typing.style.cssText = 'align-self:flex-start;max-width:80%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);padding:12px 16px;border-radius:14px;border-bottom-left-radius:4px;font-size:13px;line-height:1.6;color:var(--muted);font-style:italic;';
+  typing.textContent = 'Thinking...';
+  messagesEl.appendChild(typing);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  try {
+    const data = await api('/api/admin/ai-chat', { method: 'POST', body: { message: msg } });
+    typing.remove();
+    if (data && data.reply) {
+      const botDiv = document.createElement('div');
+      botDiv.className = 'ai-msg bot';
+      botDiv.style.cssText = 'align-self:flex-start;max-width:80%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);padding:12px 16px;border-radius:14px;border-bottom-left-radius:4px;font-size:13px;line-height:1.6;white-space:pre-wrap;';
+      botDiv.textContent = data.reply;
+      messagesEl.appendChild(botDiv);
+    } else {
+      addAdminChatError(messagesEl, 'Failed to get response. Please try again.');
+    }
+  } catch(e) {
+    typing.remove();
+    addAdminChatError(messagesEl, 'Error: ' + e.message);
+  }
+
+  aiChatBusy = false;
+  document.getElementById('ai-chat-send').disabled = false;
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  input.focus();
+}
+
+function addAdminChatError(container, msg) {
+  const div = document.createElement('div');
+  div.className = 'ai-msg bot';
+  div.style.cssText = 'align-self:flex-start;max-width:80%;background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.2);padding:12px 16px;border-radius:14px;border-bottom-left-radius:4px;font-size:13px;line-height:1.6;color:#f87171;';
+  div.textContent = msg;
+  container.appendChild(div);
+}
+
+// Enter to send, Shift+Enter for newline
+document.getElementById('ai-chat-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdminChat(); }
+});
+document.getElementById('ai-chat-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
 
 // ===================== INIT =====================
 // Store token from URL into localStorage
