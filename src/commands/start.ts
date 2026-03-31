@@ -93,14 +93,16 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       const credBal = Number(existingUser.creditBalance);
       const credEmoji = credBal === 0 ? "⚠️" : credBal < 3 ? "🟡" : "🟢";
 
-      // Store credit balance in session for quick access
+      // Store language + credits in session for quick access
       if (ctx.session) {
         ctx.session.creditBalance = credBal;
         ctx.session.tier = existingUser.tier || "free";
+        ctx.session.userLang = lang;
         ctx.session.state = "DASHBOARD";
         ctx.session.lastActivity = new Date();
       }
 
+      // Send reply keyboard (persistent bottom bar)
       await ctx.reply(
         `${t("menu.hello", lang, { name: user.first_name })}\n\n` +
           `${credEmoji} ${t("menu.credits_label", lang)}: *${credBal}*\n\n` +
@@ -113,6 +115,27 @@ export async function startCommand(ctx: BotContext): Promise<void> {
           },
         },
       );
+
+      // Also send inline menu buttons (quick actions)
+      await ctx.reply(t("cb.main_menu_quick_actions", lang), {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: t('btn.create_video', lang), callback_data: "create_video_new" },
+              { text: t('btn.create_image', lang), callback_data: "image_from_prompt" },
+            ],
+            [
+              { text: t('btn.browse_prompts', lang), callback_data: "back_prompts" },
+              { text: t('btn.trending', lang), callback_data: "prompts_trending" },
+            ],
+            [
+              { text: t('btn.topup', lang), callback_data: "topup" },
+              { text: t('btn.my_videos', lang), callback_data: "videos_list" },
+            ],
+          ],
+        },
+      });
       return;
     }
 

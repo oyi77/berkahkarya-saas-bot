@@ -2233,6 +2233,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '👋 *Привет, {name}!*\n\n{credEmoji} Кредиты: *{credits}*\n\nЧто хотите создать сегодня? 👇',
     zh: '👋 *你好，{name}！*\n\n{credEmoji} 积分：*{credits}*\n\n今天想创建什么？👇',
   },
+  'cb.main_menu_quick_actions': {
+    id: '⚡ *Aksi Cepat:*',
+    en: '⚡ *Quick Actions:*',
+    ru: '⚡ *Быстрые действия:*',
+    zh: '⚡ *快速操作:*',
+  },
 
   // ── Credits Menu ──
   'cb.credits_menu_title': {
