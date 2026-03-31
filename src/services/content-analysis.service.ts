@@ -112,40 +112,51 @@ export class ContentAnalysisService {
       const systemPrompt = mediaType === 'image'
         ? `You are an expert AI image prompt engineer. Analyze this image with MAXIMUM DETAIL:
 
-1. SUBJECT: Exact appearance, materials, textures (e.g. "burgundy leather handbag with brushed gold hardware" not "bag")
-2. COMPOSITION: Layout, framing, depth of field (e.g. "subject center-left, shallow DOF, rule-of-thirds" not "nice composition")
-3. LIGHTING: Direction, quality, temperature (e.g. "warm key light 45° upper-left, soft fill, rim light on edges" not "good lighting")
-4. COLOR PALETTE: Exact colors and relationships (e.g. "warm neutrals: cream, tan, burnt sienna; cool accent: teal" not "colorful")
-5. TEXTURE & MATERIAL: Surface properties (glossy, matte, rough, smooth, metallic, organic)
-6. CAMERA: Lens characteristics (e.g. "50mm f/1.4, slight overhead angle, natural bokeh" not "camera angle")
-7. STYLE & MOOD: Aesthetic and emotion (e.g. "luxe minimalist, moody, high-end commercial" not "professional")
-8. BACKGROUND: Environment details, depth, blur quality
+1. CHARACTER/PERSON (if present): Gender, approximate age range, ethnicity/skin tone, hairstyle & color, facial expression, body posture, clothing (exact description: "navy wool blazer over white Oxford shirt" not "suit"), accessories, hand position, gaze direction. If no person, describe the main product/object with equal detail.
+2. SUBJECT/PRODUCT: Exact appearance, materials, textures, brand elements (e.g. "burgundy leather handbag with brushed gold hardware, visible stitching pattern" not "bag")
+3. COMPOSITION: Layout, framing, depth of field, subject placement (e.g. "subject center-left, shallow DOF f/1.4, rule-of-thirds, negative space upper-right")
+4. LIGHTING: Direction, quality, temperature, number of sources (e.g. "warm key light 45° upper-left at 3200K, soft fill from right, hair/rim light on edges, catchlight in eyes")
+5. COLOR PALETTE: Exact colors with relationships (e.g. "warm neutrals: cream, tan, burnt sienna; cool accent: teal in background")
+6. TEXTURE & MATERIAL: Surface properties visible (glossy, matte, rough, smooth, metallic, organic, fabric weave)
+7. CAMERA: Lens, angle, distance (e.g. "85mm f/1.8, eye-level slightly below, 1.5m distance, natural oval bokeh")
+8. STYLE & MOOD: Aesthetic, emotion, commercial intent (e.g. "luxe minimalist, confident, high-end fashion editorial")
+9. BACKGROUND: Environment details, depth layers, blur quality, props
 
-Output as a single cohesive prompt paragraph, 250-350 words. Prioritize technical precision.`
+Output as a single cohesive prompt paragraph, 300-400 words. Character description MUST come first if people are present. Prioritize technical precision.`
         : `You are an expert video analysis AI. Analyze this video with MAXIMUM DETAIL:
+
+CHARACTER/PERSON DEFINITION (CRITICAL — describe ALL people visible):
+For EACH person/character:
+- Gender, approximate age, ethnicity/skin tone
+- Hairstyle, hair color, facial features
+- Clothing: exact description per scene (e.g. "white cropped hoodie, high-waisted black joggers, white sneakers")
+- Accessories: jewelry, glasses, hat, watch, etc.
+- Body language: posture, gestures, energy level
+- Expressions: emotion per scene (smiling, serious, surprised, etc.)
+- Role: presenter, model, customer, actor, hands-only, etc.
 
 VISUAL ANALYSIS:
 - Pacing: cuts per second, rhythm, energy level
 - Color grading: specific grades, temperature shifts, contrast levels
-- Camera: movements (pan, tilt, dolly, zoom speeds), stabilization, angles
+- Camera: movements (pan, tilt, dolly, zoom speeds), stabilization, angles per scene
 - Effects: overlays, graphics, particles, motion blur, text animations
 - Transitions: types with timing (cut, fade, dissolve, wipe, zoom)
 
 SCENE BREAKDOWN:
-For EACH scene, describe:
+For EACH scene:
 - Exact duration and visual content
+- Which character(s) appear and what they do
 - Camera movement and angle
 - Lighting changes
-- Subject actions and expressions
 - Text/graphics overlays if any
 
 Then output:
 STORYBOARD:
-Scene 1 | Xs | [Detailed description with camera, lighting, action]
-Scene 2 | Xs | [Detailed description]
+Scene 1 | Xs | [Character action + camera + lighting + text overlay]
+Scene 2 | Xs | [Character action + camera + lighting + text overlay]
 (continue for ALL scenes)
 
-Output 300-500 words total. Be technically precise about cinematography.`;
+Output 400-600 words total. Character descriptions MUST be detailed enough to recreate with a different AI model.`;
 
       // Fetch media and convert to base64
       const media = await fetchMediaAsBase64(mediaUrl);
@@ -221,21 +232,25 @@ Output 300-500 words total. Be technically precise about cinematography.`;
 
       const systemPrompt =
         'You are an expert video analyst. Create a DETAILED recreation prompt:\n\n' +
-        '1. CINEMATOGRAPHY: Camera movements (pan speed, tilt angle, dolly distance), stabilization style, shot types (wide/medium/close-up/macro)\n' +
-        '2. COLOR GRADING: Specific grades (teal & orange, desaturated, high-contrast), temperature shifts across scenes\n' +
+        'CHARACTER/PERSON DEFINITION (CRITICAL — describe ALL people visible):\n' +
+        'For EACH person: gender, age range, ethnicity/skin tone, hairstyle & color, facial features.\n' +
+        'CLOTHING per scene: exact description (e.g. "white cropped hoodie, high-waisted black joggers, white sneakers" not "casual outfit").\n' +
+        'Accessories: jewelry, glasses, hat, watch. Body language & expressions per scene.\n' +
+        'Role: presenter, model, customer, actor, hands-only.\n\n' +
+        '1. CINEMATOGRAPHY: Camera movements (pan speed, tilt angle, dolly distance), shot types (wide/medium/close-up/macro)\n' +
+        '2. COLOR GRADING: Specific grades (teal & orange, desaturated, high-contrast), temperature shifts\n' +
         '3. LIGHTING: Key light setup per scene, practical lights, color gels, golden hour/blue hour\n' +
-        '4. TRANSITIONS: Exact types (cut, J-cut, L-cut, whip pan, zoom, dissolve) with timing\n' +
-        '5. SUBJECT: Actions, expressions, movement patterns, wardrobe/product details\n' +
-        '6. TEXT/GRAPHICS: Font style, animation type, position, timing of overlays\n' +
-        '7. MOOD: Energy level, emotional arc from opening to closing\n' +
-        '8. PACING: Cuts per second, rhythm changes, slow-motion sections\n\n' +
+        '4. TRANSITIONS: Exact types (cut, J-cut, whip pan, zoom, dissolve) with timing\n' +
+        '5. TEXT/GRAPHICS: Font style, animation type, position, timing of overlays\n' +
+        '6. MOOD & PACING: Energy level, emotional arc, cuts per second, rhythm changes\n\n' +
         'IMPORTANT: Break down into individual scenes with timing.\n' +
         'After the recreation prompt, output:\n' +
         'STORYBOARD:\n' +
-        'Scene 1 | 3s | [Detailed: camera, lighting, subject, action, text overlay]\n' +
-        'Scene 2 | 5s | [Detailed: camera, lighting, subject, action, text overlay]\n' +
+        'Scene 1 | 3s | [Character(s) + action + camera + lighting + text overlay]\n' +
+        'Scene 2 | 5s | [Character(s) + action + camera + lighting + text overlay]\n' +
         '(continue for ALL scenes)\n\n' +
-        'Output 400-600 words total. Technical precision over generic description.';
+        'Character descriptions MUST be detailed enough to recreate the exact look with AI.\n' +
+        'Output 500-700 words total.';
 
       const requestBody = {
         contents: [{
@@ -305,15 +320,16 @@ Output 300-500 words total. Be technically precise about cinematography.`;
 
       const systemPrompt =
         'You are an expert at analyzing images for AI recreation. Create a DETAILED prompt:\n\n' +
-        '1. SUBJECT: Exact object/person appearance, materials, textures, colors (specific names like "burgundy" not "red")\n' +
-        '2. COMPOSITION: Layout, rule-of-thirds, negative space, depth layers, focal point\n' +
-        '3. LIGHTING: Key light direction, fill ratio, rim light, color temperature (e.g. 3200K warm), quality (hard/soft)\n' +
-        '4. COLOR PALETTE: Dominant + accent colors, saturation level, contrast, color grading style\n' +
-        '5. CAMERA: Lens (e.g. 50mm f/1.4), angle, distance, depth of field, bokeh quality\n' +
-        '6. BACKGROUND: Environment details, blur quality, supporting elements\n' +
-        '7. STYLE: Art direction, aesthetic movement, commercial vs editorial\n' +
-        '8. MOOD: Emotional tone, atmosphere, energy level\n\n' +
-        'Output as a single cohesive prompt, 250-350 words. Technical precision over generic language.';
+        '1. CHARACTER/PERSON (if present): Gender, age range, ethnicity/skin tone, hairstyle & color, facial expression & emotion, body posture & gesture, EXACT clothing description (e.g. "cream silk blouse tucked into charcoal wool trousers" not "outfit"), accessories (jewelry, glasses, watch), gaze direction, hand position. If no person, skip to #2.\n' +
+        '2. SUBJECT/PRODUCT: Exact object appearance, materials, textures, colors (specific: "burgundy" not "red"), brand elements, surface details\n' +
+        '3. COMPOSITION: Layout, rule-of-thirds, negative space, depth layers, focal point, subject-to-frame ratio\n' +
+        '4. LIGHTING: Key light direction, fill ratio, rim light, color temperature (e.g. 3200K), quality (hard/soft), catchlights\n' +
+        '5. COLOR PALETTE: Dominant + accent colors, saturation, contrast, color grading style\n' +
+        '6. CAMERA: Lens (e.g. 85mm f/1.8), angle, distance, depth of field, bokeh quality\n' +
+        '7. BACKGROUND: Environment details, blur quality, supporting elements, depth layers\n' +
+        '8. STYLE & MOOD: Art direction, aesthetic, emotional tone, commercial intent\n\n' +
+        'Character/person description MUST come first and be detailed enough to recreate the exact look.\n' +
+        'Output as a single cohesive prompt, 300-400 words. Technical precision over generic language.';
 
       const requestBody = {
         contents: [{
