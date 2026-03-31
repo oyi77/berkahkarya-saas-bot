@@ -1,6 +1,7 @@
 import { BotContext } from "@/types";
 import { prisma } from "@/config/database";
 import { UserService } from "@/services/user.service";
+import { logger } from "@/utils/logger";
 
 export async function handlePromptsCallback(ctx: BotContext, data: string): Promise<boolean> {
     // ── PROMPT LIBRARY HANDLERS ───────────────────────────────────────────
@@ -284,27 +285,36 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
             ? `💳 Sisa kredit: ${updatedUser?.creditBalance || 0}`
             : `🎁 ${bonusType === "welcome" ? "Welcome Bonus" : "Daily Free"} digunakan`;
 
-        // Send image
-        await ctx.replyWithPhoto(result.imageUrl, {
-          caption:
-            `✅ *Image Generated!*\n\n` +
-            `📋 ${prompt.name}\n` +
-            `${balanceText}\n\n` +
-            `Suka hasilnya? Generate lebih banyak!`,
-          parse_mode: "Markdown",
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: "🔄 Generate Lagi",
-                  callback_data: `prompts_niche_${prompt.niche}`,
-                },
+        // Send image — refund if Telegram rejects
+        try {
+          await ctx.replyWithPhoto(result.imageUrl, {
+            caption:
+              `✅ *Gambar Berhasil!*\n\n` +
+              `📋 ${prompt.name}\n` +
+              `${balanceText}\n\n` +
+              `Suka hasilnya? Generate lebih banyak!`,
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: "🔄 Generate Lagi",
+                    callback_data: `prompts_niche_${prompt.niche}`,
+                  },
+                ],
+                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
+                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
               ],
-              [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-              [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
-            ],
-          },
-        });
+            },
+          });
+        } catch (sendErr) {
+          logger.error('replyWithPhoto failed after credit deduction:', sendErr);
+          if (bonusType === "credit") {
+            await UserService.refundCredits(telegramId, 0.2, `prompt-img-${prompt.id}`, 'sendPhoto failed')
+              .catch((err: any) => logger.error('CRITICAL: prompt image refund failed', err));
+          }
+          await ctx.reply('❌ Gagal mengirim gambar. Kredit dikembalikan.');
+        }
       } catch (error) {
         console.error("Free trial generation error:", error);
 

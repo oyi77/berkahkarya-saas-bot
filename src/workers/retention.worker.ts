@@ -216,22 +216,23 @@ export class RetentionScheduler {
     const checkPoints = [3, 5, 10];
 
     for (const count of checkPoints) {
-      const users = await prisma.$queryRaw<Array<{ id: bigint; telegram_id: bigint; first_name: string }>>`
-        SELECT u.id, u.telegram_id, u.first_name
-        FROM users u
-        LEFT JOIN commissions c ON c.referrer_id = u.id
-        WHERE c.id IS NULL
-          AND u.notifications_enabled = true
-          AND u.is_banned = false
-          AND (SELECT COUNT(*) FROM videos v WHERE v.user_id = u.id AND v.status IN ('completed', 'done')) = ${count}
-        LIMIT 30
-      `;
+      // Use Prisma ORM instead of raw SQL to avoid column name mismatch
+      const usersWithVideoCount = await prisma.user.findMany({
+        where: {
+          notificationsEnabled: true,
+          isBanned: false,
+          commissions: { none: {} },  // No referral commissions earned
+        },
+        select: { id: true, telegramId: true, firstName: true, _count: { select: { videos: { where: { status: { in: ['completed', 'done'] } } } } } },
+        take: 100,
+      });
 
+      const users = usersWithVideoCount.filter(u => u._count.videos === count).slice(0, 30);
       const msgKey = count === 3 ? 'active_3rd_gen' : count === 5 ? 'active_5th_gen' : 'active_10th_gen';
 
       for (const user of users) {
         if (await this.canSend(user.id, 'affiliate')) {
-          await this.sendMessage(bot, user.telegram_id, MESSAGES[msgKey](user.first_name));
+          await this.sendMessage(bot, user.telegramId, MESSAGES[msgKey](user.firstName));
           await this.logSent(user.id, 'affiliate');
         }
       }
@@ -273,6 +274,15 @@ export class RetentionScheduler {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private static async canSend(userId: bigint, category: string): Promise<boolean> {
+    // Atomic check using Redis setnx to prevent race condition
+    // (two concurrent calls both reading count=0 and both passing)
+    const lockKey = `retention_lock:${userId}:${category}`;
+    try {
+      const { redis } = await import('../config/redis.js');
+      const locked = await redis.set(lockKey, '1', 'EX', 10, 'NX');
+      if (locked !== 'OK') return false; // Another call is already processing
+    } catch { /* Redis unavailable — fall through to DB check */ }
+
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 

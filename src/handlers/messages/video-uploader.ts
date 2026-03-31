@@ -94,7 +94,7 @@ export async function handleVideoCreationImage(
   collectedPhotos?: Array<{ fileId: string; localPath?: string }>,
 ): Promise<void> {
   if (!ctx.session?.videoCreation?.waitingForImage) {
-    await ctx.reply("No active video creation. Please start with /create");
+    await ctx.reply("Tidak ada sesi pembuatan video aktif. Gunakan /create untuk mulai.");
     return;
   }
 
@@ -111,7 +111,7 @@ export async function handleVideoCreationImage(
 
   if (photos.length === 0) {
     await ctx.reply(
-      "No photos uploaded. Please send a reference image or /skip.",
+      "Belum ada foto. Kirim gambar referensi atau /skip.",
     );
     return;
   }

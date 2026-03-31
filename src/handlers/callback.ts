@@ -122,7 +122,7 @@ async function handleStoryboardRequest(ctx: BotContext, niche: string) {
     });
   } catch (error) {
     logger.error("Storyboard error:", error);
-    await ctx.answerCbQuery("Error generating storyboard");
+    await ctx.answerCbQuery("Gagal membuat storyboard. Coba lagi.");
   }
 }
 
@@ -2055,7 +2055,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const telegramId = BigInt(ctx.from!.id);
       const user = await UserService.findByTelegramId(telegramId);
       if (!user || Number(user.creditBalance) < creditCost) {
-        await ctx.reply(`❌ Insufficient credits. Need ${creditCost} credits.`);
+        await ctx.reply(`❌ Kredit tidak cukup. Butuh ${creditCost} kredit.`);
         return;
       }
 
@@ -2185,8 +2185,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "videos_favorites") {
       await ctx.editMessageText(
         "⭐ *Favorite Videos*\n\n" +
-        "Your favorite videos will appear here.\n\n" +
-        "No favorites yet.",
+        "Video favorit kamu akan muncul di sini.\n\n" +
+        "Belum ada favorit.",
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -2908,9 +2908,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
         if (transactions.length === 0) {
           await ctx.editMessageText(
-            "📜 *Transaction History*\n\n" +
-            "No transactions found.\n\n" +
-            "Top up credits to get started!",
+            "📜 *Riwayat Transaksi*\n\n" +
+            "Belum ada transaksi.\n\n" +
+            "Top up kredit untuk mulai!",
             {
               parse_mode: "Markdown",
               reply_markup: {
@@ -2924,8 +2924,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           return;
         }
 
-        let message = "📜 *Transaction History*\n\n";
-        message += "_Last 10 transactions:_\n\n";
+        let message = "📜 *Riwayat Transaksi*\n\n";
+        message += "_10 transaksi terakhir:_\n\n";
 
         for (const tx of transactions) {
           const date = tx.createdAt.toLocaleDateString("id-ID", {
@@ -3345,7 +3345,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const uploadedPhotos = ctx.session.videoCreation.uploadedPhotos || [];
       if (uploadedPhotos.length === 0) {
         await ctx.reply(
-          "No photos uploaded yet. Send a reference image first, or /skip to generate without one.",
+          "Belum ada foto. Kirim gambar referensi dulu, atau /skip untuk lanjut tanpa foto.",
         );
         return;
       }
@@ -3465,7 +3465,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery("Unknown action");
   } catch (error) {
     logger.error("Error in callback handler:", error);
-    await ctx.answerCbQuery("Error processing request");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -4024,11 +4024,19 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
         });
 
         if (result.success && result.imageUrl) {
-          await UserService.deductCredits(telegramId, await getImageCreditCostAsync(result.provider));
-          await telegramClient.sendPhoto(chatId, result.imageUrl, {
-            caption: `✅ *Gambar Berhasil Dibuat!*\n\n_Prompt: ${existingClonePrompt.slice(0, 100)}${existingClonePrompt.length > 100 ? "..." : ""}_`,
-            parse_mode: "Markdown",
-          });
+          const imgCreditCost = await getImageCreditCostAsync(result.provider);
+          await UserService.deductCredits(telegramId, imgCreditCost);
+          try {
+            await telegramClient.sendPhoto(chatId, result.imageUrl, {
+              caption: `✅ *Gambar Berhasil Dibuat!*\n\n_Prompt: ${existingClonePrompt.slice(0, 100)}${existingClonePrompt.length > 100 ? "..." : ""}_`,
+              parse_mode: "Markdown",
+            });
+          } catch (sendErr) {
+            logger.error('sendPhoto failed after credit deduction, refunding:', sendErr);
+            await UserService.refundCredits(telegramId, imgCreditCost, 'clone-img', 'sendPhoto failed')
+              .catch((refundErr) => logger.error('CRITICAL: image refund failed', { telegramId: telegramId.toString(), err: refundErr }));
+            await telegramClient.sendMessage(chatId, '❌ Gagal mengirim gambar. Kredit dikembalikan.');
+          }
         } else {
           await telegramClient.sendMessage(chatId, `❌ Gagal generate gambar. Kredit tidak ditagih.\n\n${result.error || ""}`);
         }

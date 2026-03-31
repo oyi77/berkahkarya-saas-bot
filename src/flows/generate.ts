@@ -176,19 +176,24 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       const creditCost = cost / 10;
 
       const results: string[] = [];
+      const isLocalRef = photoUrl && !photoUrl.startsWith('http');
+      const imgParams = {
+        category: industry,
+        aspectRatio: '9:16' as const,
+        style: 'commercial',
+        referenceImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
+        referenceImagePath: isLocalRef ? photoUrl : undefined,
+        mode: (photoUrl ? 'img2img' : 'text2img') as 'img2img' | 'text2img',
+      };
       for (let i = 0; i < Math.min(scenes.length, 7); i++) {
         const scene = scenes[i];
         await ctx.reply(`🎨 Generating scene ${i + 1}/7: *${HPAS_SCENES[scene.sceneId]?.nameId || scene.sceneId}*...`, { parse_mode: 'Markdown' });
-        const isLocalRef = photoUrl && !photoUrl.startsWith('http');
-        const result = await ImageGenerationService.generateImage({
-          prompt: scene.prompt,
-          category: industry,
-          aspectRatio: '9:16',
-          style: 'commercial',
-          referenceImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
-          referenceImagePath: isLocalRef ? photoUrl : undefined,
-          mode: photoUrl ? 'img2img' : 'text2img',
-        });
+        let result = await ImageGenerationService.generateImage({ prompt: scene.prompt, ...imgParams });
+        // Single retry on failure before skipping
+        if (!result.success || !result.imageUrl) {
+          logger.warn(`Image scene ${i + 1} failed, retrying once...`);
+          result = await ImageGenerationService.generateImage({ prompt: scene.prompt, ...imgParams });
+        }
         if (result.success && result.imageUrl) results.push(result.imageUrl);
       }
 

@@ -54,6 +54,7 @@ export interface ImageGenerationResult {
   error?: string;
   provider?: string;
   mode?: ImageGenerationMode;
+  metadata?: Record<string, any>;
 }
 
 export interface ImageGenerationParams {
@@ -853,6 +854,8 @@ export class ImageGenerationService {
         }
       } catch (err) {
         logger.warn('🖼️ Vision analysis failed, continuing with original prompt');
+        // Flag for downstream — callers can warn user about degraded quality
+        (params as any)._visionAnalysisFailed = true;
       }
     }
 
@@ -888,10 +891,12 @@ export class ImageGenerationService {
       }
 
       // Native failed → fall through to ALL providers with vision-enriched prompt
-      logger.info('🖼️ Native IP-Adapter failed — using vision-enriched prompt on all providers');
+      logger.warn('🖼️ Native IP-Adapter failed — avatar consistency may be reduced');
       const allProviders = providers.filter(p => p.enabled);
       if (allProviders.length > 0) {
-        return this.generateWithProviders(allProviders, enriched, { ...params, mode: 'text2img' }, 'text2img');
+        const fallbackResult = await this.generateWithProviders(allProviders, enriched, { ...params, mode: 'text2img' }, 'text2img');
+        if (fallbackResult.success) fallbackResult.metadata = { ...fallbackResult.metadata, avatarConsistencyDegraded: true };
+        return fallbackResult;
       }
     } else if (mode === 'img2img') {
       const nativeProviders = providers.filter(p => p.enabled && p.supportsImg2Img && p.generateImg2Img);
