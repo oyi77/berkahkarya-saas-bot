@@ -933,7 +933,33 @@ export class ImageGenerationService {
     params: ImageGenerationParams,
     mode: ImageGenerationMode,
   ): Promise<ImageGenerationResult> {
-    for (const provider of providers) {
+    // Dynamic reordering: move providers with recent failures to the end
+    const reordered = [...providers];
+    try {
+      const { redis } = await import('../config/redis.js');
+      const failScores = await Promise.all(
+        reordered.map(async (p) => {
+          const raw = await redis.get(`cb:${p.key}`).catch(() => null);
+          if (!raw) return 0;
+          const state = JSON.parse(raw);
+          // Penalize providers that failed recently (within 60s)
+          if (state.failureCount > 0 && state.lastFailure && (Date.now() - state.lastFailure) < 60000) {
+            return state.failureCount;
+          }
+          return 0;
+        })
+      );
+      reordered.sort((a, b) => {
+        const scoreA = failScores[providers.indexOf(a)] || 0;
+        const scoreB = failScores[providers.indexOf(b)] || 0;
+        return scoreA - scoreB;
+      });
+      if (failScores.some(s => s > 0)) {
+        logger.info(`🖼️ Reordered providers by health: ${reordered.map(p => p.name).join(', ')}`);
+      }
+    } catch { /* Redis unavailable, use original order */ }
+
+    for (const provider of reordered) {
       const canExecute = await CircuitBreaker.canExecute(provider.key).catch(() => true);
       if (!canExecute) {
         logger.info(`🖼️ Circuit breaker OPEN for ${provider.name} — skipping`);

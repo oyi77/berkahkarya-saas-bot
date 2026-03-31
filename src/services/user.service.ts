@@ -242,6 +242,49 @@ export class UserService {
   }
 
   /**
+   * Queue a failed refund for background retry
+   */
+  static async queueRefundRetry(telegramId: bigint, amount: number, jobId: string, reason: string): Promise<void> {
+    const entry = JSON.stringify({ telegramId: telegramId.toString(), amount, jobId, reason, attempts: 0, createdAt: Date.now() });
+    await redis.lpush('refund_retry', entry).catch(() => {});
+    logger.warn(`Refund queued for retry: ${jobId} (${amount} credits for user ${telegramId})`);
+  }
+
+  /**
+   * Process pending refund retries (call from background cron)
+   */
+  static async processRefundRetries(): Promise<number> {
+    let processed = 0;
+    const maxBatch = 20;
+
+    for (let i = 0; i < maxBatch; i++) {
+      const raw = await redis.rpop('refund_retry');
+      if (!raw) break;
+
+      try {
+        const entry = JSON.parse(raw);
+        const telegramId = BigInt(entry.telegramId);
+        await this.refundCredits(telegramId, entry.amount, entry.jobId, `retry: ${entry.reason}`);
+        logger.info(`Refund retry succeeded: ${entry.jobId} (${entry.amount} credits for user ${entry.telegramId})`);
+        processed++;
+      } catch (err) {
+        // Re-queue if still failing (max 5 attempts)
+        try {
+          const entry = JSON.parse(raw);
+          entry.attempts = (entry.attempts || 0) + 1;
+          if (entry.attempts < 5) {
+            await redis.lpush('refund_retry', JSON.stringify(entry));
+            logger.warn(`Refund retry failed (attempt ${entry.attempts}/5), re-queued: ${entry.jobId}`);
+          } else {
+            logger.error(`CRITICAL: Refund permanently failed after 5 attempts: ${raw}`, err);
+          }
+        } catch { /* parse failed, entry is lost — already logged */ }
+      }
+    }
+    return processed;
+  }
+
+  /**
    * Check if user has enough credits
    */
   static async hasEnoughCredits(telegramId: bigint, amount: number): Promise<boolean> {

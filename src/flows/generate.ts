@@ -268,7 +268,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       } catch {
         generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Video generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
+          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
           await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Video gagal diproses. Kredit dikembalikan.').catch(() => {});
         });
         await ctx.reply('✅ Video sedang diproses. Kamu akan dinotifikasi saat selesai.');
@@ -325,7 +325,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       } catch {
         generateVideoAsync(ctx, video2.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Clone style generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
+          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
           await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Clone Style gagal diproses. Kredit dikembalikan.').catch(() => {});
         });
         await ctx.reply('✅ Clone Style video sedang diproses. Kamu akan dinotifikasi saat selesai.');
@@ -386,14 +386,14 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         } catch {
           generateVideoAsync(ctx, vid.jobId, industry, platform, totalDuration, storyboard).catch(async (err) => {
             logger.error('Campaign generateVideoAsync failed:', err);
-            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
+            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
             await ctx.telegram.sendMessage(ctx.chat!.id, '❌ Campaign gagal diproses. Kredit dikembalikan.').catch(() => {});
           });
           await ctx.reply(`⏳ *Campaign ${campSize} scene sedang diproses!*\n\nKamu akan dinotifikasi saat selesai.`, { parse_mode: 'Markdown' });
         }
       } catch (jobErr) {
         logger.error('Campaign job creation failed:', jobErr);
-        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch((refundErr) => logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }));
+        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
         await ctx.reply('❌ *Campaign Gagal*\n\nGagal membuat video. Kredit dikembalikan.', { parse_mode: 'Markdown' });
         return;
       }

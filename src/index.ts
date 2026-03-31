@@ -148,6 +148,17 @@ async function main() {
       logger.warn("⚠️ Credit expiry cron failed to start:", cronErr);
     }
 
+    // Refund retry cron: process failed refunds every 5 minutes
+    try {
+      cron.schedule("*/5 * * * *", async () => {
+        const count = await UserService.processRefundRetries();
+        if (count > 0) logger.info(`✅ Processed ${count} refund retry(s)`);
+      });
+      logger.info("✅ Refund retry cron scheduled (every 5 min)");
+    } catch (cronErr) {
+      logger.warn("⚠️ Refund retry cron failed to start:", cronErr);
+    }
+
     // Set telegram instance for cleanup notifications and run startup cleanup
     setCleanupTelegram(bot.telegram);
     try {
