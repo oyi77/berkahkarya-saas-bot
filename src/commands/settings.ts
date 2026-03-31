@@ -1,31 +1,52 @@
 /**
  * Settings Command
- * 
- * Handles /settings command
+ *
+ * Displays user preferences in their configured language.
  */
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { UserService } from '@/services/user.service';
+import { t } from '@/i18n/translations';
 
-/**
- * Handle /settings command
- */
 export async function settingsCommand(ctx: BotContext): Promise<void> {
   try {
+    const userId = ctx.from?.id;
+    if (!userId) {
+      await ctx.reply('❌ Unable to identify user.');
+      return;
+    }
+
+    // Fetch user to get saved language and current settings
+    const dbUser = await UserService.findByTelegramId(BigInt(userId));
+    const lang = dbUser?.language || 'en';
+
+    // Build language display name
+    const langLabels: Record<string, string> = {
+      id: '🇮🇩 Bahasa Indonesia',
+      en: '🇬🇧 English',
+      ru: '🇷🇺 Русский',
+      zh: '🇨🇳 中文',
+    };
+    const currentLangLabel = langLabels[lang] || lang.toUpperCase();
+
+    const notificationsOn = dbUser?.notificationsEnabled !== false;
+    const autoRenewalOn = dbUser?.autoRenewal === true;
+
     await ctx.reply(
-      '⚙️ *Settings*\n\n' +
-      'Configure your preferences:\n\n' +
-      '*Language:* Bahasa Indonesia\n' +
-      '*Notifications:* Enabled\n' +
-      '*Auto-renewal:* Disabled\n\n' +
-      'What would you like to change?',
+      `${t('settings.title', lang)}\n\n` +
+      `${t('settings.description', lang)}\n\n` +
+      `${t('settings.language_label', lang)} ${currentLangLabel}\n` +
+      `${t('settings.notifications_label', lang)} ${notificationsOn ? t('settings.enabled', lang) : t('settings.disabled', lang)}\n` +
+      `${t('settings.autorenewal_label', lang)} ${autoRenewalOn ? t('settings.enabled', lang) : t('settings.disabled', lang)}\n\n` +
+      `${t('settings.what_to_change', lang)}`,
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🌐 Change Language', callback_data: 'settings_language' }],
-            [{ text: '🔔 Notifications', callback_data: 'settings_notifications' }],
-            [{ text: '🔄 Auto-renewal', callback_data: 'settings_autorenewal' }],
+            [{ text: t('settings.btn_language', lang), callback_data: 'settings_language' }],
+            [{ text: t('settings.btn_notifications', lang), callback_data: 'settings_notifications' }],
+            [{ text: t('settings.btn_autorenewal', lang), callback_data: 'settings_autorenewal' }],
           ],
         },
       }
@@ -35,7 +56,7 @@ export async function settingsCommand(ctx: BotContext): Promise<void> {
   } catch (error) {
     logger.error('settingsCommand error:', error);
     try {
-      await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi atau hubungi /support.');
+      await ctx.reply('❌ Something went wrong. Please try again or contact /support.');
     } catch { /* ignore */ }
   }
 }

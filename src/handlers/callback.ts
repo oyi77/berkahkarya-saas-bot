@@ -702,12 +702,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       if (!dbUser) {
         // Create new user with free trial (0 kredit, tapi ada welcome bonus)
+        const detectedLang = (ctx.session?.stateData?.detectedLang as string) || "id";
         dbUser = await UserService.create({
           telegramId,
           username: user.username,
           firstName: user.first_name,
           lastName: user.last_name,
-          language: "id",
+          language: detectedLang,
         });
 
         // Set selected niche and welcome bonus
@@ -2595,10 +2596,41 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         },
       ]);
 
+      // Prepend the 4 UI languages as a quick-pick section on page 0
+      const UI_LANG_QUICK_PICK = [
+        { code: "id", flag: "🇮🇩", label: "Bahasa Indonesia" },
+        { code: "en", flag: "🇬🇧", label: "English" },
+        { code: "ru", flag: "🇷🇺", label: "Русский" },
+        { code: "zh", flag: "🇨🇳", label: "中文" },
+      ];
+      if (page === 0) {
+        const quickRow = UI_LANG_QUICK_PICK.map((l) => ({
+          text: `${l.flag}${l.code === currentLang ? " ✅" : ""}`,
+          callback_data: `set_language_${l.code}`,
+        }));
+        langButtons.unshift(quickRow);
+      }
+
+      const uiLangTitle: Record<string, string> = {
+        id: "🌐 *Ganti Bahasa*",
+        en: "🌐 *Change Language*",
+        ru: "🌐 *Изменить язык*",
+        zh: "🌐 *更改语言*",
+      };
+      const uiLangCurrent: Record<string, string> = {
+        id: "Saat ini", en: "Current", ru: "Текущий", zh: "当前",
+      };
+      const uiLangHint: Record<string, string> = {
+        id: "Pilih bahasa. Mempengaruhi tampilan bot, voice over, subtitle, dan caption.",
+        en: "Select language. Affects bot UI, voice over, subtitles, and captions.",
+        ru: "Выберите язык. Влияет на интерфейс, озвучку, субтитры и подписи.",
+        zh: "选择语言。影响界面、配音、字幕和说明文字。",
+      };
+
       await ctx.editMessageText(
-        "\ud83c\udf10 *Change Language*\n\n" +
-        `Current: ${currentConfig.flag} ${currentConfig.label}\n\n` +
-        "Select your preferred language.\nThis affects bot UI, voice over, subtitles, and captions.",
+        `${uiLangTitle[currentLang] || "🌐 *Change Language*"}\n\n` +
+        `${uiLangCurrent[currentLang] || "Current"}: ${currentConfig.flag} ${currentConfig.label}\n\n` +
+        `${uiLangHint[currentLang] || "Select language. Affects bot UI, voice over, subtitles, and captions."}`,
         {
           parse_mode: "Markdown",
           reply_markup: { inline_keyboard: langButtons },

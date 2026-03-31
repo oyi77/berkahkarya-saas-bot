@@ -1,54 +1,53 @@
 /**
  * Start Command
  *
- * Handles /start command - entry point for new users
+ * Handles /start command - entry point for new and returning users.
+ * New users: show 4-language picker (ID, EN, RU, ZH) before onboarding.
+ * Returning users: greet in their saved language.
  */
 
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
 import { UserService } from "@/services/user.service";
-import { LANGUAGES } from "@/config/languages";
+import { t } from "@/i18n/translations";
 import { sendVilonaWelcomeAnimation } from "@/services/vilona-animation.service";
-
-/**
- * Map Telegram language_code to our supported language codes.
- */
-const TELEGRAM_LANG_MAP: Record<string, string> = {
-  id: "id",
-  en: "en",
-  ms: "ms",
-  th: "th",
-  vi: "vi",
-  "zh-hans": "zh",
-  zh: "zh",
-  ja: "ja",
-  ko: "ko",
-  ar: "ar",
-  ru: "ru",
-  fr: "fr",
-  de: "de",
-  es: "es",
-  "pt-br": "pt",
-  pt: "pt",
-};
 
 import {
   MAIN_MENU_KEYBOARD,
 } from "@/config/pricing";
 
-function detectLanguage(telegramLangCode?: string): string {
+/**
+ * Map Telegram language_code to our 4 supported UI languages.
+ * Anything not explicitly mapped falls back to English.
+ */
+const TELEGRAM_LANG_MAP: Record<string, string> = {
+  id: "id",
+  en: "en",
+  ru: "ru",
+  uk: "ru",   // Ukrainian → Russian fallback
+  be: "ru",   // Belarusian → Russian fallback
+  "zh-hans": "zh",
+  "zh-hant": "zh",
+  zh: "zh",
+};
+
+/** Map Telegram language_code → one of the 4 UI languages */
+function detectUILanguage(telegramLangCode?: string): string {
   if (!telegramLangCode) return "en";
   const lower = telegramLangCode.toLowerCase();
-  // Try exact match first, then base language (e.g. "en-us" → "en")
-  if (TELEGRAM_LANG_MAP[lower] && LANGUAGES[TELEGRAM_LANG_MAP[lower]]) {
-    return TELEGRAM_LANG_MAP[lower];
-  }
+  if (TELEGRAM_LANG_MAP[lower]) return TELEGRAM_LANG_MAP[lower];
   const base = lower.split("-")[0];
-  if (TELEGRAM_LANG_MAP[base] && LANGUAGES[TELEGRAM_LANG_MAP[base]]) {
-    return TELEGRAM_LANG_MAP[base];
-  }
-  return "en";
+  if (TELEGRAM_LANG_MAP[base]) return TELEGRAM_LANG_MAP[base];
+  return "en"; // default to English for unknown languages
 }
+
+/** The 4 UI languages offered during onboarding */
+const UI_LANGUAGES = [
+  { code: "id", flag: "🇮🇩", label: "Bahasa Indonesia" },
+  { code: "en", flag: "🇬🇧", label: "English" },
+  { code: "ru", flag: "🇷🇺", label: "Русский" },
+  { code: "zh", flag: "🇨🇳", label: "中文" },
+];
 
 /**
  * Handle /start command
@@ -75,18 +74,21 @@ export async function startCommand(ctx: BotContext): Promise<void> {
 
       // Check if banned
       if (existingUser.isBanned) {
-        await ctx.reply(
-          `❌ Your account has been restricted.\n\n` +
-            `Reason: ${existingUser.banReason || "No reason provided"}\n\n` +
-            `Contact support if you believe this is an error.`,
-        );
+        const lang = existingUser.language || "en";
+        const banMsg: Record<string, string> = {
+          id: `❌ Akun kamu dibatasi.\n\nAlasan: ${existingUser.banReason || "Tidak ada alasan"}\n\nHubungi support jika ini adalah kesalahan.`,
+          en: `❌ Your account has been restricted.\n\nReason: ${existingUser.banReason || "No reason provided"}\n\nContact support if you believe this is an error.`,
+          ru: `❌ Ваш аккаунт ограничен.\n\nПричина: ${existingUser.banReason || "Причина не указана"}\n\nСвяжитесь с поддержкой, если считаете это ошибкой.`,
+          zh: `❌ 您的账号已被限制。\n\n原因：${existingUser.banReason || "未提供原因"}\n\n如有异议请联系客服。`,
+        };
+        await ctx.reply(banMsg[lang] || banMsg.en);
         return;
       }
 
       // ── Vilona welcome animation (non-blocking) ──────────────────────────
       await sendVilonaWelcomeAnimation(ctx);
 
-      // ── NEW: Fullset main menu (15 buttons) ───────────────────────
+      const lang = existingUser.language || "en";
       const credBal = Number(existingUser.creditBalance);
       const credEmoji = credBal === 0 ? "⚠️" : credBal < 3 ? "🟡" : "🟢";
 
@@ -94,95 +96,17 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       if (ctx.session) {
         ctx.session.creditBalance = credBal;
         ctx.session.tier = existingUser.tier || "free";
-      }
-
-      await ctx.reply(
-        `👋 *Halo, ${user.first_name}!*\n\n` +
-          `${credEmoji} Kredit: *${credBal}*\n\n` +
-          `Mau buat apa hari ini?`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            keyboard: MAIN_MENU_KEYBOARD,
-            resize_keyboard: true,
-          },
-        },
-      );
-    } else {
-      // New user — show onboarding with free trial
-      const msg = ctx.message as { text?: string } | undefined;
-      const startPayload = msg?.text?.split(" ")[1];
-
-      // Extract UTM parameters from start payload or deep link
-      // Format: /start utm_source=berkahkarya&utm_campaign=lp1&utm_content=cta_click&lp_variant=1
-      const utmParams: any = {};
-      const attributionParams: any = {};
-      
-      if (startPayload) {
-        try {
-          const params = new URLSearchParams(startPayload.replace('?', ''));
-          utmParams.utm_source = params.get('utm_source') || undefined;
-          utmParams.utm_medium = params.get('utm_medium') || undefined;
-          utmParams.utm_campaign = params.get('utm_campaign') || undefined;
-          utmParams.utm_content = params.get('utm_content') || undefined;
-          utmParams.lp_variant = params.get('lp_variant') || undefined;
-          
-          // Attribution IDs
-          attributionParams.fbc = params.get('fbc') || undefined;
-          attributionParams.fbp = params.get('fbp') || undefined;
-          attributionParams.ttclid = params.get('ttclid') || undefined;
-        } catch (e) {
-          logger.warn(`Failed to parse UTM params from start payload: ${startPayload}`);
-        }
-      }
-
-      // Detect language from Telegram client settings
-      const detectedLang = detectLanguage(user.language_code);
-
-      if (ctx.session) {
-        ctx.session.state = "ONBOARDING_LANGUAGE";
+        ctx.session.state = "DASHBOARD";
         ctx.session.lastActivity = new Date();
-        ctx.session.stateData = {
-          startPayload: startPayload || null,
-          detectedLang,
-          utmParams,
-          attributionParams,
-        };
       }
 
-      // ── NEW: Onboarding dengan Free Trial ────────────────────────────────
       await ctx.reply(
-        `Selamat datang di OpenClaw AI! 🎉\n\n` +
-          `📱 **Platform AI Content Creation Terlengkap di Indonesia**\n\n` +
-          `Dapatkan **Free Trial** spesial untukmu:\n` +
-          `• 🎁 **Welcome Bonus:** 1x Gratis Tanpa Kredit\n` +
-          `• 📆 **Daily Free:** 1x Gratis SETIAP HARI\n\n` +
-          `Gunakan untuk buat foto produk HD atau coba prompt viral!\n\n` +
-          `─────────────────────────────\n` +
-          `**MAU BUAT APA HARI INI?**\n` +
-          `─────────────────────────────\n\n` +
-          `🎬 **Video**\n` +
-          `• Upload foto → jadi video cinematic\n` +
-          `• Deskripsikan → AI bikin video\n` +
-          `• Clone video viral → adaptasi buat brandmu\n\n` +
-          `🖼️ **Gambar**\n` +
-          `• Foto produk profesional\n` +
-          `• Thumbnail YouTube\n` +
-          `• Social media content\n\n` +
-          `📋 **Prompt Templates**\n` +
-          `• 40+ prompt profesional per niche\n` +
-          `• Tinggal pilih → langsung generate\n` +
-          `• Gratis untuk semua user!\n\n` +
-          `─────────────────────────────\n\n` +
-          `Ketik \`/prompts\` untuk lihat semua template siap pakai\n` +
-          `atau langsung jelaskan kebutuhanmu! 😊`,
+        `${t("menu.hello", lang, { name: user.first_name })}\n\n` +
+          `${credEmoji} ${t("menu.credits_label", lang)}: *${credBal}*\n\n` +
+          `${t("menu.today_question", lang)}`,
         {
           parse_mode: "Markdown",
           reply_markup: {
-            inline_keyboard: [
-              [{ text: "🚀 Mulai Sekarang!", callback_data: "onboard_start" }],
-              [{ text: "📚 Lihat Prompt Library", callback_data: "prompts_menu" }],
-            ],
             keyboard: MAIN_MENU_KEYBOARD,
             resize_keyboard: true,
           },
@@ -191,11 +115,63 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Update session state (returning users only — new users handled after language pick)
-    if (ctx.session) {
-      ctx.session.state = "DASHBOARD";
-      ctx.session.lastActivity = new Date();
+    // ── NEW USER: extract UTM / referral data, then show language picker ───
+    const msg = ctx.message as { text?: string } | undefined;
+    const startPayload = msg?.text?.split(" ")[1];
+
+    const utmParams: any = {};
+    const attributionParams: any = {};
+
+    if (startPayload) {
+      try {
+        const params = new URLSearchParams(startPayload.replace("?", ""));
+        utmParams.utm_source = params.get("utm_source") || undefined;
+        utmParams.utm_medium = params.get("utm_medium") || undefined;
+        utmParams.utm_campaign = params.get("utm_campaign") || undefined;
+        utmParams.utm_content = params.get("utm_content") || undefined;
+        utmParams.lp_variant = params.get("lp_variant") || undefined;
+        attributionParams.fbc = params.get("fbc") || undefined;
+        attributionParams.fbp = params.get("fbp") || undefined;
+        attributionParams.ttclid = params.get("ttclid") || undefined;
+      } catch (e) {
+        logger.warn(`Failed to parse UTM params from start payload: ${startPayload}`);
+      }
     }
+
+    // Detect preferred UI language from Telegram client settings
+    const detectedLang = detectUILanguage(user.language_code);
+
+    if (ctx.session) {
+      ctx.session.state = "ONBOARDING_LANGUAGE";
+      ctx.session.lastActivity = new Date();
+      ctx.session.stateData = {
+        startPayload: startPayload || null,
+        detectedLang,
+        utmParams,
+        attributionParams,
+      };
+    }
+
+    // Show 4-language picker — message is intentionally in all 4 languages
+    // so every user can read it regardless of their language
+    await ctx.reply(
+      `🌐 *Pilih bahasa kamu*\n` +
+      `🌐 *Please select your language*\n` +
+      `🌐 *Выберите язык*\n` +
+      `🌐 *请选择您的语言*`,
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: UI_LANGUAGES.map((l) => [
+            {
+              text: `${l.flag} ${l.label}`,
+              // Use onboard_lang_* — the existing handler creates user + shows translated onboarding
+              callback_data: `onboard_lang_${l.code}`,
+            },
+          ]),
+        },
+      },
+    );
   } catch (error) {
     logger.error("Error in start command:", error);
     await ctx.reply("❌ Something went wrong. Please try again later.");

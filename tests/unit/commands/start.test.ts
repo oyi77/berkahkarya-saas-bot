@@ -83,7 +83,7 @@ describe("Start Command", () => {
       expect(UserService.findByTelegramId).not.toHaveBeenCalled();
     });
 
-    it("should show welcome message for new users", async () => {
+    it("should show 4-language picker for new users", async () => {
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
@@ -93,12 +93,14 @@ describe("Start Command", () => {
       );
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain(
-        "Selamat datang di OpenClaw AI!",
-      );
+      // Should show multilingual language picker prompt
+      expect(replyCall[0]).toContain("Please select your language");
+      // First button should be Indonesian (onboard_lang_id)
       expect(
         replyCall[1].reply_markup.inline_keyboard[0][0].callback_data,
-      ).toBe("onboard_start");
+      ).toBe("onboard_lang_id");
+      // Should have 4 language buttons
+      expect(replyCall[1].reply_markup.inline_keyboard).toHaveLength(4);
     });
 
     it("should detect language from Telegram language_code", async () => {
@@ -253,6 +255,7 @@ describe("Start Command", () => {
     it("should show ban message for banned users", async () => {
       UserService.findByTelegramId.mockResolvedValue({
         ...mockUser,
+        language: "en",
         isBanned: true,
         banReason: "Violation of terms",
       });
@@ -270,6 +273,7 @@ describe("Start Command", () => {
     it("should show default ban reason when none provided", async () => {
       UserService.findByTelegramId.mockResolvedValue({
         ...mockUser,
+        language: "en",
         isBanned: true,
         banReason: null,
       });
@@ -330,67 +334,68 @@ describe("Start Command", () => {
       expect(ctx.session?.stateData?.detectedLang).toBe("zh");
     });
 
-    it("should handle pt-br language code", async () => {
+    // Languages outside the 4 supported UI languages (id/en/ru/zh) fall back to "en"
+    it("should handle pt-br language code (falls back to en)", async () => {
       ctx.from.language_code = "pt-br";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("pt");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle ms language code", async () => {
+    it("should handle ms language code (falls back to en)", async () => {
       ctx.from.language_code = "ms";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("ms");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle th language code", async () => {
+    it("should handle th language code (falls back to en)", async () => {
       ctx.from.language_code = "th";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("th");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle vi language code", async () => {
+    it("should handle vi language code (falls back to en)", async () => {
       ctx.from.language_code = "vi";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("vi");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle ja language code", async () => {
+    it("should handle ja language code (falls back to en)", async () => {
       ctx.from.language_code = "ja";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("ja");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle ko language code", async () => {
+    it("should handle ko language code (falls back to en)", async () => {
       ctx.from.language_code = "ko";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("ko");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle ar language code", async () => {
+    it("should handle ar language code (falls back to en)", async () => {
       ctx.from.language_code = "ar";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("ar");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
     it("should handle ru language code", async () => {
@@ -402,31 +407,31 @@ describe("Start Command", () => {
       expect(ctx.session?.stateData?.detectedLang).toBe("ru");
     });
 
-    it("should handle fr language code", async () => {
+    it("should handle fr language code (falls back to en)", async () => {
       ctx.from.language_code = "fr";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("fr");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle de language code", async () => {
+    it("should handle de language code (falls back to en)", async () => {
       ctx.from.language_code = "de";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("de");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
-    it("should handle es language code", async () => {
+    it("should handle es language code (falls back to en)", async () => {
       ctx.from.language_code = "es";
       UserService.findByTelegramId.mockResolvedValue(null);
 
       await startCommand(ctx as any);
 
-      expect(ctx.session?.stateData?.detectedLang).toBe("es");
+      expect(ctx.session?.stateData?.detectedLang).toBe("en");
     });
 
     it("should handle case-insensitive language codes", async () => {
