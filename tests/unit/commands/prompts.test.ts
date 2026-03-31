@@ -318,7 +318,7 @@ describe("Prompts Command", () => {
 
       await dailyCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("Unable to identify user.");
+      expect(ctx.reply).toHaveBeenCalledWith("Tidak dapat mengidentifikasi user.");
     });
 
     it("should show daily prompt", async () => {

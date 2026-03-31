@@ -75,6 +75,12 @@ const MESSAGES = {
     `Hai ${name}! Lama gak jumpa 😊\n\nOpenClaw baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nSpecial comeback offer: paket Starter Rp 99k → Rp 69k. Berlaku 72 jam. /topup`,
   churn_60d: (name: string) =>
     `${name}, ini pesan terakhir dari kami.\n\nSemoga bisnis kamu makin berkembang ya! Kalau mau balik, kami selalu di sini 🙏\n\nTap /start kapan saja.`,
+
+  // Type 6: Subscription expiring
+  sub_expiring_3d: (name: string) =>
+    `⭐ ${name}, langganan kamu akan berakhir dalam 3 hari!\n\nPerpanjang sekarang supaya kredit bulananmu tetap aktif dan tidak kehilangan akses fitur premium.\n\n👉 /topup`,
+  sub_expiring_1d: (name: string) =>
+    `⚠️ ${name}, langganan kamu berakhir besok!\n\nKredit yang belum dipakai akan hangus setelah langganan berakhir. Perpanjang sekarang!\n\n👉 /topup`,
 };
 
 // ── Scheduler ────────────────────────────────────────────────────────────────
@@ -101,7 +107,44 @@ export class RetentionScheduler {
       this.checkType3UsedOnce(bot),
       this.checkType4ActiveNoAffiliate(bot),
       this.checkType5Churned(bot),
+      this.checkType6SubscriptionExpiring(bot),
     ]);
+  }
+
+  /**
+   * Type 6: Subscription expiring in 1 or 3 days
+   */
+  static async checkType6SubscriptionExpiring(bot: { telegram: Telegram }): Promise<void> {
+    const now = new Date();
+    const triggers = [
+      { daysAhead: 3, msgKey: 'sub_expiring_3d' as const },
+      { daysAhead: 1, msgKey: 'sub_expiring_1d' as const },
+    ];
+
+    for (const trigger of triggers) {
+      const targetDate = new Date(now.getTime() + trigger.daysAhead * 24 * 60 * 60 * 1000);
+      const targetStart = new Date(targetDate);
+      targetStart.setHours(0, 0, 0, 0);
+      const targetEnd = new Date(targetDate);
+      targetEnd.setHours(23, 59, 59, 999);
+
+      const subs = await prisma.subscription.findMany({
+        where: {
+          status: 'active',
+          currentPeriodEnd: { gte: targetStart, lte: targetEnd },
+        },
+        include: { user: { select: { id: true, telegramId: true, firstName: true, notificationsEnabled: true } } },
+        take: 50,
+      });
+
+      for (const sub of subs) {
+        if (!sub.user?.notificationsEnabled) continue;
+        if (await this.canSend(sub.user.id, 'subscription')) {
+          await this.sendMessage(bot, sub.user.telegramId, MESSAGES[trigger.msgKey](sub.user.firstName));
+          await this.logSent(sub.user.id, 'subscription');
+        }
+      }
+    }
   }
 
   /**

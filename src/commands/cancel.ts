@@ -5,7 +5,7 @@ export async function cancelCommand(ctx: BotContext): Promise<void> {
   try {
     const user = ctx.from;
     if (!user) {
-      await ctx.reply('Unable to identify user.');
+      await ctx.reply('Tidak dapat mengidentifikasi user.');
       return;
     }
 

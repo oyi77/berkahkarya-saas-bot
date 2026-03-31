@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Telegraf } from 'telegraf';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { prisma } from '@/config/database';
 import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
 import { NowPaymentsService } from '@/services/nowpayments.service';
@@ -85,7 +86,20 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         transaction_status: statusMap[body.status] || 'pending',
         payment_type: body.payment_method,
       });
-      
+
+      // Notify user on payment failure/expiry
+      if ((body.status === 'EXPIRED' || body.status === 'FAILED' || body.status === 'CANCELLED') && body.merchant_ref && bot) {
+        try {
+          const tx = await prisma.transaction.findUnique({ where: { orderId: body.merchant_ref } });
+          if (tx?.userId) {
+            await bot.telegram.sendMessage(tx.userId.toString(),
+              `❌ *Pembayaran ${body.status === 'EXPIRED' ? 'Kedaluwarsa' : 'Gagal'}*\n\nOrder: \`${body.merchant_ref}\`\n\nSilakan coba lagi.`,
+              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Coba Lagi', callback_data: 'topup' }]] } }
+            ).catch(() => {});
+          }
+        } catch { /* best-effort notification */ }
+      }
+
       return { ok: result.success };
     } catch (error) {
       logger.error('Tripay webhook error:', error);
@@ -131,10 +145,10 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
             const amount = body.price_amount ? `$${body.price_amount}` : '';
             await bot.telegram.sendMessage(
               telegramId,
-              `✅ *Crypto Payment Confirmed!*\n\n` +
-              `💰 ${amount} ${coin} received\n` +
-              `🎬 Credits have been added to your account\n\n` +
-              `Use /create to generate your video now! 🚀`,
+              `✅ *Pembayaran Crypto Berhasil!*\n\n` +
+              `💰 ${amount} ${coin} diterima\n` +
+              `🎬 Kredit sudah ditambahkan ke akun kamu\n\n` +
+              `Gunakan /create untuk buat video sekarang! 🚀`,
               { parse_mode: 'Markdown' }
             );
           }
@@ -163,7 +177,20 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         reference: body.reference,
         signature: body.signature,
       });
-      
+
+      // Notify user on payment failure
+      if (body.resultCode !== '00' && body.resultCode !== '01' && body.merchantOrderId && bot) {
+        try {
+          const tx = await prisma.transaction.findUnique({ where: { orderId: body.merchantOrderId } });
+          if (tx?.userId) {
+            await bot.telegram.sendMessage(tx.userId.toString(),
+              `❌ *Pembayaran Gagal*\n\nOrder: \`${body.merchantOrderId}\`\n\nSilakan coba lagi atau pilih metode pembayaran lain.`,
+              { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '💳 Coba Lagi', callback_data: 'topup' }]] } }
+            ).catch(() => {});
+          }
+        } catch { /* best-effort notification */ }
+      }
+
       return { ok: result.success, message: result.message };
     } catch (error) {
       logger.error('Duitku webhook error:', error);

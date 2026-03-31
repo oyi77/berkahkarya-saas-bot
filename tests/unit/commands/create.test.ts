@@ -472,7 +472,7 @@ describe("Create Command", () => {
       await handleDurationSelection(ctx as any, "duration_15_1");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -489,7 +489,7 @@ describe("Create Command", () => {
     it("should handle invalid niche", async () => {
       await handleNicheSelection(ctx as any, "invalid_niche");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("Invalid niche");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith("Niche tidak valid");
     });
 
     it("should show style picker for valid niche", async () => {
@@ -516,7 +516,7 @@ describe("Create Command", () => {
       await handleNicheSelection(ctx as any, "fnb");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -553,7 +553,7 @@ describe("Create Command", () => {
       await handleStyleSelection(ctx as any, "appetizing");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -625,7 +625,7 @@ describe("Create Command", () => {
       await handlePlatformSelection(ctx as any, "tiktok");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -693,7 +693,7 @@ describe("Create Command", () => {
       await handleVOToggle(ctx as any, "vo");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -748,7 +748,7 @@ describe("Create Command", () => {
       await handleVOContinue(ctx as any);
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -787,7 +787,7 @@ describe("Create Command", () => {
       await handleCustomPromptRequest(ctx as any);
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });
@@ -831,7 +831,7 @@ describe("Create Command", () => {
       await handleSkipPrompt(ctx as any);
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "Error. Please try again.",
+        "Terjadi kesalahan. Coba lagi.",
       );
     });
   });

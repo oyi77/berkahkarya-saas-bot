@@ -150,6 +150,14 @@ export class VideoService {
     videoUrl?: string;
     downloadUrl?: string;
   }): Promise<Video> {
+    // Defense-in-depth: don't mark complete if no delivery path exists
+    if (!urls.downloadUrl && !urls.videoUrl) {
+      logger.warn(`setOutput called for ${jobId} with no downloadUrl or videoUrl — marking failed`);
+      return prisma.video.update({
+        where: { jobId },
+        data: { status: 'failed', errorMessage: 'No delivery path available' },
+      });
+    }
     return prisma.video.update({
       where: { jobId },
       data: {

@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { prisma } from '@/config/database';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
@@ -158,7 +159,21 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     else if (action === 'clone_style') cost = UNIT_COSTS.CLONE_STYLE;
     else if (action === 'campaign') cost = CampaignService.getCampaignCost((session.generateCampaignSize as 5 | 10) || 5);
 
-    if (unitBalance < cost) {
+    // Free trial check for image_set (welcome bonus / daily free)
+    let useFreeSlot = false;
+    if (unitBalance < cost && action === 'image_set') {
+      const { canUseWelcomeBonus, canUseDailyFree } = await import('../config/free-trial.js');
+      if (canUseWelcomeBonus(user)) {
+        useFreeSlot = true;
+        await prisma.user.update({ where: { id: user.id }, data: { welcomeBonusUsed: true } });
+      } else if (canUseDailyFree(user)) {
+        useFreeSlot = true;
+        const { getNextDailyFreeReset } = await import('../config/free-trial.js');
+        await prisma.user.update({ where: { id: user.id }, data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() } });
+      }
+    }
+
+    if (unitBalance < cost && !useFreeSlot) {
       const costCredits = cost / 10;
       const balCredits = unitBalance / 10;
       await ctx.reply(

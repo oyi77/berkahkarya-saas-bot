@@ -293,7 +293,7 @@ describe("Start Command", () => {
       await startCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "❌ Something went wrong. Please try again later.",
+        "❌ Terjadi kesalahan. Silakan coba lagi nanti.",
       );
     });
 

@@ -880,7 +880,7 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) {
-      await ctx.reply("Unable to identify user.");
+      await ctx.reply("Tidak dapat mengidentifikasi user.");
       return;
     }
 

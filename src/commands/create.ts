@@ -199,7 +199,7 @@ export async function handleDurationSelection(
     );
   } catch (error) {
     logger.error("Error handling duration selection:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -217,7 +217,7 @@ export async function handleNicheSelection(
 
     const nicheConfig = NICHES[nicheKey];
     if (!nicheConfig) {
-      await ctx.answerCbQuery("Invalid niche");
+      await ctx.answerCbQuery("Niche tidak valid");
       return;
     }
 
@@ -260,7 +260,7 @@ export async function handleNicheSelection(
     );
   } catch (error) {
     logger.error("Error handling niche selection:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -321,7 +321,7 @@ export async function handleStyleSelection(
     );
   } catch (error) {
     logger.error("Error handling style selection:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -405,7 +405,7 @@ export async function handlePlatformSelection(
     );
   } catch (error) {
     logger.error("Error handling platform selection:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -1049,7 +1049,7 @@ export async function handleVOToggle(
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling VO toggle:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -1144,7 +1144,7 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling VO continue:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -1171,7 +1171,7 @@ export async function handleCustomPromptRequest(
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling custom prompt request:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
@@ -1199,7 +1199,7 @@ export async function handleSkipPrompt(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling skip prompt:", error);
-    await ctx.answerCbQuery("Error. Please try again.");
+    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
   }
 }
 
