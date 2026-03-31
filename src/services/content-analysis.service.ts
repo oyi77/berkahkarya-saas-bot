@@ -110,8 +110,42 @@ export class ContentAnalysisService {
       }
 
       const systemPrompt = mediaType === 'image'
-        ? 'Analyze this image and describe it in detail as an AI image generation prompt. Include: subject, environment, lighting, camera angle, style, and mood. Be specific about colors, textures, and composition. Output only the prompt text.'
-        : 'Analyze this video in detail. Describe:\n\nVISUAL: subject, scenes, camera movements, transitions, lighting, color grading, effects\nAUDIO: voiceover text/transcript, background music type, sound effects\nSTORYBOARD: break down into individual scenes with timing\n\nOutput as a comprehensive recreation prompt.';
+        ? `You are an expert AI image prompt engineer. Analyze this image with MAXIMUM DETAIL:
+
+1. SUBJECT: Exact appearance, materials, textures (e.g. "burgundy leather handbag with brushed gold hardware" not "bag")
+2. COMPOSITION: Layout, framing, depth of field (e.g. "subject center-left, shallow DOF, rule-of-thirds" not "nice composition")
+3. LIGHTING: Direction, quality, temperature (e.g. "warm key light 45° upper-left, soft fill, rim light on edges" not "good lighting")
+4. COLOR PALETTE: Exact colors and relationships (e.g. "warm neutrals: cream, tan, burnt sienna; cool accent: teal" not "colorful")
+5. TEXTURE & MATERIAL: Surface properties (glossy, matte, rough, smooth, metallic, organic)
+6. CAMERA: Lens characteristics (e.g. "50mm f/1.4, slight overhead angle, natural bokeh" not "camera angle")
+7. STYLE & MOOD: Aesthetic and emotion (e.g. "luxe minimalist, moody, high-end commercial" not "professional")
+8. BACKGROUND: Environment details, depth, blur quality
+
+Output as a single cohesive prompt paragraph, 250-350 words. Prioritize technical precision.`
+        : `You are an expert video analysis AI. Analyze this video with MAXIMUM DETAIL:
+
+VISUAL ANALYSIS:
+- Pacing: cuts per second, rhythm, energy level
+- Color grading: specific grades, temperature shifts, contrast levels
+- Camera: movements (pan, tilt, dolly, zoom speeds), stabilization, angles
+- Effects: overlays, graphics, particles, motion blur, text animations
+- Transitions: types with timing (cut, fade, dissolve, wipe, zoom)
+
+SCENE BREAKDOWN:
+For EACH scene, describe:
+- Exact duration and visual content
+- Camera movement and angle
+- Lighting changes
+- Subject actions and expressions
+- Text/graphics overlays if any
+
+Then output:
+STORYBOARD:
+Scene 1 | Xs | [Detailed description with camera, lighting, action]
+Scene 2 | Xs | [Detailed description]
+(continue for ALL scenes)
+
+Output 300-500 words total. Be technically precise about cinematography.`;
 
       // Fetch media and convert to base64
       const media = await fetchMediaAsBase64(mediaUrl);
@@ -129,14 +163,14 @@ export class ContentAnalysisService {
           ],
         }],
         generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 1024,
+          temperature: 0.65,
+          maxOutputTokens: mediaType === 'video' ? 3500 : 2000,
         },
       };
 
       const response = await axios.post(GEMINI_VISION_URL, requestBody, {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 30000,
+        timeout: 45000,
       });
 
       const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -186,21 +220,22 @@ export class ContentAnalysisService {
       const media = await fetchMediaAsBase64(sourceUrl);
 
       const systemPrompt =
-        'Analyze this video/media and create a detailed recreation prompt. Describe:\n' +
-        '1. Visual style (cinematography, color grading, lighting)\n' +
-        '2. Scene composition and camera angles\n' +
-        '3. Transitions and editing techniques\n' +
-        '4. Subject and action\n' +
-        '5. Mood and atmosphere\n' +
-        '6. Text overlays or effects if visible\n' +
-        '7. Audio: voiceover transcript, background music type, sound effects\n\n' +
-        'IMPORTANT: Also break down the video into individual scenes with timing.\n' +
-        'After the prompt, output a STORYBOARD section in this exact format:\n' +
+        'You are an expert video analyst. Create a DETAILED recreation prompt:\n\n' +
+        '1. CINEMATOGRAPHY: Camera movements (pan speed, tilt angle, dolly distance), stabilization style, shot types (wide/medium/close-up/macro)\n' +
+        '2. COLOR GRADING: Specific grades (teal & orange, desaturated, high-contrast), temperature shifts across scenes\n' +
+        '3. LIGHTING: Key light setup per scene, practical lights, color gels, golden hour/blue hour\n' +
+        '4. TRANSITIONS: Exact types (cut, J-cut, L-cut, whip pan, zoom, dissolve) with timing\n' +
+        '5. SUBJECT: Actions, expressions, movement patterns, wardrobe/product details\n' +
+        '6. TEXT/GRAPHICS: Font style, animation type, position, timing of overlays\n' +
+        '7. MOOD: Energy level, emotional arc from opening to closing\n' +
+        '8. PACING: Cuts per second, rhythm changes, slow-motion sections\n\n' +
+        'IMPORTANT: Break down into individual scenes with timing.\n' +
+        'After the recreation prompt, output:\n' +
         'STORYBOARD:\n' +
-        'Scene 1 | 3s | Description of scene 1\n' +
-        'Scene 2 | 5s | Description of scene 2\n' +
-        '(continue for all scenes)\n\n' +
-        'First output the comprehensive recreation prompt, then the STORYBOARD section.';
+        'Scene 1 | 3s | [Detailed: camera, lighting, subject, action, text overlay]\n' +
+        'Scene 2 | 5s | [Detailed: camera, lighting, subject, action, text overlay]\n' +
+        '(continue for ALL scenes)\n\n' +
+        'Output 400-600 words total. Technical precision over generic description.';
 
       const requestBody = {
         contents: [{
@@ -215,14 +250,14 @@ export class ContentAnalysisService {
           ],
         }],
         generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 2048,
+          temperature: 0.65,
+          maxOutputTokens: 3500,
         },
       };
 
       const response = await axios.post(GEMINI_VISION_URL, requestBody, {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 30000,
+        timeout: 60000,
       });
 
       const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -269,15 +304,16 @@ export class ContentAnalysisService {
       const media = await fetchMediaAsBase64(sourceUrl);
 
       const systemPrompt =
-        'Analyze this image and create a detailed recreation prompt. Describe:\n' +
-        '1. Subject and composition\n' +
-        '2. Lighting setup (direction, quality, color temperature)\n' +
-        '3. Color palette and grading\n' +
-        '4. Camera angle and lens characteristics\n' +
-        '5. Background and environment\n' +
-        '6. Art style and aesthetic\n' +
-        '7. Mood and atmosphere\n\n' +
-        'Format as a single comprehensive AI image generation prompt.';
+        'You are an expert at analyzing images for AI recreation. Create a DETAILED prompt:\n\n' +
+        '1. SUBJECT: Exact object/person appearance, materials, textures, colors (specific names like "burgundy" not "red")\n' +
+        '2. COMPOSITION: Layout, rule-of-thirds, negative space, depth layers, focal point\n' +
+        '3. LIGHTING: Key light direction, fill ratio, rim light, color temperature (e.g. 3200K warm), quality (hard/soft)\n' +
+        '4. COLOR PALETTE: Dominant + accent colors, saturation level, contrast, color grading style\n' +
+        '5. CAMERA: Lens (e.g. 50mm f/1.4), angle, distance, depth of field, bokeh quality\n' +
+        '6. BACKGROUND: Environment details, blur quality, supporting elements\n' +
+        '7. STYLE: Art direction, aesthetic movement, commercial vs editorial\n' +
+        '8. MOOD: Emotional tone, atmosphere, energy level\n\n' +
+        'Output as a single cohesive prompt, 250-350 words. Technical precision over generic language.';
 
       const requestBody = {
         contents: [{
@@ -292,14 +328,14 @@ export class ContentAnalysisService {
           ],
         }],
         generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 1024,
+          temperature: 0.65,
+          maxOutputTokens: 2000,
         },
       };
 
       const response = await axios.post(GEMINI_VISION_URL, requestBody, {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 30000,
+        timeout: 45000,
       });
 
       const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -353,8 +389,8 @@ export class ContentAnalysisService {
    */
   private static getFallbackResult(mediaType: 'video' | 'image'): AnalysisResult {
     const templates: Record<string, string> = {
-      video: 'Create a dynamic marketing video with quick cuts, engaging transitions, and professional editing. Include product showcase, lifestyle shots, and call-to-action. Use trending audio and text overlays.',
-      image: 'Professional product photography with studio lighting, clean composition, and commercial quality. Sharp focus, vibrant colors, and premium aesthetic.',
+      video: 'Dynamic marketing video: opening hook shot (2s) with bold text overlay and dramatic zoom-in on product, problem scene (3s) showing pain point with desaturated color grade, solution reveal (4s) with product hero shot and warm lighting transition, social proof scene (3s) with testimonial text animation, CTA closing (3s) with brand colors and urgency text. Pacing: 2-3 cuts/second, transitions: mix of hard cuts and zoom transitions, color grade: warm highlights with teal shadows, camera: mix of static close-ups and smooth slider movements.',
+      image: 'Professional commercial product photography: subject positioned using rule-of-thirds, warm key light from 45° upper-left with soft fill, rim light on edges for separation. Color palette: warm neutrals (cream, beige) with one accent color. Shot on 85mm f/1.8 lens, shallow depth of field with creamy bokeh background. Surface: clean matte backdrop or lifestyle setting. Post-processing: slight warm grade, enhanced shadows, commercial skin retouching if applicable. Mood: premium, aspirational, clean minimalist aesthetic.',
     };
 
     return {
@@ -362,10 +398,10 @@ export class ContentAnalysisService {
       prompt: templates[mediaType],
       style: 'commercial',
       elements: [
-        'Professional lighting',
-        'Clean composition',
-        'High-quality visuals',
-        'Engaging content',
+        'Professional lighting setup',
+        'Deliberate composition',
+        'Technical camera settings',
+        'Color grading applied',
         'Commercial aesthetic',
       ],
     };

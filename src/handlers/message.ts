@@ -234,7 +234,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const user = await UserService.findByTelegramId(telegramId);
       if (!user || Number(user.creditBalance) < creditCost) {
         await ctx.reply(
-          `❌ Not enough credits. Need ${creditCost}, have ${user?.creditBalance || 0}. Use /topup`,
+          t('gen.insufficient_credits', ctx.session?.userLang || 'id', { cost: creditCost, balance: Number(user?.creditBalance || 0) }),
         );
         ctx.session.state = "DASHBOARD";
         return;
@@ -444,8 +444,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             return;
           }
 
-          case "🖼️ Generate Image":
-            await ctx.reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
+          case "🖼️ Generate Image": {
+            const imgLang = ctx.session?.userLang || 'id';
+            const imgTitle = imgLang === 'id' ? '🖼️ *Generate Gambar*\n\nPilih kategori:' :
+              imgLang === 'ru' ? '🖼️ *Генерация изображений*\n\nВыберите категорию:' :
+              imgLang === 'zh' ? '🖼️ *图片生成*\n\n选择类别:' :
+              '🖼️ *Image Generation*\n\nSelect category:';
+            await ctx.reply(imgTitle, {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
@@ -457,6 +462,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               },
             });
             return;
+          }
 
           case "💬 Chat AI":
             await ctx.reply(

@@ -2731,7 +2731,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith("set_language_")) {
       const langCode = data.replace("set_language_", "");
       const langCfg = getLangConfig(langCode);
-      await ctx.answerCbQuery(`Language set to ${langCfg.label}`);
+      await ctx.answerCbQuery(`${langCfg.flag} ${langCfg.label} ✅`);
       const userId = ctx.from?.id;
       if (userId) {
         await UserService.update(BigInt(userId), { language: langCode });
@@ -4118,6 +4118,7 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
 
   // Build reference image options
   const telegramId = BigInt(ctx.from!.id);
+  const lang = ctx.session?.userLang || 'id';
   const avatars = await AvatarService.listAvatars(telegramId);
   const creditCost = await getImageCreditCostAsync();
 
@@ -4129,10 +4130,10 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
   await ctx.editMessageText(
     `🖼️ *Generate ${categoryNames[category]}*\n` +
     `💰 _Biaya: ${creditCost} kredit per gambar_\n\n` +
-    `How do you want to generate?\n\n` +
-    `📸 *Upload Reference* — Send your product photo and AI will create marketing images based on it\n` +
-    `👤 *Use Avatar* — Keep a consistent character/person across images\n` +
-    `✏️ *Describe Only* — AI generates from your text description`,
+    `${lang === 'id' ? 'Pilih cara generate:' : lang === 'ru' ? 'Как вы хотите создать?' : lang === 'zh' ? '选择生成方式:' : 'How do you want to generate?'}\n\n` +
+    `📸 *${lang === 'id' ? 'Upload Referensi' : lang === 'ru' ? 'Загрузить референс' : lang === 'zh' ? '上传参考' : 'Upload Reference'}* — ${lang === 'id' ? 'Kirim foto produk, AI buat gambar berdasarkan itu' : lang === 'ru' ? 'Отправьте фото товара, AI создаст по нему' : lang === 'zh' ? '发送产品照片，AI将基于此创建' : 'Send your product photo and AI will create based on it'}\n` +
+    `👤 *${lang === 'id' ? 'Pakai Avatar' : lang === 'ru' ? 'Аватар' : lang === 'zh' ? '使用头像' : 'Use Avatar'}* — ${lang === 'id' ? 'Karakter konsisten di semua gambar' : lang === 'ru' ? 'Единый персонаж на всех изображениях' : lang === 'zh' ? '保持角色一致' : 'Keep a consistent character across images'}\n` +
+    `✏️ *${lang === 'id' ? 'Deskripsi Saja' : lang === 'ru' ? 'Только описание' : lang === 'zh' ? '仅描述' : 'Describe Only'}* — ${lang === 'id' ? 'AI generate dari teks deskripsi kamu' : lang === 'ru' ? 'AI создаст по текстовому описанию' : lang === 'zh' ? 'AI根据文字描述生成' : 'AI generates from your text description'}`,
     {
       parse_mode: "Markdown",
       reply_markup: {

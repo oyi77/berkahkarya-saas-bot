@@ -227,8 +227,8 @@ export async function handleVideoCreationImage(
         ...scene,
         description:
           idx === 0
-            ? `${scene.description}. Product context from reference images: ${visionInsights.slice(0, 500)}`
-            : `${scene.description}. Visual reference: ${visionInsights.slice(0, 200)}`,
+            ? `${scene.description}. Product context from reference images: ${visionInsights.slice(0, 1500)}`
+            : `${scene.description}. Visual reference: ${visionInsights.slice(0, 800)}`,
       }));
       logger.info("Storyboard enriched with vision analysis insights");
     }
