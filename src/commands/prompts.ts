@@ -9,6 +9,7 @@ import { UserService } from "@/services/user.service";
 import { SavedPromptService } from "@/services/saved-prompt.service";
 import { prisma } from "@/config/database";
 import { canUseDailyFree, getNextDailyFreeReset } from "@/config/free-trial";
+import { t } from "@/i18n/translations";
 
 // ─── PROMPT LIBRARY DATA ────────────────────────────────────────────────────
 
@@ -532,7 +533,9 @@ export async function promptsCommand(ctx: BotContext): Promise<void> {
     );
   } catch (err) {
     logger.error("promptsCommand error:", err);
-    await ctx.reply("❌ Gagal load prompt library. Coba lagi.");
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
+    const lang = dbUser?.language || 'id';
+    await ctx.reply(t('prompt.library_load_failed', lang));
   }
 }
 
@@ -545,7 +548,9 @@ export async function showNichePrompts(
 ): Promise<void> {
   const niche = PROMPT_LIBRARY[nicheKey];
   if (!niche) {
-    await ctx.reply("❌ Niche tidak ditemukan.");
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
+    const lang = dbUser?.language || 'id';
+    await ctx.reply(t('prompt.niche_not_found', lang));
     return;
   }
 
@@ -668,7 +673,9 @@ export async function showPromptDetail(
 ): Promise<void> {
   const p = await findAnyPrompt(promptId);
   if (!p) {
-    await ctx.reply("❌ Prompt tidak ditemukan.");
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
+    const lang = dbUser?.language || 'id';
+    await ctx.reply(t('cb.prompt_not_found', lang));
     return;
   }
 
@@ -880,13 +887,13 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) {
-      await ctx.reply("Tidak dapat mengidentifikasi user.");
+      await ctx.reply(t('social.unable_identify_user', 'id'));
       return;
     }
 
     const dbUser = await UserService.findByTelegramId(BigInt(userId));
     if (!dbUser) {
-      await ctx.reply("User not found.");
+      await ctx.reply(t('error.user_not_found', 'id'));
       return;
     }
 
@@ -948,7 +955,8 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
     });
   } catch (err) {
     logger.error("dailyCommand error:", err);
-    await ctx.reply("❌ Gagal load daily prompt. Coba lagi.");
+    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
+    await ctx.reply(t('prompt.daily_load_failed', errLang));
   }
 }
 
@@ -991,7 +999,8 @@ export async function trendingCommand(ctx: BotContext): Promise<void> {
     });
   } catch (err) {
     logger.error("trendingCommand error:", err);
-    await ctx.reply("❌ Gagal load trending. Coba lagi.");
+    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
+    await ctx.reply(t('prompt.trending_load_failed', errLang));
   }
 }
 
@@ -1042,7 +1051,8 @@ export async function fingerprintCommand(ctx: BotContext): Promise<void> {
     });
   } catch (err) {
     logger.error("fingerprintCommand error:", err);
-    await ctx.reply("❌ Gagal load fingerprint. Coba lagi.");
+    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
+    await ctx.reply(t('prompt.fingerprint_load_failed', errLang));
   }
 }
 
@@ -1055,19 +1065,19 @@ export async function saveLibraryPrompt(
   try {
     const p = await getPromptById(promptId);
     if (!p) {
-      await ctx.answerCbQuery("❌ Prompt tidak ditemukan");
+      await ctx.answerCbQuery(t('cb.prompt_not_found', 'id'));
       return;
     }
 
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCbQuery("❌ User not found");
+      await ctx.answerCbQuery(t('error.user_not_found', 'id'));
       return;
     }
 
     const dbUser = await UserService.findByTelegramId(BigInt(telegramId));
     if (!dbUser) {
-      await ctx.answerCbQuery("❌ User not found");
+      await ctx.answerCbQuery(t('error.user_not_found', 'id'));
       return;
     }
 
@@ -1092,7 +1102,7 @@ export async function saveLibraryPrompt(
     await ctx.answerCbQuery(`✅ "${p.title}" tersimpan!`);
   } catch (err) {
     logger.error("saveLibraryPrompt error:", err);
-    await ctx.answerCbQuery("❌ Gagal menyimpan. Coba lagi.");
+    await ctx.answerCbQuery(t('prompt.save_failed', 'id'));
   }
 }
 
@@ -1177,7 +1187,8 @@ export async function showMyPrompts(
     else await ctx.reply(msg, { parse_mode: "Markdown", reply_markup: markup });
   } catch (err) {
     logger.error("showMyPrompts error:", err);
-    await ctx.reply("❌ Gagal load prompt tersimpan.");
+    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
+    await ctx.reply(t('prompt.saved_load_failed', errLang));
   }
 }
 

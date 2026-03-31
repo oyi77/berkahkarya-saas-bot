@@ -5,6 +5,7 @@
 import { BotContext } from '@/types';
 import { PostAutomationService } from '@/services/postautomation.service';
 import { logger } from '@/utils/logger';
+import { t } from '@/i18n/translations';
 
 /**
  * Handle /social command — show connected accounts or connect new ones
@@ -13,7 +14,7 @@ export async function socialCommand(ctx: BotContext): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) {
-      await ctx.reply('❌ Unable to identify user.');
+      await ctx.reply(t('social.unable_identify_user', 'id'));
       return;
     }
 
@@ -67,6 +68,6 @@ export async function socialCommand(ctx: BotContext): Promise<void> {
     });
   } catch (error) {
     logger.error('Error in social command:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    await ctx.reply(t('error.generic', 'id'));
   }
 }

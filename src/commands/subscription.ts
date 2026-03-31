@@ -2,6 +2,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { SubscriptionService } from '@/services/subscription.service';
+import { t } from '@/i18n/translations';
 import {
   SUBSCRIPTION_PLANS,
   PlanKey,
@@ -29,7 +30,7 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
     const telegramId = BigInt(user.id);
     const dbUser = await UserService.findByTelegramId(telegramId);
     if (!dbUser) {
-      await ctx.reply('❌ Please /start first to use this feature.');
+      await ctx.reply(t('sub.start_first', 'id'));
       return;
     }
 
@@ -88,7 +89,7 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
     });
   } catch (error) {
     logger.error('Error in subscription command:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    await ctx.reply(t('error.generic', 'id'));
   }
 }
 
@@ -101,7 +102,7 @@ export async function handleSubscriptionPurchase(
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Creating payment...');
+    await ctx.answerCbQuery('...');
 
     const price = getPlanPrice(plan, cycle);
     const planConfig = SUBSCRIPTION_PLANS[plan];
@@ -164,7 +165,9 @@ export async function handleSubscriptionPurchase(
     );
   } catch (error) {
     logger.error('Error creating subscription payment:', error);
-    await ctx.editMessageText('❌ Failed to create payment. Please try again.');
+    const dbUser2 = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    const lang2 = dbUser2?.language || 'id';
+    await ctx.editMessageText(t('sub.payment_create_failed', lang2));
   }
 }
 
@@ -173,7 +176,7 @@ export async function handleCancelSubscription(ctx: BotContext): Promise<void> {
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('Processing...');
+    await ctx.answerCbQuery('...');
     await SubscriptionService.cancelSubscription(BigInt(user.id));
 
     await ctx.editMessageText(
@@ -185,6 +188,8 @@ export async function handleCancelSubscription(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('Error cancelling subscription:', error);
-    await ctx.editMessageText('❌ Failed to cancel. Please try again.');
+    const dbUser3 = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    const lang3 = dbUser3?.language || 'id';
+    await ctx.editMessageText(t('sub.cancel_failed', lang3));
   }
 }

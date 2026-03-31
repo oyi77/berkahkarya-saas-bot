@@ -7,6 +7,7 @@
 import { BotContext } from '@/types';
 import { UserService } from '@/services/user.service';
 import { logger } from '@/utils/logger';
+import { t } from '@/i18n/translations';
 
 const BOT_USERNAME = process.env.BOT_USERNAME || 'berkahkarya_saas_bot';
 
@@ -17,7 +18,7 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
   const from = ctx.from;
 
   if (!from) {
-    await ctx.reply('Unable to load referral info. Please try again.');
+    await ctx.reply(t('referral.load_failed', 'id'));
     return;
   }
 
@@ -69,6 +70,6 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(msg, { reply_markup: markup });
   } catch (error: any) {
     logger.error('Error in referral command:', error);
-    await ctx.reply(`Failed to load referral info. Error: ${error.message || 'Unknown'}. Please try again later.`);
+    await ctx.reply(t('referral.load_failed', 'id'));
   }
 }

@@ -8,6 +8,7 @@ import { enqueueVideoGeneration } from "@/config/queue";
 import { getVideoCreditCost } from "@/config/pricing";
 import { generateVideoAsync, generateExtendedVideoAsync } from "@/commands/create";
 import { actionableError } from "@/utils/errors";
+import { t } from "@/i18n/translations";
 import * as fs from "fs";
 import * as path from "path";
 import { execFile as execFileCallback } from "child_process";
@@ -31,13 +32,19 @@ export async function handleDisassemble(ctx: BotContext): Promise<void> {
   }
 
   if (!mediaUrl) {
-    await ctx.reply("❌ No media found. Please send a video or image.");
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    const lang = dbUser?.language || 'id';
+    await ctx.reply(t('uploader.no_media', lang));
     return;
   }
 
-  await ctx.reply("⏳ *Analyzing...*\n\nExtracting prompt from your media...", {
-    parse_mode: "Markdown",
-  });
+  {
+    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    const lang = dbUser?.language || 'id';
+    await ctx.reply(t('uploader.analyzing', lang), {
+      parse_mode: "Markdown",
+    });
+  }
 
   try {
     const fileLink = await ctx.telegram.getFileLink(mediaUrl);
@@ -85,7 +92,9 @@ export async function handleDisassemble(ctx: BotContext): Promise<void> {
     }
   } catch (error: any) {
     logger.error("Disassemble failed:", error);
-    await ctx.reply("❌ Failed to analyze media. Please try again.");
+    const dbUser2 = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    const lang2 = dbUser2?.language || 'id';
+    await ctx.reply(t('uploader.analysis_failed', lang2));
   }
 }
 
@@ -172,7 +181,9 @@ export async function handleVideoCreationImage(
     // Run Gemini Vision analysis on ALL uploaded photos to extract product details
     let visionInsights = "";
     try {
-      await ctx.reply(`Analyzing ${photos.length} photo(s) with AI Vision...`, {
+      const uploaderDbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+      const uploaderLang = uploaderDbUser?.language || 'id';
+      await ctx.reply(t('uploader.analyzing_photos', uploaderLang, { count: photos.length }), {
         parse_mode: "Markdown",
       });
 
@@ -332,7 +343,9 @@ export async function handleVideoCreationImage(
 
 export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
   if (!ctx.session?.videoCreation?.waitingForImage) {
-    await ctx.reply("❌ No active video creation. Please start with /create");
+    const skipDbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    const skipLang = skipDbUser?.language || 'id';
+    await ctx.reply(t('uploader.no_active_creation', skipLang));
     return;
   }
 

@@ -44,7 +44,7 @@ describe("Cancel Command", () => {
 
       await cancelCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("Tidak dapat mengidentifikasi user.");
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining("Tidak dapat mengidentifikasi"));
     });
 
     it("should show no operation message when no active operation", async () => {

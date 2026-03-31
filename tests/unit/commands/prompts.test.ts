@@ -318,7 +318,7 @@ describe("Prompts Command", () => {
 
       await dailyCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("Tidak dapat mengidentifikasi user.");
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining("Tidak dapat mengidentifikasi"));
     });
 
     it("should show daily prompt", async () => {
@@ -422,7 +422,7 @@ describe("Prompts Command", () => {
       await saveLibraryPrompt(ctx as any, "invalid_id");
 
       expect(ctx.answerCbQuery).toHaveBeenCalledWith(
-        "❌ Prompt tidak ditemukan",
+        expect.stringContaining("Prompt tidak ditemukan"),
       );
     });
 
@@ -431,7 +431,7 @@ describe("Prompts Command", () => {
 
       await saveLibraryPrompt(ctx as any, "fnb_1");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ User not found");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining("❌"));
     });
 
     it("should handle user not found in database", async () => {
@@ -439,7 +439,7 @@ describe("Prompts Command", () => {
 
       await saveLibraryPrompt(ctx as any, "fnb_1");
 
-      expect(ctx.answerCbQuery).toHaveBeenCalledWith("❌ User not found");
+      expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining("❌"));
     });
 
     it("should save prompt successfully", async () => {

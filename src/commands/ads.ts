@@ -1,6 +1,7 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { AdsService } from '@/services/ads.service';
+import { t } from '@/i18n/translations';
 
 /**
  * Handle /report_today command
@@ -22,7 +23,7 @@ export async function reportTodayCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     logger.error('Error in report_today command:', error);
-    await ctx.reply('❌ Gagal menarik laporan.');
+    await ctx.reply(t('misc.ads_report_failed', 'id'));
   }
 }
 
@@ -41,6 +42,6 @@ export async function creativeIdeasCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     logger.error('Error in creative_ideas command:', error);
-    await ctx.reply('❌ Gagal generate ide.');
+    await ctx.reply(t('misc.ads_ideas_failed', 'id'));
   }
 }

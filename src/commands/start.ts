@@ -57,7 +57,7 @@ export async function startCommand(ctx: BotContext): Promise<void> {
     const user = ctx.from;
 
     if (!user) {
-      await ctx.reply("❌ Unable to identify user. Please try again.");
+      await ctx.reply(t('social.unable_identify_user', 'id'));
       return;
     }
 

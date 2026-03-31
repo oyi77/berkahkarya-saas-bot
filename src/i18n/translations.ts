@@ -1107,6 +1107,456 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '✅ *Крипто-оплата подтверждена!*\n\n💰 {amount} {coin} получено\n🎬 Кредиты добавлены\n\nИспользуйте /create для создания видео! 🚀',
     zh: '✅ *加密支付成功！*\n\n💰 {amount} {coin} 已收到\n🎬 积分已添加到您的账户\n\n使用 /create 开始制作视频！🚀',
   },
+
+  // ---------------------------------------------------------------------------
+  // Callback / General Errors
+  // ---------------------------------------------------------------------------
+  'cb.transfer_cancelled': {
+    id: '❌ Transfer dibatalkan.',
+    en: '❌ Transfer cancelled.',
+    ru: '❌ Перевод отменён.',
+    zh: '❌ 转账已取消。',
+  },
+  'cb.transfer_failed': {
+    id: '❌ *Transfer Gagal:* {error}',
+    en: '❌ *Transfer Failed:* {error}',
+    ru: '❌ *Перевод не удался:* {error}',
+    zh: '❌ *转账失败:* {error}',
+  },
+  'cb.transfer_error': {
+    id: '❌ *Transfer Error:* {error}',
+    en: '❌ *Transfer Error:* {error}',
+    ru: '❌ *Ошибка перевода:* {error}',
+    zh: '❌ *转账错误:* {error}',
+  },
+  'cb.access_denied': {
+    id: '❌ Akses ditolak.',
+    en: '❌ Access denied.',
+    ru: '❌ Доступ запрещён.',
+    zh: '❌ 访问被拒绝。',
+  },
+  'cb.access_denied_video': {
+    id: '❌ Akses ditolak atau video tidak ditemukan.',
+    en: '❌ Access denied or video not found.',
+    ru: '❌ Доступ запрещён или видео не найдено.',
+    zh: '❌ 访问被拒绝或视频未找到。',
+  },
+  'cb.clone_data_missing': {
+    id: '❌ Data clone tidak ditemukan. Silakan mulai ulang.',
+    en: '❌ Clone data not found. Please start over.',
+    ru: '❌ Данные клонирования не найдены. Начните заново.',
+    zh: '❌ 未找到克隆数据。请重新开始。',
+  },
+  'cb.analysis_data_missing': {
+    id: '❌ Data analisis tidak ditemukan. Silakan mulai ulang.',
+    en: '❌ Analysis data not found. Please start over.',
+    ru: '❌ Данные анализа не найдены. Начните заново.',
+    zh: '❌ 未找到分析数据。请重新开始。',
+  },
+  'cb.insufficient_credits_cost': {
+    id: '❌ Kredit tidak cukup. Butuh {cost} kredit.',
+    en: '❌ Insufficient credits. Need {cost} credits.',
+    ru: '❌ Недостаточно кредитов. Нужно {cost} кредитов.',
+    zh: '❌ 积分不足。需要 {cost} 积分。',
+  },
+  'cb.video_process_failed_refund': {
+    id: '❌ Gagal memproses video. Kredit dikembalikan.',
+    en: '❌ Failed to process video. Credits refunded.',
+    ru: '❌ Не удалось обработать видео. Кредиты возвращены.',
+    zh: '❌ 视频处理失败。积分已退还。',
+  },
+  'cb.user_not_found_start': {
+    id: '❌ User tidak ditemukan. Silakan /start ulang.',
+    en: '❌ User not found. Please /start again.',
+    ru: '❌ Пользователь не найден. Используйте /start.',
+    zh: '❌ 用户未找到。请重新 /start。',
+  },
+  'cb.prompt_not_found': {
+    id: '❌ Prompt tidak ditemukan.',
+    en: '❌ Prompt not found.',
+    ru: '❌ Промпт не найден.',
+    zh: '❌ 未找到提示词。',
+  },
+  'cb.video_not_found_url': {
+    id: '❌ Video tidak ditemukan atau tidak ada URL.',
+    en: '❌ Video not found or has no URL.',
+    ru: '❌ Видео не найдено или нет URL.',
+    zh: '❌ 视频未找到或没有链接。',
+  },
+  'cb.unknown_action': {
+    id: 'Aksi tidak dikenali.',
+    en: 'Unknown action.',
+    ru: 'Неизвестное действие.',
+    zh: '未知操作。',
+  },
+  'cb.storyboard_failed': {
+    id: 'Gagal membuat storyboard. Coba lagi.',
+    en: 'Failed to create storyboard. Try again.',
+    ru: 'Не удалось создать раскадровку. Попробуйте снова.',
+    zh: '创建分镜头失败。请重试。',
+  },
+  'cb.caption_failed': {
+    id: 'Gagal membuat caption. Silakan coba lagi.',
+    en: 'Failed to create caption. Please try again.',
+    ru: 'Не удалось создать подпись. Попробуйте снова.',
+    zh: '创建文案失败。请重试。',
+  },
+  'cb.video_not_found_create': {
+    id: 'Video tidak ditemukan. Gunakan /create untuk mulai.',
+    en: 'Video not found. Use /create to start.',
+    ru: 'Видео не найдено. Используйте /create.',
+    zh: '视频未找到。使用 /create 开始。',
+  },
+  'cb.processing_transfer': {
+    id: 'Memproses transfer...',
+    en: 'Processing transfer...',
+    ru: 'Обработка перевода...',
+    zh: '正在处理转账...',
+  },
+  'cb.retrying_video': {
+    id: 'Mencoba ulang video...',
+    en: 'Retrying video...',
+    ru: 'Повторная генерация видео...',
+    zh: '正在重试视频...',
+  },
+  'cb.caption_copied': {
+    id: 'Caption disalin di bawah!',
+    en: 'Caption copied below!',
+    ru: 'Подпись скопирована ниже!',
+    zh: '文案已复制到下方！',
+  },
+  'cb.loading_video_settings': {
+    id: 'Memuat pengaturan video...',
+    en: 'Loading video settings...',
+    ru: 'Загрузка настроек видео...',
+    zh: '正在加载视频设置...',
+  },
+  'cb.select_platform_min': {
+    id: 'Pilih minimal satu platform.',
+    en: 'Select at least one platform.',
+    ru: 'Выберите хотя бы одну платформу.',
+    zh: '请至少选择一个平台。',
+  },
+  'cb.publishing_all': {
+    id: 'Mempublikasikan ke semua akun...',
+    en: 'Publishing to all accounts...',
+    ru: 'Публикация во все аккаунты...',
+    zh: '正在发布到所有账号...',
+  },
+  'cb.account_disconnected': {
+    id: '✅ Akun terputus.',
+    en: '✅ Account disconnected.',
+    ru: '✅ Аккаунт отключён.',
+    zh: '✅ 账号已断开。',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Referral / Commission
+  // ---------------------------------------------------------------------------
+  'referral.insufficient_commission_credits': {
+    id: '❌ Komisi tidak cukup untuk ditukar ke kredit.',
+    en: '❌ Insufficient commission to convert to credits.',
+    ru: '❌ Недостаточно комиссии для конвертации в кредиты.',
+    zh: '❌ 佣金不足，无法兑换积分。',
+  },
+  'referral.insufficient_commission_sell': {
+    id: '❌ Komisi tidak cukup untuk dijual.',
+    en: '❌ Insufficient commission to sell.',
+    ru: '❌ Недостаточно комиссии для продажи.',
+    zh: '❌ 佣金不足，无法出售。',
+  },
+  'referral.withdrawal_load_failed': {
+    id: '❌ Gagal memuat info withdrawal. Coba lagi.',
+    en: '❌ Failed to load withdrawal info. Try again.',
+    ru: '❌ Не удалось загрузить данные о выводе. Попробуйте снова.',
+    zh: '❌ 加载提现信息失败。请重试。',
+  },
+  'referral.convert_failed': {
+    id: '❌ Gagal konversi. Coba lagi.',
+    en: '❌ Conversion failed. Try again.',
+    ru: '❌ Конвертация не удалась. Попробуйте снова.',
+    zh: '❌ 兑换失败。请重试。',
+  },
+  'referral.cashout_failed': {
+    id: '❌ Gagal memproses cashout. Coba lagi.',
+    en: '❌ Failed to process cashout. Try again.',
+    ru: '❌ Не удалось обработать вывод. Попробуйте снова.',
+    zh: '❌ 提现处理失败。请重试。',
+  },
+  'referral.load_failed': {
+    id: '❌ Gagal memuat info referral. Coba lagi.',
+    en: '❌ Unable to load referral info. Please try again.',
+    ru: '❌ Не удалось загрузить реферальную информацию. Попробуйте снова.',
+    zh: '❌ 无法加载推荐信息。请重试。',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Prompts
+  // ---------------------------------------------------------------------------
+  'prompt.library_load_failed': {
+    id: '❌ Gagal load prompt library. Coba lagi.',
+    en: '❌ Failed to load prompt library. Try again.',
+    ru: '❌ Не удалось загрузить библиотеку промптов. Попробуйте снова.',
+    zh: '❌ 加载提示库失败。请重试。',
+  },
+  'prompt.niche_not_found': {
+    id: '❌ Niche tidak ditemukan.',
+    en: '❌ Niche not found.',
+    ru: '❌ Ниша не найдена.',
+    zh: '❌ 未找到该类别。',
+  },
+  'prompt.daily_load_failed': {
+    id: '❌ Gagal load daily prompt. Coba lagi.',
+    en: '❌ Failed to load daily prompt. Try again.',
+    ru: '❌ Не удалось загрузить ежедневный промпт. Попробуйте снова.',
+    zh: '❌ 加载每日提示失败。请重试。',
+  },
+  'prompt.trending_load_failed': {
+    id: '❌ Gagal load trending. Coba lagi.',
+    en: '❌ Failed to load trending. Try again.',
+    ru: '❌ Не удалось загрузить тренды. Попробуйте снова.',
+    zh: '❌ 加载热门趋势失败。请重试。',
+  },
+  'prompt.fingerprint_load_failed': {
+    id: '❌ Gagal load fingerprint. Coba lagi.',
+    en: '❌ Failed to load fingerprint. Try again.',
+    ru: '❌ Не удалось загрузить отпечаток. Попробуйте снова.',
+    zh: '❌ 加载特征指纹失败。请重试。',
+  },
+  'prompt.saved_load_failed': {
+    id: '❌ Gagal load prompt tersimpan.',
+    en: '❌ Failed to load saved prompts.',
+    ru: '❌ Не удалось загрузить сохранённые промпты.',
+    zh: '❌ 加载已保存的提示失败。',
+  },
+  'prompt.deleted': {
+    id: '🗑️ Prompt dihapus!',
+    en: '🗑️ Prompt deleted!',
+    ru: '🗑️ Промпт удалён!',
+    zh: '🗑️ 提示已删除！',
+  },
+  'prompt.saved_to_session': {
+    id: '💾 Prompt disimpan ke sesi kamu!',
+    en: '💾 Prompt saved to your session!',
+    ru: '💾 Промпт сохранён в вашу сессию!',
+    zh: '💾 提示已保存到您的会话！',
+  },
+  'prompt.save_failed': {
+    id: '❌ Gagal menyimpan. Coba lagi.',
+    en: '❌ Failed to save. Try again.',
+    ru: '❌ Не удалось сохранить. Попробуйте снова.',
+    zh: '❌ 保存失败。请重试。',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Subscription
+  // ---------------------------------------------------------------------------
+  'sub.start_first': {
+    id: '❌ Silakan /start terlebih dahulu untuk menggunakan fitur ini.',
+    en: '❌ Please /start first to use this feature.',
+    ru: '❌ Сначала используйте /start для доступа к этой функции.',
+    zh: '❌ 请先 /start 以使用此功能。',
+  },
+  'sub.payment_create_failed': {
+    id: '❌ Gagal membuat pembayaran. Coba lagi.',
+    en: '❌ Failed to create payment. Please try again.',
+    ru: '❌ Не удалось создать платёж. Попробуйте снова.',
+    zh: '❌ 创建支付失败。请重试。',
+  },
+  'sub.cancel_failed': {
+    id: '❌ Gagal membatalkan. Coba lagi.',
+    en: '❌ Failed to cancel. Please try again.',
+    ru: '❌ Не удалось отменить. Попробуйте снова.',
+    zh: '❌ 取消失败。请重试。',
+  },
+  'sub.creating_payment': {
+    id: 'Membuat pembayaran...',
+    en: 'Creating payment...',
+    ru: 'Создание платежа...',
+    zh: '正在创建支付...',
+  },
+  'sub.processing': {
+    id: 'Memproses...',
+    en: 'Processing...',
+    ru: 'Обработка...',
+    zh: '处理中...',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Topup (remaining)
+  // ---------------------------------------------------------------------------
+  'topup.process_failed': {
+    id: '❌ Gagal memproses. Coba lagi.',
+    en: '❌ Failed to process. Please try again.',
+    ru: '❌ Не удалось обработать. Попробуйте снова.',
+    zh: '❌ 处理失败。请重试。',
+  },
+  'topup.invalid_package': {
+    id: '❌ Paket tidak valid.',
+    en: '❌ Invalid package.',
+    ru: '❌ Недействительный пакет.',
+    zh: '❌ 无效的套餐。',
+  },
+  'topup.stars_invoice_failed': {
+    id: '❌ Gagal membuat invoice Stars. Coba lagi.',
+    en: '❌ Failed to create Stars invoice. Please try again.',
+    ru: '❌ Не удалось создать Stars-счёт. Попробуйте снова.',
+    zh: '❌ 创建 Stars 发票失败。请重试。',
+  },
+  'topup.crypto_payment_failed': {
+    id: '❌ Gagal membuat pembayaran crypto. Coba lagi.',
+    en: '❌ Failed to create crypto payment. Please try again.',
+    ru: '❌ Не удалось создать крипто-платёж. Попробуйте снова.',
+    zh: '❌ 创建加密支付失败。请重试。',
+  },
+  'topup.something_wrong': {
+    id: '❌ Terjadi kesalahan. Coba lagi.',
+    en: '❌ Something went wrong. Please try again.',
+    ru: '❌ Что-то пошло не так. Попробуйте снова.',
+    zh: '❌ 出了点问题。请重试。',
+  },
+  'topup.creating_crypto': {
+    id: 'Membuat pembayaran crypto...',
+    en: 'Creating crypto payment...',
+    ru: 'Создание крипто-платежа...',
+    zh: '正在创建加密支付...',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Video Uploader / Analyzer
+  // ---------------------------------------------------------------------------
+  'uploader.no_media': {
+    id: '❌ Media tidak ditemukan. Kirim video atau gambar.',
+    en: '❌ No media found. Please send a video or image.',
+    ru: '❌ Медиа не найдено. Отправьте видео или изображение.',
+    zh: '❌ 未找到媒体。请发送视频或图片。',
+  },
+  'uploader.analyzing': {
+    id: '⏳ *Menganalisis...*\nMengekstrak prompt dari media kamu...',
+    en: '⏳ *Analyzing...*\nExtracting prompt from your media...',
+    ru: '⏳ *Анализируем...*\nИзвлекаем промпт из вашего медиа...',
+    zh: '⏳ *分析中...*\n正在从您的媒体中提取提示词...',
+  },
+  'uploader.analysis_failed': {
+    id: '❌ Gagal menganalisis media. Coba lagi.',
+    en: '❌ Failed to analyze media. Please try again.',
+    ru: '❌ Не удалось проанализировать медиа. Попробуйте снова.',
+    zh: '❌ 媒体分析失败。请重试。',
+  },
+  'uploader.analyzing_photos': {
+    id: 'Menganalisis {count} foto dengan AI Vision...',
+    en: 'Analyzing {count} photo(s) with AI Vision...',
+    ru: 'Анализируем {count} фото с AI Vision...',
+    zh: '正在使用 AI Vision 分析 {count} 张照片...',
+  },
+  'uploader.no_active_creation': {
+    id: '❌ Tidak ada pembuatan video aktif. Mulai dengan /create',
+    en: '❌ No active video creation. Please start with /create',
+    ru: '❌ Нет активного создания видео. Начните с /create',
+    zh: '❌ 没有进行中的视频创建。请使用 /create 开始',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Social / Send / Transfer
+  // ---------------------------------------------------------------------------
+  'social.unable_identify_user': {
+    id: '❌ Tidak dapat mengidentifikasi pengguna.',
+    en: '❌ Unable to identify user.',
+    ru: '❌ Невозможно идентифицировать пользователя.',
+    zh: '❌ 无法识别用户。',
+  },
+  'social.invalid_recipient_id': {
+    id: '❌ Format ID penerima tidak valid.',
+    en: '❌ Invalid recipient ID format.',
+    ru: '❌ Неверный формат ID получателя.',
+    zh: '❌ 接收者 ID 格式无效。',
+  },
+  'social.amount_positive': {
+    id: '❌ Jumlah harus angka positif.',
+    en: '❌ Amount must be a positive number.',
+    ru: '❌ Сумма должна быть положительным числом.',
+    zh: '❌ 金额必须为正数。',
+  },
+  'social.transfer_failed': {
+    id: '❌ Transfer Gagal: {error}',
+    en: '❌ Transfer Failed: {error}',
+    ru: '❌ Перевод не удался: {error}',
+    zh: '❌ 转账失败: {error}',
+  },
+  'social.send_usage': {
+    id: 'Penggunaan: /send <id_telegram_penerima> <jumlah>\nContoh: /send 123456789 50',
+    en: 'Usage: /send <recipient_telegram_id> <amount>\nExample: /send 123456789 50',
+    ru: 'Использование: /send <telegram_id_получателя> <сумма>\nПример: /send 123456789 50',
+    zh: '用法: /send <收件人telegram_id> <金额>\n示例: /send 123456789 50',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Misc
+  // ---------------------------------------------------------------------------
+  'misc.coming_soon': {
+    id: '🚧 Fitur segera hadir!',
+    en: '🚧 Feature coming soon!',
+    ru: '🚧 Функция скоро появится!',
+    zh: '🚧 功能即将推出！',
+  },
+  'misc.ads_report_failed': {
+    id: '❌ Gagal menarik laporan.',
+    en: '❌ Failed to fetch report.',
+    ru: '❌ Не удалось получить отчёт.',
+    zh: '❌ 获取报告失败。',
+  },
+  'misc.ads_ideas_failed': {
+    id: '❌ Gagal generate ide.',
+    en: '❌ Failed to generate ideas.',
+    ru: '❌ Не удалось сгенерировать идеи.',
+    zh: '❌ 生成创意失败。',
+  },
+  'misc.avatar_not_found': {
+    id: 'Avatar tidak ditemukan.',
+    en: 'Avatar not found.',
+    ru: 'Аватар не найден.',
+    zh: '未找到头像。',
+  },
+  'misc.avatar_set_default': {
+    id: '✅ Avatar ditetapkan sebagai default!',
+    en: '✅ Avatar set as default!',
+    ru: '✅ Аватар установлен по умолчанию!',
+    zh: '✅ 头像已设为默认！',
+  },
+  'misc.user_not_found': {
+    id: 'Error: pengguna tidak ditemukan.',
+    en: 'Error: user not found.',
+    ru: 'Ошибка: пользователь не найден.',
+    zh: '错误：用户未找到。',
+  },
+  'misc.share_coming_soon': {
+    id: 'Fitur share segera hadir!',
+    en: 'Share feature coming soon!',
+    ru: 'Функция поделиться скоро появится!',
+    zh: '分享功能即将推出！',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Profile (remaining)
+  // ---------------------------------------------------------------------------
+  'profile.load_failed': {
+    id: 'Gagal memuat profil. Coba lagi.',
+    en: 'Unable to load profile. Please try again.',
+    ru: 'Не удалось загрузить профиль. Попробуйте снова.',
+    zh: '无法加载个人资料。请重试。',
+  },
+  'profile.load_error': {
+    id: 'Gagal memuat profil. Coba lagi nanti.',
+    en: 'Failed to load profile. Please try again later.',
+    ru: 'Не удалось загрузить профиль. Попробуйте позже.',
+    zh: '加载个人资料失败。请稍后重试。',
+  },
+  'profile.no_account': {
+    id: 'Kamu belum punya akun. Gunakan /start untuk mendaftar terlebih dahulu.',
+    en: 'You don\'t have an account yet. Please use /start to register first.',
+    ru: 'У вас ещё нет аккаунта. Используйте /start для регистрации.',
+    zh: '您还没有账号。请先使用 /start 注册。',
+  },
 };
 
 /**

@@ -13,7 +13,7 @@ export async function settingsCommand(ctx: BotContext): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) {
-      await ctx.reply('❌ Unable to identify user.');
+      await ctx.reply(t('social.unable_identify_user', 'id'));
       return;
     }
 
@@ -56,7 +56,7 @@ export async function settingsCommand(ctx: BotContext): Promise<void> {
   } catch (error) {
     logger.error('settingsCommand error:', error);
     try {
-      await ctx.reply('❌ Something went wrong. Please try again or contact /support.');
+      await ctx.reply(t('error.generic', 'id'));
     } catch { /* ignore */ }
   }
 }

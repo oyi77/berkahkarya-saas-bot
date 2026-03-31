@@ -122,7 +122,8 @@ async function handleStoryboardRequest(ctx: BotContext, niche: string) {
     });
   } catch (error) {
     logger.error("Storyboard error:", error);
-    await ctx.answerCbQuery("Gagal membuat storyboard. Coba lagi.");
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.answerCbQuery(t('cb.storyboard_failed', lang));
   }
 }
 
@@ -145,8 +146,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // ── P2P TRANSFER HANDLERS ───────────────────────────────────────────
     if (data === "cancel_send") {
-      await ctx.answerCbQuery("❌ Transfer cancelled");
-      await ctx.editMessageText("❌ Transfer cancelled by user.");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('cb.transfer_cancelled', lang));
+      await ctx.editMessageText(t('cb.transfer_cancelled', lang));
       return;
     }
 
@@ -159,7 +161,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const senderId = BigInt(ctx.from!.id);
 
       try {
-        await ctx.answerCbQuery("Processing transfer...");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.answerCbQuery(t('cb.processing_transfer', lang));
         const result = await P2pService.executeTransfer(senderId, recipientId, amount);
 
         if (result.success) {
@@ -182,10 +185,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             logger.warn(`Failed to notify recipient ${recipientIdStr}`);
           }
         } else {
-          await ctx.editMessageText(`❌ *Transfer Failed:* ${result.error}`, { parse_mode: "Markdown" });
+          await ctx.editMessageText(t('cb.transfer_failed', lang, { error: result.error }), { parse_mode: "Markdown" });
         }
       } catch (error: any) {
-        await ctx.editMessageText(`❌ *Transfer Error:* ${error.message}`, { parse_mode: "Markdown" });
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.editMessageText(t('cb.transfer_error', lang, { error: error.message }), { parse_mode: "Markdown" });
       }
       return;
     }
@@ -324,11 +328,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Placeholder handlers for new account submenu
     if (data === "account_favorites") {
-      await ctx.answerCbQuery("🚧 Fitur Workflow Favorit segera hadir!");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('misc.coming_soon', lang));
       return;
     }
     if (data === "account_preferences") {
-      await ctx.answerCbQuery("🚧 Fitur Preferensi Workflow segera hadir!");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('misc.coming_soon', lang));
       return;
     }
     if (data === "account_settings") {
@@ -383,7 +389,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const { findAnyPrompt } = await import("../commands/prompts.js");
       const prompt = await findAnyPrompt(promptId);
       if (!prompt) {
-        await ctx.reply("❌ Prompt tidak ditemukan.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.prompt_not_found', lang));
         return;
       }
       // Route to generate_free_ flow which handles image generation
@@ -830,7 +837,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const dbUser = await UserService.findByTelegramId(telegramId);
 
       if (!dbUser) {
-        await ctx.reply("❌ User tidak ditemukan. Silakan /start ulang.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.user_not_found_start', lang));
         return;
       }
 
@@ -890,7 +898,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const dbUser = await UserService.findByTelegramId(telegramId);
 
       if (!dbUser) {
-        await ctx.reply("❌ User tidak ditemukan. Silakan /start ulang.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.user_not_found_start', lang));
         return;
       }
 
@@ -1297,7 +1306,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Share referral
     if (data === "share_referral") {
-      await ctx.answerCbQuery("Share feature coming soon!");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('misc.share_coming_soon', lang));
       return;
     }
 
@@ -1450,7 +1460,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             savedId,
             dbUser.id as unknown as bigint,
           );
-          await ctx.answerCbQuery("🗑️ Prompt dihapus!");
+          const lang = ctx.session?.userLang || 'id';
+          await ctx.answerCbQuery(t('prompt.deleted', lang));
           await showMyPrompts(ctx, nicheKey, true);
         }
       }
@@ -1519,7 +1530,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Daily prompt save/another
     if (data.startsWith("daily_save_")) {
-      await ctx.answerCbQuery("💾 Prompt disimpan ke sesi kamu!");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('prompt.saved_to_session', lang));
       const promptId = data.replace("daily_save_", "");
       const p = await getPromptById(promptId);
       if (p && ctx.session)
@@ -1698,7 +1710,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const avatarId = parseInt(data.replace("avatar_view_", ""), 10);
       const avatar = await AvatarService.getAvatar(avatarId);
       if (!avatar) {
-        await ctx.answerCbQuery("Avatar not found");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.answerCbQuery(t('misc.avatar_not_found', lang));
         return;
       }
 
@@ -1739,7 +1752,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const avatarId = parseInt(data.replace("avatar_default_", ""), 10);
       const telegramId = BigInt(ctx.from!.id);
       await AvatarService.setDefault(telegramId, avatarId);
-      await ctx.answerCbQuery("✅ Avatar set as default!");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('misc.avatar_set_default', lang));
       // Re-show manage screen
       const avatars = await AvatarService.listAvatars(telegramId);
       let message = "👤 *Your Avatars*\n\n";
@@ -1868,7 +1882,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const avatarId = parseInt(data.replace("imgref_avatar_", ""), 10);
       const avatar = await AvatarService.getAvatar(avatarId);
       if (!avatar) {
-        await ctx.answerCbQuery("Avatar not found");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.answerCbQuery(t('misc.avatar_not_found', lang));
         return;
       }
 
@@ -1917,7 +1932,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.answerCbQuery();
 
       if (!ctx.session?.stateData?.clonePrompt) {
-        await ctx.reply("❌ Data clone tidak ditemukan. Silakan mulai ulang.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.clone_not_found', lang));
         return;
       }
 
@@ -2067,7 +2083,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       // Use extracted storyboard prompts for t2v generation
       const repurposeData = ctx.session.stateData?.repurposeData as any;
       if (!repurposeData?.storyboard) {
-        await ctx.reply("❌ Data analisis tidak ditemukan. Silakan mulai ulang.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.analysis_not_found', lang));
         return;
       }
       // Store in videoCreation and trigger normal generation flow
@@ -2079,7 +2096,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const telegramId = BigInt(ctx.from!.id);
       const user = await UserService.findByTelegramId(telegramId);
       if (!user || Number(user.creditBalance) < creditCost) {
-        await ctx.reply(`❌ Kredit tidak cukup. Butuh ${creditCost} kredit.`);
+        const lang = user?.language || ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.insufficient_credits_cost', lang, { cost: creditCost }));
         return;
       }
 
@@ -2119,7 +2137,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         logger.error('Repurpose T2V queue failed:', queueErr);
         await UserService.refundCredits(telegramId, creditCost, jobId, 'queue failed')
           .catch((err) => logger.error('CRITICAL: repurpose refund failed', { jobId, err }));
-        await ctx.reply('❌ Gagal memproses video. Kredit dikembalikan.');
+        const lang2 = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.video_process_failed_refund', lang2));
         return;
       }
 
@@ -2136,7 +2155,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "repurpose_generate_i2v") {
       const repurposeData = ctx.session.stateData?.repurposeData as any;
       if (!repurposeData?.storyboard) {
-        await ctx.reply("❌ Data analisis tidak ditemukan. Silakan mulai ulang.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.analysis_not_found', lang));
         return;
       }
       const storyboard = repurposeData.storyboard;
@@ -2148,7 +2168,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const telegramId = BigInt(ctx.from!.id);
       const user = await UserService.findByTelegramId(telegramId);
       if (!user || Number(user.creditBalance) < creditCost) {
-        await ctx.reply(`❌ Kredit tidak cukup. Butuh ${creditCost} kredit.`);
+        const lang = user?.language || ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.insufficient_credits_cost', lang, { cost: creditCost }));
         return;
       }
 
@@ -2189,7 +2210,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         logger.error('Repurpose I2V queue failed:', queueErr);
         await UserService.refundCredits(telegramId, creditCost, jobId, 'queue failed')
           .catch((err) => logger.error('CRITICAL: repurpose i2v refund failed', { jobId, err }));
-        await ctx.reply('❌ Gagal memproses video. Kredit dikembalikan.');
+        const lang2 = ctx.session?.userLang || 'id';
+        await ctx.reply(t('cb.video_process_failed_refund', lang2));
         return;
       }
 
@@ -2270,7 +2292,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const jobId = data.replace("video_confirm_delete_", "");
       const videoToDelete = await VideoService.getByJobId(jobId);
       if (!videoToDelete || (ctx.from && videoToDelete.userId !== BigInt(ctx.from.id))) {
-        await ctx.editMessageText("❌ Access denied or video not found.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.editMessageText(t('cb.access_denied_video', lang));
         return;
       }
       // Soft delete — mark as deleted instead of removing from database
@@ -2283,7 +2306,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data.startsWith("video_retry_")) {
-      await ctx.answerCbQuery("Retrying video...");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('cb.retrying_video', lang));
       await createCommand(ctx);
       return;
     }
@@ -2291,12 +2315,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Copy Caption — reply with plain caption text for easy copying
     if (data.startsWith("copy_caption_")) {
       const jobId = data.replace("copy_caption_", "");
-      await ctx.answerCbQuery("Caption copied below!");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('cb.caption_copied', lang));
 
       try {
         const video = await VideoService.getByJobId(jobId);
         if (video && ctx.from && video.userId !== BigInt(ctx.from.id)) {
-          await ctx.reply("❌ Access denied.");
+          await ctx.reply(t('cb.access_denied', lang));
           return;
         }
         const niche =
@@ -2317,7 +2342,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         await ctx.reply(`${caption.text}\n\n${caption.hashtags}`);
       } catch (err) {
         logger.error("Failed to generate caption for copy:", err);
-        await ctx.reply("Gagal membuat caption. Silakan coba lagi.");
+        await ctx.reply(t('cb.caption_failed', lang));
       }
       return;
     }
@@ -2325,17 +2350,18 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Create Similar — pre-fill niche + style + storyboard from a past video, skip to ref image
     if (data.startsWith("create_similar_")) {
       const jobId = data.replace("create_similar_", "");
-      await ctx.answerCbQuery("Loading video settings...");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('cb.loading_settings', lang));
 
       try {
         const video = await VideoService.getByJobId(jobId);
         if (!video) {
-          await ctx.reply("Video tidak ditemukan. Gunakan /create untuk mulai.");
+          await ctx.reply(t('cb.video_not_found_create', lang));
           return;
         }
 
         if (ctx.from && video.userId !== BigInt(ctx.from.id)) {
-          await ctx.reply("❌ Access denied.");
+          await ctx.reply(t('cb.access_denied', lang));
           return;
         }
 
@@ -2772,7 +2798,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "toggle_notifications") {
       const userId = ctx.from?.id;
       if (!userId) {
-        await ctx.answerCbQuery("Error: user not found");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.answerCbQuery(t('misc.user_not_found_error', lang));
         return;
       }
       const user = await UserService.findByTelegramId(BigInt(userId));
@@ -2846,7 +2873,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data === "toggle_autorenewal") {
       const userId = ctx.from?.id;
       if (!userId) {
-        await ctx.answerCbQuery("Error: user not found");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.answerCbQuery(t('misc.user_not_found_error', lang));
         return;
       }
       const user = await UserService.findByTelegramId(BigInt(userId));
@@ -3075,7 +3103,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       try {
         const user = await UserService.findByTelegramId(BigInt(userId));
         if (!user) {
-          await ctx.reply("❌ User not found.");
+          const lang = ctx.session?.userLang || 'id';
+          await ctx.reply(t('error.user_not_found', lang));
           return;
         }
 
@@ -3185,7 +3214,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         });
       } catch (error) {
         logger.error("Referral withdraw error:", error);
-        await ctx.reply("❌ Gagal memuat info withdrawal. Coba lagi.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('referral.withdraw_load_failed', lang));
       }
       return;
     }
@@ -3240,7 +3270,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
         const { creditsToAdd, available } = result;
         if (creditsToAdd <= 0) {
-          await ctx.editMessageText("❌ Komisi tidak cukup untuk ditukar ke kredit.", {
+          const lang = ctx.session?.userLang || 'id';
+          await ctx.editMessageText(t('referral.insufficient_convert', lang), {
             parse_mode: "Markdown",
             reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
           });
@@ -3263,7 +3294,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         );
       } catch (error) {
         logger.error("Referral convert credits error:", error);
-        await ctx.reply("❌ Gagal konversi. Coba lagi.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('referral.convert_failed', lang));
       }
       return;
     }
@@ -3284,7 +3316,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         const cashoutAmount = Math.floor(available / 2); // half rate
 
         if (cashoutAmount <= 0) {
-          await ctx.editMessageText("❌ Komisi tidak cukup untuk dijual.", {
+          const lang = ctx.session?.userLang || 'id';
+          await ctx.editMessageText(t('referral.insufficient_sell', lang), {
             parse_mode: "Markdown",
             reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
           });
@@ -3348,7 +3381,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         );
       } catch (error) {
         logger.error("Referral sell admin error:", error);
-        await ctx.reply("❌ Gagal memproses cashout. Coba lagi.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('referral.cashout_failed', lang));
       }
       return;
     }
@@ -3362,7 +3396,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.answerCbQuery();
 
       if (!ctx.session?.videoCreation?.waitingForImage) {
-        await ctx.reply("Tidak ada sesi pembuatan video aktif. Gunakan /create untuk mulai.");
+        const lang = ctx.session?.userLang || 'id';
+        await ctx.reply(t('error.no_session', lang));
         return;
       }
 
@@ -3486,10 +3521,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Unknown callback
     logger.warn("Unknown callback:", data);
-    await ctx.answerCbQuery("Unknown action");
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.answerCbQuery(t('cb.unknown_action', lang));
   } catch (error) {
     logger.error("Error in callback handler:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.answerCbQuery(t('error.generic', lang));
   }
 }
 
@@ -3503,12 +3540,14 @@ async function handlePublishVideo(ctx: BotContext, jobId: string) {
   // Get video details
   const video = await VideoService.getByJobId(jobId);
   if (!video || !video.videoUrl) {
-    await ctx.answerCbQuery("❌ Video not found");
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.answerCbQuery(t('videos.not_found', lang));
     return;
   }
 
   if (video.userId !== BigInt(userId)) {
-    await ctx.answerCbQuery("❌ Access denied");
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.answerCbQuery(t('cb.access_denied', lang));
     return;
   }
 
@@ -3621,7 +3660,8 @@ async function handlePublishPlatformSelection(
   const selectedCount = ctx.session.selectedPlatforms.length;
 
   if (selectedCount === 0) {
-    await ctx.answerCbQuery("Select at least one platform");
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.answerCbQuery(t('cb.select_platform', lang));
     return;
   }
 
@@ -3666,7 +3706,8 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
     }
 
     if (video.userId !== BigInt(userId)) {
-      await ctx.editMessageText("❌ Access denied.");
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.editMessageText(t('cb.access_denied', lang));
       return;
     }
 
@@ -3742,18 +3783,19 @@ async function handleAutoPostToAll(ctx: BotContext, jobId: string) {
   if (!userId) return;
 
   // Acknowledge button press immediately
-  await ctx.answerCbQuery("Publishing to all accounts...");
+  const lang = ctx.session?.userLang || 'id';
+  await ctx.answerCbQuery(t('cb.publishing', lang));
 
   try {
     // Get video details
     const video = await VideoService.getByJobId(jobId);
     if (!video || !video.videoUrl) {
-      await ctx.reply("❌ Video not found or has no URL.");
+      await ctx.reply(t('cb.video_not_found_url', lang));
       return;
     }
 
     if (video.userId !== BigInt(userId)) {
-      await ctx.reply("❌ Access denied.");
+      await ctx.reply(t('cb.access_denied', lang));
       return;
     }
 
@@ -3979,7 +4021,8 @@ async function handleDisconnectAccount(ctx: BotContext, accountId: string) {
     parseInt(accountId),
   );
 
-  await ctx.answerCbQuery("✅ Account disconnected");
+  const lang = ctx.session?.userLang || 'id';
+  await ctx.answerCbQuery(t('cb.account_disconnected', lang));
 
   // Refresh account list
   await handleManageAccounts(ctx);

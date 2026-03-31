@@ -7,6 +7,7 @@ import { BotContext } from '@/types';
 import { getOmniRouteService } from '@/services/omniroute.service';
 import { logger } from '@/utils/logger';
 import { sendVilonaLoading } from '@/services/vilona-animation.service';
+import { t } from '@/i18n/translations';
 
 // Use the default model configured in OmniRoute (env: OMNIROUTE_DEFAULT_MODEL)
 
@@ -72,6 +73,6 @@ export async function chatCommand(ctx: BotContext): Promise<void> {
       await ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsgId).catch(() => {});
     }
     logger.error('Chat command error:', err);
-    await ctx.reply('❌ Gagal dapat respons AI. Coba lagi ya!');
+    await ctx.reply(t('error.generic', 'id'));
   }
 }

@@ -1,5 +1,6 @@
 import { BotContext } from "@/types";
 import { P2pService } from "@/services/p2p.service";
+import { t } from "@/i18n/translations";
 
 export async function sendCommand(ctx: BotContext): Promise<void> {
     const message = ctx.message as any;
@@ -7,7 +8,8 @@ export async function sendCommand(ctx: BotContext): Promise<void> {
 
     const args = message.text.split(" ");
     if (args.length !== 3) {
-        await ctx.reply("Usage: /send <recipient_telegram_id> <amount>\nExample: /send 123456789 50", { parse_mode: "HTML" });
+        const lang = ctx.from?.language_code || 'id';
+        await ctx.reply(t('social.send_usage', lang), { parse_mode: "HTML" });
         return;
     }
 
@@ -19,13 +21,15 @@ export async function sendCommand(ctx: BotContext): Promise<void> {
     try {
         recipientId = BigInt(recipientIdStr);
     } catch (err) {
-        await ctx.reply("❌ Invalid recipient ID format.");
+        const lang2 = ctx.from?.language_code || 'id';
+        await ctx.reply(t('social.invalid_recipient_id', lang2));
         return;
     }
 
     const amount = Number(amountStr);
     if (isNaN(amount) || amount < 1) {
-        await ctx.reply("❌ Amount must be a positive number.");
+        const lang3 = ctx.from?.language_code || 'id';
+        await ctx.reply(t('social.amount_positive', lang3));
         return;
     }
 
@@ -51,6 +55,7 @@ export async function sendCommand(ctx: BotContext): Promise<void> {
             }
         );
     } catch (error: any) {
-        await ctx.reply(`❌ Transfer Failed: ${error.message}`);
+        const lang4 = ctx.from?.language_code || 'id';
+        await ctx.reply(t('social.transfer_failed', lang4, { error: error.message }));
     }
 }

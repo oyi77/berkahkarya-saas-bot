@@ -1,11 +1,12 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { t } from '@/i18n/translations';
 
 export async function cancelCommand(ctx: BotContext): Promise<void> {
   try {
     const user = ctx.from;
     if (!user) {
-      await ctx.reply('Tidak dapat mengidentifikasi user.');
+      await ctx.reply(t('social.unable_identify_user', 'id'));
       return;
     }
 
@@ -50,6 +51,6 @@ export async function cancelCommand(ctx: BotContext): Promise<void> {
     }
   } catch (error) {
     logger.error('Error in cancel command:', error);
-    await ctx.reply('Terjadi kesalahan. Coba lagi.');
+    await ctx.reply(t('error.generic', 'id'));
   }
 }

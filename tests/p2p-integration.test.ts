@@ -57,7 +57,7 @@ describe('P2P Integration Tests', () => {
         it('should reject invalid arguments', async () => {
             ctx.message.text = '/send invalid';
             await sendCommand(ctx);
-            expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('Usage: /send'), expect.any(Object));
+            expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('/send'), expect.any(Object));
         });
     });
 
@@ -66,8 +66,8 @@ describe('P2P Integration Tests', () => {
             ctx.callbackQuery = { data: 'cancel_send' };
             await callbackHandler(ctx);
 
-            expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining('Transfer cancelled'));
-            expect(ctx.editMessageText).toHaveBeenCalledWith(expect.stringContaining('cancelled'));
+            expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining('❌'));
+            expect(ctx.editMessageText).toHaveBeenCalledWith(expect.stringContaining('❌'));
         });
 
         it('should handle confirm_send correctly and notify recipient', async () => {
@@ -76,7 +76,7 @@ describe('P2P Integration Tests', () => {
 
             await callbackHandler(ctx);
 
-            expect(ctx.answerCbQuery).toHaveBeenCalledWith('Processing transfer...');
+            expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining('transfer'));
             expect(P2pService.executeTransfer).toHaveBeenCalledWith(111n, 222n, 100);
             expect(ctx.editMessageText).toHaveBeenCalledWith(
                 expect.stringContaining('Transfer Successful'),

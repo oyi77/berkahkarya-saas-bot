@@ -18,7 +18,7 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
   const from = ctx.from;
 
   if (!from) {
-    await ctx.reply('Unable to load profile. Please try again.');
+    await ctx.reply(t('profile.load_failed', 'id'));
     return;
   }
 
@@ -27,9 +27,7 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
     const user = await UserService.findByTelegramId(telegramId);
 
     if (!user) {
-      await ctx.reply(
-        'You don\'t have an account yet. Please use /start to register first.'
-      );
+      await ctx.reply(t('profile.no_account', 'id'));
       return;
     }
 
@@ -87,6 +85,6 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('Error in profile command:', error);
-    await ctx.reply('Failed to load profile. Please try again later.');
+    await ctx.reply(t('profile.load_failed', 'id'));
   }
 }

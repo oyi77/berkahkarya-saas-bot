@@ -55,7 +55,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     const telegramId = BigInt(user.id);
     const dbUser = await UserService.findByTelegramId(telegramId);
     if (!dbUser) {
-      await ctx.reply('❌ Please /start first to use this feature.');
+      await ctx.reply(t('sub.start_first', 'id'));
       return;
     }
 
@@ -97,7 +97,8 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     });
   } catch (error) {
     logger.error('Error in topup command:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    const lang = await getLang(ctx);
+    await ctx.reply(t('error.generic', lang));
   }
 }
 
@@ -137,7 +138,8 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
     );
   } catch (error) {
     logger.error('Error handling topup selection:', error);
-    await ctx.editMessageText('❌ Failed to process. Please try again.');
+    const lang = await getLang(ctx);
+    await ctx.editMessageText(t('topup.create_failed', lang));
   }
 }
 
@@ -419,7 +421,7 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('Error showing stars menu:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    await ctx.reply(t('error.generic', await getLang(ctx)));
   }
 }
 
@@ -432,7 +434,7 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
 
     const pkg = STARS_PACKAGES.find(p => p.credits === credits);
     if (!pkg) {
-      await ctx.reply('❌ Invalid package.');
+      await ctx.reply(t('topup.invalid_package', await getLang(ctx)));
       return;
     }
 
@@ -449,7 +451,7 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
     });
   } catch (error) {
     logger.error('Error sending stars invoice:', error);
-    await ctx.reply('❌ Failed to create Stars invoice. Please try again.');
+    await ctx.reply(t('topup.stars_invoice_failed', await getLang(ctx)));
   }
 }
 
@@ -480,7 +482,7 @@ export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('Error showing crypto menu:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    await ctx.reply(t('error.generic', await getLang(ctx)));
   }
 }
 
@@ -493,7 +495,7 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
 
     const pkg = CRYPTO_PACKAGES.find(p => p.credits === credits);
     if (!pkg) {
-      await ctx.reply('❌ Invalid package.');
+      await ctx.reply(t('topup.invalid_package', await getLang(ctx)));
       return;
     }
 
@@ -513,7 +515,7 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
     );
   } catch (error) {
     logger.error('Error showing coin selector:', error);
-    await ctx.reply('❌ Something went wrong. Please try again.');
+    await ctx.reply(t('error.generic', await getLang(ctx)));
   }
 }
 
@@ -522,7 +524,7 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
  */
 export async function handleCryptoPayment(ctx: BotContext, credits: number, coin: string): Promise<void> {
   try {
-    await ctx.answerCbQuery('Creating crypto payment...');
+    await ctx.answerCbQuery('...');
 
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -558,6 +560,6 @@ export async function handleCryptoPayment(ctx: BotContext, credits: number, coin
     );
   } catch (error) {
     logger.error('Error creating crypto payment:', error);
-    await ctx.editMessageText('❌ Failed to create crypto payment. Please try again.');
+    await ctx.editMessageText(t('topup.crypto_payment_failed', await getLang(ctx)));
   }
 }

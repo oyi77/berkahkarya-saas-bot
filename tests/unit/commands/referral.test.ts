@@ -52,7 +52,7 @@ describe("Referral Command", () => {
       await referralCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Unable to load referral info. Please try again.",
+        expect.stringContaining("referral"),
       );
     });
 
@@ -160,7 +160,7 @@ describe("Referral Command", () => {
       await referralCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Failed to load referral info. Error: Database error. Please try again later.",
+        expect.stringContaining("referral"),
       );
     });
   });

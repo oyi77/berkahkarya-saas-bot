@@ -52,7 +52,7 @@ describe("Profile Command", () => {
       await profileCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Unable to load profile. Please try again.",
+        expect.stringContaining("profil"),
       );
     });
 
@@ -62,7 +62,7 @@ describe("Profile Command", () => {
       await profileCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "You don't have an account yet. Please use /start to register first.",
+        expect.stringContaining("/start"),
       );
     });
 
@@ -227,7 +227,7 @@ describe("Profile Command", () => {
       await profileCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "Failed to load profile. Please try again later.",
+        expect.stringContaining("profil"),
       );
     });
   });

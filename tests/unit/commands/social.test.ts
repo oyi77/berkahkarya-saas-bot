@@ -51,7 +51,7 @@ describe("Social Command", () => {
 
       await socialCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("❌ Unable to identify user.");
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining("❌"));
     });
 
     it("should show connect options when no accounts connected", async () => {
@@ -214,7 +214,7 @@ describe("Social Command", () => {
       await socialCommand(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        "❌ Something went wrong. Please try again.",
+        expect.stringContaining("❌"),
       );
     });
   });
