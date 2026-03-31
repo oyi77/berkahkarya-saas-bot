@@ -379,9 +379,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       // Proceed to reference image step
       ctx.session.videoCreation.waitingForImage = true;
+      const cpLang = ctx.session?.userLang || 'id';
       await ctx.reply(
-        `✅ Custom prompt saved!\n\n` +
-        `📸 Now send a reference image for your video, or type /skip to let AI generate everything.`,
+        t('msg.photo_received', cpLang) + '\n\n' + t('msg.send_photo_or_skip', cpLang),
         { parse_mode: "Markdown" },
       );
       return;
@@ -405,12 +405,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           accountId,
         );
 
-        await ctx.reply(
-          `✅ *Account Connected!*\n\n` +
-          `Platform: ${platform.toUpperCase()}\n` +
-          `Account ID: \`${accountId}\`\n\n` +
-          `You can now publish videos to this account.`,
-          {
+        const acLang = ctx.session?.userLang || 'id';
+        const acMsg = acLang === 'id' ? `✅ *Akun Terhubung!*\n\nPlatform: ${platform.toUpperCase()}\nID: \`${accountId}\`\n\nSekarang kamu bisa publish video ke akun ini.`
+          : acLang === 'ru' ? `✅ *Аккаунт подключён!*\n\nПлатформа: ${platform.toUpperCase()}\nID: \`${accountId}\`\n\nТеперь вы можете публиковать видео.`
+          : acLang === 'zh' ? `✅ *账号已连接！*\n\n平台: ${platform.toUpperCase()}\nID: \`${accountId}\`\n\n现在可以发布视频到此账号。`
+          : `✅ *Account Connected!*\n\nPlatform: ${platform.toUpperCase()}\nAccount ID: \`${accountId}\`\n\nYou can now publish videos to this account.`;
+        await ctx.reply(acMsg, {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [

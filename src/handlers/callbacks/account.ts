@@ -1,4 +1,5 @@
 import { BotContext } from "@/types";
+import { t } from "@/i18n/translations";
 import {
   handleTopupSelection,
   handlePaymentGateway,
@@ -31,7 +32,7 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
       const credits = parseInt(data.replace("topup_stars_", ""), 10);
       const validPkg = STARS_PACKAGES.find((p) => p.credits === credits);
       if (!validPkg) {
-        await ctx.answerCbQuery("Invalid Stars package");
+        await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id'));
         return true;
       }
       await handleStarsInvoice(ctx, credits);
@@ -48,7 +49,7 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
       const credits = parseInt(data.replace("topup_crypto_pkg_", ""), 10);
       const validPkg = CRYPTO_PACKAGES.find((p) => p.credits === credits);
       if (!validPkg) {
-        await ctx.answerCbQuery("Invalid crypto package");
+        await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id'));
         return true;
       }
       await handleCryptoCoinSelect(ctx, credits);
@@ -61,7 +62,7 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
       const coin = parts.slice(1).join("_"); // coin ids may not have underscore but safe
       const validCoin = CRYPTO_COINS.find((c) => c.id === coin);
       if (!validCoin) {
-        await ctx.answerCbQuery("Invalid coin");
+        await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id'));
         return true;
       }
       await handleCryptoPayment(ctx, credits, coin);
@@ -97,7 +98,7 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
       const credits = parseInt(data.replace("topup_extra_", ""), 10);
       const validPkg = EXTRA_CREDIT_PACKAGES.find((p) => p.credits === credits);
       if (!validPkg) {
-        await ctx.answerCbQuery("Invalid credit package");
+        await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id'));
         return true;
       }
       await handleTopupExtraCredit(ctx, credits);
@@ -125,7 +126,7 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
         !(plan in SUBSCRIPTION_PLANS) ||
         !["monthly", "annual"].includes(cycle)
       ) {
-        await ctx.answerCbQuery("Invalid plan selection");
+        await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id'));
         return true;
       }
       await handleSubscriptionPurchase(ctx, plan, cycle);
