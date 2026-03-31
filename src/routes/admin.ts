@@ -1020,21 +1020,36 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     reply.raw.setHeader("Connection", "keep-alive");
 
     try {
-      const subscriber = redis.duplicate();
-      await subscriber.connect();
+      // ioredis: create a new subscriber instance (duplicate() is node-redis v4, not ioredis)
+      const Redis = (await import('ioredis')).default;
+      const subscriber = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+        retryStrategy: (times: number) => Math.min(times * 50, 2000),
+        maxRetriesPerRequest: 3,
+      });
 
       // Send initial ping
       reply.raw.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
 
-      await subscriber.subscribe("admin_events", (message) => {
+      subscriber.subscribe("admin_events", (err) => {
+        if (err) {
+          reply.raw.write(`data: ${JSON.stringify({ type: "error", message: "Subscribe failed" })}\n\n`);
+        }
+      });
+
+      subscriber.on("message", (_channel: string, message: string) => {
         try { reply.raw.write(`data: ${message}\n\n`); } catch {}
       });
 
-      request.raw.on("close", async () => {
-        try { await subscriber.quit(); } catch {}
+      // Heartbeat every 30s to keep connection alive
+      const heartbeat = setInterval(() => {
+        try { reply.raw.write(`: heartbeat\n\n`); } catch {}
+      }, 30000);
+
+      request.raw.on("close", () => {
+        clearInterval(heartbeat);
+        try { subscriber.disconnect(); } catch {}
       });
     } catch (error: any) {
-      // SSE connection failed — send error event and close
       reply.raw.write(`data: ${JSON.stringify({ type: "error", message: "SSE connection failed" })}\n\n`);
       reply.raw.end();
     }
