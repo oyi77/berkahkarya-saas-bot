@@ -441,7 +441,7 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
     const userId = ctx.from?.id;
     if (!userId) return;
 
-    await (ctx as any).replyWithInvoice({
+    await ctx.telegram.sendInvoice(ctx.chat!.id, {
       title: 'AI Video Credits',
       description: `${pkg.credits} Video Generation Credit untuk @berkahkarya_saas_bot`,
       payload: `stars_${pkg.credits}_${userId}`,

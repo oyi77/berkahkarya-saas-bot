@@ -266,6 +266,7 @@ export interface MockBotContext {
     sendPhoto: jest.Mock;
     sendVideo: jest.Mock;
     sendAnimation: jest.Mock;
+    sendInvoice: jest.Mock;
     getFileLink: jest.Mock;
     setWebhook: jest.Mock;
     deleteWebhook: jest.Mock;
@@ -310,6 +311,7 @@ export function createMockContext(
       sendPhoto: jest.fn(),
       sendVideo: jest.fn(),
       sendAnimation: jest.fn(),
+      sendInvoice: jest.fn().mockResolvedValue({}),
       getFileLink: jest.fn(),
       setWebhook: jest.fn(),
       deleteWebhook: jest.fn(),

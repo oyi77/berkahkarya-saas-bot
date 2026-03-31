@@ -646,24 +646,16 @@ describe("Topup Command", () => {
     });
 
     it("should send invoice for valid package", async () => {
-      ctx.replyWithInvoice = jest.fn();
-
       await handleStarsInvoice(ctx as any, 1);
 
-      expect(ctx.replyWithInvoice).toHaveBeenCalled();
-      const mockCalls = (ctx.replyWithInvoice as jest.Mock).mock.calls;
-      const invoiceCall = mockCalls[0][0] as {
-        currency: string;
-        prices: Array<{ amount: number }>;
-      };
-      expect(invoiceCall.currency).toBe("XTR");
-      expect(invoiceCall.prices[0].amount).toBe(15);
+      expect(ctx.telegram.sendInvoice).toHaveBeenCalled();
+      const invoiceCall = ctx.telegram.sendInvoice.mock.calls[0];
+      expect(invoiceCall[1].currency).toBe("XTR");
+      expect(invoiceCall[1].prices[0].amount).toBe(15);
     });
 
     it("should handle errors gracefully", async () => {
-      ctx.replyWithInvoice = jest.fn(() => {
-        throw new Error("Invoice error");
-      });
+      ctx.telegram.sendInvoice.mockRejectedValue(new Error("Invoice error"));
 
       await handleStarsInvoice(ctx as any, 1);
 
