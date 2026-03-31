@@ -110,7 +110,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     const enabledGateways = await PaymentSettingsService.getEnabledGateways();
 
@@ -139,7 +139,7 @@ export async function handleTopupSelection(ctx: BotContext, packageId: string): 
   } catch (error) {
     logger.error('Error handling topup selection:', error);
     const lang = await getLang(ctx);
-    await ctx.editMessageText(t('topup.create_failed', lang));
+    try { await ctx.editMessageText(t('topup.create_failed', lang)); } catch { try { await ctx.reply(t('topup.create_failed', lang)); } catch { /* ignore */ } }
   }
 }
 
@@ -152,7 +152,7 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     if (!user) return;
 
     const lang = await getLang(ctx);
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     let transaction: any;
     let gatewayDisplayName = 'Payment Gateway';
@@ -205,7 +205,7 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     );
   } catch (error: any) {
     logger.error('Error handling payment gateway:', error);
-    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
+    try { await ctx.editMessageText(t('topup.create_failed', await getLang(ctx))); } catch { try { await ctx.reply(t('topup.create_failed', 'id')); } catch { /* ignore */ } }
   }
 }
 
@@ -271,7 +271,7 @@ export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: strin
     );
   } catch (error: any) {
     logger.error('Error showing Duitku payment methods:', error);
-    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
+    try { await ctx.editMessageText(t('topup.create_failed', await getLang(ctx))); } catch { try { await ctx.reply(t('topup.create_failed', 'id')); } catch { /* ignore */ } }
   }
 }
 
@@ -284,7 +284,7 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
     if (!user) return;
 
     const lang = await getLang(ctx);
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     const transaction = await DuitkuService.createTransaction({
       userId: BigInt(user.id),
@@ -310,7 +310,7 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
     );
   } catch (error: any) {
     logger.error('Error creating Duitku payment:', error);
-    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
+    try { await ctx.editMessageText(t('topup.create_failed', await getLang(ctx))); } catch { try { await ctx.reply(t('topup.create_failed', 'id')); } catch { /* ignore */ } }
   }
 }
 
@@ -320,7 +320,7 @@ export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: st
 export async function checkPayment(ctx: BotContext, orderId: string): Promise<void> {
   try {
     const lang = await getLang(ctx);
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     // Try multiple gateways if necessary, or check DB
     const transaction = await prisma.transaction.findUnique({ where: { orderId } });
@@ -350,7 +350,7 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     const telegramId = BigInt(user.id);
     const dbUser = await UserService.findByTelegramId(telegramId);
@@ -389,7 +389,7 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     );
   } catch (error) {
     logger.error('Error creating extra credit payment:', error);
-    await ctx.editMessageText(t('topup.create_failed', await getLang(ctx)));
+    try { await ctx.editMessageText(t('topup.create_failed', await getLang(ctx))); } catch { try { await ctx.reply(t('topup.create_failed', 'id')); } catch { /* ignore */ } }
   }
 }
 
@@ -430,7 +430,7 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
  */
 export async function handleStarsInvoice(ctx: BotContext, credits: number): Promise<void> {
   try {
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     const pkg = STARS_PACKAGES.find(p => p.credits === credits);
     if (!pkg) {
@@ -524,7 +524,7 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
  */
 export async function handleCryptoPayment(ctx: BotContext, credits: number, coin: string): Promise<void> {
   try {
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -560,6 +560,6 @@ export async function handleCryptoPayment(ctx: BotContext, credits: number, coin
     );
   } catch (error) {
     logger.error('Error creating crypto payment:', error);
-    await ctx.editMessageText(t('topup.crypto_payment_failed', await getLang(ctx)));
+    try { await ctx.editMessageText(t('topup.crypto_payment_failed', await getLang(ctx))); } catch { try { await ctx.reply(t('topup.crypto_payment_failed', 'id')); } catch { /* ignore */ } }
   }
 }

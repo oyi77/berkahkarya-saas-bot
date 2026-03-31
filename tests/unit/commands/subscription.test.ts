@@ -15,7 +15,7 @@ import { createMockContext, mockUser, mockSubscription } from "../../fixtures";
 
 jest.mock("@/services/user.service", () => ({
   UserService: {
-    findByTelegramId: jest.fn(),
+    findByTelegramId: jest.fn().mockResolvedValue(null),
   },
 }));
 
@@ -326,8 +326,8 @@ describe("Subscription Command", () => {
       );
       expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Subscription Cancellation");
-      expect(editCall[0]).toContain("will end at the current billing period");
+      expect(editCall[0]).toContain("Cancelled");
+      expect(editCall[0]).toContain("/subscription");
     });
 
     it("should handle cancellation errors", async () => {

@@ -102,7 +102,7 @@ export async function handleSubscriptionPurchase(
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
 
     const price = getPlanPrice(plan, cycle);
     const planConfig = SUBSCRIPTION_PLANS[plan];
@@ -165,9 +165,10 @@ export async function handleSubscriptionPurchase(
     );
   } catch (error) {
     logger.error('Error creating subscription payment:', error);
-    const dbUser2 = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    let dbUser2: any = null;
+    try { if (ctx.from) dbUser2 = await UserService.findByTelegramId(BigInt(ctx.from.id)); } catch { /* ignore */ }
     const lang2 = dbUser2?.language || 'id';
-    await ctx.editMessageText(t('sub.payment_create_failed', lang2));
+    try { await ctx.editMessageText(t('sub.payment_create_failed', lang2)); } catch { try { await ctx.reply(t('sub.payment_create_failed', lang2)); } catch { /* ignore */ } }
   }
 }
 
@@ -176,20 +177,22 @@ export async function handleCancelSubscription(ctx: BotContext): Promise<void> {
     const user = ctx.from;
     if (!user) return;
 
-    await ctx.answerCbQuery('...');
+    await ctx.answerCbQuery('...').catch(() => {});
     await SubscriptionService.cancelSubscription(BigInt(user.id));
 
-    await ctx.editMessageText(
-      '✅ *Subscription Cancellation*\n\n' +
-      'Your subscription will end at the current billing period.\n' +
-      'You will keep access and credits until then.\n\n' +
-      'Use /subscription to re-subscribe anytime.',
-      { parse_mode: 'Markdown' }
-    );
+    let dbUser: any = null;
+    try { if (ctx.from) dbUser = await UserService.findByTelegramId(BigInt(ctx.from.id)); } catch { /* ignore */ }
+    const lang = dbUser?.language || ctx.from?.language_code || 'id';
+    const cancelMsg = lang === 'id' ? '✅ *Langganan Dibatalkan*\n\nLanggananmu akan berakhir di akhir periode billing.\nKredit tetap bisa digunakan sampai saat itu.\n\nGunakan /subscription untuk berlangganan lagi.'
+      : lang === 'ru' ? '✅ *Подписка отменена*\n\nВаша подписка завершится в конце текущего периода.\nКредиты сохранятся до этого момента.\n\nИспользуйте /subscription для повторной подписки.'
+      : lang === 'zh' ? '✅ *订阅已取消*\n\n您的订阅将在当前计费周期结束时终止。\n积分可以使用到那时。\n\n使用 /subscription 重新订阅。'
+      : '✅ *Subscription Cancelled*\n\nYour subscription will end at the current billing period.\nYou\'ll keep access and credits until then.\n\nUse /subscription to re-subscribe anytime.';
+    try { await ctx.editMessageText(cancelMsg, { parse_mode: 'Markdown' }); } catch { try { await ctx.reply(cancelMsg, { parse_mode: 'Markdown' }); } catch { /* ignore */ } }
   } catch (error) {
     logger.error('Error cancelling subscription:', error);
-    const dbUser3 = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null) : null;
+    let dbUser3: any = null;
+    try { if (ctx.from) dbUser3 = await UserService.findByTelegramId(BigInt(ctx.from.id)); } catch { /* ignore */ }
     const lang3 = dbUser3?.language || 'id';
-    await ctx.editMessageText(t('sub.cancel_failed', lang3));
+    try { await ctx.editMessageText(t('sub.cancel_failed', lang3)); } catch { try { await ctx.reply(t('sub.cancel_failed', lang3)); } catch { /* ignore */ } }
   }
 }
