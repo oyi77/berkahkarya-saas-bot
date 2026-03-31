@@ -13,6 +13,7 @@ import { AnalyticsService } from '@/services/analytics.service';
 import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import crypto from 'crypto';
 import { Telegraf } from 'telegraf';
+import { t } from '@/i18n/translations';
 
 // Payment gateway configuration
 const MIDTRANS_BASE_URL = process.env.MIDTRANS_ENVIRONMENT === 'production'
@@ -30,6 +31,13 @@ export class PaymentService {
    */
   static setBotInstance(bot: Telegraf): void {
     this.botInstance = bot;
+  }
+
+  /**
+   * Retrieve the registered bot instance (used by other payment services).
+   */
+  static getBotInstance(): Telegraf | null {
+    return this.botInstance;
   }
 
   /**
@@ -337,6 +345,15 @@ export class PaymentService {
           paymentMethod: notification.payment_type,
         },
       });
+
+      // Notify user on terminal failure/expiry
+      if (newStatus === 'failed' || newStatus === 'expired') {
+        this.sendFailureNotification(
+          transaction.userId,
+          notification.order_id,
+          newStatus,
+        ).catch(() => {});
+      }
     }
 
     return { success: true, message: 'Notification processed' };
@@ -368,6 +385,28 @@ export class PaymentService {
    */
   static async getPackages() {
     return getPackagesAsync();
+  }
+
+  /**
+   * Send payment failure/expiry notification to user
+   */
+  static async sendFailureNotification(telegramId: bigint, orderId: string, status: 'failed' | 'expired'): Promise<void> {
+    if (!this.botInstance) return;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { telegramId },
+        select: { language: true },
+      });
+      const lang = user?.language || 'id';
+      const key = status === 'expired' ? 'payment.expired' : 'payment.failed';
+      await this.botInstance.telegram.sendMessage(
+        telegramId.toString(),
+        t(key, lang, { orderId }),
+        { parse_mode: 'Markdown' },
+      );
+    } catch (err) {
+      logger.warn(`Failed to send payment failure notification to ${telegramId}:`, err);
+    }
   }
 
   /**

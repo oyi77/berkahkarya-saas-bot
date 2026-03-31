@@ -317,12 +317,21 @@ export class RetentionScheduler {
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private static async canSend(userId: bigint, category: string): Promise<boolean> {
-    // Atomic check using Redis setnx to prevent race condition
-    const lockKey = `retention_lock:${userId}:${category}`;
+    // Fast-path: distributed lock prevents duplicate sends across concurrent worker
+    // instances. TTL = 3 days (259200s) matches the anti-spam window so once a
+    // message is sent the key blocks any retry for the same user+category pair.
+    const dedupKey = `retention:lock:${userId}:${category}`;
+    // Short-lived in-flight guard (10s) prevents two workers racing the DB check
+    // at the same instant. Separate from the 3-day dedup key below.
+    const inFlightKey = `retention:inflight:${userId}:${category}`;
     try {
       const { redis } = await import('../config/redis.js');
-      const locked = await redis.set(lockKey, '1', 'EX', 10, 'NX');
-      if (locked !== 'OK') return false; // Another call is already processing
+      // Reject if another worker is mid-flight for this user+category
+      const inFlight = await redis.set(inFlightKey, '1', 'EX', 10, 'NX');
+      if (inFlight !== 'OK') return false;
+      // Reject if already sent within the 3-day dedup window
+      const alreadySent = await redis.exists(dedupKey);
+      if (alreadySent) return false;
     } catch {
       // Redis unavailable — refuse to send to prevent double-send
       return false;
@@ -348,6 +357,14 @@ export class RetentionScheduler {
     await (prisma as any).retentionLog.create({
       data: { userId, triggerType },
     });
+    // Write the 3-day dedup key so concurrent/future workers skip this user+category
+    try {
+      const { redis } = await import('../config/redis.js');
+      const dedupKey = `retention:lock:${userId}:${triggerType}`;
+      await redis.set(dedupKey, '1', 'EX', 3 * 24 * 60 * 60); // 3 days
+    } catch {
+      // Non-fatal: DB log is the source of truth; Redis is a fast-path guard
+    }
   }
 
   private static async sendMessage(

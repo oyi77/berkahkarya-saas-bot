@@ -6,6 +6,7 @@ import { ReferralService } from '@/services/referral.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import { AnalyticsService } from '@/services/analytics.service';
+import { PaymentService } from '@/services/payment.service';
 
 const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
   ? 'https://passport.duitku.com'
@@ -235,6 +236,13 @@ export class DuitkuService {
       } else {
         logger.warn(`Duitku refund for ${params.merchantOrderId} — transaction was not in success state, skipping credit reversal`);
       }
+    } else if (newStatus === 'failed') {
+      // Notify user of terminal failure
+      PaymentService.sendFailureNotification(
+        transaction.userId,
+        params.merchantOrderId,
+        'failed',
+      ).catch(() => {});
     }
 
     if (newStatus === 'success') {

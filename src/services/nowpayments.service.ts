@@ -10,6 +10,7 @@ import { prisma } from '@/config/database';
 import { getSubscriptionPlansAsync } from '@/config/pricing';
 import { ReferralService } from '@/services/referral.service';
 import { AnalyticsService } from '@/services/analytics.service';
+import { PaymentService } from '@/services/payment.service';
 import { logger } from '@/utils/logger';
 
 const BASE_URL = 'https://api.nowpayments.io/v1';
@@ -261,6 +262,11 @@ export class NowPaymentsService {
         where: { orderId: order_id },
         data: { status: 'failed' },
       });
+      PaymentService.sendFailureNotification(
+        transaction.userId,
+        order_id,
+        payment_status as 'failed' | 'expired',
+      ).catch(() => {});
       return { success: true, message: `Payment ${payment_status}` };
     }
 

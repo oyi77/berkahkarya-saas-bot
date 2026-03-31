@@ -7,6 +7,8 @@
 
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { t } from '@/i18n/translations';
+import type { Telegram } from 'telegraf';
 
 // ── Badge Definitions ─────────────────────────────────────────────────────────
 
@@ -113,8 +115,12 @@ export class GamificationService {
   /**
    * Record a generate and update streak
    * Returns: { streakUpdated, newStreak, rewardCredit, newBadges }
+   * Pass options.telegram + options.chatId to send badge notifications via Telegram.
    */
-  static async recordGenerate(userId: bigint): Promise<{
+  static async recordGenerate(
+    userId: bigint,
+    options?: { telegram?: Telegram; chatId?: number; lang?: string },
+  ): Promise<{
     streakUpdated: boolean;
     newStreak: number;
     rewardCredit: number;
@@ -183,7 +189,7 @@ export class GamificationService {
       }
 
       // Check for new badges
-      const newBadges = await this.checkAndAwardBadges(userId);
+      const newBadges = await this.checkAndAwardBadges(userId, options);
 
       // Apply reward credit if any
       if (rewardCredit > 0) {
@@ -207,9 +213,13 @@ export class GamificationService {
   }
 
   /**
-   * Check and award new badges to user
+   * Check and award new badges to user.
+   * If telegram + chatId are provided, sends a notification for each new badge and marks notified=true.
    */
-  static async checkAndAwardBadges(userId: bigint): Promise<BadgeDefinition[]> {
+  static async checkAndAwardBadges(
+    userId: bigint,
+    options?: { telegram?: Telegram; chatId?: number; lang?: string },
+  ): Promise<BadgeDefinition[]> {
     try {
       const stats = await this.getUserStats(userId);
       const existingBadges = await (prisma as any).userBadge.findMany({
@@ -237,6 +247,24 @@ export class GamificationService {
                 where: { id: userId },
                 data: { creditBalance: { increment: badge.creditReward } },
               });
+            }
+
+            // Send Telegram notification for the badge and mark as notified
+            if (options?.telegram && options?.chatId) {
+              const lang = options.lang || 'id';
+              const message = t('gamification.badge_earned', lang, {
+                emoji: badge.emoji,
+                badgeName: badge.name,
+              });
+              await options.telegram
+                .sendMessage(options.chatId, message, { parse_mode: 'Markdown' })
+                .catch(() => {});
+              await (prisma as any).userBadge
+                .update({
+                  where: { userId_badgeId: { userId, badgeId: badge.id } },
+                  data: { notified: true },
+                })
+                .catch(() => {});
             }
           }
         }

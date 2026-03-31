@@ -3646,6 +3646,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '✏️ Только описание (без референса)',
     zh: '✏️ 仅描述 (无参考)',
   },
+  'gamification.badge_earned': {
+    id: '{emoji} Selamat! Kamu mendapatkan badge *{badgeName}*!',
+    en: '{emoji} Congratulations! You earned the *{badgeName}* badge!',
+    ru: '{emoji} Поздравляем! Вы получили значок *{badgeName}*!',
+    zh: '{emoji} 恭喜！您获得了 *{badgeName}* 徽章！',
+  },
   'prompts.library_menu': {
     id: '📚 **PROMPT LIBRARY — 40+ Templates Profesional**\n\nPilih niche bisnismu untuk lihat prompt yang relevan:\n\n────────────────────────────────────────────\n🍔 **F&B** — Restaurant, cafe, food stall\n👗 **Fashion** — Clothing, hijab, accessories\n📱 **Tech** — Gadget, software, gaming\n💪 **Health** — Skincare, supplement, fitness\n✈️ **Travel** — Hotel, tour, destination\n📚 **Education** — Course, training, tutorial\n💰 **Finance** — Investment, insurance, fintech\n🎭 **Entertainment** — Event, content creator\n────────────────────────────────────────────\n\n🔥 **Trending Now** — Prompt paling populer minggu ini\n\nKetik niche atau `/prompts [niche]`\nContoh: `/prompts fnb` atau `/prompts fashion`',
     en: '📚 **PROMPT LIBRARY — 40+ Professional Templates**\n\nChoose your business niche to see relevant prompts:\n\n────────────────────────────────────────────\n🍔 **F&B** — Restaurant, cafe, food stall\n👗 **Fashion** — Clothing, hijab, accessories\n📱 **Tech** — Gadget, software, gaming\n💪 **Health** — Skincare, supplement, fitness\n✈️ **Travel** — Hotel, tour, destination\n📚 **Education** — Course, training, tutorial\n💰 **Finance** — Investment, insurance, fintech\n🎭 **Entertainment** — Event, content creator\n────────────────────────────────────────────\n\n🔥 **Trending Now** — Most popular prompts this week\n\nType a niche or `/prompts [niche]`\nExample: `/prompts fnb` or `/prompts fashion`',

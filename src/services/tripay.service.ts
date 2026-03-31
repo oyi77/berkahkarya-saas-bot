@@ -11,6 +11,7 @@ import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } fr
 import { ReferralService } from '@/services/referral.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import { AnalyticsService } from '@/services/analytics.service';
+import { PaymentService } from '@/services/payment.service';
 import crypto from 'crypto';
 
 const TRIPAY_API_KEY = process.env.TRIPAY_API_KEY || '';
@@ -269,6 +270,13 @@ export class TripayService {
         } else {
           logger.warn(`Tripay refund for ${merchant_ref} — transaction was not in success state, skipping credit reversal`);
         }
+      } else if (newStatus === 'failed' || newStatus === 'expired') {
+        // Notify user of terminal failure/expiry
+        PaymentService.sendFailureNotification(
+          transaction.userId,
+          merchant_ref,
+          newStatus as 'failed' | 'expired',
+        ).catch(() => {});
       }
 
       return { success: true, message: 'Callback processed' };

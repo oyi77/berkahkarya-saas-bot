@@ -30,6 +30,7 @@ import { VideoPostProcessing } from '@/services/video-post-processing.service';
 import { AudioVOService } from '@/services/audio-vo.service';
 import { QualityCheckService } from '@/services/quality-check.service';
 import { WatermarkService } from '@/services/watermark.service';
+import { GamificationService } from '@/services/gamification.service';
 import { prisma } from '@/config/database';
 import { getAILabel, getLangConfig } from '@/config/languages';
 import { t } from '@/i18n/translations';
@@ -511,6 +512,13 @@ async function processSingleScene(
   } else {
     await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
   }
+
+  // Record generate for gamification (streak + badges) — best-effort
+  GamificationService.recordGenerate(telegramId, {
+    telegram,
+    chatId,
+    lang: job.data.language || 'id',
+  }).catch((err) => logger.warn('Gamification recordGenerate failed (single-scene)', err));
 }
 
 // ── Multi-scene (extended) generation ──
@@ -800,6 +808,13 @@ async function processExtendedScenes(
   } else {
     await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
   }
+
+  // Record generate for gamification (streak + badges) — best-effort
+  GamificationService.recordGenerate(telegramId, {
+    telegram,
+    chatId,
+    lang: job.data.language || 'id',
+  }).catch((err) => logger.warn('Gamification recordGenerate failed (multi-scene)', err));
 
   // Cleanup scene files
   for (const sp of sceneVideos) {
