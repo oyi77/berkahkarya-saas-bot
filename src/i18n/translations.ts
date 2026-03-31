@@ -1633,6 +1633,92 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '{message}\n\nКредиты возвращены.',
     zh: '{message}\n\n积分已退还。',
   },
+
+  // ---------------------------------------------------------------------------
+  // 3-Mode system (Basic/Smart/Pro)
+  // ---------------------------------------------------------------------------
+  'gen.basic_send_input': {
+    id: '📸 *Mode Basic — Full Auto*\n\nKirim foto produk, teks deskripsi, atau keduanya.\nAI akan handle semuanya secara otomatis!',
+    en: '📸 *Basic Mode — Full Auto*\n\nSend a product photo, text description, or both.\nAI will handle everything automatically!',
+    ru: '📸 *Базовый режим — полный автомат*\n\nОтправьте фото товара, текст или и то, и другое.\nAI сделает всё автоматически!',
+    zh: '📸 *基础模式 — 全自动*\n\n发送产品照片、文字描述或两者兼备。\nAI会自动处理一切！',
+  },
+  'gen.basic_auto_detected': {
+    id: '🤖 Auto: Industri {industry} | Platform TikTok | 30 detik',
+    en: '🤖 Auto: Industry {industry} | Platform TikTok | 30s',
+    ru: '🤖 Авто: Отрасль {industry} | TikTok | 30 секунд',
+    zh: '🤖 自动: 行业 {industry} | TikTok | 30秒',
+  },
+  'gen.multi_image_title': {
+    id: '📸 *Upload Gambar ({n}/{total})*\n\nKirim foto satu per satu untuk setiap scene.',
+    en: '📸 *Upload Images ({n}/{total})*\n\nSend photos one by one for each scene.',
+    ru: '📸 *Загрузить фото ({n}/{total})*\n\nОтправляйте фото по одному для каждой сцены.',
+    zh: '📸 *上传图片 ({n}/{total})*\n\n逐一发送每个场景的照片。',
+  },
+  'gen.multi_image_received': {
+    id: '✅ Foto {n}/{total} diterima!',
+    en: '✅ Photo {n}/{total} received!',
+    ru: '✅ Фото {n}/{total} получено!',
+    zh: '✅ 照片 {n}/{total} 已收到！',
+  },
+  'gen.btn_complete_ai': {
+    id: '🤖 Lengkapi Sisa dengan AI', en: '🤖 Complete Rest with AI',
+    ru: '🤖 Дополнить остальное AI', zh: '🤖 AI补充剩余',
+  },
+  'gen.btn_skip_images': {
+    id: '⏭️ Lewati (AI Generate Semua)', en: '⏭️ Skip (AI Generates All)',
+    ru: '⏭️ Пропустить (AI создаст все)', zh: '⏭️ 跳过（AI生成全部）',
+  },
+  'gen.storyboard_choice': {
+    id: '📋 *Storyboard*\n\nPilih cara membuat storyboard:',
+    en: '📋 *Storyboard*\n\nChoose how to create storyboard:',
+    ru: '📋 *Раскадровка*\n\nВыберите способ создания:',
+    zh: '📋 *分镜*\n\n选择创建分镜的方式:',
+  },
+  'gen.btn_storyboard_auto': {
+    id: '🤖 Auto-Generate Storyboard', en: '🤖 Auto-Generate Storyboard',
+    ru: '🤖 Авто-генерация', zh: '🤖 自动生成分镜',
+  },
+  'gen.btn_storyboard_manual': {
+    id: '✍️ Tulis Storyboard Manual', en: '✍️ Write Storyboard Manually',
+    ru: '✍️ Написать вручную', zh: '✍️ 手动编写分镜',
+  },
+  'gen.storyboard_edit_scene': {
+    id: '📋 *Scene {n}: {name}*\n\nTulis deskripsi scene ini:',
+    en: '📋 *Scene {n}: {name}*\n\nWrite description for this scene:',
+    ru: '📋 *Сцена {n}: {name}*\n\nОпишите эту сцену:',
+    zh: '📋 *场景 {n}: {name}*\n\n请描述此场景:',
+  },
+  'gen.storyboard_scene_saved': {
+    id: '✅ Scene {n} disimpan! ({remaining} tersisa)',
+    en: '✅ Scene {n} saved! ({remaining} remaining)',
+    ru: '✅ Сцена {n} сохранена! (осталось {remaining})',
+    zh: '✅ 场景 {n} 已保存！（还剩 {remaining}）',
+  },
+  'gen.transcript_choice': {
+    id: '🎤 *Voice-Over Script*\n\nPilih cara membuat narasi:',
+    en: '🎤 *Voice-Over Script*\n\nChoose how to create narration:',
+    ru: '🎤 *Озвучка*\n\nВыберите способ создания:',
+    zh: '🎤 *旁白脚本*\n\n选择创建旁白的方式:',
+  },
+  'gen.btn_transcript_auto': {
+    id: '🤖 AI Generate Narasi', en: '🤖 AI-Generated Narration',
+    ru: '🤖 AI создаст озвучку', zh: '🤖 AI生成旁白',
+  },
+  'gen.btn_transcript_manual': {
+    id: '✍️ Tulis Narasi Sendiri', en: '✍️ Write My Own Script',
+    ru: '✍️ Написать свой текст', zh: '✍️ 自己编写脚本',
+  },
+  'gen.transcript_input': {
+    id: '✍️ *Tulis Script Voice-Over*\n\nKetik narasi lengkap untuk video kamu:',
+    en: '✍️ *Write Voice-Over Script*\n\nType the full narration for your video:',
+    ru: '✍️ *Напишите озвучку*\n\nВведите полный текст:',
+    zh: '✍️ *编写旁白脚本*\n\n输入视频的完整旁白:',
+  },
+  'gen.transcript_saved': {
+    id: '✅ Narasi disimpan!', en: '✅ Narration saved!',
+    ru: '✅ Озвучка сохранена!', zh: '✅ 旁白已保存！',
+  },
 };
 
 /**

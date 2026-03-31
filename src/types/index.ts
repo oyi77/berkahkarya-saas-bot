@@ -73,6 +73,17 @@ export interface SessionData {
   customPresetConfig?: any; // DurationPresetConfig for custom durations
   cloneRefUrl?: string;
   userLang?: string; // Cached user language for i18n (set during generation flows)
+
+  // Pro mode: multi-image upload
+  generatePhotos?: Array<{ sceneIndex: number; fileId: string; url: string }>;
+  generatePhotoCount?: number;
+  generatePhotoUploadDone?: boolean;
+  // Pro mode: storyboard auto/manual
+  generateStoryboardMode?: 'auto' | 'manual';
+  generateManualStoryboard?: Array<{ sceneId: string; description: string; durationSeconds: number }>;
+  // Pro mode: transcript auto/manual
+  generateTranscriptMode?: 'auto' | 'manual';
+  generateManualTranscript?: string;
 }
 
 export type BotState =
@@ -99,7 +110,10 @@ export type BotState =
   | 'CUSTOM_PROMPT_CREATION'
   | 'AWAITING_PRODUCT_INPUT'
   | 'AWAITING_SCENE_EDIT'
-  | 'AWAITING_GENERATE_IMAGE';
+  | 'AWAITING_GENERATE_IMAGE'
+  | 'AWAITING_MULTI_IMAGE_UPLOAD'
+  | 'AWAITING_STORYBOARD_EDIT'
+  | 'AWAITING_TRANSCRIPT_INPUT';
 
 // =============================================================================
 // USER TYPES

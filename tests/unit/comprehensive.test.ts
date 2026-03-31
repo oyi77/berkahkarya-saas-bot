@@ -714,7 +714,7 @@ describe("Generate Flow", () => {
   });
 
   describe("requestProductInput", () => {
-    it("pre-filled prompt + basic mode → shows image preference (not straight to confirm)", async () => {
+    it("pre-filled prompt + basic mode → asks for input directly (no image preference)", async () => {
       const ctx = mockCtx("DASHBOARD", {}, {
         generateMode: "basic",
         generateAction: "video",
@@ -723,12 +723,8 @@ describe("Generate Flow", () => {
 
       await requestProductInput(ctx as any, "video");
 
-      // Now shows image preference screen first (editMessageText since callbackQuery exists in mock)
-      expect(ctx.editMessageText).toHaveBeenCalledWith(
-        expect.stringContaining("Foto Referensi"),
-        expect.anything(),
-      );
-      expect(ctx.session.state).not.toBe("AWAITING_PRODUCT_INPUT");
+      // Basic mode skips image preference — goes directly to input prompt
+      expect(ctx.session.state).toBe("AWAITING_PRODUCT_INPUT");
     });
 
     it("pre-filled prompt + smart mode + no preset → showSmartPresetSelection (sends reply)", async () => {
@@ -757,11 +753,8 @@ describe("Generate Flow", () => {
 
       await requestProductInput(ctx as any, "video");
 
-      // Shows image preference first (user must choose photo or skip before prompt input)
-      expect(ctx.editMessageText).toHaveBeenCalledWith(
-        expect.stringContaining("Foto Referensi"),
-        expect.anything(),
-      );
+      // Basic mode: goes directly to input (no image preference)
+      expect(ctx.session.state).toBe("AWAITING_PRODUCT_INPUT");
     });
   });
 

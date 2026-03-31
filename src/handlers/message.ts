@@ -173,6 +173,27 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // ── PRO MODE: MULTI-IMAGE UPLOAD ───────────────────────────────────
+    if (ctx.session?.state === 'AWAITING_MULTI_IMAGE_UPLOAD' && 'photo' in message) {
+      const { handleMultiImageUpload } = await import('../flows/generate.js');
+      await handleMultiImageUpload(ctx, message);
+      return;
+    }
+
+    // ── PRO MODE: STORYBOARD EDIT ───────────────────────────────────────
+    if (ctx.session?.state === 'AWAITING_STORYBOARD_EDIT' && 'text' in message) {
+      const { handleStoryboardEdit } = await import('../flows/generate.js');
+      await handleStoryboardEdit(ctx, message);
+      return;
+    }
+
+    // ── PRO MODE: TRANSCRIPT INPUT ──────────────────────────────────────
+    if (ctx.session?.state === 'AWAITING_TRANSCRIPT_INPUT' && 'text' in message) {
+      const { handleTranscriptInput } = await import('../flows/generate.js');
+      await handleTranscriptInput(ctx, message);
+      return;
+    }
+
     // ── V3 GENERATE: AWAITING REFERENCE IMAGE ────────────────────────────
     if (ctx.session?.state === 'AWAITING_GENERATE_IMAGE') {
       const lang = ctx.session?.userLang || 'id';

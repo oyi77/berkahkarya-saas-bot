@@ -83,8 +83,12 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
 
     const mode = ctx.session?.generateMode as GenerateMode || 'basic';
 
-    // Basic mode → straight to confirm
+    // Basic mode → auto-set platform/preset/industry, straight to confirm
     if (mode === 'basic') {
+      if (ctx.session) {
+        ctx.session.generatePreset = 'standard';
+        ctx.session.generatePlatform = 'tiktok';
+      }
       await showConfirmScreen(ctx);
       return;
     }
@@ -238,7 +242,11 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
     // Video generation
     if (action === 'video') {
-      const scenes = generateVideoScenePrompts(industry, productDesc, preset, 'id');
+      // Use manual storyboard if Pro mode provided it, otherwise auto-generate
+      const useManualStoryboard = session.generateStoryboardMode === 'manual' && session.generateManualStoryboard?.length;
+      const scenes = useManualStoryboard
+        ? session.generateManualStoryboard!
+        : generateVideoScenePrompts(industry, productDesc, preset, 'id');
       const creditCost = cost / 10;
 
       const { VideoService: VS } = await import('../services/video.service.js');
@@ -254,6 +262,10 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       // Deduct after job is created (worker refunds on failure)
       await UserService.deductCredits(telegramId, creditCost);
 
+      const storyboard = useManualStoryboard
+        ? scenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: s.description }))
+        : scenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }));
+
       try {
         const { position } = await enqueueVideoGeneration({
           jobId: video.jobId,
@@ -261,13 +273,14 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           platform,
           duration: presetConfig.totalSeconds,
           scenes: scenes.length,
-          storyboard: scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt })),
+          storyboard,
           referenceImage: photoUrl || null,
           userId: telegramId.toString(),
           chatId: ctx.chat!.id,
           enableVO: true,
           enableSubtitles: true,
           language: user.language || 'id',
+          voScript: session.generateManualTranscript || undefined,
         });
         await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
@@ -435,6 +448,13 @@ export async function showGenerateMode(ctx: BotContext): Promise<void> {
       delete ctx.session.generateScenes;
       delete ctx.session.generateCampaignSize;
       delete ctx.session.customPresetConfig;
+      delete ctx.session.generatePhotos;
+      delete ctx.session.generatePhotoCount;
+      delete ctx.session.generatePhotoUploadDone;
+      delete ctx.session.generateStoryboardMode;
+      delete ctx.session.generateManualStoryboard;
+      delete ctx.session.generateTranscriptMode;
+      delete ctx.session.generateManualTranscript;
       // Only clear prompt if NOT from library
       if (!ctx.session.generateProductDesc || !fromLibrary) {
         delete ctx.session.generateProductDesc;
@@ -512,6 +532,9 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
       ctx.session.generateAction = action;
     }
 
+    const mode = ctx.session?.generateMode as GenerateMode || 'basic';
+    const lang = ctx.session?.userLang || 'id';
+
     // Clone style has its own flow — skip image preference & prompt source
     if (action === 'clone_style') {
       if (ctx.session) ctx.session.state = 'AWAITING_PRODUCT_INPUT';
@@ -522,7 +545,24 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
       return;
     }
 
-    // If prompt is already pre-filled from library → image preference → confirm
+    // ── BASIC MODE: skip all intermediate steps, just ask for input ──
+    if (mode === 'basic') {
+      if (ctx.session) ctx.session.state = 'AWAITING_PRODUCT_INPUT';
+      const text = t('gen.basic_send_input', lang);
+      try {
+        if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown' });
+        else await ctx.reply(text, { parse_mode: 'Markdown' });
+      } catch { await ctx.reply(text, { parse_mode: 'Markdown' }); }
+      return;
+    }
+
+    // ── PRO MODE: multi-image upload flow ──
+    if (mode === 'pro') {
+      await showProImageUpload(ctx);
+      return;
+    }
+
+    // ── SMART MODE: if prompt pre-filled → image preference → confirm ──
     const prefilledPrompt = ctx.session?.generateProductDesc;
     if (prefilledPrompt) {
       if (ctx.session) ctx.session.state = 'DASHBOARD';
@@ -534,9 +574,8 @@ export async function requestProductInput(ctx: BotContext, action: GenerateActio
       return;
     }
 
-    // Normal flow (no prompt yet): show image preference first, then prompt source
+    // Smart mode (no prompt yet): show image preference first, then prompt source
     if (ctx.session?.generatePhotoUrl) {
-      // Photo already uploaded — go straight to prompt source selection
       await showPromptSourceSelection(ctx);
     } else {
       await showImagePreference(ctx);
@@ -599,7 +638,8 @@ export async function continueAfterImagePreference(ctx: BotContext): Promise<voi
     return;
   }
   if (mode === 'pro' && action === 'video') {
-    await showProSceneReview(ctx, prefilledPrompt);
+    // Pro: prompt → storyboard choice → transcript choice → duration → platform → scene review → confirm
+    await showProStoryboardChoice(ctx);
     return;
   }
   await showConfirmScreen(ctx);
@@ -630,6 +670,190 @@ export async function showPromptSourceSelection(ctx: BotContext): Promise<void> 
   } catch (err) {
     logger.error('showPromptSourceSelection error', err);
   }
+}
+
+// ── Pro Mode: Multi-Image Upload ─────────────────────────────────────────────
+
+export async function showProImageUpload(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+
+    const lang = ctx.session?.userLang || 'id';
+    const total = 7; // HPAS 7-scene standard
+    const current = ctx.session?.generatePhotos?.length || 0;
+
+    if (ctx.session) {
+      ctx.session.generatePhotoCount = total;
+      ctx.session.state = 'AWAITING_MULTI_IMAGE_UPLOAD';
+    }
+
+    const text = t('gen.multi_image_title', lang, { n: current, total });
+    const markup = {
+      inline_keyboard: [
+        ...(current > 0 ? [[{ text: t('gen.btn_complete_ai', lang), callback_data: 'pro_image_complete_ai' }]] : []),
+        [{ text: t('gen.btn_skip_images', lang), callback_data: 'pro_image_skip' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showProImageUpload error', err);
+  }
+}
+
+/** Handle multi-image upload in Pro mode */
+export async function handleMultiImageUpload(ctx: BotContext, message: any): Promise<void> {
+  if (!message.photo) {
+    await ctx.reply(t('msg.send_photo_or_skip', ctx.session?.userLang || 'id'));
+    return;
+  }
+
+  const largest = message.photo[message.photo.length - 1];
+  const fileLink = await ctx.telegram.getFileLink(largest.file_id);
+  const url = fileLink.toString();
+  const lang = ctx.session?.userLang || 'id';
+
+  if (!ctx.session?.generatePhotos) {
+    if (ctx.session) ctx.session.generatePhotos = [];
+  }
+
+  const current = ctx.session!.generatePhotos!.length;
+  const total = ctx.session?.generatePhotoCount || 7;
+
+  ctx.session!.generatePhotos!.push({ sceneIndex: current, fileId: largest.file_id, url });
+  const newCount = ctx.session!.generatePhotos!.length;
+
+  await ctx.reply(t('gen.multi_image_received', lang, { n: newCount, total }));
+
+  if (newCount >= total) {
+    // All images uploaded — proceed to prompt source
+    if (ctx.session) ctx.session.state = 'DASHBOARD';
+    await showPromptSourceSelection(ctx);
+  }
+  // Otherwise stay in AWAITING_MULTI_IMAGE_UPLOAD, user can send more or tap "Complete with AI"
+}
+
+// ── Pro Mode: Storyboard Choice ─────────────────────────────────────────────
+
+export async function showProStoryboardChoice(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+    const lang = ctx.session?.userLang || 'id';
+
+    const text = t('gen.storyboard_choice', lang);
+    const markup = {
+      inline_keyboard: [
+        [{ text: t('gen.btn_storyboard_auto', lang), callback_data: 'pro_storyboard_auto' }],
+        [{ text: t('gen.btn_storyboard_manual', lang), callback_data: 'pro_storyboard_manual' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showProStoryboardChoice error', err);
+  }
+}
+
+/** Pro storyboard per-scene manual editor */
+export async function showProStoryboardEditor(ctx: BotContext, sceneIndex: number): Promise<void> {
+  const lang = ctx.session?.userLang || 'id';
+  const preset = (ctx.session?.generatePreset as DurationPreset) || 'standard';
+  const presetConfig = DURATION_PRESETS[preset];
+  const sceneIds = presetConfig.scenesIncluded;
+
+  if (sceneIndex >= sceneIds.length) {
+    // All scenes done — proceed to transcript choice
+    if (ctx.session) ctx.session.state = 'DASHBOARD';
+    await showProTranscriptChoice(ctx);
+    return;
+  }
+
+  const sceneId = sceneIds[sceneIndex];
+  const sceneName = HPAS_SCENES[sceneId]?.nameId || sceneId;
+
+  if (ctx.session) {
+    ctx.session.state = 'AWAITING_STORYBOARD_EDIT';
+    ctx.session.stateData = { ...(ctx.session.stateData || {}), storyboardEditIndex: sceneIndex };
+  }
+
+  await ctx.reply(t('gen.storyboard_edit_scene', lang, { n: sceneIndex + 1, name: sceneName }), { parse_mode: 'Markdown' });
+}
+
+/** Handle storyboard scene text input */
+export async function handleStoryboardEdit(ctx: BotContext, message: any): Promise<void> {
+  const text = message.text?.trim();
+  if (!text) return;
+
+  const sceneIndex = (ctx.session?.stateData as any)?.storyboardEditIndex ?? 0;
+  const lang = ctx.session?.userLang || 'id';
+  const preset = (ctx.session?.generatePreset as DurationPreset) || 'standard';
+  const presetConfig = DURATION_PRESETS[preset];
+  const sceneIds = presetConfig.scenesIncluded;
+  const sceneId = sceneIds[sceneIndex] || 'hook';
+
+  if (!ctx.session?.generateManualStoryboard) {
+    if (ctx.session) ctx.session.generateManualStoryboard = [];
+  }
+
+  ctx.session!.generateManualStoryboard!.push({
+    sceneId,
+    description: text,
+    durationSeconds: presetConfig.sceneDurations[sceneId] || 5,
+  });
+
+  const remaining = sceneIds.length - (sceneIndex + 1);
+  await ctx.reply(t('gen.storyboard_scene_saved', lang, { n: sceneIndex + 1, remaining }));
+
+  // Advance to next scene
+  await showProStoryboardEditor(ctx, sceneIndex + 1);
+}
+
+// ── Pro Mode: Transcript Choice ─────────────────────────────────────────────
+
+export async function showProTranscriptChoice(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+    const lang = ctx.session?.userLang || 'id';
+
+    const text = t('gen.transcript_choice', lang);
+    const markup = {
+      inline_keyboard: [
+        [{ text: t('gen.btn_transcript_auto', lang), callback_data: 'pro_transcript_auto' }],
+        [{ text: t('gen.btn_transcript_manual', lang), callback_data: 'pro_transcript_manual' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showProTranscriptChoice error', err);
+  }
+}
+
+/** Handle manual transcript input */
+export async function handleTranscriptInput(ctx: BotContext, message: any): Promise<void> {
+  const text = message.text?.trim();
+  if (!text) return;
+
+  const lang = ctx.session?.userLang || 'id';
+  if (ctx.session) {
+    ctx.session.generateManualTranscript = text;
+    ctx.session.generateTranscriptMode = 'manual';
+    ctx.session.state = 'DASHBOARD';
+  }
+
+  await ctx.reply(t('gen.transcript_saved', lang));
+
+  // Proceed to duration selection (Pro uses same Smart duration picker)
+  await showSmartPresetSelection(ctx);
 }
 
 // ── Smart Mode: Preset Selection ──────────────────────────────────────────────
@@ -798,6 +1022,13 @@ export async function showPostDelivery(ctx: BotContext): Promise<void> {
       delete ctx.session.generateMode;
       delete ctx.session.generateCampaignSize;
       delete ctx.session.customPresetConfig;
+      delete ctx.session.generatePhotos;
+      delete ctx.session.generatePhotoCount;
+      delete ctx.session.generatePhotoUploadDone;
+      delete ctx.session.generateStoryboardMode;
+      delete ctx.session.generateManualStoryboard;
+      delete ctx.session.generateTranscriptMode;
+      delete ctx.session.generateManualTranscript;
       // Clear prompt library selection marker
       if (ctx.session.stateData && typeof ctx.session.stateData === 'object') {
         delete (ctx.session.stateData as any).selectedPrompt;

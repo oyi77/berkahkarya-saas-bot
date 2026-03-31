@@ -87,6 +87,8 @@ export interface VideoGenerationJobData {
   language?: string;
   campaignGroupId?: string;
   campaignTotal?: number;
+  voScript?: string; // Pro mode: user-provided VO script (skip AI generation)
+  userImages?: Array<{ sceneIndex: number; url: string }>; // Pro mode: per-scene user images
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -262,7 +264,7 @@ async function applyVOPipeline(
   platform: string,
   storyboard: Array<{ scene: number; duration: number; description: string }>,
   totalDuration: number,
-  options: { enableVO: boolean; enableSubtitles: boolean; language?: string },
+  options: { enableVO: boolean; enableSubtitles: boolean; language?: string; voScript?: string },
   telegram: Telegram,
   chatId: number
 ): Promise<string> {
@@ -274,9 +276,9 @@ async function applyVOPipeline(
       return voiceProfile?.language === 'en' ? 'en' as const : 'id' as const;
     })();
 
-    // Step 1: Generate VO script
+    // Step 1: Generate VO script (or use user-provided one from Pro mode)
     await notifyProgress(telegram, chatId, '\ud83c\udfa4 Generating voice over script...');
-    const script = await generateVOScript(niche, storyboard, platform, totalDuration, language);
+    const script = options.voScript || await generateVOScript(niche, storyboard, platform, totalDuration, language);
     logger.info(`VO script generated for ${jobId}: ${script.slice(0, 80)}...`);
 
     if (options.enableVO && options.enableSubtitles) {
@@ -466,7 +468,7 @@ async function processSingleScene(
   if (enableVO || enableSubtitles) {
     deliveryPath = await applyVOPipeline(
       localPath, jobId, niche, platform, storyboard, duration,
-      { enableVO, enableSubtitles, language: job.data.language },
+      { enableVO, enableSubtitles, language: job.data.language, voScript: job.data.voScript },
       telegram, chatId
     );
   } else {
@@ -733,7 +735,7 @@ async function processExtendedScenes(
   if (enableVO || enableSubtitles) {
     deliveryPath = await applyVOPipeline(
       finalPath, jobId, niche, platform, storyboard, duration,
-      { enableVO, enableSubtitles, language: job.data.language },
+      { enableVO, enableSubtitles, language: job.data.language, voScript: job.data.voScript },
       telegram, chatId
     );
   } else {

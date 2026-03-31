@@ -634,6 +634,52 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Pro mode: multi-image upload controls
+    if (data === "pro_image_complete_ai" || data === "pro_image_skip") {
+      await ctx.answerCbQuery();
+      if (ctx.session) {
+        ctx.session.generatePhotoUploadDone = true;
+        ctx.session.state = 'DASHBOARD';
+      }
+      const { showPromptSourceSelection } = await import('../flows/generate.js');
+      await showPromptSourceSelection(ctx);
+      return;
+    }
+
+    // Pro mode: storyboard auto/manual
+    if (data === "pro_storyboard_auto") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.generateStoryboardMode = 'auto';
+      const { showProTranscriptChoice } = await import('../flows/generate.js');
+      await showProTranscriptChoice(ctx);
+      return;
+    }
+
+    if (data === "pro_storyboard_manual") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.generateStoryboardMode = 'manual';
+      const { showProStoryboardEditor } = await import('../flows/generate.js');
+      await showProStoryboardEditor(ctx, 0);
+      return;
+    }
+
+    // Pro mode: transcript auto/manual
+    if (data === "pro_transcript_auto") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.generateTranscriptMode = 'auto';
+      const { showSmartPresetSelection } = await import('../flows/generate.js');
+      await showSmartPresetSelection(ctx);
+      return;
+    }
+
+    if (data === "pro_transcript_manual") {
+      await ctx.answerCbQuery();
+      if (ctx.session) ctx.session.state = 'AWAITING_TRANSCRIPT_INPUT';
+      const { t } = await import('../i18n/translations.js');
+      await ctx.editMessageText(t('gen.transcript_input', ctx.session?.userLang || 'id'), { parse_mode: 'Markdown' });
+      return;
+    }
+
     // Prompt source selection: library or custom
     if (data === "prompt_source_library") {
       await ctx.answerCbQuery();
@@ -1127,7 +1173,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     // ── Account & Billing Handlers ─────────────────
-    if (data.startsWith("topup_") || data.startsWith("check_payment_") || data.startsWith("subscribe_") || data === "cancel_subscription" || data === "open_subscription") {
+    if (data.startsWith("topup_") || data.startsWith("duitku_method_") || data.startsWith("check_payment_") || data.startsWith("subscribe_") || data === "cancel_subscription" || data === "open_subscription") {
       const { handleAccountCallback } = await import("./callbacks/account.js");
       if (await handleAccountCallback(ctx, data)) return;
     }
