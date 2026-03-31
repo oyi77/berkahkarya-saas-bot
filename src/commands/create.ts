@@ -91,7 +91,7 @@ export async function handleDurationSelection(
 
     // Validate duration
     if (duration < 6 || duration > 300) {
-      await ctx.answerCbQuery("Duration must be 6-300 seconds");
+      await ctx.answerCbQuery(t('msg.invalid_duration', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
 
@@ -115,7 +115,7 @@ export async function handleDurationSelection(
     const creditCost = getVideoCreditCost(duration);
 
     if (Number(dbUser.creditBalance) < creditCost) {
-      await ctx.answerCbQuery("Insufficient credits");
+      await ctx.answerCbQuery(t('gen.insufficient_credits', ctx.session?.userLang || 'id', { cost: '?', balance: '0' })).catch(() => {});
       const minPlan = SUBSCRIPTION_PLANS.lite;
       const maxPlan = SUBSCRIPTION_PLANS.agency;
       await ctx.reply(
@@ -199,7 +199,7 @@ export async function handleDurationSelection(
     );
   } catch (error) {
     logger.error("Error handling duration selection:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -217,7 +217,7 @@ export async function handleNicheSelection(
 
     const nicheConfig = NICHES[nicheKey];
     if (!nicheConfig) {
-      await ctx.answerCbQuery("Niche tidak valid");
+      await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
 
@@ -260,7 +260,7 @@ export async function handleNicheSelection(
     );
   } catch (error) {
     logger.error("Error handling niche selection:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -321,7 +321,7 @@ export async function handleStyleSelection(
     );
   } catch (error) {
     logger.error("Error handling style selection:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -405,7 +405,7 @@ export async function handlePlatformSelection(
     );
   } catch (error) {
     logger.error("Error handling platform selection:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -995,7 +995,7 @@ export async function handleVOToggle(
 ): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
+      await ctx.answerCbQuery(t('error.no_session', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
 
@@ -1049,7 +1049,7 @@ export async function handleVOToggle(
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling VO toggle:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -1059,7 +1059,7 @@ export async function handleVOToggle(
 export async function handleVOContinue(ctx: BotContext): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
+      await ctx.answerCbQuery(t('error.no_session', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
 
@@ -1144,7 +1144,7 @@ export async function handleVOContinue(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling VO continue:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -1156,7 +1156,7 @@ export async function handleCustomPromptRequest(
 ): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
+      await ctx.answerCbQuery(t('error.no_session', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
 
@@ -1171,7 +1171,7 @@ export async function handleCustomPromptRequest(
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling custom prompt request:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 
@@ -1181,7 +1181,7 @@ export async function handleCustomPromptRequest(
 export async function handleSkipPrompt(ctx: BotContext): Promise<void> {
   try {
     if (!ctx.session?.videoCreation) {
-      await ctx.answerCbQuery("Tidak ada sesi pembuatan video aktif");
+      await ctx.answerCbQuery(t('error.no_session', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
 
@@ -1199,7 +1199,7 @@ export async function handleSkipPrompt(ctx: BotContext): Promise<void> {
     await ctx.answerCbQuery();
   } catch (error) {
     logger.error("Error handling skip prompt:", error);
-    await ctx.answerCbQuery("Terjadi kesalahan. Coba lagi.");
+    await ctx.answerCbQuery(t('error.generic', ctx.session?.userLang || 'id')).catch(() => {});
   }
 }
 

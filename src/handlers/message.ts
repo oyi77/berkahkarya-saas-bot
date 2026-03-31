@@ -885,7 +885,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           }
         } catch (error: any) {
           logger.error("Image generation error:", error);
-          await telegram.sendMessage(chatId, "❌ Gagal membuat gambar. Silakan coba lagi.");
+          await telegram.sendMessage(chatId, t('msg.image_analyze_failed', ctx.session?.userLang || 'id'));
         }
       })();
 
@@ -968,7 +968,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           }
         } catch (error: any) {
           logger.error("Clone video error:", error);
-          await telegram.sendMessage(chatId, "❌ Gagal menganalisa video. Silakan coba lagi.");
+          await telegram.sendMessage(chatId, t('msg.image_analyze_failed', ctx.session?.userLang || 'id'));
         }
       })();
 

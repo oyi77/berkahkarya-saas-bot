@@ -658,7 +658,9 @@ async function processExtendedScenes(
     const creditCost = getVideoCreditCost(duration);
     await VideoService.updateStatus(jobId, 'failed', 'All scenes failed');
     await UserService.refundCredits(telegramId, creditCost, jobId, 'All scenes failed');
-    await telegram.sendMessage(chatId, `Video generation failed — all scenes could not be generated.\n\nJob ID: ${jobId}\n\nCredits refunded.`);
+    const workerLangFail = job.data.language || 'id';
+    const { t } = await import('../i18n/translations.js');
+    await telegram.sendMessage(chatId, t('gen.video_failed_refund', workerLangFail));
     return;
   }
   // Proportional refund for failed scenes
@@ -905,7 +907,8 @@ async function handleCampaignJobComplete(
     }
 
     if (tmpPaths.length === 0) {
-      await telegram.sendMessage(chatId, '❌ Campaign gagal — tidak ada video yang berhasil diproses.');
+      const { t: tCampaign } = await import('../i18n/translations.js');
+      await telegram.sendMessage(chatId, tCampaign('gen.campaign_failed', 'id'));
       return;
     }
 
