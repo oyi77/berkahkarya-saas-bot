@@ -141,6 +141,10 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
       inline_keyboard: [
         [{ text: '⬇️ Download Video', url: dlUrl }],
         [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
+        [
+          { text: video.favorited ? '★ Unfavorite' : '☆ Favorite', callback_data: `video_fav_${jobId}` },
+          { text: '🗑️ Delete', callback_data: `video_delete_${jobId}` },
+        ],
         [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
       ],
     };
@@ -166,7 +170,10 @@ export async function viewVideo(ctx: BotContext, jobId: string): Promise<void> {
                 [{ text: '🎬 Create Similar', callback_data: `create_similar_${jobId}` }],
                 [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
                 [{ text: '📋 Copy Download Link', callback_data: `video_copy_${jobId}` }],
-                [{ text: '🗑️ Delete Video', callback_data: `video_delete_${jobId}` }],
+                [
+                  { text: video.favorited ? '★ Unfavorite' : '☆ Favorite', callback_data: `video_fav_${jobId}` },
+                  { text: '🗑️ Delete', callback_data: `video_delete_${jobId}` },
+                ],
                 [{ text: '◀️ Back to List', callback_data: 'videos_list' }],
               ],
             },

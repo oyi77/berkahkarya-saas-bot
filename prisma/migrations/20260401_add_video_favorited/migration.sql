@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "videos" ADD COLUMN IF NOT EXISTS "favorited" BOOLEAN NOT NULL DEFAULT false;

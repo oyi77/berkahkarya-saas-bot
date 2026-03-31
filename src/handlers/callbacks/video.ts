@@ -12,35 +12,86 @@ import { NICHES } from "@/services/video-generation.service";
 import { t } from "@/i18n/translations";
 
 export async function handleVideoCallbacks(ctx: BotContext, data: string): Promise<boolean> {
+  // ── Favorites list ─────────────────────────────────────────────────────
   if (data === "videos_favorites") {
     const lang = ctx.session?.userLang || 'id';
+    const userId = ctx.from?.id ? BigInt(ctx.from.id) : null;
+    if (!userId) return true;
+
+    const favorites = await VideoService.getUserFavorites(userId);
+    if (favorites.length === 0) {
+      await ctx.editMessageText(
+        t('cb2.favorites_empty', lang),
+        { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: t('btn.back', lang), callback_data: "videos_back" }]] } },
+      );
+      return true;
+    }
+
+    const buttons = favorites.map((v) => [
+      { text: `${v.niche} — ${v.platform} (${v.duration}s)`, callback_data: `video_view_${v.jobId}` },
+    ]);
+    buttons.push([{ text: t('btn.back', lang), callback_data: "videos_back" }]);
     await ctx.editMessageText(
-      t('cb2.favorites_title', lang),
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: t('btn.back', lang), callback_data: "videos_back" }],
-          ],
-        },
-      },
+      t('cb2.favorites_title', lang) + `\n\n${favorites.length} video`,
+      { parse_mode: "Markdown", reply_markup: { inline_keyboard: buttons } },
     );
     return true;
   }
 
+  // ── Trash list ─────────────────────────────────────────────────────────
   if (data === "videos_trash") {
     const lang = ctx.session?.userLang || 'id';
+    const userId = ctx.from?.id ? BigInt(ctx.from.id) : null;
+    if (!userId) return true;
+
+    const trash = await VideoService.getUserTrash(userId);
+    if (trash.length === 0) {
+      await ctx.editMessageText(
+        t('cb2.trash_empty', lang),
+        { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[{ text: t('btn.back', lang), callback_data: "videos_back" }]] } },
+      );
+      return true;
+    }
+
+    const buttons = trash.map((v) => [
+      { text: `🗑️ ${v.niche} — ${v.platform}`, callback_data: `video_restore_${v.jobId}` },
+    ]);
+    buttons.push([{ text: t('btn.back', lang), callback_data: "videos_back" }]);
     await ctx.editMessageText(
-      t('cb2.trash_title', lang),
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: t('btn.back', lang), callback_data: "videos_back" }],
-          ],
-        },
-      },
+      t('cb2.trash_title', lang) + `\n\n${trash.length} video`,
+      { parse_mode: "Markdown", reply_markup: { inline_keyboard: buttons } },
     );
+    return true;
+  }
+
+  // ── Toggle favorite ────────────────────────────────────────────────────
+  if (data.startsWith("video_fav_")) {
+    const jobId = data.replace("video_fav_", "");
+    const lang = ctx.session?.userLang || 'id';
+    const video = await VideoService.getByJobId(jobId);
+    if (!video || (ctx.from && video.userId !== BigInt(ctx.from.id))) {
+      await ctx.answerCbQuery(t('cb.access_denied', lang));
+      return true;
+    }
+    const isFav = await VideoService.toggleFavorite(jobId);
+    await ctx.answerCbQuery(isFav ? '⭐ Added to favorites' : '☆ Removed from favorites');
+    await viewVideo(ctx, jobId);
+    return true;
+  }
+
+  // ── Restore from trash ─────────────────────────────────────────────────
+  if (data.startsWith("video_restore_")) {
+    const jobId = data.replace("video_restore_", "");
+    const lang = ctx.session?.userLang || 'id';
+    const video = await VideoService.getByJobId(jobId);
+    if (!video || (ctx.from && video.userId !== BigInt(ctx.from.id))) {
+      await ctx.answerCbQuery(t('cb.access_denied', lang));
+      return true;
+    }
+    await VideoService.restoreVideo(jobId);
+    await ctx.answerCbQuery(t('cb2.video_restored', lang));
+    // Refresh trash list
+    await handleVideoCallbacks(ctx, "videos_trash");
     return true;
   }
 

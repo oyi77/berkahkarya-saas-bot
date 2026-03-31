@@ -204,6 +204,58 @@ export class VideoService {
   }
 
   /**
+   * Restore a soft-deleted video
+   */
+  static async restoreVideo(jobId: string): Promise<void> {
+    await prisma.video.update({
+      where: { jobId },
+      data: { status: 'completed' },
+    });
+    logger.info(`Restored video: ${jobId}`);
+  }
+
+  /**
+   * Toggle favorite status on a video
+   */
+  static async toggleFavorite(jobId: string): Promise<boolean> {
+    const video = await prisma.video.findUnique({ where: { jobId }, select: { favorited: true } });
+    if (!video) return false;
+    const newState = !video.favorited;
+    await prisma.video.update({ where: { jobId }, data: { favorited: newState } });
+    return newState;
+  }
+
+  /**
+   * Get user's favorited videos
+   */
+  static async getUserFavorites(userId: bigint, limit = 20): Promise<Video[]> {
+    return prisma.video.findMany({
+      where: { userId, favorited: true, status: { not: 'deleted' } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Get user's trashed (soft-deleted) videos
+   */
+  static async getUserTrash(userId: bigint, limit = 20): Promise<Video[]> {
+    return prisma.video.findMany({
+      where: { userId, status: 'deleted' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Permanently delete a video from trash
+   */
+  static async permanentlyDelete(jobId: string): Promise<void> {
+    await prisma.video.delete({ where: { jobId } });
+    logger.info(`Permanently deleted video: ${jobId}`);
+  }
+
+  /**
    * Get user's videos
    */
   static async getUserVideos(userId: bigint, limit = 10): Promise<Video[]> {

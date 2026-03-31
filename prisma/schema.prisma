@@ -162,6 +162,7 @@ model Video {
   status          String    @default("processing") @db.VarChar(16)
   progress        Int       @default(0)
   errorMessage    String?   @map("error_message")
+  favorited       Boolean   @default(false)
 
   // Credits
   creditsUsed     Decimal   @map("credits_used") @db.Decimal(10, 2)
