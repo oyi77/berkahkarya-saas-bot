@@ -14,6 +14,7 @@ import { sendVilonaWelcomeAnimation } from "@/services/vilona-animation.service"
 
 import {
   MAIN_MENU_KEYBOARD,
+  getMainMenuKeyboard,
 } from "@/config/pricing";
 
 /**
@@ -107,7 +108,7 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         {
           parse_mode: "Markdown",
           reply_markup: {
-            keyboard: MAIN_MENU_KEYBOARD,
+            keyboard: getMainMenuKeyboard(lang),
             resize_keyboard: true,
           },
         },

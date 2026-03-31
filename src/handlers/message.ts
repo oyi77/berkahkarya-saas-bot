@@ -456,16 +456,17 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       } else if (ctx.session?.state === "WAITING_ACCOUNT_ID") {
         // Will be handled by the WAITING_ACCOUNT_ID handler below
       } else {
-        // Handle reply keyboard buttons — route to proper command handlers
-        switch (text) {
-          case "🎬 Create Video":
-          case "🚀 Get Started": {
+        // Handle reply keyboard buttons — match all language variants
+        const { getAllMenuTexts } = await import('../config/pricing.js');
+        const menuMatch = (key: string) => getAllMenuTexts(key).includes(text);
+
+        if (menuMatch('create') || text === '🚀 Get Started') {
             const { showGenerateMode } = await import('../flows/generate.js');
             await showGenerateMode(ctx);
             return;
-          }
+        }
 
-          case "🖼️ Generate Image": {
+        if (menuMatch('image')) {
             const imgLang = ctx.session?.userLang || 'id';
             const imgTitle = imgLang === 'id' ? '🖼️ *Generate Gambar*\n\nPilih kategori:' :
               imgLang === 'ru' ? '🖼️ *Генерация изображений*\n\nВыберите категорию:' :
@@ -483,73 +484,36 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               },
             });
             return;
-          }
+        }
 
-          case "💬 Chat AI":
+        if (menuMatch('chat')) {
             await ctx.reply(
               "💬 *AI Assistant aktif!*\n\n" +
               "Langsung ketik pertanyaan kamu sekarang.\n\n" +
-              "*Contoh yang bisa kamu tanya:*\n" +
+              "*Contoh:*\n" +
               '• _"Bikinin prompt untuk bakso saya"_\n' +
-              '• _"Tips video TikTok F\\&B yang viral"_\n' +
-              '• _"Niche apa yang paling cuan?"_\n\n' +
+              '• _"Tips video TikTok F\\&B yang viral"_\n\n' +
               "Atau ketik /prompts untuk template siap pakai 📚",
               { parse_mode: "MarkdownV2" },
             );
             if (ctx.session) ctx.session.state = "DASHBOARD";
             return;
+        }
+        if (menuMatch('videos')) { await videosCommand(ctx); return; }
+        if (menuMatch('topup')) { await topupCommand(ctx); return; }
+        if (menuMatch('subscription')) { await subscriptionCommand(ctx); return; }
+        if (menuMatch('profile')) { await profileCommand(ctx); return; }
+        if (menuMatch('referral')) { await referralCommand(ctx); return; }
+        if (menuMatch('settings')) { await settingsCommand(ctx); return; }
+        if (menuMatch('support')) { await supportCommand(ctx); return; }
+        if (menuMatch('library')) { await promptsCommand(ctx); return; }
+        if (menuMatch('trending')) { await trendingCommand(ctx); return; }
+        if (menuMatch('daily')) { await dailyCommand(ctx); return; }
+        if (menuMatch('fingerprint')) { await fingerprintCommand(ctx); return; }
+        if (menuMatch('help')) { await helpCommand(ctx); return; }
 
-          case "📁 My Videos":
-            await videosCommand(ctx);
-            return;
-
-          case "💰 Top Up":
-            await topupCommand(ctx);
-            return;
-
-          case "⭐ Subscription":
-            await subscriptionCommand(ctx);
-            return;
-
-          case "👤 Profile":
-            await profileCommand(ctx);
-            return;
-
-          case "👥 Referral":
-            await referralCommand(ctx);
-            return;
-
-          case "⚙️ Settings":
-            await settingsCommand(ctx);
-            return;
-
-          case "🆘 Support":
-            await supportCommand(ctx);
-            return;
-
-          // ── NEW: Prompt Library keyboard buttons ──────────────────────────
-          case "📚 Prompt Library":
-            await promptsCommand(ctx);
-            return;
-
-          case "🔥 Trending":
-            await trendingCommand(ctx);
-            return;
-
-          case "🎁 Daily Prompt":
-            await dailyCommand(ctx);
-            return;
-
-          case "🧬 Fingerprint":
-            await fingerprintCommand(ctx);
-            return;
-
-          case "📖 Help":
-            await helpCommand(ctx);
-            return;
-
-          default: {
-            // Natural language → route to AI chat assistant
+        // No menu match → try AI chat or show main menu
+        {
             const trimmed = text.trim();
             if (trimmed.length > 2 && !trimmed.startsWith("/")) {
               const omni = getOmniRouteService();
@@ -574,9 +538,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                 /* fall through to menu */
               }
             }
-            // Fallback: show main menu (inline keyboard V3)
             await showMainMenu(ctx);
-          }
         }
       }
     }

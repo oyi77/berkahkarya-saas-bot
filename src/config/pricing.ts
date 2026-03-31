@@ -183,15 +183,30 @@ export async function getReferralCommissionsAsync(): Promise<Record<string, numb
 export const REFERRAL_COMMISSIONS_V3 = { TIER_1: 0.15, TIER_2: 0.05, TIER_3: 0.02 };
 
 /**
- * Main persistent keyboard (Reply Keyboard)
+ * Main persistent keyboard (Reply Keyboard) — language-aware
  */
-/**
- * Main persistent keyboard (Reply Keyboard)
- */
-export const MAIN_MENU_KEYBOARD = [
-  [{ text: '🎬 Create Video' }, { text: '🖼️ Generate Image' }, { text: '💬 Chat AI' }],
-  [{ text: '📚 Prompt Library' }, { text: '🔥 Trending' }, { text: '🎁 Daily Prompt' }],
-  [{ text: '📁 My Videos' }, { text: '🧬 Fingerprint' }, { text: '⭐ Subscription' }],
-  [{ text: '💰 Top Up' }, { text: '👤 Profile' }, { text: '👥 Referral' }],
-  [{ text: '⚙️ Settings' }, { text: '🆘 Support' }, { text: '📖 Help' }],
-];
+const MENU_LABELS: Record<string, Record<string, string>> = {
+  id: { create: '🎬 Buat Video', image: '🖼️ Buat Gambar', chat: '💬 Chat AI', library: '📚 Prompt Library', trending: '🔥 Trending', daily: '🎁 Daily Prompt', videos: '📁 Video Saya', fingerprint: '🧬 Fingerprint', subscription: '⭐ Langganan', topup: '💰 Top Up', profile: '👤 Profil', referral: '👥 Referral', settings: '⚙️ Pengaturan', support: '🆘 Bantuan', help: '📖 Panduan' },
+  en: { create: '🎬 Create Video', image: '🖼️ Generate Image', chat: '💬 Chat AI', library: '📚 Prompt Library', trending: '🔥 Trending', daily: '🎁 Daily Prompt', videos: '📁 My Videos', fingerprint: '🧬 Fingerprint', subscription: '⭐ Subscription', topup: '💰 Top Up', profile: '👤 Profile', referral: '👥 Referral', settings: '⚙️ Settings', support: '🆘 Support', help: '📖 Help' },
+  ru: { create: '🎬 Создать видео', image: '🖼️ Создать фото', chat: '💬 Чат AI', library: '📚 Библиотека', trending: '🔥 Тренды', daily: '🎁 Промпт дня', videos: '📁 Мои видео', fingerprint: '🧬 Fingerprint', subscription: '⭐ Подписка', topup: '💰 Пополнить', profile: '👤 Профиль', referral: '👥 Реферал', settings: '⚙️ Настройки', support: '🆘 Поддержка', help: '📖 Помощь' },
+  zh: { create: '🎬 创建视频', image: '🖼️ 生成图片', chat: '💬 AI聊天', library: '📚 提示库', trending: '🔥 热门', daily: '🎁 每日提示', videos: '📁 我的视频', fingerprint: '🧬 指纹', subscription: '⭐ 订阅', topup: '💰 充值', profile: '👤 个人资料', referral: '👥 推荐', settings: '⚙️ 设置', support: '🆘 支持', help: '📖 帮助' },
+};
+
+export function getMainMenuKeyboard(lang: string = 'en') {
+  const l = MENU_LABELS[lang] || MENU_LABELS.en;
+  return [
+    [{ text: l.create }, { text: l.image }, { text: l.chat }],
+    [{ text: l.library }, { text: l.trending }, { text: l.daily }],
+    [{ text: l.videos }, { text: l.fingerprint }, { text: l.subscription }],
+    [{ text: l.topup }, { text: l.profile }, { text: l.referral }],
+    [{ text: l.settings }, { text: l.support }, { text: l.help }],
+  ];
+}
+
+/** Get all possible button texts across all languages (for message handler matching) */
+export function getAllMenuTexts(key: string): string[] {
+  return Object.values(MENU_LABELS).map(l => l[key]).filter(Boolean);
+}
+
+// Legacy static export (English default) for backward compat
+export const MAIN_MENU_KEYBOARD = getMainMenuKeyboard('en');
