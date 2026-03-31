@@ -45,7 +45,7 @@ export function actionableError(
 
   // Generation failure (generic provider errors)
   if (lower.includes('generation failed') || lower.includes('generation error') || lower.includes('provider') || lower.includes('all providers')) {
-    return 'Our AI service is busy right now. We will retry automatically. If this keeps happening, try again in a few minutes.';
+    return 'Our AI service is temporarily busy. Your credits have been refunded. Please try again in a few minutes with /create.';
   }
 
   // Reference image errors

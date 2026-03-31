@@ -358,6 +358,13 @@ async function processSingleScene(
   const { jobId, niche, platform, duration, storyboard, referenceImage, customPrompt, userId, chatId } = job.data;
   const telegramId = BigInt(userId);
 
+  // Guard: if job was already processed (refunded/completed) on a previous attempt, skip
+  const existingVideo = await VideoService.getByJobId(jobId);
+  if (existingVideo && (existingVideo.status === 'failed' || existingVideo.status === 'completed')) {
+    logger.warn(`Job ${jobId} already ${existingVideo.status} — skipping retry to prevent free generation`);
+    return;
+  }
+
   const cancelTimeout = startTimeoutWatcher(telegram, chatId);
 
   await job.updateProgress(10);
@@ -388,9 +395,11 @@ async function processSingleScene(
     await VideoService.updateStatus(jobId, 'failed', result.error);
     await UserService.refundCredits(telegramId, creditCost, jobId, result.error || 'Generation failed');
     const userMessage = actionableError(result.error || 'Generation failed', { jobId });
+    const { t: tFail } = await import('../i18n/translations.js');
+    const failLang = job.data.language || 'id';
     await telegram.sendMessage(
       chatId,
-      `Video generation failed\n\nJob ID: ${jobId}\n${userMessage}\n\nCredits refunded.`,
+      `${tFail('gen.video_failed_refund', failLang)}\n\nJob ID: ${jobId}\n${userMessage}`,
     );
     return;
   }
@@ -506,6 +515,13 @@ async function processExtendedScenes(
 ): Promise<void> {
   const { jobId, niche, platform, duration, scenes, storyboard, referenceImage, customPrompt, userId, chatId } = job.data;
   const telegramId = BigInt(userId);
+
+  // Guard: if job was already processed on a previous attempt, skip
+  const existingVideoExt = await VideoService.getByJobId(jobId);
+  if (existingVideoExt && (existingVideoExt.status === 'failed' || existingVideoExt.status === 'completed')) {
+    logger.warn(`Extended job ${jobId} already ${existingVideoExt.status} — skipping retry`);
+    return;
+  }
 
   const cancelTimeout = startTimeoutWatcher(telegram, chatId);
 
