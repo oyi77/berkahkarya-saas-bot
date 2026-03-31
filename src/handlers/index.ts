@@ -9,6 +9,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { prisma } from '@/config/database';
+import { t } from '@/i18n/translations';
 import { STARS_PACKAGES } from '@/commands/topup';
 
 // Import handlers
@@ -81,7 +82,7 @@ export function setupHandlers(bot: Telegraf<BotContext>): void {
       );
     } catch (error) {
       logger.error('Error handling successful_payment:', error);
-      await ctx.reply('❌ Payment received but failed to add credits. Please contact support.');
+      await ctx.reply(t('error.generic', ctx.session?.userLang || 'id'));
     }
   });
 

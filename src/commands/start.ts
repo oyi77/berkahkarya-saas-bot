@@ -174,6 +174,6 @@ export async function startCommand(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error("Error in start command:", error);
-    await ctx.reply("❌ Terjadi kesalahan. Silakan coba lagi nanti.");
+    await ctx.reply(t('error.generic', 'id'));
   }
 }

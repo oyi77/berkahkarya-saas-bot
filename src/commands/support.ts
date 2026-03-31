@@ -6,6 +6,7 @@
 
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
+import { t } from "@/i18n/translations";
 
 /**
  * Handle /support command
@@ -41,7 +42,7 @@ export async function supportCommand(ctx: BotContext): Promise<void> {
   } catch (error) {
     logger.error('supportCommand error:', error);
     try {
-      await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi atau hubungi /support.');
+      await ctx.reply(t('error.generic', 'id'));
     } catch { /* ignore */ }
   }
 }

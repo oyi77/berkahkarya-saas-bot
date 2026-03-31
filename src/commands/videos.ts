@@ -27,7 +27,7 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
     const user = ctx.from;
   
     if (!user) {
-      await ctx.reply('❌ Unable to identify user.');
+      await ctx.reply(t('msg.unable_identify', 'id'));
       return;
     }
 
@@ -80,7 +80,7 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error('videosCommand error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
+    try { await ctx.reply(t('error.generic', 'id')); } catch { /* ignore */ }
   }
 }
 
@@ -288,6 +288,6 @@ export async function deleteVideo(ctx: BotContext, jobId: string): Promise<void>
     );
   } catch (error) {
     logger.error('deleteVideo error:', error);
-    try { await ctx.reply('❌ Terjadi kesalahan. Silakan coba lagi.'); } catch { /* ignore */ }
+    try { await ctx.reply(t('error.generic', 'id')); } catch { /* ignore */ }
   }
 }

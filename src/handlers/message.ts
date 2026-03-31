@@ -215,7 +215,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const duration = parseInt(durationInput);
 
       if (isNaN(duration) || duration < 6 || duration > 300) {
-        await ctx.reply("❌ Durasi harus antara 6 sampai 300 detik.");
+        await ctx.reply(t('msg.invalid_duration', ctx.session?.userLang || 'id'));
         return;
       }
 
@@ -335,7 +335,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           };
         }
       } catch (err) {
-        await ctx.reply("❌ Gagal menyimpan prompt. Coba lagi.");
+        await ctx.reply(t('msg.save_prompt_failed', ctx.session?.userLang || 'id'));
       }
       return;
     }
@@ -348,7 +348,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     ) {
       const promptText = message.text.trim();
       if (!promptText) {
-        await ctx.reply("Kirim prompt atau gunakan /create untuk mulai ulang.");
+        await ctx.reply(t('msg.send_prompt_or_create', ctx.session?.userLang || 'id'));
         return;
       }
 
@@ -373,7 +373,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const telegramId = BigInt(ctx.from!.id);
 
       if (!accountId || accountId.startsWith("/")) {
-        await ctx.reply("❌ ID Akun PostBridge tidak valid.");
+        await ctx.reply(t('msg.invalid_account_id', ctx.session?.userLang || 'id'));
         return;
       }
 
@@ -643,12 +643,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const avatarUrl = ctx.session.stateData?.avatarImageUrl as string;
 
       if (!avatarUrl) {
-        await ctx.reply("❌ Avatar image lost. Please start over.");
+        await ctx.reply(t('msg.avatar_lost', ctx.session?.userLang || 'id'));
         ctx.session.state = "DASHBOARD";
         return;
       }
 
-      await ctx.reply("⏳ *Analyzing avatar...*", { parse_mode: "Markdown" });
+      await ctx.reply(t('msg.analyzing_avatar', ctx.session?.userLang || 'id'), { parse_mode: "Markdown" });
 
       try {
         const telegramId = BigInt(ctx.from!.id);
@@ -877,7 +877,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       if (!videoUrl) {
-        await ctx.reply("❌ Kirim video atau URL video.");
+        await ctx.reply(t('msg.send_video_or_url', ctx.session?.userLang || 'id'));
         return;
       }
 
@@ -953,7 +953,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const newDescription = message.text;
 
       if (!ctx.session?.stateData?.clonePrompt) {
-        await ctx.reply("❌ Data clone tidak ditemukan. Silakan mulai ulang.");
+        await ctx.reply(t('msg.clone_not_found', ctx.session?.userLang || 'id'));
         return;
       }
 
@@ -994,7 +994,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       if (!imageUrl) {
-        await ctx.reply("❌ Kirim gambar atau URL gambar.");
+        await ctx.reply(t('msg.send_image_or_url', ctx.session?.userLang || 'id'));
         return;
       }
 
@@ -1046,7 +1046,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         }
       } catch (error: any) {
         logger.error("Clone image error:", error);
-        await ctx.reply("❌ Gagal menganalisa gambar. Silakan coba lagi.", {
+        await ctx.reply(t('msg.image_analyze_failed', ctx.session?.userLang || 'id'), {
           parse_mode: "Markdown",
         });
       }

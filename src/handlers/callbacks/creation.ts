@@ -3,6 +3,7 @@ import { logger } from "@/utils/logger";
 import { prisma } from "@/config/database";
 import { UserService } from "@/services/user.service";
 import { VideoService } from "@/services/video.service";
+import { t } from "@/i18n/translations";
 
 export async function handleLegacyCreationCallback(ctx: BotContext, data: string): Promise<boolean> {
     // ── Legacy vcreate_* → redirect to V3 flow ───────────────────────────────
@@ -19,7 +20,7 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
         !ctx.session?.videoCreationNew ||
         !ctx.session.videoCreationNew.template
       ) {
-        await ctx.reply("❌ Session expired. Mulai lagi dengan /start");
+        await ctx.reply(t('error.no_session', ctx.session?.userLang || 'id'));
         return true;
       }
 
@@ -27,7 +28,7 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
       const template = getTemplateById(ctx.session.videoCreationNew.template);
 
       if (!template) {
-        await ctx.reply("❌ Template tidak ditemukan");
+        await ctx.reply(t('cb.prompt_not_found', ctx.session?.userLang || 'id'));
         return true;
       }
 

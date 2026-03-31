@@ -52,7 +52,7 @@ export async function chatCommand(ctx: BotContext): Promise<void> {
     }
 
     if (!result.success) {
-      await ctx.reply(`❌ ${result.error || 'Unknown error'}`);
+      await ctx.reply(`❌ ${result.error || t('error.generic', 'id')}`);
       return;
     }
 

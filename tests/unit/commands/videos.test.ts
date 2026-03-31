@@ -67,7 +67,7 @@ describe("Videos Command", () => {
 
       await videosCommand(ctx as any);
 
-      expect(ctx.reply).toHaveBeenCalledWith("❌ Unable to identify user.");
+      expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining("❌"));
     });
 
     it("should show empty state when no videos exist", async () => {

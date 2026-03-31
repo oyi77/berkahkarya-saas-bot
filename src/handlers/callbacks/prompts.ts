@@ -2,6 +2,7 @@ import { BotContext } from "@/types";
 import { prisma } from "@/config/database";
 import { UserService } from "@/services/user.service";
 import { logger } from "@/utils/logger";
+import { t } from "@/i18n/translations";
 
 export async function handlePromptsCallback(ctx: BotContext, data: string): Promise<boolean> {
     // ── PROMPT LIBRARY HANDLERS ───────────────────────────────────────────
@@ -77,7 +78,7 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const prompt = await findAnyPrompt(promptId);
 
       if (!prompt) {
-        await ctx.reply("❌ Prompt tidak ditemukan.");
+        await ctx.reply(t('cb.prompt_not_found', ctx.session?.userLang || 'id'));
         return true;
       }
 
@@ -89,7 +90,7 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const dbUser = await UserService.findByTelegramId(telegramId);
 
       if (!dbUser) {
-        await ctx.reply("❌ User tidak ditemukan. Silakan /start ulang.");
+        await ctx.reply(t('cb.user_not_found_start', ctx.session?.userLang || 'id'));
         return true;
       }
 
@@ -182,7 +183,7 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const found = await findAnyPrompt(promptId);
 
       if (!found) {
-        await ctx.reply("❌ Prompt tidak ditemukan.");
+        await ctx.reply(t('cb.prompt_not_found', ctx.session?.userLang || 'id'));
         return true;
       }
 
@@ -196,7 +197,7 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
       const dbUser = await UserService.findByTelegramId(telegramId);
 
       if (!dbUser) {
-        await ctx.reply("❌ User tidak ditemukan. Silakan /start ulang.");
+        await ctx.reply(t('cb.user_not_found_start', ctx.session?.userLang || 'id'));
         return true;
       }
 
@@ -313,7 +314,7 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
             await UserService.refundCredits(telegramId, 0.2, `prompt-img-${prompt.id}`, 'sendPhoto failed')
               .catch((err: any) => logger.error('CRITICAL: prompt image refund failed', err));
           }
-          await ctx.reply('❌ Gagal mengirim gambar. Kredit dikembalikan.');
+          await ctx.reply(t('cb.video_process_failed_refund', ctx.session?.userLang || 'id'));
         }
       } catch (error) {
         console.error("Free trial generation error:", error);

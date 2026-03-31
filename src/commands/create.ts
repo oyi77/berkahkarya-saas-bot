@@ -476,7 +476,7 @@ async function generateVideoAsync(
     const creditCostFallback = getVideoCreditCost(duration);
     await UserService.refundCredits(telegramId, creditCostFallback, jobId, String(error));
     const userMessage = actionableError(String(error), { jobId });
-    await ctx.reply(`${userMessage}\n\nCredits refunded.`);
+    await ctx.reply(t('msg.credits_refunded', ctx.session?.userLang || 'id', { message: userMessage }));
   }
 }
 
@@ -638,7 +638,7 @@ async function generateExtendedVideoAsync(
     const creditCostExtended = getVideoCreditCost(totalDuration);
     await UserService.refundCredits(telegramId, creditCostExtended, jobId, String(error));
     const userMessage = actionableError(String(error), { jobId });
-    await ctx.reply(`${userMessage}\n\nCredits refunded.`);
+    await ctx.reply(t('msg.credits_refunded', ctx.session?.userLang || 'id', { message: userMessage }));
   }
 }
 

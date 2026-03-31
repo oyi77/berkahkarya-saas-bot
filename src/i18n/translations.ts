@@ -1557,6 +1557,82 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: 'У вас ещё нет аккаунта. Используйте /start для регистрации.',
     zh: '您还没有账号。请先使用 /start 注册。',
   },
+
+  // ---------------------------------------------------------------------------
+  // Message handler state strings
+  // ---------------------------------------------------------------------------
+  'msg.invalid_duration': {
+    id: '❌ Durasi harus antara 6 sampai 300 detik.',
+    en: '❌ Duration must be between 6 and 300 seconds.',
+    ru: '❌ Длительность должна быть от 6 до 300 секунд.',
+    zh: '❌ 时长必须在6到300秒之间。',
+  },
+  'msg.save_prompt_failed': {
+    id: '❌ Gagal menyimpan prompt. Coba lagi.',
+    en: '❌ Failed to save prompt. Try again.',
+    ru: '❌ Не удалось сохранить промпт. Попробуйте снова.',
+    zh: '❌ 保存提示失败。请重试。',
+  },
+  'msg.send_prompt_or_create': {
+    id: 'Kirim prompt atau gunakan /create untuk mulai ulang.',
+    en: 'Send a prompt or use /create to start over.',
+    ru: 'Отправьте промпт или используйте /create чтобы начать заново.',
+    zh: '发送提示或使用 /create 重新开始。',
+  },
+  'msg.invalid_account_id': {
+    id: '❌ ID Akun PostBridge tidak valid.',
+    en: '❌ Invalid PostBridge Account ID.',
+    ru: '❌ Недействительный ID аккаунта PostBridge.',
+    zh: '❌ PostBridge 账户ID无效。',
+  },
+  'msg.avatar_lost': {
+    id: '❌ Avatar hilang. Silakan mulai ulang.',
+    en: '❌ Avatar image lost. Please start over.',
+    ru: '❌ Изображение аватара потеряно. Начните заново.',
+    zh: '❌ 头像图片丢失。请重新开始。',
+  },
+  'msg.analyzing_avatar': {
+    id: '⏳ *Menganalisis avatar...*',
+    en: '⏳ *Analyzing avatar...*',
+    ru: '⏳ *Анализируем аватар...*',
+    zh: '⏳ *正在分析头像...*',
+  },
+  'msg.send_video_or_url': {
+    id: '❌ Kirim video atau URL video.',
+    en: '❌ Please send a video or video URL.',
+    ru: '❌ Отправьте видео или ссылку на видео.',
+    zh: '❌ 请发送视频或视频链接。',
+  },
+  'msg.clone_not_found': {
+    id: '❌ Data clone tidak ditemukan. Silakan mulai ulang.',
+    en: '❌ Clone data not found. Please start over.',
+    ru: '❌ Данные клонирования не найдены. Начните заново.',
+    zh: '❌ 未找到克隆数据。请重新开始。',
+  },
+  'msg.send_image_or_url': {
+    id: '❌ Kirim gambar atau URL gambar.',
+    en: '❌ Please send an image or image URL.',
+    ru: '❌ Отправьте изображение или ссылку на изображение.',
+    zh: '❌ 请发送图片或图片链接。',
+  },
+  'msg.image_analyze_failed': {
+    id: '❌ Gagal menganalisa gambar. Silakan coba lagi.',
+    en: '❌ Failed to analyze image. Please try again.',
+    ru: '❌ Не удалось проанализировать изображение. Попробуйте снова.',
+    zh: '❌ 图片分析失败。请重试。',
+  },
+  'msg.unable_identify': {
+    id: '❌ Tidak dapat mengidentifikasi user.',
+    en: '❌ Unable to identify user.',
+    ru: '❌ Не удалось определить пользователя.',
+    zh: '❌ 无法识别用户。',
+  },
+  'msg.credits_refunded': {
+    id: '{message}\n\nKredit dikembalikan.',
+    en: '{message}\n\nCredits refunded.',
+    ru: '{message}\n\nКредиты возвращены.',
+    zh: '{message}\n\n积分已退还。',
+  },
 };
 
 /**

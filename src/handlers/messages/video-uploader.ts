@@ -103,7 +103,7 @@ export async function handleVideoCreationImage(
   collectedPhotos?: Array<{ fileId: string; localPath?: string }>,
 ): Promise<void> {
   if (!ctx.session?.videoCreation?.waitingForImage) {
-    await ctx.reply("Tidak ada sesi pembuatan video aktif. Gunakan /create untuk mulai.");
+    await ctx.reply(t('error.no_session', ctx.session?.userLang || 'id'));
     return;
   }
 
