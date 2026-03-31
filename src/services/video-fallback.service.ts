@@ -775,6 +775,7 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
 
   logger.info(`${providers.length} video providers (smart-routed): ${providers.map(p => p.name).join(', ')}`);
 
+  const providerErrors: Array<{ name: string; error: string }> = [];
   const FULL_PROMPT_PROVIDERS = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
 
   for (const provider of providers) {
@@ -809,6 +810,7 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
       } catch (error: any) {
         await CircuitBreaker.recordFailure(provider.key).catch(() => {});
         await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        providerErrors.push({ name: provider.name, error: error.message?.slice(0, 80) || 'unknown' });
         logger.warn(`${provider.name} failed: ${error.message}`);
       }
     } else {
@@ -873,14 +875,18 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
         }
         await CircuitBreaker.recordFailure(provider.key).catch(() => {});
         await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        providerErrors.push({ name: provider.name, error: 'multi-scene concatenation failed' });
         logger.warn(`${provider.name} multi-scene failed`);
       } catch (error: any) {
         await CircuitBreaker.recordFailure(provider.key).catch(() => {});
         await ProviderRouter.recordFailure(provider.key).catch(() => {});
+        providerErrors.push({ name: provider.name, error: error.message?.slice(0, 80) || 'unknown' });
         logger.warn(`${provider.name} multi-scene error: ${error.message}`);
       }
     }
   }
 
-  return { success: false, error: `All ${providers.length} video providers failed` };
+  const errorSummary = providerErrors.map(e => `${e.name}: ${e.error}`).join('; ');
+  logger.error(`All ${providers.length} video providers failed: [${errorSummary}]`);
+  return { success: false, error: `All ${providers.length} providers failed: ${errorSummary}` };
 }

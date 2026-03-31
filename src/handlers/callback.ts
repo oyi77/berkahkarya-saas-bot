@@ -2077,19 +2077,27 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         },
       });
 
-      await enqueueVideoGeneration({
-        jobId,
-        niche,
-        platform: "reels",
-        duration,
-        scenes: storyboard.length,
-        storyboard,
-        userId: telegramId.toString(),
-        chatId,
-        enableVO: false,
-        enableSubtitles: false,
-        language: "id",
-      });
+      try {
+        await enqueueVideoGeneration({
+          jobId,
+          niche,
+          platform: "reels",
+          duration,
+          scenes: storyboard.length,
+          storyboard,
+          userId: telegramId.toString(),
+          chatId,
+          enableVO: false,
+          enableSubtitles: false,
+          language: "id",
+        });
+      } catch (queueErr) {
+        logger.error('Repurpose T2V queue failed:', queueErr);
+        await UserService.refundCredits(telegramId, creditCost, jobId, 'queue failed')
+          .catch((err) => logger.error('CRITICAL: repurpose refund failed', { jobId, err }));
+        await ctx.reply('❌ Gagal memproses video. Kredit dikembalikan.');
+        return;
+      }
 
       await ctx.editMessageText(
         `✅ *Video regeneration started!*\n\n` +
@@ -2116,7 +2124,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const telegramId = BigInt(ctx.from!.id);
       const user = await UserService.findByTelegramId(telegramId);
       if (!user || Number(user.creditBalance) < creditCost) {
-        await ctx.reply(`❌ Insufficient credits. Need ${creditCost} credits.`);
+        await ctx.reply(`❌ Kredit tidak cukup. Butuh ${creditCost} kredit.`);
         return;
       }
 
@@ -2138,20 +2146,28 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         },
       });
 
-      await enqueueVideoGeneration({
-        jobId,
-        niche,
-        platform: "reels",
-        duration,
-        scenes: storyboard.length,
-        storyboard,
-        referenceImage,
-        userId: telegramId.toString(),
-        chatId,
-        enableVO: false,
-        enableSubtitles: false,
-        language: "id",
-      });
+      try {
+        await enqueueVideoGeneration({
+          jobId,
+          niche,
+          platform: "reels",
+          duration,
+          scenes: storyboard.length,
+          storyboard,
+          referenceImage,
+          userId: telegramId.toString(),
+          chatId,
+          enableVO: false,
+          enableSubtitles: false,
+          language: "id",
+        });
+      } catch (queueErr) {
+        logger.error('Repurpose I2V queue failed:', queueErr);
+        await UserService.refundCredits(telegramId, creditCost, jobId, 'queue failed')
+          .catch((err) => logger.error('CRITICAL: repurpose i2v refund failed', { jobId, err }));
+        await ctx.reply('❌ Gagal memproses video. Kredit dikembalikan.');
+        return;
+      }
 
       await ctx.editMessageText(
         `✅ *Video regeneration started! (with frame reference)*\n\n` +

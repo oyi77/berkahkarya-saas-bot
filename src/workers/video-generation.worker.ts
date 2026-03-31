@@ -122,7 +122,11 @@ function getStyleForNiche(niche: string): string {
 }
 
 async function downloadVideo(url: string, outputPath: string): Promise<void> {
-  await execFile('wget', ['-q', '-O', outputPath, url]);
+  await execFile('wget', ['-q', '--timeout=60', '--tries=2', '-O', outputPath, url]);
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 1000) {
+    if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    throw new Error(`Download failed or produced empty file: ${url.slice(0, 80)}`);
+  }
 }
 
 /**
@@ -282,6 +286,7 @@ async function applyVOPipeline(
         return result.outputPath;
       }
       logger.warn(`Full VO pipeline failed for ${jobId}: ${result.error}. Delivering raw video.`);
+      await telegram.sendMessage(chatId, '⚠️ Voice-over tidak dapat ditambahkan. Video dikirim tanpa audio narasi.').catch(() => {});
       return videoPath;
     }
 
@@ -328,6 +333,7 @@ async function applyVOPipeline(
     return videoPath;
   } catch (err: any) {
     logger.error(`VO pipeline error for ${jobId}: ${err.message}. Delivering raw video.`);
+    await telegram.sendMessage(chatId, '⚠️ Voice-over/subtitle tidak dapat ditambahkan ke video ini. Video dikirim tanpa audio narasi.').catch(() => {});
     return videoPath;
   }
 }
@@ -644,6 +650,20 @@ async function processExtendedScenes(
     await telegram.sendMessage(chatId, `Video generation failed — all scenes could not be generated.\n\nJob ID: ${jobId}\n\nCredits refunded.`);
     return;
   }
+  // Proportional refund for failed scenes
+  const failedSceneCount = scenes - successfulScenes.length;
+  if (failedSceneCount > 0) {
+    const creditCost = getVideoCreditCost(duration);
+    const refundAmount = Math.round((creditCost * failedSceneCount / scenes) * 100) / 100;
+    if (refundAmount > 0) {
+      await UserService.refundCredits(telegramId, refundAmount, jobId, `${failedSceneCount}/${scenes} scenes failed`)
+        .catch((err) => logger.error('CRITICAL: partial scene refund failed', { jobId, refundAmount, err }));
+      await telegram.sendMessage(chatId,
+        `💰 Refund: ${refundAmount} kredit dikembalikan untuk ${failedSceneCount} scene yang gagal.`
+      ).catch(() => {});
+    }
+  }
+
   logger.info(`Concatenating ${successfulScenes.length}/${scenes} scenes for job ${jobId} (niche: ${niche})...`);
   await concatenateVideos(successfulScenes, rawConcatPath, niche);
 

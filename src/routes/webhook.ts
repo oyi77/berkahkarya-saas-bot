@@ -126,7 +126,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
           const orderId = body.order_id as string;
           const lastDash = orderId.lastIndexOf('-');
           const telegramId = orderId.substring(lastDash + 1);
-          if (telegramId && bot) {
+          if (telegramId && /^\d+$/.test(telegramId) && bot) {
             const coin = body.pay_currency?.toUpperCase() || 'CRYPTO';
             const amount = body.price_amount ? `$${body.price_amount}` : '';
             await bot.telegram.sendMessage(
