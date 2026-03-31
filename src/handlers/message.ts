@@ -205,71 +205,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // ── NEW VIDEO CREATION FLOW HANDLERS ──────────────────────────────────
-    // Handle VIDEO_CREATE_UPLOAD (photo upload for new flow)
-    if (ctx.session?.state === "VIDEO_CREATE_UPLOAD" && "photo" in message) {
-      const photo = message.photo[message.photo.length - 1];
-      const fileId = photo.file_id;
-
-      if (!ctx.session.videoCreationNew) {
-        ctx.session.videoCreationNew = {
-          step: 2,
-          source: "photo",
-          contentType: null,
-          theme: null,
-          vibe: null,
-          sceneCount: null,
-          template: null,
-        };
-      }
-
-      if (!ctx.session.videoCreationNew.uploadedPhotos) {
-        ctx.session.videoCreationNew.uploadedPhotos = [];
-      }
-      ctx.session.videoCreationNew.uploadedPhotos.push({ fileId });
-
-      await ctx.reply(`✅ Foto diterima!\n\n` + `Lanjut ke step berikutnya?`, {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "➡️ Lanjut", callback_data: "vcreate_photo_next" }],
-            [
-              {
-                text: "📸 Upload Foto Lain",
-                callback_data: "vcreate_photo_more",
-              },
-            ],
-            [{ text: "❌ Batal", callback_data: "main_menu" }],
-          ],
-        },
-      });
-      return;
-    }
-
-    // Handle VIDEO_CREATE_TEXT (text input for new flow)
-    if (ctx.session?.state === "VIDEO_CREATE_TEXT" && "text" in message) {
-      const textInput = message.text;
-
-      if (!ctx.session.videoCreationNew) {
-        ctx.session.videoCreationNew = {
-          step: 2,
-          source: "text",
-          contentType: null,
-          theme: null,
-          vibe: null,
-          sceneCount: null,
-          template: null,
-        };
-      }
-
-      ctx.session.videoCreationNew.textInput = textInput;
-
-      // Redirect to V3 flow
-      const { showGenerateMode } = await import("../flows/generate.js");
-      await showGenerateMode(ctx);
-      return;
-    }
-
-    // ── END NEW VIDEO CREATION FLOW HANDLERS ──────────────────────────────
+    // ── (Dead VIDEO_CREATE_UPLOAD/TEXT handlers removed — states never set) ──
 
     // Handle custom duration input (must be before switch to catch numeric input)
     if (ctx.session?.state === "CUSTOM_DURATION_INPUT" && "text" in message) {
@@ -490,8 +426,6 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         // Will be handled by the IMAGE_GENERATION_WAITING handler below
       } else if (ctx.session?.state === "CLONE_EDIT_DESC_WAITING") {
         // Will be handled by the CLONE_EDIT_DESC_WAITING handler below
-      } else if (ctx.session?.state === "VIDEO_CREATE_TEXT") {
-        // Will be handled by the VIDEO_CREATE_TEXT handler below
       } else if (ctx.session?.state === "CUSTOM_PROMPT_CREATION") {
         // Will be handled by the CUSTOM_PROMPT_CREATION handler below
       } else if (ctx.session?.state === "CUSTOM_PROMPT_INPUT") {

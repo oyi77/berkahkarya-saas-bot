@@ -978,10 +978,18 @@ export class ImageGenerationService {
     const categoryImages = DEMO_IMAGES[params.category] || DEMO_IMAGES.product;
     const demoImage = categoryImages[Math.floor(Math.random() * categoryImages.length)];
 
+    // Match requested aspect ratio for demo images
+    const aspectSizes: Record<string, string> = {
+      '9:16': 'w=576&h=1024', '16:9': 'w=1024&h=576',
+      '4:5': 'w=820&h=1024', '1:1': 'w=1024&h=1024',
+    };
+    const sizeParams = aspectSizes[params.aspectRatio || '1:1'] || 'w=1024';
+    const sizedUrl = demoImage.replace('w=1024', sizeParams);
+
     return {
       success: true,
-      imageUrl: demoImage,
-      thumbnailUrl: demoImage.replace('w=1024', 'w=256'),
+      imageUrl: sizedUrl,
+      thumbnailUrl: sizedUrl.replace(sizeParams, 'w=256'),
       provider: 'demo',
     };
   }
