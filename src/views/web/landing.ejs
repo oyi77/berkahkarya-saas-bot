@@ -395,45 +395,393 @@
     }
 
   
-    /* TikTok Showcase Section */
-    .tiktok-showcase {
+    
+
+  
+    /* Video Showcase */
+    .video-showcase {
       padding: 80px 20px;
-      background: var(--bg);
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
     }
     
-    .tiktok-grid {
+    .showcase-header {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 60px;
+    }
+    
+    .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
       max-width: 1200px;
       margin: 0 auto;
-      justify-items: center;
     }
     
-    .tiktok-embed-wrapper {
-      width: 100%;
-      max-width: 350px;
-      border-radius: 16px;
+    .video-item {
+      position: relative;
+      aspect-ratio: 9/16;
+      border-radius: 12px;
       overflow: hidden;
       background: var(--card);
       border: 1px solid var(--border);
-      transition: transform 0.3s ease;
+      transition: all 0.3s ease;
+      cursor: pointer;
     }
     
-    .tiktok-embed-wrapper:hover {
+    .video-item:hover {
       transform: translateY(-4px);
       border-color: var(--accent);
+      box-shadow: 0 12px 32px rgba(0,217,255,0.2);
+    }
+    
+    .tiktok-iframe {
+      pointer-events: none;
+    }
+    
+    .showcase-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 50px;
+    }
+    
+    @media(max-width: 1024px) {
+      .video-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
     
     @media(max-width: 768px) {
-      .tiktok-showcase {
+      .video-showcase {
         padding: 60px 16px;
       }
       
-      .tiktok-grid {
+      .video-grid {
         grid-template-columns: 1fr;
-        gap: 20px;
+        gap: 16px;
+        max-width: 400px;
       }
+      
+      .showcase-actions {
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .showcase-actions .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+  
+    /* Video Showcase - Clean */
+    .video-showcase-clean {
+      padding: 100px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+    
+    .showcase-title {
+      font-size: 36px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .showcase-desc {
+      font-size: 16px;
+      color: var(--dim);
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 60px;
+      line-height: 1.6;
+    }
+    
+    .video-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto 50px;
+    }
+    
+    .video-card {
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      border: 2px solid var(--border);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .video-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(0,217,255,0.25);
+    }
+    
+    .video-thumbnail {
+      position: relative;
+      aspect-ratio: 9/16;
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .video-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .tiktok-icon {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 24px;
+      background: rgba(0,0,0,0.6);
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    
+    .video-info {
+      padding: 12px;
+      text-align: center;
+    }
+    
+    .watch-now {
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    
+    .showcase-cta {
+      display: flex;
+      justify-content: center;
+    }
+    
+    @media(max-width: 1024px) {
+      .video-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase-clean {
+        padding: 80px 16px;
+      }
+      
+      .showcase-title {
+        font-size: 28px;
+      }
+      
+      .video-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 400px;
+      }
+      
+      .showcase-cta {
+        margin-top: 20px;
+      }
+      
+      .showcase-cta .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+  
+    /* Video Showcase - Clean */
+    .video-showcase-clean {
+      padding: 100px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+    
+    .showcase-title {
+      font-size: 36px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .showcase-desc {
+      font-size: 16px;
+      color: var(--dim);
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 60px;
+      line-height: 1.6;
+    }
+    
+    .video-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto 50px;
+    }
+    
+    .video-card {
+      position: relative;
+      aspect-ratio: 9/16;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .video-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(0,217,255,0.25);
+    }
+    
+    .video-card:hover .play-button-overlay {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    
+    .play-button-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.6;
+      transition: all 0.3s ease;
+    }
+    
+    .play-circle {
+      width: 70px;
+      height: 70px;
+      background: rgba(0,217,255,0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #0a0a1a;
+      font-weight: 800;
+      transition: all 0.3s ease;
+    }
+    
+    .video-card:hover .play-circle {
+      transform: scale(1.15);
+      background: rgba(0,217,255,1);
+    }
+    
+    .video-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-body {
+      position: relative;
+      width: 90%;
+      max-width: 500px;
+      aspect-ratio: 9/16;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: -50px;
+      right: 0;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 40px;
+      cursor: pointer;
+      padding: 0;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+    
+    .modal-close:hover {
+      transform: scale(1.2);
+    }
+    
+    .showcase-cta {
+      display: flex;
+      justify-content: center;
+    }
+    
+    @media(max-width: 1024px) {
+      .video-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase-clean {
+        padding: 80px 16px;
+      }
+      
+      .showcase-title {
+        font-size: 28px;
+      }
+      
+      .video-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 400px;
+      }
+      
+      .showcase-cta .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+      .lang-switcher {
+      background: transparent;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 700;
+    }
+    .lang-switcher:hover {
+      background: var(--accent);
+      color: #0a0a1a;
+    }
+    .lang-switcher:hover {
+      background: var(--card);
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
   </style>
@@ -505,6 +853,7 @@
           <option value="zh">🇨🇳 ZH</option>
         </select>
         <a href="https://t.me/<%= botUsername %>" class="btn btn-primary" onclick="trackCTA('cta_nav_click')" data-i18n="cta_free">Coba Gratis</a>
+        <button class="lang-switcher" onclick="toggleLanguage()" id="langBtn">EN</button>
       </div>
     </div>
   </nav>
@@ -540,93 +889,146 @@
   
 
   
-  <!-- TikTok Showcase Section -->
-  <section class="tiktok-showcase">
+  
+
+
+  
+
+
+    <!-- Video Showcase - Clean Thumbnail -->
+  <section class="video-showcase-clean">
     <div class="container">
-      <div class="section-title">Lihat Hasil Nyata dari AI Kami 🎬</div>
-      <div class="section-sub">Video-video ini dibuat dengan Vilona OpenClaw - dari 1 foto jadi video viral dalam 60 detik</div>
+      <h2 class="showcase-title" id="showcase-title">Lihat Hasil Nyata dari AI Kami 🎬</h2>
+      <p class="showcase-desc" id="showcase-desc">Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik</p>
+      </p>
       
-      <div class="tiktok-grid">
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@hasnacare1/video/7609293836942200071" data-video-id="7609293836942200071" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@hasnacare1" href="https://www.tiktok.com/@hasnacare1?refer=embed">@hasnacare1</a>
-            </section>
-          </blockquote>
+      <div class="video-cards-grid">
+        <div class="video-card" onclick="playVideo('7609293836942200071', 'hasnacare1')">
+          <img src="" class="video-thumb" data-video-id="7609293836942200071" alt="Video 1" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
+          <div class="play-button-overlay">
+            <div class="play-circle">▶</div>
+          </div>
         </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@hasnacare1/video/7608585898384559367" data-video-id="7608585898384559367" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@hasnacare1" href="https://www.tiktok.com/@hasnacare1?refer=embed">@hasnacare1</a>
-            </section>
-          </blockquote>
+        <div class="video-card" onclick="playVideo('7608585898384559367', 'hasnacare1')">
+          <img src="" class="video-thumb" data-video-id="7608585898384559367" alt="Video 2" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
+          <div class="play-button-overlay">
+            <div class="play-circle">▶</div>
+          </div>
         </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@rekomendasiprodukksehat/video/7610004343936322833" data-video-id="7610004343936322833" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@rekomendasiprodukksehat" href="https://www.tiktok.com/@rekomendasiprodukksehat?refer=embed">@rekomendasiprodukksehat</a>
-            </section>
-          </blockquote>
+        <div class="video-card" onclick="playVideo('7610004343936322833', 'rekomendasiprodukksehat')">
+          <img src="" class="video-thumb" data-video-id="7610004343936322833" alt="Video 3" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
+          <div class="play-button-overlay">
+            <div class="play-circle">▶</div>
+          </div>
         </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@tinylittleworld0/video/7597028270709771534" data-video-id="7597028270709771534" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@tinylittleworld0" href="https://www.tiktok.com/@tinylittleworld0?refer=embed">@tinylittleworld0</a>
-            </section>
-          </blockquote>
+        <div class="video-card" onclick="playVideo('7597028270709771534', 'tinylittleworld0')">
+          <img src="" class="video-thumb" data-video-id="7597028270709771534" alt="Video 4" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
+          <div class="play-button-overlay">
+            <div class="play-circle">▶</div>
+          </div>
         </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@tinylittleworld0/video/7619950185984167182" data-video-id="7619950185984167182" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@tinylittleworld0" href="https://www.tiktok.com/@tinylittleworld0?refer=embed">@tinylittleworld0</a>
-            </section>
-          </blockquote>
+        <div class="video-card" onclick="playVideo('7619950185984167182', 'tinylittleworld0')">
+          <img src="" class="video-thumb" data-video-id="7619950185984167182" alt="Video 5" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
+          <div class="play-button-overlay">
+            <div class="play-circle">▶</div>
+          </div>
         </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@catchemistry1/video/7552191154108796182" data-video-id="7552191154108796182" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@catchemistry1" href="https://www.tiktok.com/@catchemistry1?refer=embed">@catchemistry1</a>
-            </section>
-          </blockquote>
+        <div class="video-card" onclick="playVideo('7552191154108796182', 'catchemistry1')">
+          <img src="" class="video-thumb" data-video-id="7552191154108796182" alt="Video 6" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
+          <div class="play-button-overlay">
+            <div class="play-circle">▶</div>
+          </div>
         </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@munna.mute/video/7491640554753707286" data-video-id="7491640554753707286" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@munna.mute" href="https://www.tiktok.com/@munna.mute?refer=embed">@munna.mute</a>
-            </section>
-          </blockquote>
-        </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@vibelikecapy/video/7494885591696330014" data-video-id="7494885591696330014" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@vibelikecapy" href="https://www.tiktok.com/@vibelikecapy?refer=embed">@vibelikecapy</a>
-            </section>
-          </blockquote>
-        </div>
-        
-        <div class="tiktok-embed-wrapper">
-          <blockquote class="tiktok-embed" cite="https://www.tiktok.com/@ai_video735/video/7615533947790839062" data-video-id="7615533947790839062" style="max-width: 605px;min-width: 325px;">
-            <section>
-              <a target="_blank" title="@ai_video735" href="https://www.tiktok.com/@ai_video735?refer=embed">@ai_video735</a>
-            </section>
-          </blockquote>
-        </div>
-        
       </div>
       
-      <div style="text-align: center; margin-top: 40px;">
-        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_showcase_click')">🚀 Buat Video Seperti Ini Sekarang</a>
+      <div class="showcase-cta">
+        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_showcase_click')" id="showcase-cta">🚀 Buat Video Seperti Ini Sekarang</a>
       </div>
     </div>
   </section>
-  <script async src="https://www.tiktok.com/embed.js"></script>
+  
+  <!-- Video Modal -->
+  <div id="videoModal" class="video-modal" onclick="if(event.target.id==='videoModal') closeVideoModal()">
+    <button class="modal-close" onclick="closeVideoModal()">&times;</button>
+    <div class="modal-body">
+      <iframe id="modalIframe" style="width:100%; height:100%; border:none; border-radius:12px;" allowfullscreen></iframe>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      var thumbs = document.querySelectorAll(".video-thumb");
+      thumbs.forEach(function(thumb) {
+        var videoId = thumb.dataset.videoId;
+        fetch("https://www.tiktok.com/oembed?url=https://www.tiktok.com/@x/video/" + videoId)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (data.thumbnail_url) {
+              thumb.src = data.thumbnail_url;
+            }
+          })
+          .catch(function(e) {
+            thumb.style.background = "linear-gradient(135deg, rgba(0,217,255,0.2), rgba(0,255,136,0.2))";
+          });
+      });
+    });
+    
+    function playVideo(videoId, username) {
+      var modal = document.getElementById("videoModal");
+      var iframe = document.getElementById("modalIframe");
+      iframe.src = "https://www.tiktok.com/embed/v2/" + videoId;
+      modal.style.display = "flex";
+      document.body.style.overflow = "hidden";
+    }
+    
+    function closeVideoModal() {
+      var modal = document.getElementById("videoModal");
+      var iframe = document.getElementById("modalIframe");
+      iframe.src = "";
+      modal.style.display = "none";
+      document.body.style.overflow = "auto";
+    }    
+    // Language toggle for showcase i18n
+    function toggleLanguage() {
+      var currentLang = localStorage.getItem('oc_lang') || 'id';
+      var newLang = currentLang === 'id' ? 'en' : 'id';
+      localStorage.setItem('oc_lang', newLang);
+      
+      // Update button
+      document.getElementById('langBtn').textContent = newLang === 'id' ? 'ID' : 'EN';
+      
+      // Update showcase text
+      var titleText = newLang === 'id' ? 'Lihat Hasil Nyata dari AI Kami 🎬' : 'See Real Results from Our AI 🎬';
+      var descText = newLang === 'id' ? 'Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik' : 'These viral videos were created with Vilona OpenClaw — from just 1 product photo to professional video in 60 seconds';
+      var ctaText = newLang === 'id' ? '🚀 Buat Video Seperti Ini Sekarang' : '🚀 Create Videos Like This Now';
+      
+      document.getElementById('showcase-title').textContent = titleText;
+      document.getElementById('showcase-desc').textContent = descText;
+      document.getElementById('showcase-cta').textContent = ctaText;
+    });
+      document.querySelectorAll('[data-i18n-en]').forEach(function(el) {
+        el.style.display = newLang === 'en' ? '' : 'none';
+      });
+      
+      // Update button text
+      document.getElementById('langBtn').textContent = newLang === 'id' ? '🌐 EN' : '🌐 ID';
+    }
+    
+    // Load language on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      var savedLang = localStorage.getItem('oc_lang') || 'id';
+      document.getElementById('langBtn').textContent = savedLang === 'id' ? '🌐 EN' : '🌐 ID';
+      
+      // Apply saved language
+      document.querySelectorAll('[data-i18n-id]').forEach(function(el) {
+        el.style.display = savedLang === 'id' ? '' : 'none';
+      });
+      document.querySelectorAll('[data-i18n-en]').forEach(function(el) {
+        el.style.display = savedLang === 'en' ? '' : 'none';
+      });
+    });
+
+  </script>
 
   <div class="proof-bar">
     <div class="proof-grid">
@@ -1166,15 +1568,7 @@
       justify-items: center;
     }
     
-    .tiktok-embed-wrapper {
-      width: 100%;
-      max-width: 350px;
-      border-radius: 16px;
-      overflow: hidden;
-      background: var(--card);
-      border: 1px solid var(--border);
-      transition: transform 0.3s ease;
-    }
+    
     
     .tiktok-embed-wrapper:hover {
       transform: translateY(-4px);
@@ -1190,6 +1584,393 @@
         grid-template-columns: 1fr;
         gap: 20px;
       }
+    }
+
+  
+    /* Video Showcase */
+    .video-showcase {
+      padding: 80px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+    }
+    
+    .showcase-header {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto 60px;
+    }
+    
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .video-item {
+      position: relative;
+      aspect-ratio: 9/16;
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .video-item:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 12px 32px rgba(0,217,255,0.2);
+    }
+    
+    .tiktok-iframe {
+      pointer-events: none;
+    }
+    
+    .showcase-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 50px;
+    }
+    
+    @media(max-width: 1024px) {
+      .video-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase {
+        padding: 60px 16px;
+      }
+      
+      .video-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 400px;
+      }
+      
+      .showcase-actions {
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .showcase-actions .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+  
+    /* Video Showcase - Clean */
+    .video-showcase-clean {
+      padding: 100px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+    
+    .showcase-title {
+      font-size: 36px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .showcase-desc {
+      font-size: 16px;
+      color: var(--dim);
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 60px;
+      line-height: 1.6;
+    }
+    
+    .video-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto 50px;
+    }
+    
+    .video-card {
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      border: 2px solid var(--border);
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .video-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(0,217,255,0.25);
+    }
+    
+    .video-thumbnail {
+      position: relative;
+      aspect-ratio: 9/16;
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    
+    .video-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .tiktok-icon {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 24px;
+      background: rgba(0,0,0,0.6);
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    
+    .video-info {
+      padding: 12px;
+      text-align: center;
+    }
+    
+    .watch-now {
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    
+    .showcase-cta {
+      display: flex;
+      justify-content: center;
+    }
+    
+    @media(max-width: 1024px) {
+      .video-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase-clean {
+        padding: 80px 16px;
+      }
+      
+      .showcase-title {
+        font-size: 28px;
+      }
+      
+      .video-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 400px;
+      }
+      
+      .showcase-cta {
+        margin-top: 20px;
+      }
+      
+      .showcase-cta .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+  
+    /* Video Showcase - Clean */
+    .video-showcase-clean {
+      padding: 100px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
+    }
+    
+    .showcase-title {
+      font-size: 36px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 16px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .showcase-desc {
+      font-size: 16px;
+      color: var(--dim);
+      text-align: center;
+      max-width: 700px;
+      margin: 0 auto 60px;
+      line-height: 1.6;
+    }
+    
+    .video-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto 50px;
+    }
+    
+    .video-card {
+      position: relative;
+      aspect-ratio: 9/16;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .video-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(0,217,255,0.25);
+    }
+    
+    .video-card:hover .play-button-overlay {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+    
+    .play-button-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.6;
+      transition: all 0.3s ease;
+    }
+    
+    .play-circle {
+      width: 70px;
+      height: 70px;
+      background: rgba(0,217,255,0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #0a0a1a;
+      font-weight: 800;
+      transition: all 0.3s ease;
+    }
+    
+    .video-card:hover .play-circle {
+      transform: scale(1.15);
+      background: rgba(0,217,255,1);
+    }
+    
+    .video-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-body {
+      position: relative;
+      width: 90%;
+      max-width: 500px;
+      aspect-ratio: 9/16;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: -50px;
+      right: 0;
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 40px;
+      cursor: pointer;
+      padding: 0;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s;
+    }
+    
+    .modal-close:hover {
+      transform: scale(1.2);
+    }
+    
+    .showcase-cta {
+      display: flex;
+      justify-content: center;
+    }
+    
+    @media(max-width: 1024px) {
+      .video-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase-clean {
+        padding: 80px 16px;
+      }
+      
+      .showcase-title {
+        font-size: 28px;
+      }
+      
+      .video-cards-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        max-width: 400px;
+      }
+      
+      .showcase-cta .btn {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+      .lang-switcher {
+      background: transparent;
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 700;
+    }
+    .lang-switcher:hover {
+      background: var(--accent);
+      color: #0a0a1a;
+    }
+    .lang-switcher:hover {
+      background: var(--card);
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
   </style>

@@ -69,7 +69,7 @@ export const SUBSCRIPTION_PLANS_V3 = SUBSCRIPTION_PLANS;
 // ── Credit Packages ──────────────────────────────────────────────────────────
 
 export const PACKAGES = [
-  { id: 'starter', name: 'Starter Flow', priceIdr: 49000, credits: 5, bonus: 1, totalCredits: 6 },
+  { id: 'starter', name: 'Starter Flow', priceIdr: 99000, credits: 5, bonus: 1, totalCredits: 6 },
   { id: 'growth', name: 'Growth Machine', priceIdr: 149000, credits: 18, bonus: 4, totalCredits: 22, isPopular: true },
   { id: 'business', name: 'Business Kingdom', priceIdr: 499000, credits: 70, bonus: 15, totalCredits: 85 },
 ];
