@@ -28,7 +28,7 @@ export async function supportCommand(ctx: BotContext): Promise<void> {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💬 Chat Support", url: "https://t.me/codergaboets" }],
+            [{ text: "💬 Chat Support", url: `https://t.me/${process.env.SUPPORT_TELEGRAM_USERNAME || 'codergaboets'}` }],
             [{ text: "📖 View Tutorial", callback_data: "view_tutorial" }],
             [{ text: "🐛 Report Bug", callback_data: "report_bug" }],
             [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],

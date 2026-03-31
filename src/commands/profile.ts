@@ -43,21 +43,33 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
       return `Rp ${amount.toLocaleString('id-ID')}`;
     };
 
+    // Fetch subscription details
+    const { SubscriptionService } = await import('../services/subscription.service.js');
+    const activeSub = await SubscriptionService.getActiveSubscription(telegramId);
+    let subInfo = '';
+    if (activeSub) {
+      const daysLeft = Math.max(0, Math.ceil((new Date(activeSub.currentPeriodEnd).getTime() - Date.now()) / 86400000));
+      subInfo = `\n*Subscription:*\n` +
+        `- Plan: ${activeSub.plan.charAt(0).toUpperCase() + activeSub.plan.slice(1)} (${activeSub.billingCycle})\n` +
+        `- ${activeSub.cancelAtPeriodEnd ? 'Expires' : 'Renews'} in: ${daysLeft} hari\n`;
+    }
+
     await ctx.reply(
-      '*Your Profile*\n\n' +
-      `*Name:* ${user.firstName} ${user.lastName || ''}\n` +
+      '*Profil Kamu*\n\n' +
+      `*Nama:* ${user.firstName} ${user.lastName || ''}\n` +
       `*Username:* @${user.username || 'N/A'}\n` +
       `*ID:* ${from.id}\n\n` +
-      '*Account Info:*\n' +
+      '*Info Akun:*\n' +
       `- Tier: ${tierLabel}\n` +
-      `- Credits: ${creditBalance}\n` +
-      `- Videos Created: ${stats.videosCreated}\n\n` +
-      '*Referral Info:*\n' +
-      `- Code: \`${referralCode}\`\n` +
-      `- Total Referrals: ${stats.referralCount}\n` +
-      `- Commission Earned: ${formatRupiah(stats.commissionEarned)}\n\n` +
-      '*Spending:*\n' +
-      `- Total Spent: ${formatRupiah(stats.totalSpent)}`,
+      `- Kredit: ${creditBalance}\n` +
+      `- Video Dibuat: ${stats.videosCreated}\n` +
+      subInfo + '\n' +
+      '*Info Referral:*\n' +
+      `- Kode: \`${referralCode}\`\n` +
+      `- Total Referral: ${stats.referralCount}\n` +
+      `- Komisi: ${formatRupiah(stats.commissionEarned)}\n\n` +
+      '*Pengeluaran:*\n' +
+      `- Total: ${formatRupiah(stats.totalSpent)}`,
       {
         parse_mode: 'Markdown',
         reply_markup: {

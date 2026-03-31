@@ -84,7 +84,7 @@ describe("Profile Command", () => {
 
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Your Profile");
+      expect(replyCall[0]).toContain("Profil Kamu");
       expect(replyCall[0]).toContain("Test User");
       expect(replyCall[0]).toContain("@testuser");
       expect(replyCall[0]).toContain("Free");

@@ -176,6 +176,15 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     if (ctx.session?.state === 'AWAITING_GENERATE_IMAGE') {
       if ('photo' in message) {
         const largest = message.photo[message.photo.length - 1];
+        const fileSize = largest.file_size || 0;
+        if (fileSize > 0 && fileSize < 10000) {
+          await ctx.reply('❌ Foto terlalu kecil (min 10KB). Kirim foto dengan resolusi lebih tinggi.');
+          return;
+        }
+        if (fileSize > 20 * 1024 * 1024) {
+          await ctx.reply('❌ Foto terlalu besar (maks 20MB). Kirim foto yang lebih kecil.');
+          return;
+        }
         const fileLink = await ctx.telegram.getFileLink(largest.file_id);
         ctx.session.generatePhotoUrl = fileLink.toString();
         ctx.session.state = 'DASHBOARD';

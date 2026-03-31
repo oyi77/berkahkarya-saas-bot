@@ -387,6 +387,10 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
   } finally {
     // Release idempotency lock
     await redis.del(lockKey).catch(() => {});
+    // Cleanup temp reference image file
+    if (photoUrl && !photoUrl.startsWith('http') && fs.existsSync(photoUrl)) {
+      try { fs.unlinkSync(photoUrl); } catch { /* ignore */ }
+    }
   }
 }
 
@@ -706,6 +710,19 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
 
 export async function showPostDelivery(ctx: BotContext): Promise<void> {
   try {
+    // Clear session fields from previous generation to prevent stale data leaking into next flow
+    if (ctx.session) {
+      delete ctx.session.generateProductDesc;
+      delete ctx.session.generatePhotoUrl;
+      delete ctx.session.generatePreset;
+      delete ctx.session.generatePlatform;
+      delete ctx.session.generateAction;
+      delete ctx.session.generateScenes;
+      delete ctx.session.generateMode;
+      delete ctx.session.generateCampaignSize;
+      delete ctx.session.customPresetConfig;
+    }
+
     const text = `✨ *Konten berhasil dibuat!*\n\nMau apa selanjutnya?`;
 
     await ctx.reply(text, {

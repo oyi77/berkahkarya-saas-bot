@@ -864,9 +864,8 @@ async function handleCampaignJobComplete(
 
   // All jobs done — acquire merge lock (prevents duplicate merge if race condition)
   // Acquire merge lock — only the first worker to set the key proceeds
-  const lockAcquired = await redis.setnx(mergeKey, '1');
-  await redis.expire(mergeKey, 3600);
-  if (!lockAcquired) return; // another worker is already merging
+  const lockAcquired = await redis.set(mergeKey, '1', 'EX', 3600, 'NX');
+  if (lockAcquired !== 'OK') return; // another worker is already merging
 
   try {
     const rawEntries = await redis.lrange(urlsKey, 0, -1);
