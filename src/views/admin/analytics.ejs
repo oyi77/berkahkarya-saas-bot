@@ -534,6 +534,50 @@
             <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Call To Action Button</div>
             <input type="text" id="st-lpCta" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Start Creating Now">
           </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Image URL</div>
+            <input type="text" id="st-lpHeroImage" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.png">
+          </div>
+          <div style="margin-top:8px;">
+            <a href="/" target="_blank" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);padding:4px 12px;border-radius:6px;color:var(--text);font-size:12px;text-decoration:none;">👁️ Preview Landing Page</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+      <!-- USD→IDR Exchange Rate -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">💱 USD → IDR Exchange Rate</div>
+          <button class="btn btn-gold btn-sm" onclick="saveExchangeRate()">Save</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Used for cost calculations, profit reports, and pricing recommendations. Changes take effect immediately.</div>
+        <input type="number" id="st-exchangeRate" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);font-size:16px;" placeholder="16000" min="1000" step="100">
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">Current: <span id="st-exchangeRateDisplay">loading...</span></div>
+      </div>
+
+      <!-- Pixel / Tracking Settings -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">📊 Tracking Pixels</div>
+          <button class="btn btn-gold btn-sm" onclick="savePixels()">Save</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Meta (Facebook) Pixel ID</div>
+            <input type="text" id="st-fbPixel" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="771021905629860">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">GA4 Measurement ID</div>
+            <input type="text" id="st-ga4Id" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="G-XXXXXXXXXX">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">TikTok Pixel ID</div>
+            <input type="text" id="st-ttPixel" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="D6IA84RC77UCTB9KG9OG">
+          </div>
         </div>
       </div>
 
@@ -1603,6 +1647,26 @@ async function loadSettings() {
     document.getElementById('st-lpHeadline').value = landData.headline || '';
     document.getElementById('st-lpSub').value = landData.subheadline || '';
     document.getElementById('st-lpCta').value = landData.ctaText || '';
+    document.getElementById('st-lpHeroImage').value = landData.heroImageUrl || '';
+
+    // Exchange Rate
+    try {
+      const rateData = await api('/api/settings/exchange-rate');
+      if (rateData) {
+        document.getElementById('st-exchangeRate').value = rateData.rate || 16000;
+        document.getElementById('st-exchangeRateDisplay').textContent = 'Rp ' + (rateData.rate || 16000).toLocaleString();
+      }
+    } catch(e) {}
+
+    // Pixel Settings
+    try {
+      const pixelData = await api('/api/settings/pixels');
+      if (pixelData) {
+        document.getElementById('st-fbPixel').value = pixelData.fbPixelId || '';
+        document.getElementById('st-ga4Id').value = pixelData.ga4Id || '';
+        document.getElementById('st-ttPixel').value = pixelData.ttPixelId || '';
+      }
+    } catch(e) {}
 
     // Referral
     document.getElementById('st-refSellRate').value = refData.sellRate || 3000;
@@ -1623,9 +1687,36 @@ async function saveProviders() {
 }
 
 async function saveLanding() {
-  const payload = { headline: document.getElementById('st-lpHeadline').value, subheadline: document.getElementById('st-lpSub').value, ctaText: document.getElementById('st-lpCta').value };
+  const payload = {
+    headline: document.getElementById('st-lpHeadline').value,
+    subheadline: document.getElementById('st-lpSub').value,
+    ctaText: document.getElementById('st-lpCta').value,
+    heroImageUrl: document.getElementById('st-lpHeroImage').value,
+  };
   const res = await api('/api/settings/landing', { method: 'POST', body: payload });
   res !== null ? toast('Landing page saved!') : toast('Failed to save landing page', 'error');
+}
+
+async function saveExchangeRate() {
+  const rate = parseInt(document.getElementById('st-exchangeRate').value);
+  if (!rate || rate < 1000) { toast('Rate harus > 1000', 'error'); return; }
+  const res = await api('/api/settings/exchange-rate', { method: 'POST', body: { rate } });
+  if (res !== null) {
+    toast('Exchange rate saved: ' + rate);
+    document.getElementById('st-exchangeRateDisplay').textContent = 'Rp ' + rate.toLocaleString();
+  } else {
+    toast('Failed to save exchange rate', 'error');
+  }
+}
+
+async function savePixels() {
+  const payload = {
+    fbPixelId: document.getElementById('st-fbPixel').value,
+    ga4Id: document.getElementById('st-ga4Id').value,
+    ttPixelId: document.getElementById('st-ttPixel').value,
+  };
+  const res = await api('/api/settings/pixels', { method: 'POST', body: payload });
+  res !== null ? toast('Pixel settings saved!') : toast('Failed to save pixels', 'error');
 }
 
 async function seedPricing() {

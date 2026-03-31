@@ -1041,6 +1041,54 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return { success: true };
   });
 
+  /** GET /api/settings/exchange-rate */
+  server.get("/api/settings/exchange-rate", async () => {
+    const stored = await redis.get("admin:exchange_rate");
+    return { rate: stored ? Number(stored) : (Number(process.env.USD_TO_IDR_RATE) || 16000) };
+  });
+
+  /** POST /api/settings/exchange-rate */
+  server.post("/api/settings/exchange-rate", async (request, reply) => {
+    const { rate } = request.body as any;
+    if (!rate || isNaN(Number(rate)) || Number(rate) < 1000) {
+      return reply.status(400).send({ error: "Invalid rate (must be > 1000)" });
+    }
+    await redis.set("admin:exchange_rate", String(Number(rate)));
+    // Also update the env var in-memory so all services use the new rate
+    process.env.USD_TO_IDR_RATE = String(Number(rate));
+    return { success: true, rate: Number(rate) };
+  });
+
+  /** GET /api/settings/pixels */
+  server.get("/api/settings/pixels", async () => {
+    const stored = await redis.get("admin:pixel_config");
+    if (stored) return JSON.parse(stored);
+    return {
+      fbPixelId: process.env.FACEBOOK_PIXEL_ID || '',
+      ga4Id: process.env.GA4_TRACKING_ID || '',
+      ttPixelId: process.env.TIKTOK_PIXEL_ID || '',
+    };
+  });
+
+  /** POST /api/settings/pixels */
+  server.post("/api/settings/pixels", async (request, reply) => {
+    const body = request.body as any;
+    if (!body || typeof body !== 'object') {
+      return reply.status(400).send({ error: "Invalid payload" });
+    }
+    const config = {
+      fbPixelId: body.fbPixelId || '',
+      ga4Id: body.ga4Id || '',
+      ttPixelId: body.ttPixelId || '',
+    };
+    await redis.set("admin:pixel_config", JSON.stringify(config));
+    // Update in-memory env vars so views pick up changes immediately
+    process.env.FACEBOOK_PIXEL_ID = config.fbPixelId;
+    process.env.GA4_TRACKING_ID = config.ga4Id;
+    process.env.TIKTOK_PIXEL_ID = config.ttPixelId;
+    return { success: true };
+  });
+
   /** POST /api/settings/seed-pricing — Seed pricing DB from static config (idempotent) */
   server.post("/api/settings/seed-pricing", async () => {
     const { PACKAGES, SUBSCRIPTION_PLANS, UNIT_COSTS } = await import('@/config/pricing.js');
