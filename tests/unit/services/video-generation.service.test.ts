@@ -13,6 +13,17 @@ jest.mock("@/config/pricing", () => ({
   getVideoCreditCost: jest.fn().mockReturnValue(0.4),
 }));
 
+jest.mock("@/config/redis", () => ({
+  redis: { get: jest.fn().mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+}));
+
+jest.mock("@/services/provider-settings.service", () => ({
+  ProviderSettingsService: {
+    getSortedVideoProviders: jest.fn().mockResolvedValue([]),
+    getDynamicSettings: jest.fn().mockResolvedValue({ video: {}, image: {} }),
+  },
+}));
+
 import { logger } from "@/utils/logger";
 import { getVideoCreditCost } from "@/config/pricing";
 
@@ -286,6 +297,25 @@ describe("VideoGenerationService", () => {
           },
         }));
 
+        jest.mock("@/utils/logger", () => ({
+          logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+        }));
+
+        jest.mock("@/config/redis", () => ({
+          redis: { get: (jest.fn() as any).mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+        }));
+
+        jest.mock("@/services/provider-settings.service", () => ({
+          ProviderSettingsService: {
+            getSortedVideoProviders: (jest.fn() as any).mockResolvedValue([]),
+            getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
+          },
+        }));
+
+        jest.mock("@/config/pricing", () => ({
+          getVideoCreditCost: jest.fn().mockReturnValue(0.4),
+        }));
+
         jest.mock("@/config/providers", () => ({
           VIDEO_PROVIDERS_SORTED: [],
         }));
@@ -337,6 +367,25 @@ describe("VideoGenerationService", () => {
               "optimized",
             ),
           },
+        }));
+
+        jest.mock("@/utils/logger", () => ({
+          logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+        }));
+
+        jest.mock("@/config/redis", () => ({
+          redis: { get: (jest.fn() as any).mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+        }));
+
+        jest.mock("@/services/provider-settings.service", () => ({
+          ProviderSettingsService: {
+            getSortedVideoProviders: (jest.fn() as any).mockResolvedValue([]),
+            getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
+          },
+        }));
+
+        jest.mock("@/config/pricing", () => ({
+          getVideoCreditCost: jest.fn().mockReturnValue(0.4),
         }));
 
         jest.mock("@/config/providers", () => ({
@@ -397,6 +446,25 @@ describe("VideoGenerationService", () => {
           },
         }));
 
+        jest.mock("@/utils/logger", () => ({
+          logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+        }));
+
+        jest.mock("@/config/redis", () => ({
+          redis: { get: (jest.fn() as any).mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+        }));
+
+        jest.mock("@/services/provider-settings.service", () => ({
+          ProviderSettingsService: {
+            getSortedVideoProviders: (jest.fn() as any).mockResolvedValue([]),
+            getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
+          },
+        }));
+
+        jest.mock("@/config/pricing", () => ({
+          getVideoCreditCost: jest.fn().mockReturnValue(0.4),
+        }));
+
         jest.mock("@/config/providers", () => ({
           VIDEO_PROVIDERS_SORTED: [],
         }));
@@ -453,6 +521,25 @@ describe("VideoGenerationService", () => {
               "optimized",
             ),
           },
+        }));
+
+        jest.mock("@/utils/logger", () => ({
+          logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+        }));
+
+        jest.mock("@/config/redis", () => ({
+          redis: { get: (jest.fn() as any).mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+        }));
+
+        jest.mock("@/services/provider-settings.service", () => ({
+          ProviderSettingsService: {
+            getSortedVideoProviders: (jest.fn() as any).mockResolvedValue([]),
+            getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
+          },
+        }));
+
+        jest.mock("@/config/pricing", () => ({
+          getVideoCreditCost: jest.fn().mockReturnValue(0.4),
         }));
 
         jest.mock("@/config/providers", () => ({
@@ -528,6 +615,25 @@ describe("VideoGenerationService", () => {
               "optimized",
             ),
           },
+        }));
+
+        jest.mock("@/utils/logger", () => ({
+          logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+        }));
+
+        jest.mock("@/config/redis", () => ({
+          redis: { get: (jest.fn() as any).mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+        }));
+
+        jest.mock("@/services/provider-settings.service", () => ({
+          ProviderSettingsService: {
+            getSortedVideoProviders: (jest.fn() as any).mockResolvedValue([]),
+            getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
+          },
+        }));
+
+        jest.mock("@/config/pricing", () => ({
+          getVideoCreditCost: jest.fn().mockReturnValue(0.4),
         }));
 
         jest.mock("@/config/providers", () => ({
@@ -898,6 +1004,25 @@ describe("VideoGenerationService", () => {
               "optimized",
             ),
           },
+        }));
+
+        jest.mock("@/utils/logger", () => ({
+          logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+        }));
+
+        jest.mock("@/config/redis", () => ({
+          redis: { get: (jest.fn() as any).mockResolvedValue(null), set: jest.fn(), del: jest.fn() },
+        }));
+
+        jest.mock("@/services/provider-settings.service", () => ({
+          ProviderSettingsService: {
+            getSortedVideoProviders: (jest.fn() as any).mockResolvedValue([]),
+            getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
+          },
+        }));
+
+        jest.mock("@/config/pricing", () => ({
+          getVideoCreditCost: jest.fn().mockReturnValue(0.4),
         }));
 
         jest.mock("@/config/providers", () => ({

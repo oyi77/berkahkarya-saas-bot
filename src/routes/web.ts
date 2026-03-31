@@ -501,8 +501,13 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // ── PACKAGES ──
-  server.get("/api/packages", async () => {
-    return getPackagesAsync();
+  server.get("/api/packages", async (_request, reply) => {
+    try {
+      return await getPackagesAsync();
+    } catch (error) {
+      server.log.error({ error }, "Failed to load packages");
+      return reply.status(500).send({ error: "Failed to load packages" });
+    }
   });
 
   // ── PAYMENT CREATE ──
