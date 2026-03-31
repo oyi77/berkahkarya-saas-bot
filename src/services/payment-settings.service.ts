@@ -273,10 +273,20 @@ export class PaymentSettingsService {
       // Image credit
       { category: 'image_credit', key: 'default', value: { credits: 0.2 } },
       // Video credits
-      { category: 'video_credit', key: '15', value: { credits: 0.5 } },
-      { category: 'video_credit', key: '30', value: { credits: 1.0 } },
-      { category: 'video_credit', key: '60', value: { credits: 2.0 } },
-      { category: 'video_credit', key: '120', value: { credits: 4.5 } },
+      { category: 'video_credit', key: '15', value: { credits: 0.8 } },
+      { category: 'video_credit', key: '30', value: { credits: 1.5 } },
+      { category: 'video_credit', key: '60', value: { credits: 3.0 } },
+      { category: 'video_credit', key: '120', value: { credits: 6.5 } },
+      // Unit costs (admin-adjustable — the actual price users pay in units, 10 units = 1 credit)
+      { category: 'unit_cost', key: 'VIDEO_15S', value: 8 },
+      { category: 'unit_cost', key: 'VIDEO_30S', value: 15 },
+      { category: 'unit_cost', key: 'VIDEO_60S', value: 30 },
+      { category: 'unit_cost', key: 'VIDEO_120S', value: 65 },
+      { category: 'unit_cost', key: 'IMAGE_UNIT', value: 2 },
+      { category: 'unit_cost', key: 'IMAGE_SET_7_SCENE', value: 15 },
+      { category: 'unit_cost', key: 'CLONE_STYLE', value: 8 },
+      { category: 'unit_cost', key: 'CAMPAIGN_5_VIDEO', value: 60 },
+      { category: 'unit_cost', key: 'CAMPAIGN_10_VIDEO', value: 110 },
       // Provider costs (USD per generation)
       { category: 'provider_cost', key: 'geminigen', value: { costUsd: 0.02 } },
       { category: 'provider_cost', key: 'falai', value: { costUsd: 0.03 } },

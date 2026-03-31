@@ -460,6 +460,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       imageCosts,
       providerCosts,
       global,
+      unitCosts,
     ] = await Promise.all([
       PaymentSettingsService.getAllPricingByCategory("package"),
       PaymentSettingsService.getAllPricingByCategory("subscription"),
@@ -467,6 +468,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       PaymentSettingsService.getAllPricingByCategory("image_credit"),
       PaymentSettingsService.getAllPricingByCategory("provider_cost"),
       PaymentSettingsService.getAllPricingByCategory("global"),
+      PaymentSettingsService.getAllPricingByCategory("unit_cost"),
     ]);
     return {
       packages,
@@ -475,6 +477,86 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       imageCosts,
       providerCosts,
       global,
+      unitCosts,
+    };
+  });
+
+  // ── Pricing Recommendation (admin tool) ──
+  // Calculates minimum credit price per action based on actual API costs + target margin
+  server.get("/api/pricing-recommendation", async () => {
+    const USD_TO_IDR = Number(process.env.USD_TO_IDR_RATE) || 16000;
+    const margin = await PaymentSettingsService.getMarginPercent();
+    const providerCosts = await PaymentSettingsService.getAllPricingByCategory("provider_cost");
+    const unitCosts = await PaymentSettingsService.getAllPricingByCategory("unit_cost");
+
+    // Average video provider cost per scene (across all enabled providers)
+    const videoCosts = Object.values(providerCosts).map((v: any) => v?.costUsd || v || 0).filter((c: number) => c > 0);
+    const avgVideoSceneCostUsd = videoCosts.length > 0 ? videoCosts.reduce((a: number, b: number) => a + b, 0) / videoCosts.length : 0.04;
+    const maxVideoSceneCostUsd = videoCosts.length > 0 ? Math.max(...videoCosts) : 0.08;
+
+    // Vision/optimization overhead per generation
+    const visionOverheadUsd = 0.006;  // Gemini Vision analysis
+    const optimizerOverheadUsd = 0.001; // Prompt optimizer per scene
+    const voOverheadUsd = 0.001;  // VO script generation
+
+    // Calculate min price per action (in units, at target margin)
+    const calcMinUnits = (totalCostUsd: number) => {
+      const costIdr = totalCostUsd * USD_TO_IDR;
+      // 1 unit = (cheapest package price / total units) = ~880 IDR/unit (at 499k/85 credits * 10)
+      const idrPerUnit = 880;
+      const minUnits = Math.ceil((costIdr / idrPerUnit) / (1 - margin / 100));
+      return minUnits;
+    };
+
+    const recommendations = {
+      VIDEO_15S: {
+        current: (unitCosts as any)?.VIDEO_15S || UNIT_COSTS.VIDEO_15S,
+        apiCostUsd: (5 * avgVideoSceneCostUsd) + optimizerOverheadUsd * 5 + voOverheadUsd,
+        apiCostUsdMax: (5 * maxVideoSceneCostUsd) + optimizerOverheadUsd * 5 + voOverheadUsd,
+        minUnits: calcMinUnits((5 * maxVideoSceneCostUsd) + optimizerOverheadUsd * 5 + voOverheadUsd),
+        description: '15s video (5 scenes)',
+      },
+      VIDEO_30S: {
+        current: (unitCosts as any)?.VIDEO_30S || UNIT_COSTS.VIDEO_30S,
+        apiCostUsd: (7 * avgVideoSceneCostUsd) + optimizerOverheadUsd * 7 + voOverheadUsd,
+        apiCostUsdMax: (7 * maxVideoSceneCostUsd) + optimizerOverheadUsd * 7 + voOverheadUsd,
+        minUnits: calcMinUnits((7 * maxVideoSceneCostUsd) + optimizerOverheadUsd * 7 + voOverheadUsd),
+        description: '30s video (7 scenes)',
+      },
+      VIDEO_60S: {
+        current: (unitCosts as any)?.VIDEO_60S || UNIT_COSTS.VIDEO_60S,
+        apiCostUsd: (7 * avgVideoSceneCostUsd * 2) + optimizerOverheadUsd * 7 + voOverheadUsd,
+        apiCostUsdMax: (7 * maxVideoSceneCostUsd * 2) + optimizerOverheadUsd * 7 + voOverheadUsd,
+        minUnits: calcMinUnits((7 * maxVideoSceneCostUsd * 2) + optimizerOverheadUsd * 7 + voOverheadUsd),
+        description: '60s video (7 scenes, 2x duration)',
+      },
+      IMAGE_UNIT: {
+        current: (unitCosts as any)?.IMAGE_UNIT || UNIT_COSTS.IMAGE_UNIT,
+        apiCostUsd: 0.003 + optimizerOverheadUsd,
+        apiCostUsdMax: 0.04 + visionOverheadUsd + optimizerOverheadUsd,
+        minUnits: calcMinUnits(0.04 + visionOverheadUsd + optimizerOverheadUsd),
+        description: 'Single image (worst case: img2img + vision)',
+      },
+      CLONE_STYLE: {
+        current: (unitCosts as any)?.CLONE_STYLE || UNIT_COSTS.CLONE_STYLE,
+        apiCostUsd: visionOverheadUsd + (7 * avgVideoSceneCostUsd) + voOverheadUsd,
+        apiCostUsdMax: visionOverheadUsd + (7 * maxVideoSceneCostUsd) + voOverheadUsd,
+        minUnits: calcMinUnits(visionOverheadUsd + (7 * maxVideoSceneCostUsd) + voOverheadUsd),
+        description: 'Clone style (vision + 7-scene video)',
+      },
+      CAMPAIGN_5_VIDEO: {
+        current: (unitCosts as any)?.CAMPAIGN_5_VIDEO || UNIT_COSTS.CAMPAIGN_5_VIDEO,
+        apiCostUsd: 5 * ((7 * avgVideoSceneCostUsd) + voOverheadUsd),
+        apiCostUsdMax: 5 * ((7 * maxVideoSceneCostUsd) + voOverheadUsd),
+        minUnits: calcMinUnits(5 * ((7 * maxVideoSceneCostUsd) + voOverheadUsd)),
+        description: 'Campaign 5 scenes',
+      },
+    };
+
+    return {
+      usdToIdr: USD_TO_IDR,
+      targetMarginPercent: margin,
+      recommendations,
     };
   });
 

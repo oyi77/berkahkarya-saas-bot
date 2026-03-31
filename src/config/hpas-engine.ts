@@ -234,7 +234,7 @@ export const DURATION_PRESETS: Record<string, DurationPresetConfig> = {
     totalSeconds: 15,
     scenesIncluded: ['hook', 'problem', 'discovery', 'result', 'cta'],
     sceneDurations: { hook: 3, problem: 3, discovery: 3, result: 3, cta: 3 },
-    creditCost: 2.5,
+    creditCost: 8,  // 0.8 credits (aligned with UNIT_COSTS.VIDEO_15S)
     description: '15s — 5 scenes, fast format. Best for TikTok paid ads.',
   },
   standard: {
@@ -243,7 +243,7 @@ export const DURATION_PRESETS: Record<string, DurationPresetConfig> = {
     totalSeconds: 30,
     scenesIncluded: ['hook', 'problem', 'agitate', 'discovery', 'interaction', 'result', 'cta'],
     sceneDurations: { hook: 4, problem: 4, agitate: 4, discovery: 5, interaction: 5, result: 4, cta: 4 },
-    creditCost: 3.5,
+    creditCost: 15,  // 1.5 credits (aligned with UNIT_COSTS.VIDEO_30S)
     description: '30s — 7 scenes full HPAS. Most versatile, all platforms.',
   },
   extended: {
@@ -252,7 +252,7 @@ export const DURATION_PRESETS: Record<string, DurationPresetConfig> = {
     totalSeconds: 60,
     scenesIncluded: ['hook', 'problem', 'agitate', 'discovery', 'interaction', 'result', 'cta'],
     sceneDurations: { hook: 8, problem: 8, agitate: 8, discovery: 10, interaction: 10, result: 8, cta: 8 },
-    creditCost: 6.0,
+    creditCost: 30,  // 3.0 credits (aligned with UNIT_COSTS.VIDEO_60S)
     description: '60s — 7 scenes extended. Rich storytelling, YouTube/Facebook.',
   },
 };

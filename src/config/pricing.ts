@@ -13,16 +13,17 @@ export type PlanKey = 'lite' | 'pro' | 'agency';
 export type BillingCycle = 'monthly' | 'annual';
 
 // Use UNIT_COSTS as the primary source of truth for all modules
+// Adjusted 2026-03-31: video/campaign prices raised to maintain >50% margin
 export const UNIT_COSTS = {
-  VIDEO_15S: 5,   // 0.5 Credits
-  VIDEO_30S: 10,  // 1.0 Credits
-  VIDEO_60S: 20,  // 2.0 Credits
-  VIDEO_120S: 45, // 4.5 Credits
-  IMAGE_UNIT: 2,  // 0.2 Credits
-  IMAGE_SET_7_SCENE: 15,
-  CLONE_STYLE: 5,
-  CAMPAIGN_5_VIDEO: 40,
-  CAMPAIGN_10_VIDEO: 75,
+  VIDEO_15S: 8,    // 0.8 Credits (was 0.5)
+  VIDEO_30S: 15,   // 1.5 Credits (was 1.0) — margin 60% vs 40%
+  VIDEO_60S: 30,   // 3.0 Credits (was 2.0)
+  VIDEO_120S: 65,  // 6.5 Credits (was 4.5)
+  IMAGE_UNIT: 2,   // 0.2 Credits (unchanged — 98% margin)
+  IMAGE_SET_7_SCENE: 15, // 1.5 Credits (unchanged — 98% margin)
+  CLONE_STYLE: 8,  // 0.8 Credits (was 0.5) — uses vision + gen
+  CAMPAIGN_5_VIDEO: 60,  // 6.0 Credits (was 4.0) — margin 50% vs 25%
+  CAMPAIGN_10_VIDEO: 110, // 11.0 Credits (was 7.5) — margin 50%
 };
 
 // Aliases for transition
@@ -97,10 +98,10 @@ export function getPlanPrice(plan: PlanKey, cycle: BillingCycle): number {
  * Fallback to static if DB config is missing
  */
 export function getVideoCreditCost(durationSeconds: number): number {
-  if (durationSeconds <= 15) return 0.5;
-  if (durationSeconds <= 30) return 1.0;
-  if (durationSeconds <= 60) return 2.0;
-  if (durationSeconds <= 120) return 4.5;
+  if (durationSeconds <= 15) return 0.8;
+  if (durationSeconds <= 30) return 1.5;
+  if (durationSeconds <= 60) return 3.0;
+  if (durationSeconds <= 120) return 6.5;
   // Custom duration tiered pricing
   return getCustomDurationCreditCost(durationSeconds);
 }

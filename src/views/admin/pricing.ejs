@@ -119,6 +119,20 @@
     <div id="loading">Loading pricing data...</div>
     <div id="content" style="display:none">
 
+      <!-- Section 0: Unit Costs (admin-adjustable credit pricing) -->
+      <div class="card">
+        <h2>💰 Unit Costs (User Credit Pricing)</h2>
+        <p style="color:#64748b;font-size:13px;margin-bottom:12px">How many units (10 units = 1 credit) each action costs the user. Recommendations show minimum price to maintain target margin.</p>
+        <table>
+          <thead><tr><th>Action</th><th>Current (units)</th><th>= Credits</th><th>Recommended Min</th><th>API Cost (USD)</th><th></th></tr></thead>
+          <tbody id="unit-costs-table"></tbody>
+        </table>
+        <div style="margin-top:12px">
+          <button class="btn btn-primary" onclick="saveUnitCosts()">Save Unit Costs</button>
+          <button class="btn btn-secondary" onclick="loadRecommendations()" style="margin-left:8px">🔄 Refresh Recommendations</button>
+        </div>
+      </div>
+
       <!-- Section 1: Global Settings -->
       <div class="card">
         <h2>Global Settings</h2>
@@ -314,6 +328,12 @@
 
         // Image costs
         renderCostTable(pricingData.imageCosts || {}, 'image-costs-table', 'image_credit');
+
+        // Unit costs
+        renderUnitCosts(pricingData.unitCosts || {});
+
+        // Load recommendations
+        loadRecommendations();
 
       } catch (err) {
         console.error('Failed to load pricing:', err);
@@ -532,6 +552,78 @@
 
     function esc(s) {
       return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── Unit Costs ──
+    var recommendations = {};
+
+    function renderUnitCosts(uc) {
+      var rows = '';
+      var keys = ['VIDEO_15S','VIDEO_30S','VIDEO_60S','VIDEO_120S','IMAGE_UNIT','IMAGE_SET_7_SCENE','CLONE_STYLE','CAMPAIGN_5_VIDEO','CAMPAIGN_10_VIDEO'];
+      for (var k of keys) {
+        var val = typeof uc[k] === 'object' ? (uc[k]?.value || 0) : (uc[k] || 0);
+        var rec = recommendations[k];
+        var recHtml = rec ? '<span style="color:#f59e0b">≥ ' + rec.minUnits + ' units</span> ($' + (rec.apiCostUsdMax || 0).toFixed(3) + ')' : '<span style="color:#64748b">loading...</span>';
+        rows += '<tr data-key="' + k + '">'
+          + '<td>' + k + '</td>'
+          + '<td><input type="number" class="uc-val" value="' + val + '" step="1" min="1" style="width:80px" /></td>'
+          + '<td>' + (val / 10).toFixed(1) + '</td>'
+          + '<td class="uc-rec">' + recHtml + '</td>'
+          + '<td class="uc-cost">-</td>'
+          + '<td><button class="btn btn-primary btn-sm" onclick="applyRecommendation(\'' + k + '\')">Apply</button></td>'
+          + '</tr>';
+      }
+      document.getElementById('unit-costs-table').innerHTML = rows;
+    }
+
+    async function loadRecommendations() {
+      try {
+        var res = await apiFetch('/api/pricing-recommendation');
+        if (!res) return;
+        var data = await res.json();
+        recommendations = data.recommendations || {};
+
+        // Update recommendation cells
+        for (var k in recommendations) {
+          var rec = recommendations[k];
+          var recCells = document.querySelectorAll('tr[data-key="' + k + '"] .uc-rec');
+          var costCells = document.querySelectorAll('tr[data-key="' + k + '"] .uc-cost');
+          if (recCells.length > 0) {
+            var color = rec.current < rec.minUnits ? '#ef4444' : '#22c55e';
+            recCells[0].innerHTML = '<span style="color:' + color + '">≥ ' + rec.minUnits + ' units (' + (rec.minUnits/10).toFixed(1) + ' cr)</span>';
+          }
+          if (costCells.length > 0) {
+            costCells[0].innerHTML = '$' + (rec.apiCostUsdMax || 0).toFixed(3);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load recommendations:', err);
+      }
+    }
+
+    function applyRecommendation(key) {
+      var rec = recommendations[key];
+      if (!rec) return;
+      var row = document.querySelector('tr[data-key="' + key + '"] .uc-val');
+      if (row) row.value = rec.minUnits;
+      showToast('Applied recommendation for ' + key);
+    }
+
+    async function saveUnitCosts() {
+      var rows = document.querySelectorAll('#unit-costs-table tr');
+      try {
+        for (var row of rows) {
+          var key = row.dataset.key;
+          var val = parseInt(row.querySelector('.uc-val').value);
+          if (key && !isNaN(val)) {
+            await apiCall('POST', '/api/pricing', { category: 'unit_cost', key: key, value: val });
+          }
+        }
+        showToast('Unit costs saved!');
+        loadAll();
+      } catch (err) {
+        showToast('Failed to save: ' + err.message, 'error');
+      }
     }
 
     loadAll();

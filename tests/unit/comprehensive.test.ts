@@ -846,51 +846,51 @@ describe("Pricing", () => {
   });
 
   describe("getVideoCreditCost (static)", () => {
-    it("15 seconds → 0.5 credits", () => {
-      expect(getVideoCreditCost(15)).toBe(0.5);
+    it("15 seconds → 0.8 credits", () => {
+      expect(getVideoCreditCost(15)).toBe(0.8);
     });
 
-    it("30 seconds → 1.0 credits", () => {
-      expect(getVideoCreditCost(30)).toBe(1.0);
+    it("30 seconds → 1.5 credits", () => {
+      expect(getVideoCreditCost(30)).toBe(1.5);
     });
 
-    it("60 seconds → 2.0 credits", () => {
-      expect(getVideoCreditCost(60)).toBe(2.0);
+    it("60 seconds → 3.0 credits", () => {
+      expect(getVideoCreditCost(60)).toBe(3.0);
     });
 
-    it("120 seconds → 4.5 credits", () => {
-      expect(getVideoCreditCost(120)).toBe(4.5);
+    it("120 seconds → 6.5 credits", () => {
+      expect(getVideoCreditCost(120)).toBe(6.5);
     });
 
-    it("10 seconds → same tier as 15s (0.5 credits)", () => {
-      expect(getVideoCreditCost(10)).toBe(0.5);
+    it("10 seconds → same tier as 15s (0.8 credits)", () => {
+      expect(getVideoCreditCost(10)).toBe(0.8);
     });
 
-    it("25 seconds → same tier as 30s (1.0 credits)", () => {
-      expect(getVideoCreditCost(25)).toBe(1.0);
+    it("25 seconds → same tier as 30s (1.5 credits)", () => {
+      expect(getVideoCreditCost(25)).toBe(1.5);
     });
 
-    it("200 seconds → custom tier, above 4.5 credits", () => {
+    it("200 seconds → custom tier, above 6.5 credits", () => {
       // 200s > 120s → custom tiered pricing
       expect(getVideoCreditCost(200)).toBeGreaterThan(4.5);
     });
   });
 
   describe("UNIT_COSTS constants", () => {
-    it("VIDEO_15S = 5", () => {
-      expect(UNIT_COSTS.VIDEO_15S).toBe(5);
+    it("VIDEO_15S = 8", () => {
+      expect(UNIT_COSTS.VIDEO_15S).toBe(8);
     });
 
-    it("VIDEO_30S = 10", () => {
-      expect(UNIT_COSTS.VIDEO_30S).toBe(10);
+    it("VIDEO_30S = 15", () => {
+      expect(UNIT_COSTS.VIDEO_30S).toBe(15);
     });
 
-    it("VIDEO_60S = 20", () => {
-      expect(UNIT_COSTS.VIDEO_60S).toBe(20);
+    it("VIDEO_60S = 30", () => {
+      expect(UNIT_COSTS.VIDEO_60S).toBe(30);
     });
 
-    it("VIDEO_120S = 45", () => {
-      expect(UNIT_COSTS.VIDEO_120S).toBe(45);
+    it("VIDEO_120S = 65", () => {
+      expect(UNIT_COSTS.VIDEO_120S).toBe(65);
     });
 
     it("IMAGE_UNIT = 2", () => {
@@ -1169,16 +1169,15 @@ describe("DURATION_PRESETS", () => {
     expect(DURATION_PRESETS.extended.totalSeconds).toBe(60);
   });
 
-  it("quick preset creditCost = 2.5 units", () => {
-    // DURATION_PRESETS use their own credit values, separate from UNIT_COSTS (which are unit-based)
-    expect(DURATION_PRESETS.quick.creditCost).toBe(2.5);
+  it("quick preset creditCost = 8 units", () => {
+    expect(DURATION_PRESETS.quick.creditCost).toBe(8);
   });
 
-  it("standard preset creditCost = 3.5 units", () => {
-    expect(DURATION_PRESETS.standard.creditCost).toBe(3.5);
+  it("standard preset creditCost = 15 units", () => {
+    expect(DURATION_PRESETS.standard.creditCost).toBe(15);
   });
 
-  it("extended preset creditCost = 6.0 units", () => {
-    expect(DURATION_PRESETS.extended.creditCost).toBe(6.0);
+  it("extended preset creditCost = 30 units", () => {
+    expect(DURATION_PRESETS.extended.creditCost).toBe(30);
   });
 });
