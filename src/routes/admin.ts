@@ -21,6 +21,18 @@ import { ProviderSettingsService } from "@/services/provider-settings.service";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
+const LOGIN_RATE_LIMIT_MAX = 5;
+const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
+
+/** Pixel/analytics IDs passed to all EJS views */
+function trackingVars() {
+  return {
+    fbPixelId: process.env.FACEBOOK_PIXEL_ID || "",
+    ga4Id: process.env.GA4_TRACKING_ID || "",
+    ttPixelId: process.env.TIKTOK_PIXEL_ID || "",
+  };
+}
+
 /** HMAC-SHA256 token derived from ADMIN_PASSWORD — not trivially reversible unlike base64 */
 function makeAdminToken(password: string): string {
   return crypto.createHmac('sha256', 'openclaw-admin-v1').update(password).digest('hex');
@@ -112,8 +124,28 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // Login POST endpoint (no auth required)
   server.post("/admin/login", async (request, reply) => {
+    // Origin check — reject cross-origin login submissions
+    const origin = request.headers.origin as string | undefined;
+    if (origin) {
+      const siteUrl = process.env.WEBHOOK_URL || process.env.WEB_APP_URL || "";
+      const expectedOrigin = siteUrl ? new URL(siteUrl).origin : null;
+      if (expectedOrigin && origin !== expectedOrigin) {
+        return reply.status(403).send({ error: "Forbidden" });
+      }
+    }
+
+    // IP-based brute-force rate limiting (5 attempts per 15 min)
+    const ip = (request.headers["x-forwarded-for"] as string || request.ip || "unknown")
+      .split(",")[0].trim();
+    const rateLimitKey = `admin_login:${ip}`;
+    const attempts = await redis.get(rateLimitKey);
+    if (attempts && parseInt(attempts) >= LOGIN_RATE_LIMIT_MAX) {
+      return reply.status(429).send({ error: "Too many login attempts. Try again in 15 minutes." });
+    }
+
     const { password } = request.body as { password: string };
     if (password === ADMIN_PASSWORD) {
+      await redis.del(rateLimitKey);
       const token = makeAdminToken(ADMIN_PASSWORD);
       return reply
         .header(
@@ -122,6 +154,13 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
         )
         .send({ success: true });
     }
+
+    // Record failed attempt
+    const pipe = redis.pipeline();
+    pipe.incr(rateLimitKey);
+    pipe.expire(rateLimitKey, LOGIN_RATE_LIMIT_WINDOW);
+    await pipe.exec();
+
     return reply.status(401).send({ error: "Wrong password" });
   });
 
@@ -442,13 +481,13 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // ── Pricing Dashboard ──
 
   server.get("/admin/pricing", async (_request, reply) => {
-    return reply.view("admin/pricing.ejs");
+    return reply.view("admin/pricing.ejs", trackingVars());
   });
 
   // ── Prompt Management Dashboard ──
 
   server.get("/admin/prompts", async (_request, reply) => {
-    return reply.view("admin/prompts.ejs");
+    return reply.view("admin/prompts.ejs", trackingVars());
   });
 
   server.get("/admin/settings", async (_request, reply) => {
@@ -674,7 +713,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // ── Analytics Dashboard ──
 
   server.get("/admin/dashboard", async (_request, reply) => {
-    return reply.view("admin/analytics.ejs");
+    return reply.view("admin/analytics.ejs", trackingVars());
   });
 
   // API: Analytics data (today's metrics, active users, provider health, top niches, recent errors)

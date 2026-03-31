@@ -61,6 +61,9 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       landingConfig,
       packages,
       botUsername: process.env.BOT_USERNAME || 'berkahkarya_saas_bot',
+      fbPixelId: process.env.FACEBOOK_PIXEL_ID || "",
+      ga4Id: process.env.GA4_TRACKING_ID || "",
+      ttPixelId: process.env.TIKTOK_PIXEL_ID || "",
     });
   });
 
