@@ -169,12 +169,14 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       for (let i = 0; i < Math.min(scenes.length, 7); i++) {
         const scene = scenes[i];
         await ctx.reply(`🎨 Generating scene ${i + 1}/7: *${HPAS_SCENES[scene.sceneId]?.nameId || scene.sceneId}*...`, { parse_mode: 'Markdown' });
+        const isLocalRef = photoUrl && !photoUrl.startsWith('http');
         const result = await ImageGenerationService.generateImage({
           prompt: scene.prompt,
           category: industry,
           aspectRatio: '9:16',
           style: 'commercial',
-          referenceImageUrl: photoUrl,
+          referenceImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
+          referenceImagePath: isLocalRef ? photoUrl : undefined,
           mode: photoUrl ? 'img2img' : 'text2img',
         });
         if (result.success && result.imageUrl) results.push(result.imageUrl);

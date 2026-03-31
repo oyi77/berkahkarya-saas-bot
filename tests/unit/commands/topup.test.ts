@@ -427,17 +427,19 @@ describe("Topup Command", () => {
       expect(editCall[0]).toContain("Midtrans");
     });
 
-    it("should create Duitku transaction", async () => {
-      DuitkuService.createTransaction.mockResolvedValue({
-        orderId: "ORDER-456",
-        redirectUrl: "https://duitku.example.com",
-      });
+    it("should show Duitku payment methods instead of immediate transaction", async () => {
+      DuitkuService.getPaymentMethods = jest.fn().mockResolvedValue([
+        { paymentMethod: 'BC', paymentName: 'BCA Virtual Account', paymentImage: '', totalFee: '0' },
+        { paymentMethod: 'OV', paymentName: 'OVO', paymentImage: '', totalFee: '0' },
+      ]);
 
       await handlePaymentGateway(ctx as any, "starter", "duitku");
 
-      expect(DuitkuService.createTransaction).toHaveBeenCalled();
+      // Should show payment method selection, not create transaction directly
+      expect(DuitkuService.createTransaction).not.toHaveBeenCalled();
+      expect(ctx.editMessageText).toHaveBeenCalled();
       const editCall = ctx.editMessageText.mock.calls[0];
-      expect(editCall[0]).toContain("Duitku");
+      expect(editCall[0]).toContain("Pilih Metode Pembayaran");
     });
 
     it("should show pay now and check payment buttons", async () => {

@@ -143,12 +143,9 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
     let gatewayDisplayName = 'Payment Gateway';
 
     if (gateway === 'duitku') {
-      gatewayDisplayName = 'Duitku';
-      transaction = await DuitkuService.createTransaction({
-        userId: BigInt(user.id),
-        packageId,
-        username: user.username || user.first_name,
-      });
+      // Show available payment methods first
+      await showDuitkuPaymentMethods(ctx, packageId);
+      return;
     } else if (gateway === 'tripay') {
       gatewayDisplayName = 'Tripay';
       const res = await TripayService.createTransaction({
@@ -197,6 +194,112 @@ export async function handlePaymentGateway(ctx: BotContext, packageId: string, g
   } catch (error: any) {
     logger.error('Error handling payment gateway:', error);
     await ctx.editMessageText(`❌ Failed to create payment: ${error.message}. Please try again.`);
+  }
+}
+
+/**
+ * Show Duitku available payment methods for the selected package
+ */
+export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: string): Promise<void> {
+  try {
+    const packages = await getPackagesAsync();
+    const pkg = packages.find(p => p.id === packageId);
+    if (!pkg) {
+      await ctx.editMessageText('❌ Paket tidak ditemukan.');
+      return;
+    }
+
+    const price = pkg.priceIdr || (pkg as any).price;
+    const methods = await DuitkuService.getPaymentMethods(price);
+
+    if (methods.length === 0) {
+      // Fallback: create with default payment method and let Duitku page handle selection
+      const user = ctx.from;
+      if (!user) return;
+      const transaction = await DuitkuService.createTransaction({
+        userId: BigInt(user.id),
+        packageId,
+        username: user.username || user.first_name,
+      });
+      const paymentUrl = transaction.paymentUrl || '';
+      await ctx.editMessageText(
+        `💳 *Pembayaran Duitku*\n\nOrder: \`${transaction.orderId}\`\n\nKlik tombol di bawah untuk memilih metode pembayaran.`,
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '💳 Bayar Sekarang', url: paymentUrl }],
+              [{ text: '✅ Sudah Bayar', callback_data: `check_payment_${transaction.orderId}` }],
+              [{ text: '◀️ Kembali', callback_data: 'topup' }],
+            ],
+          },
+        }
+      );
+      return;
+    }
+
+    // Group payment methods by category
+    const methodButtons = methods.map(m => [{
+      text: `${m.paymentName}${m.totalFee && Number(m.totalFee) > 0 ? ` (+Rp ${formatIdr(Number(m.totalFee))})` : ''}`,
+      callback_data: `duitku_method_${packageId}_${m.paymentMethod}`,
+    }]);
+    methodButtons.push([{ text: '◀️ Kembali', callback_data: 'topup' }]);
+
+    await ctx.editMessageText(
+      `🏦 *Pilih Metode Pembayaran*\n\n` +
+      `Paket: *${pkg.name}*\n` +
+      `Harga: Rp ${formatIdr(price)}\n` +
+      `Kredit: ${pkg.credits + (pkg.bonus || 0)}\n\n` +
+      `Pilih metode pembayaran:`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: methodButtons },
+      }
+    );
+  } catch (error: any) {
+    logger.error('Error showing Duitku payment methods:', error);
+    await ctx.editMessageText('❌ Gagal memuat metode pembayaran. Coba lagi.');
+  }
+}
+
+/**
+ * Handle Duitku payment method selection and create transaction
+ */
+export async function handleDuitkuMethodSelection(ctx: BotContext, packageId: string, paymentMethod: string): Promise<void> {
+  try {
+    const user = ctx.from;
+    if (!user) return;
+
+    await ctx.answerCbQuery('Membuat pembayaran...');
+
+    const transaction = await DuitkuService.createTransaction({
+      userId: BigInt(user.id),
+      packageId,
+      paymentMethod,
+      username: user.username || user.first_name,
+    });
+
+    const paymentUrl = transaction.paymentUrl || '';
+
+    await ctx.editMessageText(
+      `💳 *Pembayaran Siap!*\n\n` +
+      `Order: \`${transaction.orderId}\`\n` +
+      `Gateway: *Duitku*\n\n` +
+      `Klik tombol di bawah untuk menyelesaikan pembayaran.`,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '💳 Bayar Sekarang', url: paymentUrl }],
+            [{ text: '✅ Sudah Bayar', callback_data: `check_payment_${transaction.orderId}` }],
+            [{ text: '◀️ Kembali', callback_data: 'topup' }],
+          ],
+        },
+      }
+    );
+  } catch (error: any) {
+    logger.error('Error creating Duitku payment:', error);
+    await ctx.editMessageText(`❌ Gagal membuat pembayaran: ${error.message}. Coba lagi.`);
   }
 }
 

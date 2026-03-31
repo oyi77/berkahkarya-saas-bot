@@ -10,6 +10,7 @@ import {
   handleCryptoMenu,
   handleCryptoCoinSelect,
   handleCryptoPayment,
+  handleDuitkuMethodSelection,
 } from "@/commands/topup";
 import { CRYPTO_PACKAGES, CRYPTO_COINS } from "@/services/nowpayments.service";
 import {
@@ -79,6 +80,16 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
       const packageId = parts[0];
       const gateway = parts[1];
       await handlePaymentGateway(ctx, packageId, gateway);
+      return true;
+    }
+
+    // Duitku payment method selection: duitku_method_{packageId}_{paymentMethod}
+    if (data.startsWith("duitku_method_")) {
+      const rest = data.replace("duitku_method_", "");
+      const lastUnderscore = rest.lastIndexOf("_");
+      const packageId = rest.slice(0, lastUnderscore);
+      const paymentMethod = rest.slice(lastUnderscore + 1);
+      await handleDuitkuMethodSelection(ctx, packageId, paymentMethod);
       return true;
     }
 

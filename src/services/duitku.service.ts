@@ -24,10 +24,45 @@ export interface DuitkuCreateResponse {
   statusMessage: string;
 }
 
+export interface DuitkuPaymentMethod {
+  paymentMethod: string;
+  paymentName: string;
+  paymentImage: string;
+  totalFee: string;
+}
+
 export class DuitkuService {
+  /** Fetch available payment methods from Duitku API for a given amount */
+  static async getPaymentMethods(amount: number): Promise<DuitkuPaymentMethod[]> {
+    const datetime = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const signature = crypto.createHash('sha256')
+      .update(MERCHANT_CODE + amount + datetime + API_KEY)
+      .digest('hex');
+
+    try {
+      const response = await axios.post(
+        `${DUITKU_BASE_URL}/webapi/api/merchant/paymentmethod/getpaymentmethod`,
+        {
+          merchantcode: MERCHANT_CODE,
+          amount,
+          datetime,
+          signature,
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+
+      const methods: DuitkuPaymentMethod[] = response.data?.paymentFee || [];
+      return methods.filter(m => m.paymentMethod && m.paymentName);
+    } catch (error: any) {
+      logger.error('Duitku getPaymentMethods error:', error.response?.data || error.message);
+      return [];
+    }
+  }
+
   static async createTransaction(params: {
     userId: bigint;
     packageId: string;
+    paymentMethod?: string;
     username?: string;
     email?: string;
     phone?: string;
@@ -66,7 +101,7 @@ export class DuitkuService {
         {
           merchantCode: MERCHANT_CODE,
           paymentAmount: price,
-          paymentMethod: 'VC', // Generic CC/VA
+          paymentMethod: params.paymentMethod || 'VC',
           merchantOrderId: orderId,
           productDetails: `${pkg.name} Package - ${credits} Credits`,
           customerVaName: params.username || 'Customer',
