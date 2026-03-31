@@ -195,19 +195,16 @@ async function main() {
       viewExt: "ejs",
     });
 
-    // ── Security headers (skip for SSE/raw responses where headers already sent) ──
-    server.addHook('onSend', async (_request, reply) => {
-      if (!reply.raw.headersSent) {
-        reply.header('X-Content-Type-Options', 'nosniff');
-        reply.header('X-Frame-Options', 'DENY');
-        reply.header('X-XSS-Protection', '1; mode=block');
-      }
+    // ── Security headers (onRequest so they're set before any response) ──
+    server.addHook('onRequest', async (_request, reply) => {
+      reply.header('X-Content-Type-Options', 'nosniff');
+      reply.header('X-Frame-Options', 'DENY');
+      reply.header('X-XSS-Protection', '1; mode=block');
     });
 
-    // ── CORS ────────────────────────────────────────────────────────────────
+    // ── CORS (onRequest to avoid conflicts with SSE/raw responses) ──
     const corsOrigin = process.env.CORS_ORIGIN || process.env.WEBHOOK_URL || process.env.WEB_APP_URL || '';
-    server.addHook('onSend', async (request, reply) => {
-      if (reply.raw.headersSent) return;
+    server.addHook('onRequest', async (request, reply) => {
       const origin = request.headers.origin;
       if (origin && corsOrigin) {
         const allowedOrigins = corsOrigin.split(',').map((o: string) => o.trim());
