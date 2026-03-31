@@ -423,6 +423,24 @@ export async function showGenerateMode(ctx: BotContext): Promise<void> {
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
+    // Clear stale session from previous incomplete flows — UNLESS prompt was
+    // intentionally pre-filled from prompt library (stateData.selectedPrompt).
+    const fromLibrary = !!(ctx.session?.stateData as any)?.selectedPrompt;
+    if (!fromLibrary && ctx.session) {
+      delete ctx.session.generateMode;
+      delete ctx.session.generateAction;
+      delete ctx.session.generatePreset;
+      delete ctx.session.generatePlatform;
+      delete ctx.session.generatePhotoUrl;
+      delete ctx.session.generateScenes;
+      delete ctx.session.generateCampaignSize;
+      delete ctx.session.customPresetConfig;
+      // Only clear prompt if NOT from library
+      if (!ctx.session.generateProductDesc || !fromLibrary) {
+        delete ctx.session.generateProductDesc;
+      }
+    }
+
     const prefilledPrompt = ctx.session?.generateProductDesc;
     const text = prefilledPrompt 
       ? `🎬 *Generate Konten*\n\nPrompt: \`${prefilledPrompt.slice(0, 50)}${prefilledPrompt.length > 50 ? '...' : ''}\`\n\nPilih mode:`
@@ -780,6 +798,11 @@ export async function showPostDelivery(ctx: BotContext): Promise<void> {
       delete ctx.session.generateMode;
       delete ctx.session.generateCampaignSize;
       delete ctx.session.customPresetConfig;
+      // Clear prompt library selection marker
+      if (ctx.session.stateData && typeof ctx.session.stateData === 'object') {
+        delete (ctx.session.stateData as any).selectedPrompt;
+        delete (ctx.session.stateData as any).selectedPromptId;
+      }
     }
 
     const lang = ctx.session?.userLang || 'id';

@@ -203,8 +203,23 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // ── NEW REDESIGN HANDLERS (2026-03-24) ───────────────────────────────
     if (data === "main_menu") {
       await ctx.answerCbQuery();
-      // Always reset state so user isn't stuck in a previous flow
-      if (ctx.session) ctx.session.state = "DASHBOARD";
+      // Always reset state and clear generate session so user isn't stuck in a previous flow
+      if (ctx.session) {
+        ctx.session.state = "DASHBOARD";
+        delete ctx.session.generateProductDesc;
+        delete ctx.session.generatePhotoUrl;
+        delete ctx.session.generatePreset;
+        delete ctx.session.generatePlatform;
+        delete ctx.session.generateAction;
+        delete ctx.session.generateScenes;
+        delete ctx.session.generateMode;
+        delete ctx.session.generateCampaignSize;
+        delete ctx.session.customPresetConfig;
+        if (ctx.session.stateData && typeof ctx.session.stateData === 'object') {
+          delete (ctx.session.stateData as any).selectedPrompt;
+          delete (ctx.session.stateData as any).selectedPromptId;
+        }
+      }
       const user = ctx.from;
       if (!user) return;
       const dbUser = await UserService.findByTelegramId(BigInt(user.id));
