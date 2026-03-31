@@ -60,12 +60,12 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
 
     const lang = dbUser?.language || ctx.from?.language_code || 'id';
     const planKeys = Object.keys(SUBSCRIPTION_PLANS) as PlanKey[];
-    let plansText = `*${lang === 'id' ? 'Paket Tersedia' : 'Available Plans'}:*\n\n`;
+    let plansText = `*${t('sub.available_plans', lang)}:*\n\n`;
     for (const key of planKeys) {
       const plan = SUBSCRIPTION_PLANS[key];
       plansText +=
-        `*${plan.name}* — ${plan.monthlyCredits} ${lang === 'id' ? 'kredit/bln' : 'credits/mo'}\n` +
-        `${lang === 'id' ? 'Bulanan' : 'Monthly'}: ${formatPrice(plan.monthlyPriceIdr, lang)} | ${lang === 'id' ? 'Tahunan' : 'Annual'}: ${formatPrice(plan.annualPriceIdr, lang)} _(${lang === 'id' ? 'Hemat 2 bulan!' : 'Save 2 months!'})_\n` +
+        `*${plan.name}* — ${plan.monthlyCredits} ${t('sub.credits_per_month', lang)}\n` +
+        `${t('sub.monthly', lang)}: ${formatPrice(plan.monthlyPriceIdr, lang)} | ${t('sub.annual', lang)}: ${formatPrice(plan.annualPriceIdr, lang)} _(${t('sub.save_2_months', lang)})_\n` +
         plan.features.map(f => `  • ${f}`).join('\n') + '\n\n';
     }
 
@@ -91,7 +91,7 @@ export async function subscriptionCommand(ctx: BotContext): Promise<void> {
           ...(isActive
             ? [[{ text: '❌ Cancel Subscription', callback_data: 'cancel_subscription' }]]
             : []),
-          [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }],
+          [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
         ],
       },
     });
@@ -191,10 +191,7 @@ export async function handleCancelSubscription(ctx: BotContext): Promise<void> {
     let dbUser: any = null;
     try { if (ctx.from) dbUser = await UserService.findByTelegramId(BigInt(ctx.from.id)); } catch { /* ignore */ }
     const lang = dbUser?.language || ctx.from?.language_code || 'id';
-    const cancelMsg = lang === 'id' ? '✅ *Langganan Dibatalkan*\n\nLanggananmu akan berakhir di akhir periode billing.\nKredit tetap bisa digunakan sampai saat itu.\n\nGunakan /subscription untuk berlangganan lagi.'
-      : lang === 'ru' ? '✅ *Подписка отменена*\n\nВаша подписка завершится в конце текущего периода.\nКредиты сохранятся до этого момента.\n\nИспользуйте /subscription для повторной подписки.'
-      : lang === 'zh' ? '✅ *订阅已取消*\n\n您的订阅将在当前计费周期结束时终止。\n积分可以使用到那时。\n\n使用 /subscription 重新订阅。'
-      : '✅ *Subscription Cancelled*\n\nYour subscription will end at the current billing period.\nYou\'ll keep access and credits until then.\n\nUse /subscription to re-subscribe anytime.';
+    const cancelMsg = t('sub.cancelled', lang);
     try { await ctx.editMessageText(cancelMsg, { parse_mode: 'Markdown' }); } catch { try { await ctx.reply(cancelMsg, { parse_mode: 'Markdown' }); } catch { /* ignore */ } }
   } catch (error) {
     logger.error('Error cancelling subscription:', error);

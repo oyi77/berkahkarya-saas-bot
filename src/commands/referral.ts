@@ -27,12 +27,12 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
     const user = await UserService.findByTelegramId(telegramId);
 
     if (!user) {
-      await ctx.reply(
-        'You don\'t have an account yet. Please use /start to register first.'
-      );
+      const rLang = ctx.session?.userLang || ctx.from?.language_code || 'id';
+      await ctx.reply(t('referral.no_account', rLang));
       return;
     }
 
+    const lang = user.language || ctx.from?.language_code || 'id';
     const stats = await UserService.getStats(telegramId);
 
     const referralCode = user.referralCode || 'N/A';
@@ -42,28 +42,18 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
       return `Rp ${amount.toLocaleString('id-ID')}`;
     };
 
-    const msg =
-      `👥 Referral & Affiliate\n\n` +
-      `Ajak teman dan dapatkan komisi!\n\n` +
-      `Kode Referral: ${referralCode}\n\n` +
-      `Struktur Komisi:\n` +
-      `• Tier 1 (Langsung): 15%\n` +
-      `• Tier 2 (Tidak Langsung): 5%\n\n` +
-      `Stats Kamu:\n` +
-      `• Total Referral: ${stats.referralCount}\n` +
-      `• Total Komisi: ${formatRupiah(stats.commissionEarned)}\n\n` +
-      `Opsi Komisi:\n` +
-      `• Tukar ke kredit (untuk generate)\n` +
-      `• Transfer P2P ke user lain\n` +
-      `• Jual ke admin (50% harga kredit)\n\n` +
-      `Tap Share untuk mulai earn!`;
+    const msg = t('referral.main_msg', lang, {
+      code: referralCode,
+      referralCount: stats.referralCount,
+      commission: formatRupiah(stats.commissionEarned),
+    });
 
     const markup = {
       inline_keyboard: [
-        [{ text: '📤 Share Link Referral', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Buat video iklan AI keren! Pakai link referral saya:')}` }],
-        [{ text: '💸 Withdraw Komisi', callback_data: 'referral_withdraw' }],
-        [{ text: '📊 Lihat Stats', callback_data: 'referral_stats' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+        [{ text: t('referral.btn_share', lang), url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(t('referral.share_text', lang))}` }],
+        [{ text: t('referral.btn_withdraw', lang), callback_data: 'referral_withdraw' }],
+        [{ text: t('referral.btn_stats', lang), callback_data: 'referral_stats' }],
+        [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],
     };
 

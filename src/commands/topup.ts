@@ -105,7 +105,7 @@ export async function topupCommand(ctx: BotContext): Promise<void> {
     await ctx.reply(message, {
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [...upsellRow, ...packageButtons, ...starsRow, [{ text: '◀️ Menu Utama', callback_data: 'main_menu' }]],
+        inline_keyboard: [...upsellRow, ...packageButtons, ...starsRow, [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }]],
       },
     });
   } catch (error) {
@@ -272,11 +272,11 @@ export async function showDuitkuPaymentMethods(ctx: BotContext, packageId: strin
     methodButtons.push([{ text: t('btn.back', lang), callback_data: 'topup' }]);
 
     await ctx.editMessageText(
-      `🏦 *${lang === 'id' ? 'Pilih Metode Pembayaran' : lang === 'ru' ? 'Выберите способ оплаты' : lang === 'zh' ? '选择付款方式' : 'Select Payment Method'}*\n\n` +
-      `${lang === 'id' ? 'Paket' : 'Package'}: *${pkg.name}*\n` +
-      `${lang === 'id' ? 'Harga' : 'Price'}: ${formatPrice(price, lang)}\n` +
+      `${t('topup.select_payment_method', lang)}\n\n` +
+      `${t('topup.package_label', lang)}: *${pkg.name}*\n` +
+      `${t('topup.price_label', lang)}: ${formatPrice(price, lang)}\n` +
       `${t('profile.credits', lang)}: ${pkg.credits + (pkg.bonus || 0)}\n\n` +
-      `${lang === 'id' ? 'Pilih metode pembayaran:' : lang === 'ru' ? 'Выберите способ оплаты:' : lang === 'zh' ? '选择付款方式:' : 'Select payment method:'}`,
+      `${t('topup.select_method_prompt', lang)}`,
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: methodButtons },
@@ -415,19 +415,18 @@ export async function handleStarsMenu(ctx: BotContext): Promise<void> {
     const lang = await getLang(ctx);
 
     const buttons = STARS_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} ${lang === 'id' ? 'kredit' : 'credits'} — ${pkg.stars} ⭐`,
+      text: `${pkg.credits} ${t('topup.credits_word', lang)} — ${pkg.stars} ⭐`,
       callback_data: `topup_stars_${pkg.credits}`,
     }]);
 
-    buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
+    buttons.push([{ text: t('btn.back', lang), callback_data: 'topup' }]);
+
+    const starsList = STARS_PACKAGES.map(pkg =>
+      `• ${pkg.credits} ${t('topup.credits_word', lang)} = ${pkg.stars} Stars`
+    ).join('\n');
 
     await ctx.editMessageText(
-      `⭐ *Bayar dengan Telegram Stars*\n\n` +
-      `Pilih paket:\n\n` +
-      STARS_PACKAGES.map(pkg =>
-        `• ${pkg.credits} kredit = ${pkg.stars} Stars`
-      ).join('\n') +
-      `\n\n_Stars adalah mata uang Telegram. Bayar langsung dari saldo Stars kamu._`,
+      t('topup.stars_title', lang, { list: starsList }),
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: buttons },
@@ -455,12 +454,13 @@ export async function handleStarsInvoice(ctx: BotContext, credits: number): Prom
     const userId = ctx.from?.id;
     if (!userId) return;
 
+    const sLang = await getLang(ctx);
     await ctx.telegram.sendInvoice(ctx.chat!.id, {
       title: 'AI Video Credits',
-      description: `${pkg.credits} Video Generation Credit untuk @berkahkarya_saas_bot`,
+      description: t('topup.stars_invoice_desc', sLang, { credits: pkg.credits }),
       payload: `stars_${pkg.credits}_${userId}`,
       currency: 'XTR',
-      prices: [{ label: `${pkg.credits} Kredit`, amount: pkg.stars }],
+      prices: [{ label: t('topup.stars_invoice_label', sLang, { credits: pkg.credits }), amount: pkg.stars }],
       provider_token: '',
     });
   } catch (error) {
@@ -478,18 +478,17 @@ export async function handleCryptoMenu(ctx: BotContext): Promise<void> {
     const lang = await getLang(ctx);
 
     const buttons = CRYPTO_PACKAGES.map(pkg => [{
-      text: `${pkg.credits} ${lang === 'id' ? 'kredit' : 'credits'} — $${pkg.usd.toFixed(2)}`,
+      text: `${pkg.credits} ${t('topup.credits_word', lang)} — $${pkg.usd.toFixed(2)}`,
       callback_data: `topup_crypto_pkg_${pkg.credits}`,
     }]);
-    buttons.push([{ text: '◀️ Back', callback_data: 'topup' }]);
+    buttons.push([{ text: t('btn.back', lang), callback_data: 'topup' }]);
+
+    const cryptoList = CRYPTO_PACKAGES.map(pkg =>
+      `• ${pkg.credits} ${t('topup.credits_word', lang)} = $${pkg.usd.toFixed(2)} USD`
+    ).join('\n');
 
     await ctx.editMessageText(
-      `💎 *Pembayaran Crypto*\n\n` +
-      `Pilih jumlah:\n\n` +
-      CRYPTO_PACKAGES.map(pkg =>
-        `• ${pkg.credits} kredit = $${pkg.usd.toFixed(2)} USD`
-      ).join('\n') +
-      `\n\n_Didukung: USDT (BSC), BNB, MATIC, TON_`,
+      t('topup.crypto_title', lang, { list: cryptoList }),
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: buttons },
@@ -518,11 +517,11 @@ export async function handleCryptoCoinSelect(ctx: BotContext, credits: number): 
       text: `${coin.emoji} ${coin.label}`,
       callback_data: `topup_crypto_pay_${credits}_${coin.id}`,
     }]);
-    buttons.push([{ text: '◀️ Back', callback_data: 'topup_crypto_menu' }]);
+    const csLang = await getLang(ctx);
+    buttons.push([{ text: t('btn.back', csLang), callback_data: 'topup_crypto_menu' }]);
 
     await ctx.editMessageText(
-      `💎 *${credits} Kredit — $${pkg.usd.toFixed(2)} USD*\n\n` +
-      `Pilih cryptocurrency:`,
+      t('topup.crypto_coin_select', csLang, { credits, usd: pkg.usd.toFixed(2) }),
       {
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: buttons },
@@ -553,17 +552,16 @@ export async function handleCryptoPayment(ctx: BotContext, credits: number, coin
     const coinInfo = CRYPTO_COINS.find(c => c.id === coin);
     const coinLabel = coinInfo?.label || coin.toUpperCase();
 
+    const cpLang = await getLang(ctx);
     await ctx.editMessageText(
-      `💎 *Crypto Payment Created*\n\n` +
-      `Send exactly:\n` +
-      `\`${result.payAmount} ${result.payCurrency.toUpperCase()}\`\n\n` +
-      `To address:\n` +
-      `\`${result.payAddress}\`\n\n` +
-      `Network: *${coinLabel}*\n` +
-      `Kredit: *${credits}*\n` +
-      `Order: \`${result.orderId}\`\n\n` +
-      `⏱ Payment expires in ~15 minutes.\n\n` +
-      `_Credits will be added automatically once confirmed._`,
+      t('topup.crypto_created', cpLang, {
+        payAmount: result.payAmount,
+        payCurrency: result.payCurrency.toUpperCase(),
+        payAddress: result.payAddress,
+        coinLabel,
+        credits,
+        orderId: result.orderId,
+      }),
       {
         parse_mode: 'Markdown',
         reply_markup: {

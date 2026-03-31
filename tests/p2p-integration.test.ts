@@ -79,12 +79,12 @@ describe('P2P Integration Tests', () => {
             expect(ctx.answerCbQuery).toHaveBeenCalledWith(expect.stringContaining('transfer'));
             expect(P2pService.executeTransfer).toHaveBeenCalledWith(111n, 222n, 100);
             expect(ctx.editMessageText).toHaveBeenCalledWith(
-                expect.stringContaining('Transfer Successful'),
+                expect.stringContaining('Transfer'),
                 expect.any(Object)
             );
             expect(ctx.telegram.sendMessage).toHaveBeenCalledWith(
                 222,
-                expect.stringContaining('You received credits'),
+                expect.stringContaining('kredit'),
                 expect.any(Object)
             );
         });

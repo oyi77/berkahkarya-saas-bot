@@ -78,7 +78,7 @@ import { P2pService } from "@/services/p2p.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
 
 // ── Back button helpers ──────────────────────────────────────────────────────
-const BTN_BACK_MAIN = { text: "◀️ Menu Utama", callback_data: "main_menu" };
+const btnBackMain = (lang: string) => ({ text: t('btn.main_menu', lang), callback_data: "main_menu" });
 
 /**
  * Handle storyboard selection
@@ -90,16 +90,15 @@ async function handleStoryboardRequest(ctx: BotContext, niche: string) {
       duration: 30,
     });
 
-    let message = `📋 *Storyboard: ${niche.toUpperCase()}*\n\n`;
+    const lang = ctx.session?.userLang || 'id';
+    let message = t('cb.storyboard_title', lang, { niche: niche.toUpperCase() }) + '\n\n';
 
     storyboard.scenes.forEach((s) => {
-      message += `🎬 *Scene ${s.scene} (${s.duration}s)*\n`;
-      message += `Type: ${s.type}\n`;
-      message += `Desc: ${s.description}\n\n`;
+      message += t('cb.storyboard_scene', lang, { scene: s.scene, duration: s.duration, type: s.type, description: s.description }) + '\n\n';
     });
 
-    message += `📝 *Caption:*\n_${storyboard.caption}_\n\n`;
-    message += `💰 *Cost: 1.0 Credits*`;
+    message += t('cb.storyboard_caption', lang, { caption: storyboard.caption }) + '\n\n';
+    message += t('cb.storyboard_cost', lang);
 
     await ctx.editMessageText(message, {
       parse_mode: "Markdown",
@@ -107,13 +106,13 @@ async function handleStoryboardRequest(ctx: BotContext, niche: string) {
         inline_keyboard: [
           [
             {
-              text: "🚀 Create Video Now",
+              text: t('btn.create_video_now', lang),
               callback_data: `confirm_create_${niche}`,
             },
           ],
           [
             {
-              text: "◀️ Back to Selection",
+              text: t('btn.back_to_selection', lang),
               callback_data: "storyboard_create",
             },
           ],
@@ -167,8 +166,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
         if (result.success) {
           await ctx.editMessageText(
-            `✅ *Transfer Successful!*\n\n` +
-            `You have successfully sent *${amount}* credits to ID \`${recipientIdStr}\`.`,
+            t('cb.transfer_success', lang, { amount, recipientId: recipientIdStr }),
             { parse_mode: "Markdown" }
           );
 
@@ -176,9 +174,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           try {
             await ctx.telegram.sendMessage(
               Number(recipientIdStr),
-              `💸 *You received credits!*\n\n` +
-              `User \`${senderId}\` has sent you *${amount}* credits.\n` +
-              `Check your balance with /profile.`,
+              t('cb.transfer_received', lang, { senderId: senderId.toString(), amount }),
               { parse_mode: "Markdown" }
             );
           } catch (err) {
@@ -222,49 +218,48 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
       const user = ctx.from;
       if (!user) return;
+      const lang = ctx.session?.userLang || 'id';
       const dbUser = await UserService.findByTelegramId(BigInt(user.id));
       const credBal = dbUser ? Number(dbUser.creditBalance) : 0;
       const credEmoji = credBal === 0 ? "⚠️" : credBal < 3 ? "🟡" : "🟢";
 
       const rows: any[][] = [
-        [{ text: "📚 Pilih Prompt & Buat Video", callback_data: "back_prompts" }],
+        [{ text: t('btn.browse_prompts', lang), callback_data: "back_prompts" }],
         [
-          { text: "🔥 Trending", callback_data: "prompts_trending" },
-          { text: "🎁 Prompt Gratis", callback_data: "daily_open" },
+          { text: t('btn.trending', lang), callback_data: "prompts_trending" },
+          { text: t('btn.free_prompt', lang), callback_data: "daily_open" },
         ],
         [
-          { text: "🎬 Buat Video", callback_data: "create_video_new" },
-          { text: "🖼️ Buat Gambar", callback_data: "image_from_prompt" },
+          { text: t('btn.create_video', lang), callback_data: "create_video_new" },
+          { text: t('btn.create_image', lang), callback_data: "image_from_prompt" },
         ],
         [
-          { text: "🔄 Clone", callback_data: "clone_video" },
-          { text: "📋 Storyboard", callback_data: "storyboard_create" },
-          { text: "📈 Viral", callback_data: "viral_research" },
+          { text: t('btn.clone', lang), callback_data: "clone_video" },
+          { text: t('btn.storyboard', lang), callback_data: "storyboard_create" },
+          { text: t('btn.viral', lang), callback_data: "viral_research" },
         ],
         [
-          { text: "🔄 Repurpose Video", callback_data: "repurpose_video" },
-          { text: "🔍 Disassemble", callback_data: "disassemble" },
+          { text: t('btn.repurpose', lang), callback_data: "repurpose_video" },
+          { text: t('btn.disassemble', lang), callback_data: "disassemble" },
         ],
         [
-          { text: "💰 Top Up", callback_data: "topup" },
-          { text: "⭐ Langganan", callback_data: "open_subscription" },
+          { text: t('btn.topup', lang), callback_data: "topup" },
+          { text: t('btn.subscription', lang), callback_data: "open_subscription" },
         ],
         [
-          { text: "📁 Video Saya", callback_data: "videos_list" },
-          { text: "👥 Referral", callback_data: "open_referral" },
-          { text: "👤 Profil", callback_data: "open_profile" },
+          { text: t('btn.my_videos', lang), callback_data: "videos_list" },
+          { text: t('btn.referral', lang), callback_data: "open_referral" },
+          { text: t('btn.profile', lang), callback_data: "open_profile" },
         ],
       ];
 
       const webAppUrl = process.env.WEB_APP_URL;
       if (webAppUrl) {
-        rows.push([{ text: "🌐 Dashboard Web", web_app: { url: `${webAppUrl}/app` } }]);
+        rows.push([{ text: t('btn.web_dashboard', lang), web_app: { url: `${webAppUrl}/app` } }]);
       }
 
       await ctx.editMessageText(
-        `👋 *Halo, ${user.first_name}!*\n\n` +
-        `${credEmoji} Kredit: *${credBal}*\n\n` +
-        `Mau buat apa hari ini? 👇`,
+        t('cb.main_menu_greeting', lang, { name: user.first_name, credEmoji, credits: credBal }),
         {
           parse_mode: "Markdown",
           reply_markup: { inline_keyboard: rows },
@@ -275,29 +270,27 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "credits_menu") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       const user = ctx.from;
       if (!user) return;
       const dbUser = await UserService.findByTelegramId(BigInt(user.id));
       const credBal = dbUser ? Number(dbUser.creditBalance) : 0;
       const tier = dbUser?.tier || "free";
       await ctx.editMessageText(
-        `💳 *Kredit & Paket*\n\n` +
-        `Saldo kredit: *${credBal}*\n` +
-        `Tier: *${tier}*\n\n` +
-        `Pilih aksi:`,
+        t('cb.credits_menu_title', lang, { credits: credBal, tier }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "💰 Beli Kredit", callback_data: "topup" }],
+              [{ text: t('btn.buy_credits', lang), callback_data: "topup" }],
               [
                 {
-                  text: "⭐ Upgrade Langganan",
+                  text: t('btn.upgrade_subscription', lang),
                   callback_data: "open_subscription",
                 },
               ],
-              [{ text: "🎁 Kode Referral", callback_data: "open_referral" }],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('btn.referral_code', lang), callback_data: "open_referral" }],
+              [btnBackMain(lang)],
             ],
           },
         },
@@ -307,33 +300,34 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "account_menu") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `👤 *Akun*\n\n` + `Kelola preferensi dan pengaturan kamu:`,
+        t('cb.account_title', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "⭐ Workflow Favorit",
+                  text: t('btn.fav_workflows', lang),
                   callback_data: "account_favorites",
                 },
               ],
               [
                 {
-                  text: "⚙️ Preferensi Workflow",
+                  text: t('btn.workflow_prefs', lang),
                   callback_data: "account_preferences",
                 },
               ],
-              [{ text: "🎁 Kode Referral", callback_data: "open_referral" }],
+              [{ text: t('btn.referral_code', lang), callback_data: "open_referral" }],
               [
                 {
-                  text: "🌐 Bahasa & Notifikasi",
+                  text: t('btn.lang_notif', lang),
                   callback_data: "account_settings",
                 },
               ],
-              [{ text: "❓ Bantuan & FAQ", callback_data: "open_help" }],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('btn.help_faq', lang), callback_data: "open_help" }],
+              [btnBackMain(lang)],
             ],
           },
         },
@@ -353,29 +347,24 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       return;
     }
     if (data === "account_settings") {
-      await ctx.answerCbQuery(
-        "🚧 Pengaturan Bahasa & Notifikasi segera hadir!",
-      );
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('cb.lang_notif_coming_soon', lang));
       return;
     }
 
     // Chat AI — activate conversational mode
     if (data === "chat_ai") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       if (ctx.session) ctx.session.state = "DASHBOARD";
       await ctx.editMessageText(
-        `💬 *AI Assistant aktif!*\n\n` +
-        `Langsung ketik pertanyaan kamu sekarang.\n\n` +
-        `*Contoh:*\n` +
-        `• "Bikinin prompt untuk bakso saya"\n` +
-        `• "Tips video TikTok F&B yang viral"\n\n` +
-        `Atau ketik /prompts untuk template siap pakai`,
+        t('cb.chat_ai_active', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "📚 Prompt Library", callback_data: "prompts_menu" }],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('btn.prompt_library', lang), callback_data: "prompts_menu" }],
+              [btnBackMain(lang)],
             ],
           },
         },
@@ -417,26 +406,26 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Rate result (placeholder)
     if (data === "generate_rate") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `⭐ *Rate Hasil Konten*\n\n` +
-        `Seberapa puas dengan hasil generate?`,
+        t('cb.rate_title', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "⭐⭐⭐⭐⭐ Sempurna!", callback_data: "rate_5" },
+                { text: t('cb.rate_5', lang), callback_data: "rate_5" },
               ],
               [
-                { text: "⭐⭐⭐⭐ Bagus", callback_data: "rate_4" },
+                { text: t('cb.rate_4', lang), callback_data: "rate_4" },
               ],
               [
-                { text: "⭐⭐⭐ Cukup", callback_data: "rate_3" },
+                { text: t('cb.rate_3', lang), callback_data: "rate_3" },
               ],
               [
-                { text: "⭐⭐ Kurang", callback_data: "rate_2" },
+                { text: t('cb.rate_2', lang), callback_data: "rate_2" },
               ],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [btnBackMain(lang)],
             ],
           },
         },
@@ -445,18 +434,18 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data.startsWith("rate_")) {
+      const lang = ctx.session?.userLang || 'id';
       const score = parseInt(data.replace("rate_", ""));
-      await ctx.answerCbQuery(`Terima kasih! Rating: ${"⭐".repeat(score)}`);
+      const stars = "⭐".repeat(score);
+      await ctx.answerCbQuery(t('cb.rate_thanks', lang, { stars }));
       await ctx.editMessageText(
-        `✅ *Terima kasih atas feedbacknya!*\n\n` +
-        `Rating: ${"⭐".repeat(score)}\n\n` +
-        `Feedback kamu membantu kami meningkatkan kualitas AI.`,
+        t('cb.rate_thanks_msg', lang, { stars }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🔄 Generate Lagi", callback_data: "generate_start" }],
-              [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('btn.generate_again', lang), callback_data: "generate_start" }],
+              [{ text: t('btn.home_menu', lang), callback_data: "main_menu" }],
             ],
           },
         },
@@ -467,20 +456,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Support: tutorial and bug report
     if (data === "view_tutorial") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `📖 *Tutorial Singkat*\n\n` +
-        `1. Ketik /create untuk membuat video\n` +
-        `2. Pilih mode (Basic/Smart/Pro)\n` +
-        `3. Upload foto produk atau ketik deskripsi\n` +
-        `4. Pilih platform & durasi\n` +
-        `5. Konfirmasi — video masuk antrian\n\n` +
-        `Untuk gambar: ketik /image\n` +
-        `Untuk top up kredit: ketik /topup`,
+        t('cb.tutorial', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+              [{ text: t('btn.back', lang), callback_data: "main_menu" }],
             ],
           },
         },
@@ -490,19 +473,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "report_bug") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `🐛 *Report Bug*\n\n` +
-        `Temukan bug? Silakan hubungi tim kami:\n\n` +
-        `💬 @codergaboets\n\n` +
-        `Sertakan:\n` +
-        `• Deskripsi masalah\n` +
-        `• Langkah-langkah yang dilakukan\n` +
-        `• Screenshot (jika ada)`,
+        t('cb.report_bug', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+              [{ text: t('btn.back', lang), callback_data: "main_menu" }],
             ],
           },
         },
@@ -513,17 +491,18 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Image generation menu
     if (data === "img_gen_menu") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `🖼️ *Image Generation*\n\nPilih workflow:`,
+        t('cb.img_gen_menu', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
-              [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
-              [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
-              [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('cb.img_product', lang), callback_data: "img_product" }],
+              [{ text: t('cb.img_fnb', lang), callback_data: "img_fnb" }],
+              [{ text: t('cb.img_realestate', lang), callback_data: "img_realestate" }],
+              [{ text: t('cb.img_car', lang), callback_data: "img_car" }],
+              [btnBackMain(lang)],
             ],
           },
         },
@@ -564,17 +543,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       // Custom duration: ask user to type duration
       if (preset === "custom") {
         await ctx.answerCbQuery?.();
+        const lang = ctx.session?.userLang || 'id';
         if (ctx.session) {
           ctx.session.state = "CUSTOM_DURATION_INPUT_V3";
         }
         await ctx.editMessageText(
-          `⏱️ *Custom Duration*\n\n` +
-          `Ketik durasi video dalam detik:\n\n` +
-          `Contoh:\n` +
-          `\`90\` = 1 menit 30 detik\n` +
-          `\`300\` = 5 menit\n` +
-          `\`3600\` = 1 jam\n\n` +
-          `Min: 6 detik | Max: 3600 detik (1 jam)`,
+          t('cb.custom_duration_v3', lang),
           { parse_mode: "Markdown" },
         );
         return;
@@ -615,9 +589,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Image preference flow (prompt library → image choice)
     if (data === "image_pref_upload") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       if (ctx.session) ctx.session.state = 'AWAITING_GENERATE_IMAGE';
       await ctx.editMessageText(
-        '📸 *Kirim Foto Referensi*\n\nKirim foto yang ingin dijadikan referensi gaya video.\n\nAtau ketik /skip untuk lanjut tanpa foto.',
+        t('cb.send_reference_photo', lang),
         { parse_mode: 'Markdown' },
       );
       return;
@@ -690,15 +665,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "prompt_source_custom") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       if (ctx.session) ctx.session.state = 'AWAITING_PRODUCT_INPUT';
       const action = ctx.session?.generateAction || 'video';
-      const actionLabels: Record<string, string> = {
-        image_set: '7 gambar (1 per scene HPAS)',
-        video: 'video iklan HPAS',
-        campaign: '5 atau 10 video batch',
+      const actionLabelKeys: Record<string, string> = {
+        image_set: 'cb.action_label_image_set',
+        video: 'cb.action_label_video',
+        campaign: 'cb.action_label_campaign',
       };
+      const output = actionLabelKeys[action] ? t(actionLabelKeys[action], lang) : action;
       await ctx.editMessageText(
-        `✍️ *Tulis Prompt Sendiri*\n\nKirim foto produk atau ketik deskripsi produk.\n\nOutput: ${actionLabels[action] || action}`,
+        t('cb.write_custom_prompt', lang, { output }),
         { parse_mode: 'Markdown' },
       );
       return;
@@ -732,24 +709,16 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // ── ONBOARDING HANDLERS ───────────────────────────────────────────────
     if (data === "onboard_start") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `💡 *APA ITU KREDIT?*\n\n` +
-        `Kredit adalah mata uang digital di BerkahKarya.\n\n` +
-        `*1 kredit bisa digunakan untuk:*\n` +
-        `• 5 gambar AI berkualitas\n` +
-        `• 1 video pendek (5 detik)\n` +
-        `• Video lebih panjang = lebih banyak kredit\n\n` +
-        `*CONTOH:*\n` +
-        `• 20 kredit = 100 gambar atau 20 video 5 detik\n` +
-        `• 50 kredit = 250 gambar atau 50 video 5 detik\n\n` +
-        `Siap klaim FREE TRIAL? 🎁`,
+        t('cb.onboard_credits_info', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "🎁 Klaim FREE TRIAL!",
+                  text: t('btn.claim_trial', lang),
                   callback_data: "onboard_claim_trial",
                 },
               ],
@@ -762,12 +731,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "onboard_claim_trial") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `🎉 *SELAMAT! Anda mendapat FREE TRIAL!*\n\n` +
-        `*Bonus yang Anda dapatkan:*\n` +
-        `• ✅ 1x Image Generation GRATIS (sekali pakai)\n` +
-        `• ✅ 1x Mystery Prompt harian (inspirasi prompt terbaik!)\n\n` +
-        `Pilih niche bisnis Anda untuk mulai:`,
+        t('cb.onboard_trial_claimed', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -852,36 +818,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         entertainment: "🎬 Entertainment",
       };
 
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `✅ *Akun berhasil dibuat!*\n\n` +
-        `Niche Anda: ${nicheLabels[niche] || niche}\n\n` +
-        `📋 *CARA KERJA BOT:*\n\n` +
-        `1️⃣ Pilih template dari library\n` +
-        `2️⃣ Generate image/video\n` +
-        `3️⃣ Tunggu hasil (30 detik - 2 menit)\n` +
-        `4️⃣ Download dan gunakan!\n\n` +
-        `*FREE TRIAL ANDA:*\n` +
-        `• ✅ 1x Image Generation (Welcome Bonus)\n` +
-        `• ✅ 1x Mystery Prompt harian (contoh prompt terbaik!)\n` +
-        `• 🎨 Harus pilih dari Prompt Library\n` +
-        `• 🆓 AI Generation GRATIS\n\n` +
-        `*FITUR PREMIUM (Bayar):*\n` +
-        `• ✍️ Custom prompt sendiri\n` +
-        `• 🎬 Video generation\n` +
-        `• 📸 Upload foto produk\n` +
-        `• 🚀 Priority queue\n\n` +
-        `Siap mulai? 🚀`,
+        t('cb.onboard_account_created', lang, { niche: nicheLabels[niche] || niche }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "🎨 Gunakan Welcome Bonus!",
+                  text: t('btn.use_welcome_bonus', lang),
                   callback_data: "use_welcome_bonus",
                 },
               ],
-              [{ text: "💰 Beli Kredit", callback_data: "topup" }],
+              [{ text: t('btn.buy_credits', lang), callback_data: "topup" }],
             ],
           },
         },
@@ -905,21 +855,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       // Check if welcome bonus already used
       if (dbUser.welcomeBonusUsed) {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `⚠️ *Welcome Bonus sudah digunakan!*\n\n` +
-          `Gunakan Daily Free Anda atau beli kredit.`,
+          t('cb.welcome_bonus_used', lang),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "🎁 Gunakan Daily Free",
+                    text: t('btn.use_daily_free', lang),
                     callback_data: "use_daily_free",
                   },
                 ],
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('btn.buy_credits', lang), callback_data: "topup" }],
+                [{ text: t('btn.home_menu', lang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -928,21 +878,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
 
       // Redirect to prompt library for selected niche
+      const lang2 = ctx.session?.userLang || 'id';
       const niche = dbUser.selectedNiche || "fnb";
       await ctx.editMessageText(
-        `🎨 *Welcome Bonus: 1x Image Generation*\n\n` +
-        `Pilih prompt dari library ${niche.toUpperCase()}:`,
+        t('cb.welcome_bonus_prompt', lang2, { niche: niche.toUpperCase() }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "📚 Lihat Prompt Library",
+                  text: t('btn.view_prompt_library', lang2),
                   callback_data: `prompts_niche_${niche}`,
                 },
               ],
-              [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+              [{ text: t('btn.back', lang2), callback_data: "main_menu" }],
             ],
           },
         },
@@ -974,23 +924,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           (resetAt.getTime() - Date.now()) / (1000 * 60 * 60),
         );
 
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `⏰ *Daily Free belum reset!*\n\n` +
-          `Reset dalam: ${hoursLeft} jam\n` +
-          `Reset time: 00:00 WIB setiap hari\n\n` +
-          `Gunakan Welcome Bonus atau beli kredit.`,
+          t('cb.daily_free_not_reset', lang, { hours: hoursLeft }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "🎁 Gunakan Welcome Bonus",
+                    text: t('btn.use_welcome', lang),
                     callback_data: "use_welcome_bonus",
                   },
                 ],
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('btn.buy_credits', lang), callback_data: "topup" }],
+                [{ text: t('btn.home_menu', lang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -999,21 +947,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
 
       // Redirect to prompt library
+      const lang = ctx.session?.userLang || 'id';
       const niche = dbUser.selectedNiche || "fnb";
       await ctx.editMessageText(
-        `🎁 *Daily Free: 1x Image Generation*\n\n` +
-        `Pilih prompt dari library ${niche.toUpperCase()}:`,
+        t('cb.daily_free_prompt', lang, { niche: niche.toUpperCase() }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "📚 Lihat Prompt Library",
+                  text: t('btn.view_prompt_library', lang),
                   callback_data: `prompts_niche_${niche}`,
                 },
               ],
-              [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+              [{ text: t('btn.back', lang), callback_data: "main_menu" }],
             ],
           },
         },
@@ -1059,10 +1007,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         });
       langButtons.push(navRow);
 
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `\ud83c\udf10 *Selamat datang di Vilona Asisten OpenClaw!*\n\n` +
-        `Please select your preferred language.\n` +
-        `This will be used for the bot interface, voice over, subtitles, and captions.`,
+        t('cb.onboard_lang_welcome', lang),
         {
           parse_mode: "Markdown",
           reply_markup: { inline_keyboard: langButtons },
@@ -1117,11 +1064,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
-            [{ text: "🖼 Buat Gambar", callback_data: "create_image_new" }],
-            [{ text: "💳 Kredit & Paket", callback_data: "credits_menu" }],
-            [{ text: "🎞 Video Saya", callback_data: "videos_list" }],
-            [{ text: "👤 Akun", callback_data: "account_menu" }],
+            [{ text: t('btn.create_video', lang), callback_data: "create_video_new" }],
+            [{ text: t('btn.create_image', lang), callback_data: "create_image_new" }],
+            [{ text: t('btn.credits_packages', lang), callback_data: "credits_menu" }],
+            [{ text: t('btn.my_videos_emoji', lang), callback_data: "videos_list" }],
+            [{ text: t('btn.account', lang), callback_data: "account_menu" }],
           ],
         },
       });
@@ -1230,7 +1177,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.reply(t("feedback.thanks_bad", feedbackLang), {
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🔄 Coba Lagi", callback_data: "back_prompts" }],
+            [{ text: t('btn.try_again', feedbackLang), callback_data: "back_prompts" }],
           ],
         },
       });
@@ -1272,14 +1219,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Upload reference from VO continue screen
     if (data === "create_upload_reference") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       if (ctx.session?.videoCreation)
         ctx.session.videoCreation.waitingForImage = true;
       ctx.session!.state = "CREATE_VIDEO_UPLOAD";
       await ctx.editMessageText(
-        "📸 *Upload Foto Referensi*\n\n" +
-        "Kirim foto produk kamu sekarang.\n" +
-        "AI akan animasikan foto tersebut menjadi video!\n\n" +
-        "_Atau ketik /skip untuk generate tanpa foto._",
+        t('cb.upload_reference', lang),
         { parse_mode: "Markdown" },
       );
       return;
@@ -1290,17 +1235,15 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Brief skip
     if (data === "brief_skip") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "⏭️ Brief skipped\n\n" +
-        "✅ Confirm video creation:\n\n" +
-        "Estimated credits: 1.0\n\n" +
-        "Proceed?",
+        t('cb.brief_skip', lang),
         {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "✅ Yes, Create!", callback_data: "confirm_create" },
-                { text: "❌ Cancel", callback_data: "cancel_create" },
+                { text: t('btn.yes_create', lang), callback_data: "confirm_create" },
+                { text: t('btn.cancel', lang), callback_data: "cancel_create" },
               ],
             ],
           },
@@ -1317,8 +1260,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data === "cancel_create") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "❌ Video creation cancelled.\n\n" + "Use /create to start again.",
+        t('cb.creation_cancelled', lang),
       );
       ctx.session.state = "DASHBOARD";
       return;
@@ -1326,17 +1270,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Payment method handlers (placeholder - will use Midtrans)
     if (data.startsWith("payment_")) {
+      const lang = ctx.session?.userLang || 'id';
       const [, method, packageId] = data.split("_");
 
       await ctx.editMessageText(
-        `💳 Processing ${method} payment...\n\n` +
-        "In sandbox mode - this would redirect to Midtrans payment page.",
+        t('cb.payment_processing', lang, { method }),
         {
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "✅ Simulate Success",
+                  text: t('btn.simulate_success', lang),
                   callback_data: `simulate_success_${packageId}`,
                 },
               ],
@@ -1357,10 +1301,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         enterprise: 260,
       };
 
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `✅ Payment Successful! (Simulated)\n\n` +
-        `Credits added: ${credits[packageId] || 0}\n\n` +
-        "Thank you for your purchase! 🎉",
+        t('cb.payment_success_sim', lang, { credits: credits[packageId] || 0 }),
       );
       return;
     }
@@ -1380,14 +1323,15 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const nicheKey = data.replace("prompts_", "");
       if (nicheKey === "trending") {
         // Build trending inline (edit in place)
+        const lang = ctx.session?.userLang || 'id';
         const TP = TRENDING_PROMPTS;
         const PL = PROMPT_LIBRARY;
-        let msg = `🔥 *TRENDING PROMPTS THIS WEEK*\n_Diupdate berdasarkan penggunaan real user!_\n\n`;
+        let msg = t('cb.trending_header', lang) + '\n\n';
         const buttons: any[][] = [];
-        TP.forEach((t: any, i: number) => {
-          const niche = PL[t.niche];
-          const p = niche.prompts.find((x: any) => x.id === t.promptId)!;
-          msg += `*#${i + 1}* ${niche.emoji} ${p.title} — ⭐${p.successRate}% | 📈+${t.usageChange}%\n\n`;
+        TP.forEach((tp: any, i: number) => {
+          const niche = PL[tp.niche];
+          const p = niche.prompts.find((x: any) => x.id === tp.promptId)!;
+          msg += `*#${i + 1}* ${niche.emoji} ${p.title} — ⭐${p.successRate}% | 📈+${tp.usageChange}%\n\n`;
           buttons.push([
             {
               text: `#${i + 1} ${p.title}`,
@@ -1396,7 +1340,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           ]);
         });
         buttons.push([
-          { text: "◀️ Kembali ke Niche", callback_data: "back_prompts" },
+          { text: t('btn.back_to_niche', lang), callback_data: "back_prompts" },
         ]);
         try {
           await ctx.editMessageText(msg, {
@@ -1407,20 +1351,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           await promptsTrendingCommand(ctx);
         }
       } else if (nicheKey === "custom") {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          "✨ *Custom Prompt Generator*\n\n" +
-          "Ceritakan kebutuhan kamu:\n\n" +
-          "1️⃣ Produk/jasa apa?\n" +
-          "2️⃣ Target audience?\n" +
-          "3️⃣ Mood video: energetic/calm/luxury?\n" +
-          "4️⃣ Platform utama: TikTok/IG/YouTube?\n" +
-          "5️⃣ Durasi: 5-60 detik?\n\n" +
-          "Jawab semuanya dalam satu pesan, saya akan generate prompt optimal! 🎯",
+          t('cb.custom_prompt_gen', lang),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "◀️ Kembali", callback_data: "back_prompts" }],
+                [{ text: t('btn.back', lang), callback_data: "back_prompts" }],
               ],
             },
           },
@@ -1466,19 +1404,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           ...(ctx.session.stateData || {}),
           selectedPrompt: newPrompt,
         };
+      const lang = ctx.session?.userLang || 'id';
+      const typeLabel = type === "style" ? "Style" : "Lighting";
       await ctx.editMessageText(
-        `✅ *Prompt Updated!*\n\n\`${newPrompt.slice(0, 300)}\`\n\n_${type === "style" ? "Style" : "Lighting"}: *${value}* applied_\n\nMau buat video atau gambar dengan prompt ini?`,
+        t('cb.prompt_updated', lang, { prompt: newPrompt.slice(0, 300), typeLabel, value }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "🎬 Buat Video", callback_data: "create_video_new" },
-                { text: "🖼️ Buat Gambar", callback_data: "image_from_prompt" },
+                { text: t('btn.create_video', lang), callback_data: "create_video_new" },
+                { text: t('btn.create_image', lang), callback_data: "image_from_prompt" },
               ],
               [
                 {
-                  text: "🔧 Customize Lagi",
+                  text: t('btn.customize_again', lang),
                   callback_data: `customize_prompt_${promptId}`,
                 },
               ],
@@ -1545,13 +1485,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "back_prompts") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       try {
         await ctx.editMessageText(
-          "📚 *Prompt Library — 40+ Template Siap Pakai*\n\n" +
-          "👇 *Pilih niche bisnis kamu:*\n\n" +
-          "🍔 F&B · 👗 Fashion · 📱 Tech · 💪 Health\n" +
-          "✈️ Travel · 📚 Education · 💰 Finance · 🎭 Entertainment\n\n" +
-          "_Setiap niche punya 5 prompt profesional yang sudah ditest ribuan user. Tinggal pilih → buat video!_",
+          t('cb.prompt_library_title', lang),
           {
             parse_mode: "Markdown",
             reply_markup: {
@@ -1576,8 +1513,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   },
                 ],
                 [
-                  { text: "🔥 Trending", callback_data: "prompts_trending" },
-                  { text: "✨ Custom AI", callback_data: "prompts_custom" },
+                  { text: t('btn.trending', lang), callback_data: "prompts_trending" },
+                  { text: t('btn.custom_ai', lang), callback_data: "prompts_custom" },
                 ],
               ],
             },
@@ -1610,19 +1547,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const niche = PROMPT_LIBRARY[mystery.niche];
       const p = niche?.prompts.find((x) => x.id === mystery.promptId);
       if (p) {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `🎁 *Another Mystery Prompt!*\n\n${niche.emoji} *${p.title}*\n\`${p.prompt}\`\n\n⭐ ${p.successRate}% success rate`,
+          t('cb.another_mystery', lang, { emoji: niche.emoji, title: p.title, prompt: p.prompt, rate: p.successRate }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "🚀 Pakai Sekarang",
+                    text: t('btn.use_now', lang),
                     callback_data: `use_prompt_${p.id}`,
                   },
                 ],
-                [{ text: "📚 Browse Semua", callback_data: "back_prompts" }],
+                [{ text: t('btn.browse_all', lang), callback_data: "back_prompts" }],
               ],
             },
           },
@@ -1681,25 +1619,24 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data === "image_generate") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "🖼️ *Generate Gambar AI*\n\n" +
-        "💡 _AI buat foto marketing profesional dari deskripsi atau foto referensi kamu_\n\n" +
-        "Pilih kategori konten kamu:",
+        t('cb.image_generate_title', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🛍️ Foto Produk", callback_data: "img_product" }],
-              [{ text: "🍔 Makanan & Minuman", callback_data: "img_fnb" }],
+              [{ text: t('btn.product_photo', lang), callback_data: "img_product" }],
+              [{ text: t('btn.fnb_food', lang), callback_data: "img_fnb" }],
               [
                 {
-                  text: "🏠 Properti / Real Estate",
+                  text: t('btn.real_estate', lang),
                   callback_data: "img_realestate",
                 },
               ],
-              [{ text: "🚗 Kendaraan / Otomotif", callback_data: "img_car" }],
-              [{ text: "👤 Kelola Avatar", callback_data: "avatar_manage" }],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('btn.automotive', lang), callback_data: "img_car" }],
+              [{ text: t('btn.manage_avatar', lang), callback_data: "avatar_manage" }],
+              [btnBackMain(lang)],
             ],
           },
         },
@@ -1716,14 +1653,13 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // ── Avatar management ──
     if (data === "avatar_manage") {
+      const lang = ctx.session?.userLang || 'id';
       const telegramId = BigInt(ctx.from!.id);
       const avatars = await AvatarService.listAvatars(telegramId);
 
-      let message = "👤 *Your Avatars*\n\n";
+      let message = t('cb.avatar_title', lang) + '\n\n';
       if (avatars.length === 0) {
-        message += "_No avatars saved yet._\n\n";
-        message +=
-          "Save an avatar to maintain consistent characters across your images and videos.";
+        message += t('cb.avatar_empty', lang);
       } else {
         avatars.forEach((a, i) => {
           message += `${i + 1}. ${a.isDefault ? "⭐ " : ""}*${a.name}*\n`;
@@ -1744,8 +1680,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             ...avatarButtons,
-            [{ text: "➕ Add New Avatar", callback_data: "avatar_add" }],
-            [{ text: "◀️ Back", callback_data: "image_generate" }],
+            [{ text: t('btn.add_avatar', lang), callback_data: "avatar_add" }],
+            [{ text: t('btn.back', lang), callback_data: "image_generate" }],
           ],
         },
       });
@@ -1753,13 +1689,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data === "avatar_add") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "👤 *Add New Avatar*\n\n" +
-        "Send me a clear photo of the character/person you want to use consistently.\n\n" +
-        "📸 _Tips:_\n" +
-        "• Use a clear, front-facing photo\n" +
-        "• Good lighting helps AI understand features\n" +
-        "• One person per avatar works best",
+        t('cb.avatar_add', lang),
         { parse_mode: "Markdown" },
       );
       ctx.session.state = "AVATAR_UPLOAD_WAITING";
@@ -1776,11 +1708,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         return;
       }
 
+      const lang = ctx.session?.userLang || 'id';
+      const defaultLabel = avatar.isDefault ? t('cb.avatar_is_default', lang) + '\n' : '';
+      const descStr = avatar.description ? `_${avatar.description.slice(0, 300)}_\n\n` : '';
       await ctx.editMessageText(
-        `👤 *Avatar: ${avatar.name}*\n` +
-        `${avatar.isDefault ? "⭐ Default avatar\n" : ""}\n` +
-        `${avatar.description ? `_${avatar.description.slice(0, 300)}_\n\n` : ""}` +
-        `What would you like to do?`,
+        t('cb.avatar_view', lang, { name: avatar.name, defaultLabel, description: descStr }),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -1790,18 +1722,18 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                 : [
                   [
                     {
-                      text: "⭐ Set as Default",
+                      text: t('btn.set_default', lang),
                       callback_data: `avatar_default_${avatar.id}`,
                     },
                   ],
                 ]),
               [
                 {
-                  text: "🗑️ Delete",
+                  text: t('btn.delete', lang),
                   callback_data: `avatar_delete_${avatar.id}`,
                 },
               ],
-              [{ text: "◀️ Back", callback_data: "avatar_manage" }],
+              [{ text: t('btn.back', lang), callback_data: "avatar_manage" }],
             ],
           },
         },
@@ -1817,7 +1749,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await ctx.answerCbQuery(t('misc.avatar_set_default', lang));
       // Re-show manage screen
       const avatars = await AvatarService.listAvatars(telegramId);
-      let message = "👤 *Your Avatars*\n\n";
+      let message = t('cb.avatar_title', lang) + '\n\n';
       avatars.forEach((a, i) => {
         message += `${i + 1}. ${a.isDefault ? "⭐ " : ""}*${a.name}*\n`;
       });
@@ -1832,8 +1764,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             ...avatarButtons,
-            [{ text: "➕ Add New Avatar", callback_data: "avatar_add" }],
-            [{ text: "◀️ Back", callback_data: "image_generate" }],
+            [{ text: t('btn.add_avatar', lang), callback_data: "avatar_add" }],
+            [{ text: t('btn.back', lang), callback_data: "image_generate" }],
           ],
         },
       });
@@ -1843,15 +1775,16 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     if (data.startsWith("avatar_delete_")) {
       const avatarId = parseInt(data.replace("avatar_delete_", ""), 10);
       const telegramId = BigInt(ctx.from!.id);
+      const lang = ctx.session?.userLang || 'id';
       const deleted = await AvatarService.deleteAvatar(telegramId, avatarId);
       await ctx.answerCbQuery(
-        deleted ? "🗑️ Avatar deleted" : "❌ Avatar not found",
+        deleted ? t('cb.avatar_deleted', lang) : t('cb.avatar_not_found_del', lang),
       );
       // Return to manage
       const avatars = await AvatarService.listAvatars(telegramId);
-      let message = "👤 *Your Avatars*\n\n";
+      let message = t('cb.avatar_title', lang) + '\n\n';
       if (avatars.length === 0) {
-        message += "_No avatars saved yet._";
+        message += t('cb.avatar_empty', lang);
       } else {
         avatars.forEach((a, i) => {
           message += `${i + 1}. ${a.isDefault ? "⭐ " : ""}*${a.name}*\n`;
@@ -1868,8 +1801,8 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             ...avatarButtons,
-            [{ text: "➕ Add New Avatar", callback_data: "avatar_add" }],
-            [{ text: "◀️ Back", callback_data: "image_generate" }],
+            [{ text: t('btn.add_avatar', lang), callback_data: "avatar_add" }],
+            [{ text: t('btn.back', lang), callback_data: "image_generate" }],
           ],
         },
       });
@@ -1879,23 +1812,21 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Upload reference image for image generation
     if (data === "imgref_upload") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       ctx.session.state = "IMAGE_REFERENCE_WAITING";
       await ctx.editMessageText(
-        `📸 *Upload Foto Referensi*\n\n` +
-        `Kirim foto produk atau subjek kamu.\n\n` +
-        `AI akan gunakan foto ini sebagai referensi untuk buat gambar marketing yang menjaga identitas produk kamu.\n\n` +
-        `_Bisa: foto produk, makanan, properti, kendaraan, dll_`,
+        t('cb.imgref_upload', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "⏭️ Skip — Deskripsikan Saja",
+                  text: t('btn.skip_describe', lang),
                   callback_data: "imgref_skip",
                 },
               ],
-              [{ text: "◀️ Kembali", callback_data: "image_generate" }],
+              [{ text: t('btn.back', lang), callback_data: "image_generate" }],
             ],
           },
         },
@@ -1906,31 +1837,26 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Skip reference image → generate text2img
     if (data === "imgref_skip") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       ctx.session.state = "IMAGE_GENERATION_WAITING";
       const category = ctx.session.stateData?.imageCategory as string;
       ctx.session.stateData = { ...ctx.session.stateData, imageCategory: category, mode: "text2img" };
 
-      const hints: Record<string, string> = {
-        product:
-          'contoh: _"botol parfum premium di background hitam, lighting studio, close-up detail"_',
-        fnb: 'contoh: _"semangkuk bakso kuah dengan steam, lighting hangat, sudut 45 derajat"_',
-        realestate:
-          'contoh: _"ruang tamu modern minimalis, natural lighting, sofa abu-abu"_',
-        car: 'contoh: _"mobil SUV warna putih, outdoor sunset lighting, angle 3/4 front"_',
+      const hintKeys: Record<string, string> = {
+        product: 'cb.imgref_hint_product',
+        fnb: 'cb.imgref_hint_fnb',
+        realestate: 'cb.imgref_hint_realestate',
+        car: 'cb.imgref_hint_car',
       };
-      const hint =
-        hints[category] ||
-        'contoh: _"produk saya dengan background putih bersih, lighting profesional"_';
+      const hint = t(hintKeys[category] || 'cb.imgref_hint_default', lang);
 
       await ctx.editMessageText(
-        `✏️ *Deskripsikan Gambar yang Kamu Mau*\n\n` +
-        `${hint}\n\n` +
-        `Ketik deskripsi kamu sekarang 👇`,
+        t('cb.describe_image', lang, { hint }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Kembali", callback_data: "image_generate" }],
+              [{ text: t('btn.back', lang), callback_data: "image_generate" }],
             ],
           },
         },
@@ -1957,15 +1883,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         mode: "ip_adapter",
       };
 
+      const lang2 = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `🖼️ *Using Avatar: ${avatar.name}*\n\n` +
-        `The AI will maintain this character's identity.\n\n` +
-        `Now describe the scene/setting you want:`,
+        t('cb.using_avatar', lang2, { name: avatar.name }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [btnBackMain(lang2)],
             ],
           },
         },
@@ -1975,14 +1900,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Clone/Remake Video
     if (data === "clone_video") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "🔄 *Clone/Remake Video*\n\n" +
-        "Kirim video yang mau direkreasi, atau paste URL dari:\n" +
-        "• TikTok · Instagram Reels · YouTube Shorts\n\n" +
-        "_AI akan buat video dengan style serupa._",
+        t('cb.clone_video', lang),
         {
           parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] },
+          reply_markup: { inline_keyboard: [[btnBackMain(lang)]] },
         },
       );
       ctx.session.state = "CLONE_VIDEO_WAITING";
@@ -1999,14 +1922,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
 
       await ctx.editMessageText(
-        "✏️ *Edit Video Description*\n\n" +
-        "Kirim deskripsi baru untuk video yang akan dibuat.\n\n" +
-        '_Contoh: "Buat video produk skincare dengan lighting soft, background minimalis putih, close-up detail produk"_',
+        t('cb2.edit_video_desc', ctx.session?.userLang || 'id'),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "❌ Cancel", callback_data: "main_menu" }],
+              [{ text: t('btn.cancel', ctx.session?.userLang || 'id'), callback_data: "main_menu" }],
             ],
           },
         },
@@ -2019,12 +1940,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Clone/Remake Image
     if (data === "clone_image") {
       await ctx.editMessageText(
-        "🔄 *Clone/Remake Image*\n\n" +
-        "Kirim gambar yang mau direkreasi.\n" +
-        "_AI akan buat gambar dengan style serupa._",
+        t('cb2.clone_image', ctx.session?.userLang || 'id'),
         {
           parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] },
+          reply_markup: { inline_keyboard: [[btnBackMain(ctx.session?.userLang || 'id')]] },
         },
       );
       ctx.session.state = "CLONE_IMAGE_WAITING";
@@ -2033,21 +1952,24 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Storyboard Creator
     if (data === "storyboard_create") {
+      {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "📋 *Storyboard Creator*\n\n" + "Pilih tipe konten kamu:",
+        t('cb2.storyboard_creator', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🛍️ Product Promo", callback_data: "sb_product" }],
-              [{ text: "🍔 F&B Content", callback_data: "sb_fnb" }],
-              [{ text: "🏠 Real Estate Tour", callback_data: "sb_realestate" }],
-              [{ text: "🚗 Car Showcase", callback_data: "sb_car" }],
-              [BTN_BACK_MAIN],
+              [{ text: t('cb2.product_promo', lang), callback_data: "sb_product" }],
+              [{ text: t('cb2.fnb_content', lang), callback_data: "sb_fnb" }],
+              [{ text: t('cb2.realestate_tour', lang), callback_data: "sb_realestate" }],
+              [{ text: t('cb2.car_showcase', lang), callback_data: "sb_car" }],
+              [btnBackMain(ctx.session?.userLang || 'id')],
             ],
           },
         },
       );
+      }
       return;
     }
 
@@ -2059,19 +1981,18 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Viral/Trend Research
     if (data === "viral_research") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "📈 *Viral/Trend Research*\n\n" +
-        "Analyzing trending content across platforms...\n\n" +
-        "Select niche to discover what's working:",
+        t('cb2.viral_research', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🔥 All Trends (Viral)", callback_data: "trend_viral" }],
-              [{ text: "🍔 F&B / Restaurant", callback_data: "trend_fnb" }],
-              [{ text: "🏠 Real Estate", callback_data: "trend_realestate" }],
-              [{ text: "🛍️ E-commerce", callback_data: "trend_ecom" }],
-              [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+              [{ text: t('cb2.all_trends', lang), callback_data: "trend_viral" }],
+              [{ text: t('cb2.fnb_restaurant', lang), callback_data: "trend_fnb" }],
+              [{ text: t('cb2.realestate', lang), callback_data: "trend_realestate" }],
+              [{ text: t('cb2.ecommerce', lang), callback_data: "trend_ecom" }],
+              [{ text: t('cb2.back_to_menu', lang), callback_data: "main_menu" }],
             ],
           },
         },
@@ -2081,25 +2002,20 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     if (data.startsWith("trend_")) {
       const niche = data.replace("trend_", "");
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        `📈 *Viral Research: ${niche.toUpperCase()}*\n\n` +
-        `✅ Analysis complete.\n\n` +
-        `*Trending Patterns:* \n` +
-        `• Quick cuts, beat-matching\n` +
-        `• ASMR audio layer\n` +
-        `• Text-to-speech overlay (Female voice)\n\n` +
-        `*Suggested Storyboard:*`,
+        t('cb2.viral_research_result', lang, { niche: niche.toUpperCase() }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "📋 Generate Viral Storyboard",
+                  text: t('cb2.generate_viral_storyboard', lang),
                   callback_data: `sb_${niche === "viral" ? "product" : niche === "ecom" ? "product" : niche}`,
                 },
               ],
-              [{ text: "◀️ Back", callback_data: "viral_research" }],
+              [{ text: t('btn.back', lang), callback_data: "viral_research" }],
             ],
           },
         },
@@ -2110,12 +2026,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Video/Image to Prompt (Disassemble)
     if (data === "disassemble") {
       await ctx.editMessageText(
-        "🔍 *Video/Image to Prompt*\n\n" +
-        "Kirim video atau gambar kamu.\n" +
-        "_AI akan extract prompt yang digunakan untuk membuatnya._",
+        t('cb2.disassemble', ctx.session?.userLang || 'id'),
         {
           parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] },
+          reply_markup: { inline_keyboard: [[btnBackMain(ctx.session?.userLang || 'id')]] },
         },
       );
       ctx.session.state = "DISASSEMBLE_WAITING";
@@ -2125,15 +2039,10 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Repurpose / Trend Replication
     if (data === "repurpose_video") {
       await ctx.editMessageText(
-        "🔄 *Repurpose Trending Video*\n\n" +
-        "Kirim video dengan cara:\n" +
-        "• 📎 Upload file MP4 langsung\n" +
-        "• 🔗 Paste link TikTok / Instagram Reels\n" +
-        "• 🔗 Paste link YouTube Shorts / Twitter/X\n\n" +
-        "_AI akan extract storyboard, scene prompts, dan transkrip — lalu buat ulang videonya._",
+        t('cb2.repurpose_video', ctx.session?.userLang || 'id'),
         {
           parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] },
+          reply_markup: { inline_keyboard: [[btnBackMain(ctx.session?.userLang || 'id')]] },
         },
       );
       ctx.session.state = "REPURPOSE_VIDEO_URL";
@@ -2204,10 +2113,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
 
       await ctx.editMessageText(
-        `✅ *Video regeneration started!*\n\n` +
-        `🎬 Job: \`${jobId}\`\n` +
-        `📊 ${storyboard.length} scenes · ${duration}s · niche: ${niche}\n\n` +
-        `_We'll send you the video when it's ready._`,
+        t('cb2.video_regen_started', ctx.session?.userLang || 'id', { jobId, scenes: storyboard.length, duration, niche }),
         { parse_mode: "Markdown" },
       );
       return;
@@ -2277,10 +2183,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       }
 
       await ctx.editMessageText(
-        `✅ *Video regeneration started! (with frame reference)*\n\n` +
-        `🎬 Job: \`${jobId}\`\n` +
-        `📊 ${storyboard.length} scenes · ${duration}s · niche: ${niche}\n\n` +
-        `_We'll send you the video when it's ready._`,
+        t('cb2.video_regen_started_ref', ctx.session?.userLang || 'id', { jobId, scenes: storyboard.length, duration, niche }),
         { parse_mode: "Markdown" },
       );
       return;
@@ -2290,15 +2193,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Videos menu handlers
     if (data === "videos_favorites") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "⭐ *Favorite Videos*\n\n" +
-        "Video favorit kamu akan muncul di sini.\n\n" +
-        "Belum ada favorit.",
+        t('cb2.favorites_title', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Back", callback_data: "videos_back" }],
+              [{ text: t('btn.back', lang), callback_data: "videos_back" }],
             ],
           },
         },
@@ -2307,15 +2209,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     }
 
     if (data === "videos_trash") {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.editMessageText(
-        "🗑️ *Trash*\n\n" +
-        "Deleted videos (restorable for 7 days).\n\n" +
-        "Trash is empty.",
+        t('cb2.trash_title', lang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "◀️ Back", callback_data: "videos_back" }],
+              [{ text: t('btn.back', lang), callback_data: "videos_back" }],
             ],
           },
         },
@@ -2360,7 +2261,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       // Soft delete — mark as deleted instead of removing from database
       await VideoService.deleteVideo(jobId);
       await ctx.editMessageText(
-        "🗑️ *Video Moved to Trash*\n\n" + "The video has been moved to trash.",
+        t('cb2.video_moved_trash', ctx.session?.userLang || 'id'),
         { parse_mode: "Markdown" },
       );
       return;
@@ -2468,26 +2369,28 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           : `${videoScenes} scenes`;
 
         // Skip straight to reference image step
+        {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `🎬 *Creating similar video*\n\n` +
-          `Niche: ${nicheConfig?.emoji || ""} ${nicheConfig?.name || nicheKey}\n` +
-          `Duration: ${videoDuration}s\n` +
-          `Storyboard: ${storyboardInfo}\n` +
-          `Style: ${videoStyles[0]}\n\n` +
-          `Send a reference image or /skip`,
+          t('cb2.creating_similar', lang, {
+            nicheInfo: `${nicheConfig?.emoji || ""} ${nicheConfig?.name || nicheKey}`,
+            duration: videoDuration,
+            storyboardInfo,
+            style: videoStyles[0],
+          }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "⏭️ Skip Reference Image",
+                    text: t('cb2.skip_ref_image', lang),
                     callback_data: `duration_${videoDuration}_${videoScenes}`,
                   },
                 ],
                 [
                   {
-                    text: "🔄 Change Niche/Style",
+                    text: t('cb2.change_niche_style', lang),
                     callback_data: "create_video_new",
                   },
                 ],
@@ -2495,10 +2398,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             },
           },
         );
+        }
       } catch (error) {
         logger.error("Create similar error:", error);
         await ctx.reply(
-          "Gagal memuat pengaturan video. Gunakan /create untuk mulai.",
+          t('cb2.create_similar_failed', ctx.session?.userLang || 'id'),
         );
       }
       return;
@@ -2583,32 +2487,27 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
     // Open chat from inline menu
     if (data === "open_chat") {
       await ctx.answerCbQuery();
+      const lang = ctx.session?.userLang || 'id';
       await ctx
         .editMessageText(
-          "💬 *AI Assistant aktif!*\n\n" +
-          "Langsung ketik pertanyaan kamu sekarang.\n\n" +
-          "*Contoh:*\n" +
-          '• _"Bikinin prompt untuk produk skincare saya"_\n' +
-          '• _"Tips video TikTok F&B yang viral"_\n' +
-          '• _"Niche mana yang paling bagus buat jualan online?"_\n\n' +
-          "Atau browse template siap pakai:",
+          t('cb2.ai_assistant_active', lang),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "📚 Lihat Prompt Library",
+                    text: t('cb2.prompt_library', lang),
                     callback_data: "back_prompts",
                   },
                 ],
                 [
                   {
-                    text: "🔥 Trending Prompts",
+                    text: t('cb2.trending_prompts', lang),
                     callback_data: "prompts_trending",
                   },
                 ],
-                [{ text: "◀️ Kembali ke Menu", callback_data: "main_menu" }],
+                [{ text: t('cb2.back_to_menu', lang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -2616,7 +2515,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         .catch(async () => {
           // fallback if message can't be edited
           await ctx.reply(
-            "💬 *AI Assistant aktif!*\n\nLangsung ketik pertanyaan kamu!",
+            t('cb2.ai_assistant_fallback', lang),
             { parse_mode: "Markdown" },
           );
         });
@@ -2635,12 +2534,15 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       const niche = PL2[mystery.niche];
       const p = niche?.prompts.find((x: any) => x.id === mystery.promptId);
       if (p) {
-        const msg =
-          `🎁 *MYSTERY PROMPT BOX*\n\n✨ *PROMPT UNLOCKED!*\n\n` +
-          `${niche.emoji} Niche: *${niche.label}* · ⭐ Rarity: *${mystery.rarity}*\n\n` +
-          `*${p.title}*\n\n\`${p.prompt}\`\n\n` +
-          `⭐ ${p.successRate}% success rate\n\n` +
-          `🆓 Gratis untuk kamu hari ini!`;
+        const lang = ctx.session?.userLang || 'id';
+        const msg = t('cb2.mystery_prompt_box', lang, {
+          nicheEmoji: niche.emoji,
+          nicheLabel: niche.label,
+          rarity: mystery.rarity,
+          title: p.title,
+          prompt: p.prompt,
+          successRate: p.successRate,
+        });
         try {
           await ctx.editMessageText(msg, {
             parse_mode: "Markdown",
@@ -2648,12 +2550,12 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               inline_keyboard: [
                 [
                   {
-                    text: "🚀 Pakai Sekarang",
+                    text: t('cb2.use_now', lang),
                     callback_data: `use_prompt_${p.id}`,
                   },
                 ],
-                [{ text: "🔄 Prompt Lain", callback_data: "daily_another" }],
-                [{ text: "◀️ Kembali ke Menu", callback_data: "back_prompts" }],
+                [{ text: t('cb2.another_prompt', lang), callback_data: "daily_another" }],
+                [{ text: t('cb2.back_to_menu', lang), callback_data: "back_prompts" }],
               ],
             },
           });
@@ -2740,7 +2642,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
       langButtons.push([
         {
-          text: "◀️ Kembali ke Pengaturan",
+          text: t('cb2.back_to_settings', currentLang),
           callback_data: "open_settings",
         },
       ]);
@@ -2798,16 +2700,14 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         await UserService.update(BigInt(userId), { language: langCode });
       }
       await ctx.editMessageText(
-        "\ud83c\udf10 *Language Updated*\n\n" +
-        `\u2705 ${langCfg.flag} ${langCfg.label} selected.\n\n` +
-        `Bot messages, voice over, subtitles, and captions will use ${langCfg.label}.`,
+        t('cb2.lang_updated', langCode, { flag: langCfg.flag, label: langCfg.label }),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
               [
                 {
-                  text: "◀️ Kembali ke Pengaturan",
+                  text: t('cb2.back_to_settings', langCode),
                   callback_data: "open_settings",
                 },
               ],
@@ -2827,14 +2727,11 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         : null;
       const enabled = user?.notificationsEnabled ?? true;
 
+      {
+      const lang = ctx.session?.userLang || 'id';
+      const statusText = enabled ? t('cb2.notif_enabled', lang) : t('cb2.notif_disabled', lang);
       await ctx.editMessageText(
-        "🔔 *Notifications*\n\n" +
-        `Status: ${enabled ? "✅ Enabled" : "❌ Disabled"}\n\n` +
-        "Receive notifications for:\n" +
-        "• Video completion\n" +
-        "• Payment confirmations\n" +
-        "• Referral commissions\n" +
-        "• Promotions & updates",
+        t('cb2.notifications_title', lang, { status: statusText }),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -2842,16 +2739,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [
                 {
                   text: enabled
-                    ? "🔕 Turn Off Notifications"
-                    : "🔔 Turn On Notifications",
+                    ? t('cb2.turn_off_notif', lang)
+                    : t('cb2.turn_on_notif', lang),
                   callback_data: "toggle_notifications",
                 },
               ],
-              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
+              [{ text: t('cb2.back_to_settings', lang), callback_data: "open_settings" }],
             ],
           },
         },
       );
+      }
       return;
     }
 
@@ -2868,14 +2766,16 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       await UserService.update(BigInt(userId), {
         notificationsEnabled: newValue,
       });
+      {
+      const lang = ctx.session?.userLang || 'id';
       await ctx.answerCbQuery(
-        newValue ? "Notifications enabled" : "Notifications disabled",
+        newValue ? t('cb2.notif_toggle_on', lang) : t('cb2.notif_toggle_off', lang),
       );
 
+      const statusText = newValue ? t('cb2.notif_enabled', lang) : t('cb2.notif_disabled', lang);
+      const actionText = newValue ? t('cb2.notif_action_enabled', lang) : t('cb2.notif_action_disabled', lang);
       await ctx.editMessageText(
-        "🔔 *Notifications*\n\n" +
-        `Status: ${newValue ? "✅ Enabled" : "❌ Disabled"}\n\n` +
-        `Notifications have been ${newValue ? "enabled" : "disabled"}.`,
+        t('cb2.notif_updated', lang, { status: statusText, action: actionText }),
         {
           parse_mode: "Markdown",
           reply_markup: {
@@ -2883,16 +2783,17 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
               [
                 {
                   text: newValue
-                    ? "🔕 Turn Off Notifications"
-                    : "🔔 Turn On Notifications",
+                    ? t('cb2.turn_off_notif', lang)
+                    : t('cb2.turn_on_notif', lang),
                   callback_data: "toggle_notifications",
                 },
               ],
-              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
+              [{ text: t('cb2.back_to_settings', lang), callback_data: "open_settings" }],
             ],
           },
         },
       );
+      }
       return;
     }
 
@@ -2922,7 +2823,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "toggle_autorenewal",
                 },
               ],
-              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
+              [{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "open_settings" }],
             ],
           },
         },
@@ -2961,7 +2862,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
                   callback_data: "toggle_autorenewal",
                 },
               ],
-              [{ text: "◀️ Kembali ke Pengaturan", callback_data: "open_settings" }],
+              [{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "open_settings" }],
             ],
           },
         },
@@ -3070,7 +2971,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       } catch (error) {
         logger.error("Transaction history error:", error);
         await ctx.editMessageText(
-          "❌ Gagal memuat riwayat transaksi.\n\nSilakan coba lagi nanti.",
+          t('cb.tx_history_error', ctx.session?.userLang || 'id'),
           {
             reply_markup: {
               inline_keyboard: [
@@ -3217,7 +3118,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
       } catch (error) {
         logger.error("Referral stats error:", error);
         await ctx.reply(
-          "❌ Gagal memuat statistik referral. Silakan coba lagi.",
+          t('cb.referral_stats_error', ctx.session?.userLang || 'id'),
         );
       }
       return;
@@ -3267,7 +3168,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           buttons.push([{ text: `💵 Jual ke Admin (Rp ${(available / 2).toLocaleString("id-ID")})`, callback_data: "referral_sell_admin" }]);
         }
         buttons.push([{ text: "📊 Lihat Stats", callback_data: "referral_stats" }]);
-        buttons.push([{ text: "◀️ Kembali", callback_data: "open_referral" }]);
+        buttons.push([{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "open_referral" }]);
 
         await ctx.editMessageText(message, {
           parse_mode: "Markdown",
@@ -3335,7 +3236,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           const lang = ctx.session?.userLang || 'id';
           await ctx.editMessageText(t('referral.insufficient_convert', lang), {
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
+            reply_markup: { inline_keyboard: [[{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "referral_withdraw" }]] },
           });
           return;
         }
@@ -3349,7 +3250,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             reply_markup: {
               inline_keyboard: [
                 [{ text: "🎬 Buat Video", callback_data: "create_video_new" }],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('btn.main_menu', ctx.session?.userLang || 'id'), callback_data: "main_menu" }],
               ],
             },
           },
@@ -3381,7 +3282,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
           const lang = ctx.session?.userLang || 'id';
           await ctx.editMessageText(t('referral.insufficient_sell', lang), {
             parse_mode: "Markdown",
-            reply_markup: { inline_keyboard: [[{ text: "◀️ Kembali", callback_data: "referral_withdraw" }]] },
+            reply_markup: { inline_keyboard: [[{ text: t('btn.back', ctx.session?.userLang || 'id'), callback_data: "referral_withdraw" }]] },
           });
           return;
         }
@@ -3436,7 +3337,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
             reply_markup: {
               inline_keyboard: [
                 [{ text: "📊 Lihat Stats", callback_data: "referral_stats" }],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('btn.main_menu', ctx.session?.userLang || 'id'), callback_data: "main_menu" }],
               ],
             },
           },
@@ -3520,7 +3421,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
         "Hubungi tim support kami:\n" +
         "• Telegram: @BerkahKaryaSupport\n\n" +
         "Sertakan screenshot error dan username kamu saat menghubungi.",
-        { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[BTN_BACK_MAIN]] } },
+        { parse_mode: "Markdown", reply_markup: { inline_keyboard: [[btnBackMain(ctx.session?.userLang || 'id')]] } },
       );
       return;
     }
@@ -3828,15 +3729,13 @@ async function handleConfirmPublish(ctx: BotContext, jobId: string) {
   } catch (error: any) {
     logger.error("Publish failed:", error);
     await ctx.editMessageText(
-      `❌ *Publish Failed*\n\n` +
-      `Error: ${error.message}\n\n` +
-      `Silakan coba lagi atau hubungi support.`,
+      t('cb.publish_failed', ctx.session?.userLang || 'id'),
       {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🔄 Coba Lagi", callback_data: `publish_video_${jobId}` }],
-            [{ text: "❌ Batal", callback_data: "videos_list" }],
+            [{ text: t('btn.try_again', ctx.session?.userLang || 'id'), callback_data: `publish_video_${jobId}` }],
+            [{ text: t('btn.cancel', ctx.session?.userLang || 'id'), callback_data: "videos_list" }],
           ],
         },
       },
@@ -4197,30 +4096,25 @@ async function handleImageGeneration(ctx: BotContext, category: string) {
   }));
 
   await ctx.editMessageText(
-    `🖼️ *Generate ${categoryNames[category]}*\n` +
-    `💰 _Biaya: ${creditCost} kredit per gambar_\n\n` +
-    `${lang === 'id' ? 'Pilih cara generate:' : lang === 'ru' ? 'Как вы хотите создать?' : lang === 'zh' ? '选择生成方式:' : 'How do you want to generate?'}\n\n` +
-    `📸 *${lang === 'id' ? 'Upload Referensi' : lang === 'ru' ? 'Загрузить референс' : lang === 'zh' ? '上传参考' : 'Upload Reference'}* — ${lang === 'id' ? 'Kirim foto produk, AI buat gambar berdasarkan itu' : lang === 'ru' ? 'Отправьте фото товара, AI создаст по нему' : lang === 'zh' ? '发送产品照片，AI将基于此创建' : 'Send your product photo and AI will create based on it'}\n` +
-    `👤 *${lang === 'id' ? 'Pakai Avatar' : lang === 'ru' ? 'Аватар' : lang === 'zh' ? '使用头像' : 'Use Avatar'}* — ${lang === 'id' ? 'Karakter konsisten di semua gambar' : lang === 'ru' ? 'Единый персонаж на всех изображениях' : lang === 'zh' ? '保持角色一致' : 'Keep a consistent character across images'}\n` +
-    `✏️ *${lang === 'id' ? 'Deskripsi Saja' : lang === 'ru' ? 'Только описание' : lang === 'zh' ? '仅描述' : 'Describe Only'}* — ${lang === 'id' ? 'AI generate dari teks deskripsi kamu' : lang === 'ru' ? 'AI создаст по текстовому описанию' : lang === 'zh' ? 'AI根据文字描述生成' : 'AI generates from your text description'}`,
+    t('cb.image_gen_header', lang, { category: categoryNames[category], cost: String(creditCost) }),
     {
       parse_mode: "Markdown",
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: "📸 Upload Reference Photo",
+              text: t('cb.btn_upload_ref', lang),
               callback_data: "imgref_upload",
             },
           ],
           ...(avatarButtons.length > 0 ? [avatarButtons] : []),
           [
             {
-              text: "✏️ Describe Only (No Reference)",
+              text: t('cb.btn_describe_only', lang),
               callback_data: "imgref_skip",
             },
           ],
-          [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+          [btnBackMain(lang)],
         ],
       },
     },

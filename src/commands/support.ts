@@ -13,18 +13,9 @@ import { t } from "@/i18n/translations";
  */
 export async function supportCommand(ctx: BotContext): Promise<void> {
   try {
+    const lang = ctx.session?.userLang || ctx.from?.language_code || 'id';
     await ctx.reply(
-      "🆘 *Help & Support*\n\n" +
-        "*Frequently Asked Questions:*\n\n" +
-        "*Q: How do I create a video?*\n" +
-        "A: Use /create command and follow the steps.\n\n" +
-        "*Q: How long does video generation take?*\n" +
-        "A: Usually 2-5 minutes depending on queue.\n\n" +
-        "*Q: What formats are supported?*\n" +
-        "A: TikTok, Instagram, YouTube, Facebook, Twitter.\n\n" +
-        "*Q: How do credits work?*\n" +
-        "A: 1 credit = 1 video (30s, 5 scenes)\n\n" +
-        "Need more help? Contact us!",
+      t('support.full_msg', lang),
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -32,7 +23,7 @@ export async function supportCommand(ctx: BotContext): Promise<void> {
             [{ text: "💬 Chat Support", url: `https://t.me/${process.env.SUPPORT_TELEGRAM_USERNAME || 'codergaboets'}` }],
             [{ text: "📖 View Tutorial", callback_data: "view_tutorial" }],
             [{ text: "🐛 Report Bug", callback_data: "report_bug" }],
-            [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+            [{ text: t('btn.main_menu', lang), callback_data: "main_menu" }],
           ],
         },
       },

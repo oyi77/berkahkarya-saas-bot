@@ -108,7 +108,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const duration = parseInt(input);
 
       if (isNaN(duration) || duration < 6 || duration > 3600) {
-        await ctx.reply('❌ Durasi harus antara 6 - 3600 detik.\n\nContoh: `120` untuk 2 menit, `3600` untuk 1 jam.', { parse_mode: 'Markdown' });
+        await ctx.reply(t('msg.duration_range_error', ctx.session?.userLang || 'id'), { parse_mode: 'Markdown' });
         return;
       }
 
@@ -121,15 +121,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         ctx.session.state = 'DASHBOARD';
       }
 
+      const cdLang = ctx.session?.userLang || 'id';
       const minutes = Math.floor(duration / 60);
       const secs = duration % 60;
-      const durLabel = minutes > 0 ? `${minutes} menit${secs > 0 ? ` ${secs} detik` : ''}` : `${secs} detik`;
+      const durLabel = minutes > 0 ? `${minutes}m${secs > 0 ? ` ${secs}s` : ''}` : `${secs}s`;
 
       await ctx.reply(
-        `✅ *Custom Duration: ${durLabel}*\n\n` +
-        `🎬 ${presetConfig.scenesIncluded.length} scene\n` +
-        `💰 Biaya: ${presetConfig.creditCost / 10} kredit\n\n` +
-        `Pilih platform tujuan:`,
+        t('msg.custom_duration_set', cdLang, { durLabel, scenes: presetConfig.scenesIncluded.length, cost: presetConfig.creditCost / 10 }),
         {
           parse_mode: 'Markdown',
           reply_markup: {
@@ -138,7 +136,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               [{ text: '📸 Instagram (9:16)', callback_data: 'platform_instagram' }],
               [{ text: '▶️ YouTube (16:9)', callback_data: 'platform_youtube' }],
               [{ text: '⬛ Square (1:1)', callback_data: 'platform_square' }],
-              [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+              [{ text: t('btn.main_menu', cdLang), callback_data: 'main_menu' }],
             ],
           },
         },
@@ -302,9 +300,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const promptText = message.text.trim();
       const nicheKey = ctx.session.stateData.addingPromptNiche as string;
       if (promptText.length < 10) {
-        await ctx.reply(
-          "⚠️ Prompt terlalu pendek. Minimal 10 kata. Coba lagi atau tap /start untuk batal.",
-        );
+        await ctx.reply(t('msg.prompt_too_short', ctx.session?.userLang || 'id'));
         return;
       }
       try {
@@ -324,27 +320,18 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             addingPromptNiche: undefined,
           };
           const niche = _PL[nicheKey];
+          const psLang = ctx.session?.userLang || 'id';
+          const nicheDisplay = `${niche?.emoji || ""} ${niche?.label || nicheKey}`;
+          const preview = `${promptText.slice(0, 150)}${promptText.length > 150 ? "..." : ""}`;
           await ctx.reply(
-            `✅ *Prompt tersimpan ke ${niche?.emoji || ""} ${niche?.label || nicheKey}!*\n\n` +
-            `\`${promptText.slice(0, 150)}${promptText.length > 150 ? "..." : ""}\`\n\n` +
-            `Mau langsung pakai prompt ini?`,
+            t('msg.prompt_saved', psLang, { niche: nicheDisplay, preview }),
             {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
-                  [
-                    {
-                      text: "🚀 Buat Video Sekarang!",
-                      callback_data: "create_video_new",
-                    },
-                  ],
-                  [
-                    {
-                      text: `📌 Lihat Prompt Tersimpan`,
-                      callback_data: `my_prompts_${nicheKey}`,
-                    },
-                  ],
-                  [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+                  [{ text: t('msg.btn_create_video_now', psLang), callback_data: "create_video_new" }],
+                  [{ text: t('msg.btn_view_saved', psLang), callback_data: `my_prompts_${nicheKey}` }],
+                  [{ text: t('btn.main_menu', psLang), callback_data: "main_menu" }],
                 ],
               },
             },
@@ -406,11 +393,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         );
 
         const acLang = ctx.session?.userLang || 'id';
-        const acMsg = acLang === 'id' ? `✅ *Akun Terhubung!*\n\nPlatform: ${platform.toUpperCase()}\nID: \`${accountId}\`\n\nSekarang kamu bisa publish video ke akun ini.`
-          : acLang === 'ru' ? `✅ *Аккаунт подключён!*\n\nПлатформа: ${platform.toUpperCase()}\nID: \`${accountId}\`\n\nТеперь вы можете публиковать видео.`
-          : acLang === 'zh' ? `✅ *账号已连接！*\n\n平台: ${platform.toUpperCase()}\nID: \`${accountId}\`\n\n现在可以发布视频到此账号。`
-          : `✅ *Account Connected!*\n\nPlatform: ${platform.toUpperCase()}\nAccount ID: \`${accountId}\`\n\nYou can now publish videos to this account.`;
-        await ctx.reply(acMsg, {
+        await ctx.reply(t('msg.account_connected', acLang, { platform: platform.toUpperCase(), accountId }), {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
@@ -427,10 +410,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         );
       } catch (error: any) {
         logger.error("Failed to connect account:", error);
+        const cfLang = ctx.session?.userLang || 'id';
         await ctx.reply(
-          `❌ Gagal menghubungkan akun.\n\n` +
-          `Error: ${error.message || "Unknown error"}\n\n` +
-          `Silakan coba lagi atau hubungi support.`,
+          t('msg.connect_failed', cfLang, { error: error.message || "Unknown error" }),
         );
       }
 
@@ -468,11 +450,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
         if (menuMatch('image')) {
             const imgLang = ctx.session?.userLang || 'id';
-            const imgTitle = imgLang === 'id' ? '🖼️ *Generate Gambar*\n\nPilih kategori:' :
-              imgLang === 'ru' ? '🖼️ *Генерация изображений*\n\nВыберите категорию:' :
-              imgLang === 'zh' ? '🖼️ *图片生成*\n\n选择类别:' :
-              '🖼️ *Image Generation*\n\nSelect category:';
-            await ctx.reply(imgTitle, {
+            await ctx.reply(t('msg.image_generate_title', imgLang), {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
@@ -487,15 +465,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         }
 
         if (menuMatch('chat')) {
-            await ctx.reply(
-              "💬 *AI Assistant aktif!*\n\n" +
-              "Langsung ketik pertanyaan kamu sekarang.\n\n" +
-              "*Contoh:*\n" +
-              '• _"Bikinin prompt untuk bakso saya"_\n' +
-              '• _"Tips video TikTok F\\&B yang viral"_\n\n' +
-              "Atau ketik /prompts untuk template siap pakai 📚",
-              { parse_mode: "MarkdownV2" },
-            );
+            const chatLang = ctx.session?.userLang || 'id';
+            await ctx.reply(t('msg.ai_chat_active', chatLang), { parse_mode: "MarkdownV2" });
             if (ctx.session) ctx.session.state = "DASHBOARD";
             return;
         }
@@ -671,7 +642,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       } catch (error: any) {
         logger.error("Avatar creation failed:", error);
         await ctx.reply(
-          `❌ *Gagal menyimpan avatar*\n\n${error.message || "Silakan coba lagi."}`,
+          t('msg.avatar_save_failed', ctx.session?.userLang || 'id', { error: error.message || "Please try again." }),
           { parse_mode: "Markdown" },
         );
       }
@@ -715,14 +686,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         } else if (isLibraryPrompt && canUseWelcomeBonus(userImg)) {
           useFreeSlot = 'welcome';
         } else {
+          const igLang = ctx.session?.userLang || 'id';
           const reason = !isLibraryPrompt
-            ? "Prompt custom hanya tersedia untuk pengguna Premium."
-            : "Kredit tidak cukup & Reward harian sudah habis.";
+            ? t('msg.custom_only_premium', igLang)
+            : t('msg.credits_exhausted', igLang);
 
           await ctx.reply(
-            `❌ *Gagal Memulai*\n\n` +
-            `${reason}\n\n` +
-            `Gunakan /topup untuk menambah kredit agar bisa menggunakan fitur custom dan video.`,
+            t('msg.generation_start_failed', igLang, { reason }),
             { parse_mode: "Markdown" },
           );
           ctx.session.state = "DASHBOARD";
@@ -731,8 +701,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       await ctx.reply(
-        `⏳ *Generating image${modeLabel}...*\n\n` +
-        "Sedang diproses, kamu bisa lanjut pakai bot. Hasil akan dikirim sebentar lagi.",
+        t('msg.generating_image', ctx.session?.userLang || 'id', { modeLabel }),
         { parse_mode: "Markdown" },
       );
 
@@ -798,14 +767,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                   ? "\n👤 _Generated with avatar consistency_"
                   : "";
 
+            const imgLang2 = ctx.session?.userLang || 'id';
             const caption = isDemo
               ? `🖼️ *Sample Image (Demo)*\n\n` +
               `_Description: ${description}_\n\n` +
               `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
               `The actual product will generate images matching your description.`
-              : `✅ *Gambar Berhasil Dibuat!*\n\n` +
-              `_Deskripsi: ${description}_${modeInfo}\n\n` +
-              `Mau lanjut apa?`;
+              : t('msg.image_success', imgLang2, { description, modeInfo });
 
             let photoSource: string | { source: Buffer };
             let isBase64 = false;
@@ -826,24 +794,23 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                     ? []
                     : [[{ text: "⬇️ Download", url: result.imageUrl! }]]),
                   [
-                    { text: "🔄 Buat Variasi Lain", callback_data: "image_generate" },
-                    { text: "🎬 Jadikan Video", callback_data: "create_video_new" },
+                    { text: t('msg.btn_make_variation', imgLang2), callback_data: "image_generate" },
+                    { text: t('msg.btn_make_video', imgLang2), callback_data: "create_video_new" },
                   ],
-                  [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+                  [{ text: t('btn.main_menu', imgLang2), callback_data: "main_menu" }],
                 ],
               },
             });
           } else {
+            const gfLang = ctx.session?.userLang || 'id';
             await telegram.sendMessage(
               chatId,
-              `❌ *Generate Gagal*\n\n` +
-              `${result.error || "Unknown error"}\n\n` +
-              `Coba lagi dengan deskripsi yang berbeda.`,
+              t('msg.generate_failed', gfLang, { error: result.error || "Unknown error" }),
               {
                 parse_mode: "Markdown",
                 reply_markup: {
                   inline_keyboard: [
-                    [{ text: "🔄 Coba Lagi", callback_data: "image_generate" }],
+                    [{ text: t('btn.try_again', gfLang), callback_data: "image_generate" }],
                   ],
                 },
               },
@@ -875,8 +842,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       await ctx.reply(
-        "⏳ *Analyzing video...*\n\n" +
-        "Sedang diproses, kamu bisa lanjut pakai bot. Hasil akan dikirim sebentar lagi.",
+        t('msg.analyzing_video', ctx.session?.userLang || 'id'),
         { parse_mode: "Markdown" },
       );
 
@@ -1069,19 +1035,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       if (!videoUrl) {
-        await ctx.reply(
-          "❌ Format tidak dikenali.\n\n" +
-          "Kirim salah satu dari:\n" +
-          "• Upload video langsung (MP4)\n" +
-          "• Link TikTok / Instagram Reels / YouTube Shorts / Twitter\n" +
-          "• URL langsung ke file video (.mp4)"
-        );
+        await ctx.reply(t('msg.unrecognized_format', ctx.session?.userLang || 'id'));
         return;
       }
 
       await ctx.reply(
-        "⏳ *Menganalisis video...*\n\n" +
-        "Sedang diproses, kamu bisa lanjut pakai bot. Hasil akan dikirim sebentar lagi.",
+        t('msg.analyzing_repurpose', ctx.session?.userLang || 'id'),
         { parse_mode: "Markdown" },
       );
 
@@ -1100,8 +1059,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           if (!analysis.success || !analysis.storyboard?.length) {
             await repTelegram.sendMessage(
               repChatId,
-              "❌ Gagal menganalisis video.\n\n" +
-              (analysis.error || "Pastikan URL video bisa diakses publik."),
+              t('msg.analysis_failed', ctx.session?.userLang || 'id', { error: analysis.error || "Make sure the video URL is publicly accessible." }),
             );
             return;
           }
@@ -1130,24 +1088,28 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             )
             .join("\n");
 
+          const rpLang = ctx.session?.userLang || 'id';
           const moreScenes =
             analysis.storyboard!.length > 5
               ? `\n_...+${analysis.storyboard!.length - 5} more scenes_`
               : "";
           const transcriptPreview = analysis.transcript
-            ? `\n\n*Transkrip:*\n_"${analysis.transcript.slice(0, 200)}${analysis.transcript.length > 200 ? "..." : ""}"_`
+            ? t('msg.transcript_label', rpLang, { preview: `${analysis.transcript.slice(0, 200)}${analysis.transcript.length > 200 ? "..." : ""}` })
             : "";
 
           const hasFrames = (analysis.keyFramePaths?.length || 0) > 0;
 
           await repTelegram.sendMessage(
             repChatId,
-            `✅ *Analisis Selesai!*\n\n` +
-            `🎯 *Niche:* ${analysis.niche || "general"}\n` +
-            `🎨 *Style:* ${analysis.style || "-"}\n` +
-            `⏱️ *Durasi:* ${analysis.totalDuration || "?"}s · ${analysis.storyboard!.length} scenes\n\n` +
-            `*Storyboard:*\n${sceneText}${moreScenes}${transcriptPreview}\n\n` +
-            `Mau regenerate gimana?`,
+            t('msg.analysis_complete', rpLang, {
+              niche: analysis.niche || "general",
+              style: analysis.style || "-",
+              duration: analysis.totalDuration || "?",
+              sceneCount: analysis.storyboard!.length,
+              sceneText,
+              moreScenes,
+              transcriptPreview,
+            }),
             {
               parse_mode: "Markdown",
               reply_markup: {
@@ -1172,9 +1134,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
     // REPURPOSE_CONFIRM — user is waiting to tap a button; any text message here is noise
     if (ctx.session.state === "REPURPOSE_CONFIRM") {
-      await ctx.reply(
-        "Tap salah satu tombol di atas untuk mulai generate, atau /menu untuk kembali ke dashboard.",
-      );
+      await ctx.reply(t('msg.tap_button_above', ctx.session?.userLang || 'id'));
       return;
     }
 

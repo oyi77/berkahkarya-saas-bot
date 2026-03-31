@@ -39,16 +39,15 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
       const dbUser = await UserService.findByTelegramId(telegramId);
 
       if (!dbUser || Number(dbUser.creditBalance) < template.creditCost) {
+        const lang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `❌ *Kredit tidak cukup*\n\n` +
-          `Butuh: ${template.creditCost} kredit\n` +
-          `Saldo: ${dbUser?.creditBalance || 0} kredit`,
+          t('creation.insufficient_credits', lang, { cost: template.creditCost, balance: Number(dbUser?.creditBalance || 0) }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "💰 Beli Kredit", callback_data: "topup" }],
-                [{ text: "◀️ Kembali", callback_data: "main_menu" }],
+                [{ text: t('btn.buy_credits', lang), callback_data: "topup" }],
+                [{ text: t('btn.main_menu', lang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -129,11 +128,9 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
               });
 
               // Send video to user with action buttons
+              const vLang = ctx.session?.userLang || 'id';
               await ctx.telegram.sendVideo(ctx.chat!.id, result.videoUrl, {
-                caption:
-                  `✅ *Video Selesai!*\n\n` +
-                  `📋 ${template.name}\n` +
-                  `🎬 ${template.sceneCount} scene • ${duration} detik`,
+                caption: t('creation.video_done', vLang, { name: template.name, scenes: template.sceneCount, duration }),
                 parse_mode: "Markdown",
                 reply_markup: {
                   inline_keyboard: [
@@ -162,30 +159,23 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
               actualJobId,
               error.message,
             );
+            const rfLang = ctx.session?.userLang || 'id';
             await ctx.telegram.sendMessage(
               ctx.chat!.id,
-              `❌ *Generation Failed*\n\n` +
-              `Job: ${actualJobId}\n` +
-              `${error.message}\n\n` +
-              `Kredit kamu sudah di-refund.`,
+              t('creation.credits_refunded', rfLang, { jobId: actualJobId, error: error.message }),
               { parse_mode: "Markdown" },
             );
           });
 
+        const gLang = ctx.session?.userLang || 'id';
         await ctx.editMessageText(
-          `🚀 *Generating...*\n\n` +
-          `Video kamu sedang dibuat!\n\n` +
-          `📋 Template: ${template.name}\n` +
-          `🎬 ${template.sceneCount} scene • ${duration} detik\n` +
-          `💰 ${template.creditCost} kredit terpakai\n\n` +
-          `⏱️ Estimasi: 2-5 menit\n` +
-          `Kamu akan dapat notifikasi saat selesai.`,
+          t('creation.generating', gLang, { name: template.name, scenes: template.sceneCount, duration, cost: template.creditCost }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🎞 Video Saya", callback_data: "videos_list" }],
-                [{ text: "🏠 Menu Utama", callback_data: "main_menu" }],
+                [{ text: t('videos.btn_my_videos', gLang), callback_data: "videos_list" }],
+                [{ text: t('btn.main_menu', gLang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -201,10 +191,9 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
         // Credits are only deducted after createJob succeeds, so only refund
         // if this error was thrown after the deduction point (i.e. actualJobId exists).
         // If createJob itself threw, no credits were charged — no refund needed.
+        const efLang = ctx.session?.userLang || 'id';
         await ctx.reply(
-          `❌ *Generation Failed*\n\n` +
-          `${error.message}\n\n` +
-          `Kredit kamu sudah di-refund jika sudah ditagih.`,
+          t('creation.generation_failed_refund', efLang, { error: error.message }),
           { parse_mode: "Markdown" },
         );
       }
@@ -212,29 +201,21 @@ export async function handleLegacyCreationCallback(ctx: BotContext, data: string
     }
 
     if (data === "create_image_new") {
-      await ctx.answerCbQuery(
-        "🚧 Alur Buat Gambar baru segera hadir! Gunakan menu lama sementara.",
-      );
+      const ciLang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('creation.image_flow_coming', ciLang));
       // Fallback to old flow
       await ctx.editMessageText(
-        "🖼️ *Generate Gambar AI*\n\n" +
-        "💡 _AI buat foto marketing profesional dari deskripsi atau foto referensi kamu_\n\n" +
-        "Pilih kategori konten kamu:",
+        t('creation.image_generate_title', ciLang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🛍️ Foto Produk", callback_data: "img_product" }],
-              [{ text: "🍔 Makanan & Minuman", callback_data: "img_fnb" }],
-              [
-                {
-                  text: "🏠 Properti / Real Estate",
-                  callback_data: "img_realestate",
-                },
-              ],
-              [{ text: "🚗 Kendaraan / Otomotif", callback_data: "img_car" }],
-              [{ text: "👤 Kelola Avatar", callback_data: "avatar_manage" }],
-              [{ text: "◀️ Menu Utama", callback_data: "main_menu" }],
+              [{ text: t('creation.btn_product_photo', ciLang), callback_data: "img_product" }],
+              [{ text: t('creation.btn_fnb', ciLang), callback_data: "img_fnb" }],
+              [{ text: t('creation.btn_realestate', ciLang), callback_data: "img_realestate" }],
+              [{ text: t('creation.btn_car', ciLang), callback_data: "img_car" }],
+              [{ text: t('creation.btn_avatar', ciLang), callback_data: "avatar_manage" }],
+              [{ text: t('btn.main_menu', ciLang), callback_data: "main_menu" }],
             ],
           },
         },
