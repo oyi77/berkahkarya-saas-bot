@@ -784,6 +784,239 @@
       color: var(--accent);
     }
 
+  
+    /* Video Showcase Hero */
+    .video-showcase-hero {
+      padding: 120px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .showcase-header {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+    
+    .showcase-title {
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .showcase-desc {
+      font-size: 18px;
+      color: var(--dim);
+      max-width: 700px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+    
+    /* Featured Video */
+    .featured-video-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 100px;
+    }
+    
+    .featured-video-card {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,217,255,0.3);
+      animation: slideUp 0.8s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .video-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: linear-gradient(135deg, var(--accent), #00ff88);
+      color: #0a0a1a;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 12px;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,217,255,0.4);
+    }
+    
+    .featured-iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    
+    .featured-meta {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    
+    .meta-item {
+      text-align: center;
+    }
+    
+    .meta-label {
+      font-size: 12px;
+      color: var(--dim);
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .meta-value {
+      font-size: 20px;
+      font-weight: 800;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: block;
+    }
+    
+    /* Grid Section */
+    .showcase-grid {
+      margin-bottom: 80px;
+    }
+    
+    .grid-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+    
+    .grid-header h3 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    
+    .grid-header p {
+      font-size: 16px;
+      color: var(--dim);
+    }
+    
+    .video-grid-showcase {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .showcase-video-card {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+    
+    .showcase-video-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(0,217,255,0.25);
+    }
+    
+    .showcase-video-card iframe {
+      width: 100%;
+      height: 400px;
+      border: none;
+      display: block;
+    }
+    
+    .showcase-stats {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px;
+      background: var(--bg2);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--dim);
+    }
+    
+    /* Final CTA */
+    .showcase-cta-final {
+      text-align: center;
+    }
+    
+    .btn-large {
+      font-size: 18px !important;
+      padding: 18px 48px !important;
+      min-width: 300px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0,217,255,0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(0,217,255,0);
+      }
+    }
+    
+    .cta-subtext {
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--dim);
+    }
+    
+    @media(max-width: 1200px) {
+      .video-grid-showcase {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase-hero {
+        padding: 80px 16px;
+      }
+      
+      .showcase-title {
+        font-size: 28px;
+      }
+      
+      .featured-iframe {
+        height: 500px;
+      }
+      
+      .video-grid-showcase {
+        grid-template-columns: 1fr;
+      }
+      
+      .showcase-video-card iframe {
+        height: 350px;
+      }
+      
+      .btn-large {
+        min-width: auto;
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -895,61 +1128,7 @@
   
 
 
-    <!-- Video Showcase - Clean Thumbnail -->
-  <section class="video-showcase-clean">
-    <div class="container">
-        <!-- Video Showcase - Clean Thumbnail -->
-  <section class="video-showcase-clean">
-    <div class="container">
-      <h2 class="showcase-title" id="showcase-title">Lihat Hasil Nyata dari AI Kami 🎬</h2>
-      <p class="showcase-desc" id="showcase-desc">Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik</p>
-      </p>
-      </p>
-      
-      <div class="video-cards-grid">
-        <div class="video-card" onclick="playVideo('7609293836942200071', 'hasnacare1')">
-          <img src="" class="video-thumb" data-video-id="7609293836942200071" alt="Video 1" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
-          <div class="play-button-overlay">
-            <div class="play-circle">▶</div>
-          </div>
-        </div>
-        <div class="video-card" onclick="playVideo('7608585898384559367', 'hasnacare1')">
-          <img src="" class="video-thumb" data-video-id="7608585898384559367" alt="Video 2" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
-          <div class="play-button-overlay">
-            <div class="play-circle">▶</div>
-          </div>
-        </div>
-        <div class="video-card" onclick="playVideo('7610004343936322833', 'rekomendasiprodukksehat')">
-          <img src="" class="video-thumb" data-video-id="7610004343936322833" alt="Video 3" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
-          <div class="play-button-overlay">
-            <div class="play-circle">▶</div>
-          </div>
-        </div>
-        <div class="video-card" onclick="playVideo('7597028270709771534', 'tinylittleworld0')">
-          <img src="" class="video-thumb" data-video-id="7597028270709771534" alt="Video 4" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
-          <div class="play-button-overlay">
-            <div class="play-circle">▶</div>
-          </div>
-        </div>
-        <div class="video-card" onclick="playVideo('7619950185984167182', 'tinylittleworld0')">
-          <img src="" class="video-thumb" data-video-id="7619950185984167182" alt="Video 5" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
-          <div class="play-button-overlay">
-            <div class="play-circle">▶</div>
-          </div>
-        </div>
-        <div class="video-card" onclick="playVideo('7552191154108796182', 'catchemistry1')">
-          <img src="" class="video-thumb" data-video-id="7552191154108796182" alt="Video 6" style="width:100%; height:100%; object-fit:cover; background:#1a1a2e;">
-          <div class="play-button-overlay">
-            <div class="play-circle">▶</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="showcase-cta">
-        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary" onclick="trackCTA('cta_showcase_click')" id="showcase-cta">🚀 Buat Video Seperti Ini Sekarang</a>
-      </div>
-    </div>
-  </section>
+    
   
   <!-- Video Modal -->
   <div id="videoModal" class="video-modal" onclick="if(event.target.id==='videoModal') closeVideoModal()">
@@ -1035,6 +1214,99 @@
     });
 
   </script>
+
+
+  <!-- Video Showcase - Featured Hero + Social Proof Grid -->
+  <section class="video-showcase-hero">
+    <div class="container">
+      <div class="showcase-header">
+        <h2 class="showcase-title" id="showcase-title">Lihat Hasil Nyata dari AI Kami 🎬</h2>
+        <p class="showcase-desc" id="showcase-desc">Video-video viral ini dibuat dengan Vilona OpenClaw — hanya dengan 1 foto produk, jadi video profesional dalam 60 detik</p>
+      </div>
+      
+      <!-- Featured Hero Video -->
+      <div class="featured-video-container">
+        <div class="featured-video-card">
+          <div class="video-badge">🏆 FEATURED</div>
+          <iframe 
+            src="https://www.tiktok.com/embed/v2/7614532198765432101"
+            class="featured-iframe"
+            allowfullscreen
+            scrolling="no"
+            allow="encrypted-media;">
+          </iframe>
+          <div class="featured-meta">
+            <div class="meta-item">
+              <span class="meta-label">Views</span>
+              <span class="meta-value">3.2M</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Likes</span>
+              <span class="meta-value">256K</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Engagement</span>
+              <span class="meta-value">8.0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Supporting Videos Grid -->
+      <div class="showcase-grid">
+        <div class="grid-header">
+          <h3>More Amazing Results</h3>
+          <p>Dari berbagai akun, semua menggunakan Vilona OpenClaw</p>
+        </div>
+        
+        <div class="video-grid-showcase">
+          <div class="showcase-video-card">
+            <iframe src="https://www.tiktok.com/embed/v2/7609293836942200071" allowfullscreen scrolling="no" allow="encrypted-media;"></iframe>
+            <div class="showcase-stats">
+              <span>2.1M 👀</span>
+              <span>145K ❤️</span>
+              <span>6.9% 🔥</span>
+            </div>
+          </div>
+          
+          <div class="showcase-video-card">
+            <iframe src="https://www.tiktok.com/embed/v2/7608585898384559367" allowfullscreen scrolling="no" allow="encrypted-media;"></iframe>
+            <div class="showcase-stats">
+              <span>1.8M 👀</span>
+              <span>128K ❤️</span>
+              <span>7.1% 🔥</span>
+            </div>
+          </div>
+          
+          <div class="showcase-video-card">
+            <iframe src="https://www.tiktok.com/embed/v2/7610004343936322833" allowfullscreen scrolling="no" allow="encrypted-media;"></iframe>
+            <div class="showcase-stats">
+              <span>1.5M 👀</span>
+              <span>98K ❤️</span>
+              <span>6.5% 🔥</span>
+            </div>
+          </div>
+          
+          <div class="showcase-video-card">
+            <iframe src="https://www.tiktok.com/embed/v2/7613210987654321098" allowfullscreen scrolling="no" allow="encrypted-media;"></iframe>
+            <div class="showcase-stats">
+              <span>2.8M 👀</span>
+              <span>201K ❤️</span>
+              <span>7.2% 🔥</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- CTA -->
+      <div class="showcase-cta-final">
+        <a href="https://t.me/berkahkarya_saas_bot" class="btn btn-primary btn-large" onclick="trackCTA('cta_showcase_final')" id="showcase-cta">
+          🚀 Buat Video Seperti Ini Sekarang
+        </a>
+        <p class="cta-subtext" id="cta-subtext">Mulai gratis — 1 video gratis untuk member baru</p>
+      </div>
+    </div>
+  </section>
 
   <div class="proof-bar">
     <div class="proof-grid">
@@ -1980,6 +2252,239 @@
       background: var(--card);
       border-color: var(--accent);
       color: var(--accent);
+    }
+
+  
+    /* Video Showcase Hero */
+    .video-showcase-hero {
+      padding: 120px 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .showcase-header {
+      text-align: center;
+      margin-bottom: 80px;
+    }
+    
+    .showcase-title {
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .showcase-desc {
+      font-size: 18px;
+      color: var(--dim);
+      max-width: 700px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+    
+    /* Featured Video */
+    .featured-video-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 100px;
+    }
+    
+    .featured-video-card {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,217,255,0.3);
+      animation: slideUp 0.8s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .video-badge {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: linear-gradient(135deg, var(--accent), #00ff88);
+      color: #0a0a1a;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 12px;
+      z-index: 10;
+      box-shadow: 0 4px 12px rgba(0,217,255,0.4);
+    }
+    
+    .featured-iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    
+    .featured-meta {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+    
+    .meta-item {
+      text-align: center;
+    }
+    
+    .meta-label {
+      font-size: 12px;
+      color: var(--dim);
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .meta-value {
+      font-size: 20px;
+      font-weight: 800;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: block;
+    }
+    
+    /* Grid Section */
+    .showcase-grid {
+      margin-bottom: 80px;
+    }
+    
+    .grid-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+    
+    .grid-header h3 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    
+    .grid-header p {
+      font-size: 16px;
+      color: var(--dim);
+    }
+    
+    .video-grid-showcase {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .showcase-video-card {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+    
+    .showcase-video-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 16px 40px rgba(0,217,255,0.25);
+    }
+    
+    .showcase-video-card iframe {
+      width: 100%;
+      height: 400px;
+      border: none;
+      display: block;
+    }
+    
+    .showcase-stats {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px;
+      background: var(--bg2);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--dim);
+    }
+    
+    /* Final CTA */
+    .showcase-cta-final {
+      text-align: center;
+    }
+    
+    .btn-large {
+      font-size: 18px !important;
+      padding: 18px 48px !important;
+      min-width: 300px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(0,217,255,0.7);
+      }
+      50% {
+        box-shadow: 0 0 0 10px rgba(0,217,255,0);
+      }
+    }
+    
+    .cta-subtext {
+      margin-top: 16px;
+      font-size: 14px;
+      color: var(--dim);
+    }
+    
+    @media(max-width: 1200px) {
+      .video-grid-showcase {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media(max-width: 768px) {
+      .video-showcase-hero {
+        padding: 80px 16px;
+      }
+      
+      .showcase-title {
+        font-size: 28px;
+      }
+      
+      .featured-iframe {
+        height: 500px;
+      }
+      
+      .video-grid-showcase {
+        grid-template-columns: 1fr;
+      }
+      
+      .showcase-video-card iframe {
+        height: 350px;
+      }
+      
+      .btn-large {
+        min-width: auto;
+        width: 100%;
+        max-width: 300px;
+      }
     }
 
   </style>

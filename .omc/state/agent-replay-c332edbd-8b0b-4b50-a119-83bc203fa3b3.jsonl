@@ -1,0 +1,9 @@
+{"t":0,"agent":"aa94957","agent_type":"executor","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a0136aa","agent_type":"executor","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"ae88a09","agent_type":"executor","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"aa94957","agent_type":"executor","event":"agent_stop","success":true,"duration_ms":145160}
+{"t":0,"agent":"a0136aa","agent_type":"executor","event":"agent_stop","success":true,"duration_ms":146230}
+{"t":0,"agent":"a0df44e","agent_type":"Explore","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a0df44e","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":80891}
+{"t":0,"agent":"a51f690","agent_type":"analyst","event":"agent_start","parent_mode":"none"}
+{"t":0,"agent":"a51f690","agent_type":"analyst","event":"agent_stop","success":true,"duration_ms":184535}

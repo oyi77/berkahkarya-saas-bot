@@ -276,124 +276,16 @@
   },
   "hotPaths": [
     {
-      "path": "src/flows/generate.ts",
-      "accessCount": 246,
-      "lastAccessed": 1775038433866,
-      "type": "file"
-    },
-    {
-      "path": "src/routes/admin.ts",
-      "accessCount": 95,
-      "lastAccessed": 1775045841409,
-      "type": "file"
-    },
-    {
-      "path": "src",
-      "accessCount": 88,
-      "lastAccessed": 1775045844519,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin/analytics.ejs",
-      "accessCount": 74,
-      "lastAccessed": 1775044607617,
-      "type": "file"
-    },
-    {
-      "path": "src/workers/video-generation.worker.ts",
-      "accessCount": 58,
-      "lastAccessed": 1775038422852,
+      "path": "src/services/token-tracker.service.ts",
+      "accessCount": 10,
+      "lastAccessed": 1775008246085,
       "type": "file"
     },
     {
       "path": "src/services/image.service.ts",
-      "accessCount": 55,
-      "lastAccessed": 1775024788979,
+      "accessCount": 9,
+      "lastAccessed": 1775008236984,
       "type": "directory"
-    },
-    {
-      "path": "src/routes/web.ts",
-      "accessCount": 43,
-      "lastAccessed": 1775045814881,
-      "type": "file"
-    },
-    {
-      "path": "src/config/pricing.ts",
-      "accessCount": 37,
-      "lastAccessed": 1775044813392,
-      "type": "directory"
-    },
-    {
-      "path": "src/routes/webhook.ts",
-      "accessCount": 31,
-      "lastAccessed": 1775042212009,
-      "type": "file"
-    },
-    {
-      "path": "src/commands/create.ts",
-      "accessCount": 30,
-      "lastAccessed": 1775041703014,
-      "type": "file"
-    },
-    {
-      "path": "src/views/web/landing.ejs",
-      "accessCount": 29,
-      "lastAccessed": 1775045843252,
-      "type": "file"
-    },
-    {
-      "path": "tests/unit/routes/webhook.test.ts",
-      "accessCount": 20,
-      "lastAccessed": 1775042400385,
-      "type": "file"
-    },
-    {
-      "path": "src/routes/health.ts",
-      "accessCount": 14,
-      "lastAccessed": 1775039625396,
-      "type": "file"
-    },
-    {
-      "path": "src/commands/videos.ts",
-      "accessCount": 13,
-      "lastAccessed": 1775039630881,
-      "type": "file"
-    },
-    {
-      "path": "src/services/token-tracker.service.ts",
-      "accessCount": 13,
-      "lastAccessed": 1775043265396,
-      "type": "file"
-    },
-    {
-      "path": "src/commands/topup.ts",
-      "accessCount": 12,
-      "lastAccessed": 1775039665941,
-      "type": "file"
-    },
-    {
-      "path": "src/config/env.ts",
-      "accessCount": 12,
-      "lastAccessed": 1775043164506,
-      "type": "file"
-    },
-    {
-      "path": "src/services/nowpayments.service.ts",
-      "accessCount": 11,
-      "lastAccessed": 1775036290556,
-      "type": "directory"
-    },
-    {
-      "path": "src/services/video.service.ts",
-      "accessCount": 11,
-      "lastAccessed": 1775036861317,
-      "type": "file"
-    },
-    {
-      "path": "package.json",
-      "accessCount": 11,
-      "lastAccessed": 1775038562094,
-      "type": "file"
     },
     {
       "path": "src/services/audio-vo.service.ts",
@@ -402,15 +294,15 @@
       "type": "directory"
     },
     {
-      "path": "src/handlers/callbacks/referral.ts",
-      "accessCount": 9,
-      "lastAccessed": 1775031967342,
+      "path": "src/commands/create.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775008194225,
       "type": "file"
     },
     {
-      "path": "tests/e2e/bot/conftest.py",
-      "accessCount": 8,
-      "lastAccessed": 1775013808403,
+      "path": "src/workers/video-generation.worker.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775008093599,
       "type": "file"
     },
     {
@@ -420,52 +312,52 @@
       "type": "file"
     },
     {
-      "path": "src/services/payment.service.ts",
+      "path": "src/routes/admin.ts",
       "accessCount": 7,
-      "lastAccessed": 1775036272924,
+      "lastAccessed": 1775008989226,
       "type": "file"
     },
     {
-      "path": "src/services/duitku.service.ts",
-      "accessCount": 7,
-      "lastAccessed": 1775036285024,
-      "type": "file"
-    },
-    {
-      "path": "src/commands/subscription.ts",
+      "path": "src/routes/webhook.ts",
       "accessCount": 6,
-      "lastAccessed": 1775029076457,
+      "lastAccessed": 1775008968212,
       "type": "file"
+    },
+    {
+      "path": "src/services/video.service.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775008113421,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 5,
+      "lastAccessed": 1775008179511,
+      "type": "directory"
     },
     {
       "path": "src/handlers/callbacks/navigation.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775032313458,
+      "accessCount": 4,
+      "lastAccessed": 1775008033548,
       "type": "file"
     },
     {
-      "path": "src/menus/main.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775036231120,
-      "type": "file"
-    },
-    {
-      "path": "playwright.config.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775009230203,
+      "path": "src/handlers/callbacks/referral.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008034628,
       "type": "file"
     },
     {
       "path": "src/handlers/messages/video-uploader.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775025713942,
+      "accessCount": 4,
+      "lastAccessed": 1775008035782,
       "type": "file"
     },
     {
-      "path": "src/services/admin-alert.service.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775029827122,
-      "type": "directory"
+      "path": "src/menus/main.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008036490,
+      "type": "file"
     },
     {
       "path": "src/services/video-analysis.service.ts",
@@ -474,22 +366,28 @@
       "type": "directory"
     },
     {
+      "path": "src/commands/topup.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775007992730,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/videos.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775007994782,
+      "type": "file"
+    },
+    {
+      "path": "src/flows/generate.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008023684,
+      "type": "file"
+    },
+    {
       "path": "src/services/content-analysis.service.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775018710989,
+      "accessCount": 3,
+      "lastAccessed": 1775008211410,
       "type": "file"
-    },
-    {
-      "path": "src/views/admin/config.ejs",
-      "accessCount": 4,
-      "lastAccessed": 1775031974192,
-      "type": "file"
-    },
-    {
-      "path": "src/routes",
-      "accessCount": 4,
-      "lastAccessed": 1775032343760,
-      "type": "directory"
     },
     {
       "path": "src/services/watermark.service.ts",
@@ -504,22 +402,28 @@
       "type": "directory"
     },
     {
-      "path": "src/views/admin/pricing.ejs",
+      "path": "src/config/env.ts",
       "accessCount": 3,
-      "lastAccessed": 1775031973499,
+      "lastAccessed": 1775008313913,
       "type": "file"
     },
     {
-      "path": "src/views/admin/users.ejs",
+      "path": "tests/unit/routes/webhook.test.ts",
       "accessCount": 3,
-      "lastAccessed": 1775031979263,
+      "lastAccessed": 1775008331611,
       "type": "file"
     },
     {
-      "path": "src/handlers/callbacks",
+      "path": "src/routes/health.ts",
       "accessCount": 3,
-      "lastAccessed": 1775032378564,
-      "type": "directory"
+      "lastAccessed": 1775008967345,
+      "type": "file"
+    },
+    {
+      "path": "src/services/duitku.service.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008994527,
+      "type": "file"
     },
     {
       "path": "src/services/geminigen.service.ts",
@@ -534,10 +438,16 @@
       "type": "file"
     },
     {
-      "path": "jest.e2e.config.js",
-      "accessCount": 2,
-      "lastAccessed": 1775009424215,
+      "path": "src/commands/subscription.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775007949139,
       "type": "file"
+    },
+    {
+      "path": "src/handlers/callbacks",
+      "accessCount": 1,
+      "lastAccessed": 1775007960943,
+      "type": "directory"
     },
     {
       "path": "src/handlers/messages",
@@ -558,9 +468,21 @@
       "type": "file"
     },
     {
+      "path": "jest.e2e.config.js",
+      "accessCount": 1,
+      "lastAccessed": 1775008962935,
+      "type": "file"
+    },
+    {
       "path": "tests/e2e_flow_verification.py",
       "accessCount": 1,
       "lastAccessed": 1775008965299,
+      "type": "file"
+    },
+    {
+      "path": "src/routes/web.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775008968777,
       "type": "file"
     },
     {
@@ -573,6 +495,60 @@
       "path": "tests/comprehensive_test.py",
       "accessCount": 1,
       "lastAccessed": 1775008970648,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1775008976666,
+      "type": "file"
+    },
+    {
+      "path": "src/services/payment.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775008981035,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/config.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775008985179,
+      "type": "file"
+    },
+    {
+      "path": "src/services/nowpayments.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775008988160,
+      "type": "directory"
+    },
+    {
+      "path": "src/views/admin/analytics.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775008990714,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/pricing.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775008991535,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/users.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775008992224,
+      "type": "file"
+    },
+    {
+      "path": "src/views/web/landing.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775008992965,
+      "type": "file"
+    },
+    {
+      "path": "src/views/web/app.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775008995595,
       "type": "file"
     }
   ],

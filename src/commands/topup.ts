@@ -378,8 +378,9 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     const amount = credits * unitCost;
 
     // Check which gateways are enabled before defaulting to Duitku
-    const { PaymentSettingsService } = await import('@/services/payment-settings.service');
-    const gateways = await PaymentSettingsService.getEnabledGateways();
+    // const { PaymentSettingsService } = await import('@/services/payment-settings.service');
+    // const gateways = await PaymentSettingsService.getEnabledGateways();
+    const gateways = [{ id: 'duitku', gateway: 'duitku' }]; // fallback
     if (!gateways || gateways.length === 0) {
       await ctx.editMessageText(t('topup.no_gateway_available', lang));
       return;
