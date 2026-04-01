@@ -27,4 +27,5 @@ module.exports = {
   },
   setupFilesAfterEnv: ["<rootDir>/tests/e2e/setup.e2e.ts"],
   verbose: true,
+  forceExit: true,
 };
