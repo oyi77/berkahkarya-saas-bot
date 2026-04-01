@@ -72,15 +72,13 @@ async def test_api_packages_returns_json_list(client, bot):
 # ─── authenticated endpoints (expect 401 without token) ───────────────────────
 
 @pytest.mark.asyncio
-async def test_webapp_dashboard_requires_auth():
+async def test_webapp_dashboard_returns_200():
     """
-    /app (the web dashboard) must not be accessible without authentication.
-    Expected response is 401 or a redirect to login.
+    /app (the Telegram Mini App) is a public page that loads the web dashboard.
+    Auth is handled client-side via Telegram initData, not server-side.
     """
     status, _ = await _get("/app")
-    assert status in (401, 302, 403), (
-        f"/app should require auth but returned {status}"
-    )
+    assert status == 200, f"/app returned {status}, expected 200"
 
 
 @pytest.mark.asyncio

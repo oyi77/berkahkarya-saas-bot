@@ -5,13 +5,17 @@ Session credentials are read-only — the Telethon session at SESSION_PATH
 must already be authorized before running these tests.  If it is not, every
 test that depends on the `client` or `bot` fixtures will be skipped with a
 clear message rather than failing or hanging.
+
+Telethon binds to one event loop at connect time and refuses to work on any
+other.  We create a single loop at import time, connect eagerly, and yield
+that loop as the session-scoped event_loop fixture so every test runs on it.
 """
 import asyncio
+import inspect
 from datetime import datetime, timezone
 from typing import Optional
 
 import pytest
-import pytest_asyncio
 from telethon import TelegramClient
 from telethon.tl.custom import Message
 
@@ -29,49 +33,79 @@ POLL_INTERVAL = 0.5
 # "Loading" messages the bot sends while generating — skip these when waiting
 LOADING_KEYWORDS = ("Vilona",)
 
+# ─── Eager connection at module level ────────────────────────────────────────
+# This ensures Telethon connects on a known loop BEFORE pytest-asyncio
+# creates its own loops.  All tests then run on this exact loop.
 
-# ─── event loop (session-scoped) ─────────────────────────────────────────────
+_LOOP = asyncio.new_event_loop()
+_CLIENT: Optional[TelegramClient] = None
+_BOT = None
+_SKIP_REASON: Optional[str] = None
+
+
+def _connect_sync():
+    global _CLIENT, _BOT, _SKIP_REASON
+    tc = TelegramClient(SESSION_PATH, API_ID, API_HASH, loop=_LOOP)
+    _LOOP.run_until_complete(tc.connect())
+
+    if not _LOOP.run_until_complete(tc.is_user_authorized()):
+        _LOOP.run_until_complete(tc.disconnect())
+        _SKIP_REASON = f"Telethon session not authorized at {SESSION_PATH}"
+        return
+
+    try:
+        _BOT = _LOOP.run_until_complete(tc.get_entity(BOT_USERNAME))
+    except Exception as exc:
+        _LOOP.run_until_complete(tc.disconnect())
+        _SKIP_REASON = f"Cannot resolve bot @{BOT_USERNAME}: {exc}"
+        return
+
+    _CLIENT = tc
+
+
+try:
+    _connect_sync()
+except Exception as exc:
+    _SKIP_REASON = f"Failed to connect Telethon: {exc}"
+
+
+# ─── pytest hook: force session loop_scope on every async test ───────────────
+def pytest_collection_modifyitems(items):
+    marker = pytest.mark.asyncio(loop_scope="session")
+    for item in items:
+        if asyncio.iscoroutinefunction(item.obj) or inspect.isasyncgenfunction(item.obj):
+            item.add_marker(marker)
+
+
+# ─── event loop fixture (session-scoped, yields the Telethon loop) ──────────
 @pytest.fixture(scope="session")
 def event_loop():
-    """Single event loop shared by all session-scoped async fixtures."""
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+    asyncio.set_event_loop(_LOOP)
+    yield _LOOP
+    if _CLIENT:
+        try:
+            result = _CLIENT.disconnect()
+            if asyncio.iscoroutine(result) or asyncio.isfuture(result):
+                _LOOP.run_until_complete(result)
+        except Exception:
+            pass
+    if not _LOOP.is_closed():
+        _LOOP.close()
 
 
-# ─── Telethon client (session-scoped) ────────────────────────────────────────
-@pytest_asyncio.fixture(scope="session")
-async def client():
-    """
-    Connect to Telegram using the pre-authorized session file.
-    If the session is not authorized the entire session is skipped.
-    """
-    tc = TelegramClient(SESSION_PATH, API_ID, API_HASH)
-    await tc.connect()
-
-    if not await tc.is_user_authorized():
-        await tc.disconnect()
-        pytest.skip(
-            "Telethon session is not authorized. "
-            f"Authorize the session at {SESSION_PATH} first."
-        )
-
-    yield tc
-    await tc.disconnect()
+# ─── client/bot fixtures ────────────────────────────────────────────────────
+@pytest.fixture(scope="session")
+def client():
+    if _SKIP_REASON:
+        pytest.skip(_SKIP_REASON)
+    return _CLIENT
 
 
-# ─── bot entity (session-scoped) ─────────────────────────────────────────────
-@pytest_asyncio.fixture(scope="session")
-async def bot(client):
-    """
-    Resolve the bot entity.  Skips the session if the bot username cannot
-    be resolved (bot unreachable / username wrong).
-    """
-    try:
-        entity = await client.get_entity(BOT_USERNAME)
-    except Exception as exc:
-        pytest.skip(f"Cannot resolve bot @{BOT_USERNAME}: {exc}")
-    return entity
+@pytest.fixture(scope="session")
+def bot():
+    if _SKIP_REASON:
+        pytest.skip(_SKIP_REASON)
+    return _BOT
 
 
 # ─── low-level helpers ────────────────────────────────────────────────────────
@@ -158,16 +192,6 @@ async def wait_for_response(
 ) -> Optional[Message]:
     """
     Poll for the next non-loading bot message sent after `since`.
-
-    Args:
-        client: authorized TelegramClient
-        bot: resolved bot entity
-        since: UTC datetime; only messages after this are considered
-        timeout: maximum seconds to wait
-        need_buttons: if True, skip messages that have no inline keyboard
-
-    Returns:
-        The matching Message, or None if timeout is reached.
     """
     me = await client.get_me()
     iterations = int(timeout / POLL_INTERVAL)
@@ -213,8 +237,6 @@ async def click_callback(
     """
     Click the inline button with `callback_data` on `msg` and wait for the
     bot to either edit that message or send a new one.
-
-    Returns the updated/new Message, or None if nothing changed within timeout.
     """
     if not msg or not msg.reply_markup:
         return None

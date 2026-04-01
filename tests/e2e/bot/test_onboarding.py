@@ -41,7 +41,7 @@ async def test_start_response_is_in_known_language(client, bot):
     text = (msg.text or "").lower()
 
     indonesian_words = ("halo", "selamat", "kredit", "buat", "video", "menu", "saldo")
-    english_words = ("hello", "welcome", "credit", "create", "menu", "balance")
+    english_words = ("hello", "welcome", "credit", "create", "menu", "balance", "quick actions", "quick action")
 
     is_indonesian = any(w in text for w in indonesian_words)
     is_english = any(w in text for w in english_words)
