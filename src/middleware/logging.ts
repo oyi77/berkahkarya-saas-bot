@@ -7,31 +7,36 @@
 import { Middleware } from 'telegraf';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { runWithCorrelation } from '@/utils/correlation';
 
 /**
  * Logging middleware
  */
-export const loggingMiddleware: Middleware<BotContext> = async (ctx, next) => {
-  const startTime = Date.now();
-  
-  // Log incoming update
-  logger.info('Incoming update', {
-    updateId: ctx.update.update_id,
-    userId: ctx.from?.id,
-    username: ctx.from?.username,
-    chatId: ctx.chat?.id,
-    type: getUpdateType(ctx),
-  });
+export const loggingMiddleware: Middleware<BotContext> = (ctx, next) => {
+  const correlationId = `${ctx.from?.id ?? 'anon'}-${Date.now()}`;
 
-  // Process update
-  await next();
+  return runWithCorrelation(async () => {
+    const startTime = Date.now();
 
-  // Log completion
-  const duration = Date.now() - startTime;
-  logger.info('Update processed', {
-    updateId: ctx.update.update_id,
-    duration: `${duration}ms`,
-  });
+    // Log incoming update
+    logger.info('Incoming update', {
+      updateId: ctx.update.update_id,
+      userId: ctx.from?.id,
+      username: ctx.from?.username,
+      chatId: ctx.chat?.id,
+      type: getUpdateType(ctx),
+    });
+
+    // Process update
+    await next();
+
+    // Log completion
+    const duration = Date.now() - startTime;
+    logger.info('Update processed', {
+      updateId: ctx.update.update_id,
+      duration: `${duration}ms`,
+    });
+  }, correlationId);
 };
 
 /**

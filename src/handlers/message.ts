@@ -162,7 +162,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
       // Clear editing state and re-show scene review
       if (ctx.session) {
-        ctx.session.stateData = undefined;
+        ctx.session.stateData = {};
         ctx.session.state = 'DASHBOARD';
       }
       const { showProSceneReview } = await import('../flows/generate.js');

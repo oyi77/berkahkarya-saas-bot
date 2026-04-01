@@ -107,8 +107,11 @@ export async function handleVideoCreationImage(
     return;
   }
 
-  const { scenes, storyboard, totalDuration, niche, platform } =
-    ctx.session.videoCreation;
+  const { storyboard } = ctx.session.videoCreation;
+  const scenes = ctx.session.videoCreation.scenes ?? 1;
+  const totalDuration = ctx.session.videoCreation.totalDuration ?? 0;
+  const niche = ctx.session.videoCreation.niche ?? '';
+  const platform = ctx.session.videoCreation.platform ?? 'tiktok';
   const telegramId = BigInt(ctx.from!.id);
   const creditCost = getVideoCreditCost(totalDuration);
 
@@ -262,7 +265,7 @@ export async function handleVideoCreationImage(
         platform,
         duration: totalDuration,
         scenes,
-        storyboard: enrichedStoryboard,
+        storyboard: enrichedStoryboard ?? [],
         referenceImage: imagePath,
         customPrompt: ctx.session.videoCreation.customPrompt,
         userId: telegramId.toString(),
@@ -286,7 +289,7 @@ export async function handleVideoCreationImage(
           niche,
           platform,
           totalDuration,
-          enrichedStoryboard,
+          enrichedStoryboard ?? [],
           imagePath,
         ).catch((err) =>
           logger.error("Background generateVideoAsync error:", err),
@@ -299,7 +302,7 @@ export async function handleVideoCreationImage(
           platform,
           totalDuration,
           scenes,
-          enrichedStoryboard,
+          enrichedStoryboard ?? [],
           imagePath,
         ).catch((err) =>
           logger.error("Background generateExtendedVideoAsync error:", err),
@@ -349,8 +352,12 @@ export async function handleSkipImageReference(ctx: BotContext): Promise<void> {
     return;
   }
 
-  const { scenes, storyboard, totalDuration, niche, platform } =
-    ctx.session.videoCreation;
+  const { storyboard: rawStoryboard } = ctx.session.videoCreation;
+  const scenes = ctx.session.videoCreation.scenes ?? 1;
+  const totalDuration = ctx.session.videoCreation.totalDuration ?? 0;
+  const niche = ctx.session.videoCreation.niche ?? '';
+  const platform = ctx.session.videoCreation.platform ?? 'tiktok';
+  const storyboard = rawStoryboard ?? [];
   const telegramId = BigInt(ctx.from!.id);
   const creditCost = getVideoCreditCost(totalDuration);
 

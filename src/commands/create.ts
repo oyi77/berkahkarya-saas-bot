@@ -214,7 +214,7 @@ export async function handleNicheSelection(
   try {
     if (!ctx.session) return;
 
-    const nicheConfig = NICHES[nicheKey];
+    const nicheConfig = (NICHES as Record<string, typeof NICHES[keyof typeof NICHES] | undefined>)[nicheKey];
     if (!nicheConfig) {
       await ctx.answerCbQuery(t('topup.invalid_package', ctx.session?.userLang || 'id')).catch(() => {});
       return;
@@ -1019,7 +1019,7 @@ export async function handleVOToggle(
     const lang = getUserLang(dbUser);
 
     const { niche, totalDuration, scenes } = ctx.session.videoCreation;
-    const creditCost = getVideoCreditCost(totalDuration);
+    const creditCost = getVideoCreditCost(totalDuration ?? 0);
     const sceneLabel =
       (scenes || 1) > 1 ? t("create.scenes", lang) : t("create.scene", lang);
 

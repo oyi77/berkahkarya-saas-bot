@@ -106,6 +106,33 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/**
+ * Shared polling loop used by every async provider.
+ *
+ * @param providerName  Human-readable name for error messages.
+ * @param taskId        The job/task/request ID returned by the submit call.
+ * @param pollFn        Provider-specific function that fetches the current status.
+ * @param config        How many attempts and how long to wait between them.
+ * @returns             The video URL on success.
+ */
+async function pollUntilComplete(
+  providerName: string,
+  taskId: string,
+  pollFn: (id: string) => Promise<{ status: 'pending' | 'completed' | 'failed'; videoUrl?: string }>,
+  config: { maxAttempts: number; intervalMs: number } = { maxAttempts: POLL_MAX_ATTEMPTS, intervalMs: POLL_INTERVAL },
+): Promise<string> {
+  for (let i = 0; i < config.maxAttempts; i++) {
+    await sleep(config.intervalMs);
+    const result = await pollFn(taskId);
+    if (result.status === 'completed') {
+      if (!result.videoUrl) throw new Error(`${providerName}: completed but no video URL`);
+      return result.videoUrl;
+    }
+    if (result.status === 'failed') throw new Error(`${providerName} generation failed`);
+  }
+  throw new Error(`${providerName} poll timeout after ${config.maxAttempts} attempts`);
+}
+
 // ── Provider implementations ──
 
 /** Tier 1: GeminiGen — grok-3 model */
@@ -133,21 +160,19 @@ async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoF
   const { uuid } = response.data;
   logger.info(`GeminiGen video started: ${uuid}`);
 
-  // Poll
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${uuid}`, {
+  const videoUrl = await pollUntilComplete('GeminiGen', uuid, async (id) => {
+    const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${id}`, {
       headers: { 'x-api-key': GEMINIGEN_API_KEY },
       timeout: 10000,
     });
     const { status: s, generated_video, error_message } = poll.data;
-    if (s === 2 && generated_video?.length > 0) {
-      const videoUrl = generated_video[0].video_url || generated_video[0].video_uri;
-      return { success: true, videoUrl, jobId: uuid, provider: 'geminigen' };
-    }
     if (s === 3) throw new Error(error_message || 'GeminiGen generation failed');
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('GeminiGen poll timeout');
+    if (s === 2 && generated_video?.length > 0) {
+      return { status: 'completed', videoUrl: generated_video[0].video_url || generated_video[0].video_uri };
+    }
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, jobId: uuid, provider: 'geminigen' };
 }
 
 /** Tier 2: Fal.ai — kling-video v1.6 with async queue polling */
@@ -189,35 +214,33 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
   logger.info(`Fal.ai video queued: ${requestId} (model: ${model})`);
 
   // Poll status using the canonical URL from the submit response
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    await sleep(POLL_INTERVAL);
+  let pollCount = 0;
+  const videoUrl = await pollUntilComplete('Fal.ai', requestId, async (_id) => {
     const statusRes = await axios.get(statusUrl, {
       headers: { Authorization: `Key ${FALAI_API_KEY}` },
       timeout: 15000,
     });
     const status = statusRes.data?.status;
+    if (pollCount % 6 === 0) logger.info(`Fal.ai poll ${pollCount + 1}/${POLL_MAX_ATTEMPTS}: ${status}`);
+    pollCount++;
+    if (status === 'FAILED') throw new Error(`Fal.ai: ${statusRes.data?.error || 'generation failed'}`);
     if (status === 'COMPLETED') {
       // Fetch result using the canonical response URL
       const resultRes = await axios.get(responseUrl, {
         headers: { Authorization: `Key ${FALAI_API_KEY}` },
         timeout: 15000,
       });
-      const videoUrl =
+      const url =
         resultRes.data?.video?.url ||
         resultRes.data?.video_url ||
         resultRes.data?.output?.video?.url ||
         resultRes.data?.output?.video_url;
-      if (videoUrl) return { success: true, videoUrl, provider: 'falai', jobId: requestId };
-      throw new Error('Fal.ai: COMPLETED but no video URL in result');
+      if (!url) throw new Error('Fal.ai: COMPLETED but no video URL in result');
+      return { status: 'completed', videoUrl: url };
     }
-    if (status === 'FAILED') {
-      const errMsg = statusRes.data?.error || 'Fal.ai generation failed';
-      throw new Error(`Fal.ai: ${errMsg}`);
-    }
-    // IN_QUEUE or IN_PROGRESS — keep polling
-    if (i % 6 === 0) logger.info(`Fal.ai poll ${i + 1}/${POLL_MAX_ATTEMPTS}: ${status}`);
-  }
-  throw new Error('Fal.ai: poll timeout');
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, provider: 'falai', jobId: requestId };
 }
 
 /** Tier 3: SiliconFlow — Wan-AI video */
@@ -243,20 +266,19 @@ async function generateViaSiliconFlow(params: VideoFallbackParams): Promise<Vide
   const requestId = response.data?.requestId;
   if (!requestId) throw new Error('SiliconFlow: no requestId');
 
-  // Poll for result
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.post('https://api.siliconflow.cn/v1/video/status', { requestId }, {
+  const videoUrl = await pollUntilComplete('SiliconFlow', requestId, async (id) => {
+    const poll = await axios.post('https://api.siliconflow.cn/v1/video/status', { requestId: id }, {
       headers: { Authorization: `Bearer ${SILICONFLOW_API_KEY}`, 'Content-Type': 'application/json' },
       timeout: 10000,
     });
     const status = poll.data?.status;
-    if (status === 'Succeed' && poll.data?.results?.videos?.[0]?.url) {
-      return { success: true, videoUrl: poll.data.results.videos[0].url, provider: 'siliconflow' };
-    }
     if (status === 'Failed') throw new Error(`SiliconFlow: ${poll.data?.reason || 'generation failed'}`);
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('SiliconFlow poll timeout');
+    if (status === 'Succeed' && poll.data?.results?.videos?.[0]?.url) {
+      return { status: 'completed', videoUrl: poll.data.results.videos[0].url };
+    }
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, provider: 'siliconflow' };
 }
 
 /** Tier 4: XAI — via GeminiGen proxy endpoint (same base, different model path) */
@@ -289,21 +311,19 @@ async function generateViaXAI(params: VideoFallbackParams): Promise<VideoFallbac
   const { uuid } = response.data;
   logger.info(`XAI video started via proxy: ${uuid}`);
 
-  // Poll using GeminiGen history endpoint
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${uuid}`, {
+  const videoUrl = await pollUntilComplete('XAI', uuid, async (id) => {
+    const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${id}`, {
       headers: { 'x-api-key': apiKey },
       timeout: 10000,
     });
     const { status: s, generated_video, error_message } = poll.data;
-    if (s === 2 && generated_video?.length > 0) {
-      const videoUrl = generated_video[0].video_url || generated_video[0].video_uri;
-      return { success: true, videoUrl, jobId: uuid, provider: 'xai' };
-    }
     if (s === 3) throw new Error(error_message || 'XAI generation failed');
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('XAI poll timeout');
+    if (s === 2 && generated_video?.length > 0) {
+      return { status: 'completed', videoUrl: generated_video[0].video_url || generated_video[0].video_uri };
+    }
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, jobId: uuid, provider: 'xai' };
 }
 
 /** Tier 5: LaoZhang — OpenAI-compatible chat completions, model sora_video2 */
@@ -401,35 +421,29 @@ async function generateViaEvoLink(params: VideoFallbackParams): Promise<VideoFal
     throw new Error(`EvoLink: credits/access denied: ${errorMsg}`);
   }
 
-  // Poll for completion
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.get(`https://api.evolink.ai/v1/tasks/${taskId}`, {
+  const videoUrl = await pollUntilComplete('EvoLink', taskId, async (id) => {
+    const poll = await axios.get(`https://api.evolink.ai/v1/tasks/${id}`, {
       headers: { Authorization: `Bearer ${EVOLINK_API_KEY}` },
       timeout: 10000,
     });
-
     const status = poll.data?.status;
-    if (status === 'completed') {
-      let videoUrl = '';
-      const results = poll.data?.results;
-      if (Array.isArray(results) && results.length > 0) {
-        const first = results[0];
-        videoUrl = typeof first === 'object' ? (first.url || '') : String(first);
-      }
-      if (!videoUrl) {
-        videoUrl = poll.data?.output?.url || poll.data?.video_url || '';
-      }
-      if (videoUrl) {
-        return { success: true, videoUrl, jobId: taskId, provider: 'evolink' };
-      }
-      throw new Error('EvoLink: completed but no video URL');
-    }
     if (status === 'failed' || status === 'error') {
       throw new Error(`EvoLink: task failed: ${poll.data?.error || 'Unknown error'}`);
     }
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('EvoLink poll timeout');
+    if (status === 'completed') {
+      let url = '';
+      const results = poll.data?.results;
+      if (Array.isArray(results) && results.length > 0) {
+        const first = results[0];
+        url = typeof first === 'object' ? (first.url || '') : String(first);
+      }
+      if (!url) url = poll.data?.output?.url || poll.data?.video_url || '';
+      if (!url) throw new Error('EvoLink: completed but no video URL');
+      return { status: 'completed', videoUrl: url };
+    }
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, jobId: taskId, provider: 'evolink' };
 }
 
 /** Tier 7: Hypereal — kling-3-0-std-t2v, poll at /v1/jobs/{jobId}?model={model}&type=video */
@@ -466,30 +480,24 @@ async function generateViaHypereal(params: VideoFallbackParams): Promise<VideoFa
 
   logger.info(`Hypereal video started: ${jobId}`);
 
-  // Poll for completion
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
+  const videoUrl = await pollUntilComplete('Hypereal', jobId, async (id) => {
     const poll = await axios.get(
-      `https://api.hypereal.tech/v1/jobs/${jobId}?model=${encodeURIComponent(model)}&type=video`,
+      `https://api.hypereal.tech/v1/jobs/${id}?model=${encodeURIComponent(model)}&type=video`,
       {
         headers: { Authorization: `Bearer ${HYPEREAL_API_KEY}` },
         timeout: 10000,
       }
     );
-
     const status = poll.data?.status;
+    if (status === 'failed') throw new Error(`Hypereal: job failed: ${poll.data?.error || 'Unknown error'}`);
     if (status === 'completed') {
-      const videoUrl = poll.data?.outputUrl || poll.data?.output_url || '';
-      if (videoUrl) {
-        return { success: true, videoUrl, jobId, provider: 'hypereal' };
-      }
-      throw new Error('Hypereal: completed but no video URL');
+      const url = poll.data?.outputUrl || poll.data?.output_url || '';
+      if (!url) throw new Error('Hypereal: completed but no video URL');
+      return { status: 'completed', videoUrl: url };
     }
-    if (status === 'failed') {
-      throw new Error(`Hypereal: job failed: ${poll.data?.error || 'Unknown error'}`);
-    }
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('Hypereal poll timeout');
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, jobId, provider: 'hypereal' };
 }
 
 /** Tier 8: BytePlus Seedance via AIML API */
@@ -511,19 +519,18 @@ async function generateViaByteplus(params: VideoFallbackParams): Promise<VideoFa
   const id = response.data?.id;
   if (!id) throw new Error('BytePlus: no job id');
 
-  // Poll
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.get(`https://api.aimlapi.com/v2/video/generations/${id}`, {
+  const videoUrl = await pollUntilComplete('BytePlus', id, async (jobId) => {
+    const poll = await axios.get(`https://api.aimlapi.com/v2/video/generations/${jobId}`, {
       headers: { Authorization: `Bearer ${BYTEPLUS_API_KEY}` },
       timeout: 10000,
     });
-    if (poll.data?.status === 'completed' && poll.data?.output?.video_url) {
-      return { success: true, videoUrl: poll.data.output.video_url, provider: 'byteplus' };
-    }
     if (poll.data?.status === 'failed') throw new Error(`BytePlus: ${poll.data?.error || 'failed'}`);
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('BytePlus poll timeout');
+    if (poll.data?.status === 'completed' && poll.data?.output?.video_url) {
+      return { status: 'completed', videoUrl: poll.data.output.video_url };
+    }
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, provider: 'byteplus' };
 }
 
 /** Tier 9: Kie.ai — runway model, poll at /api/v1/runway/record-detail?taskId={taskId} */
@@ -568,34 +575,26 @@ async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbac
 
   logger.info(`Kie.ai video started: ${taskId}`);
 
-  // Poll for completion
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.get(`https://api.kie.ai/api/v1/runway/record-detail?taskId=${taskId}`, {
+  const videoUrl = await pollUntilComplete('Kie.ai', taskId, async (id) => {
+    const poll = await axios.get(`https://api.kie.ai/api/v1/runway/record-detail?taskId=${id}`, {
       headers: { Authorization: `Bearer ${KIE_API_KEY}` },
       timeout: 10000,
     });
-
-    if (poll.data?.code !== 200) {
-      await sleep(POLL_INTERVAL);
-      continue;
-    }
-
+    // Non-200 API code means the record isn't ready yet — treat as pending
+    if (poll.data?.code !== 200) return { status: 'pending' };
     const data = poll.data?.data || {};
     const status = data.state || data.status;
-
-    if (status === 'success' || status === 'completed') {
-      const videoUrl = data.videoInfo?.videoUrl || data.videoUrl || '';
-      if (videoUrl) {
-        return { success: true, videoUrl, jobId: taskId, provider: 'kie' };
-      }
-      throw new Error('Kie.ai: completed but no video URL');
-    }
     if (status === 'failed' || status === 'error' || status === 'fail') {
       throw new Error(`Kie.ai task failed: ${data.msg || 'Unknown error'}`);
     }
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('Kie.ai poll timeout');
+    if (status === 'success' || status === 'completed') {
+      const url = data.videoInfo?.videoUrl || data.videoUrl || '';
+      if (!url) throw new Error('Kie.ai: completed but no video URL');
+      return { status: 'completed', videoUrl: url };
+    }
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, jobId: taskId, provider: 'kie' };
 }
 
 /** Tier 10: PiAPI — Kling video generation (text-to-video + image-to-video) */
@@ -629,46 +628,36 @@ async function generateViaPiAPI(params: VideoFallbackParams): Promise<VideoFallb
 
   logger.info(`PiAPI video started: ${taskId}`);
 
-  // Poll for completion
-  for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
-    const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${taskId}`, {
+  const videoUrl = await pollUntilComplete('PiAPI', taskId, async (id) => {
+    const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${id}`, {
       headers: { 'x-api-key': PIAPI_API_KEY },
       timeout: 10000,
     });
-
-    const pollData = poll.data?.data;
-    const status = pollData?.status;
-
-    // Handle rate limit responses
+    // Handle rate limit responses with an extended back-off
     if (poll.status === 429) {
       logger.warn('PiAPI video: rate limited, backing off');
       await sleep(10000);
-      continue;
+      return { status: 'pending' };
     }
-
+    const pollData = poll.data?.data;
+    const status = pollData?.status;
+    if (status === 'failed') throw new Error(`PiAPI video: ${pollData?.error || 'task failed'}`);
     if (status === 'completed') {
       const output = pollData?.output;
       logger.info('PiAPI video response: ' + JSON.stringify(pollData).slice(0, 500));
-      const videoUrl = output?.video_url
+      const url = output?.video_url
         || (Array.isArray(output?.videos) ? output.videos[0] : null)
         || (Array.isArray(output?.video_urls) ? output.video_urls[0] : null)
         || output?.result?.video_url
         || output?.url
         || output?.works?.[0]?.video?.url;
-      if (videoUrl) {
-        return { success: true, videoUrl, jobId: taskId, provider: 'piapi' };
-      }
-      throw new Error('PiAPI video: completed but no video URL');
+      if (!url) throw new Error('PiAPI video: completed but no video URL');
+      return { status: 'completed', videoUrl: url };
     }
-    if (status === 'failed') {
-      throw new Error(`PiAPI video: ${pollData?.error || 'task failed'}`);
-    }
-    if (status === 'processing') {
-      // Still processing — continue polling
-    }
-    await sleep(POLL_INTERVAL);
-  }
-  throw new Error('PiAPI video: poll timeout');
+    // processing or any other transient status — keep polling
+    return { status: 'pending' };
+  });
+  return { success: true, videoUrl, jobId: taskId, provider: 'piapi' };
 }
 
 // ── Provider chain ──

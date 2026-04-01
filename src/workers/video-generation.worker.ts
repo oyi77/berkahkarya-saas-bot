@@ -10,6 +10,7 @@
 import { Worker, Job } from 'bullmq';
 import { redis, bullmqRedis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import { runWithCorrelation } from '@/utils/correlation';
 import { sendAdminAlert } from '@/services/admin-alert.service';
 import { VideoService } from '@/services/video.service';
 import { UserService } from '@/services/user.service';
@@ -90,6 +91,7 @@ export interface VideoGenerationJobData {
   campaignTotal?: number;
   voScript?: string; // Pro mode: user-provided VO script (skip AI generation)
   userImages?: Array<{ sceneIndex: number; url: string }>; // Pro mode: per-scene user images
+  correlationId?: string;
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -1129,7 +1131,7 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
 
   workerInstance = new Worker<VideoGenerationJobData>(
     'video-generation',
-    async (job: Job<VideoGenerationJobData>) => {
+    (job: Job<VideoGenerationJobData>) => runWithCorrelation(async () => {
       logger.info(`Processing video job ${job.id} (jobId=${job.data.jobId}, scenes=${job.data.scenes})`);
 
       try {
@@ -1165,7 +1167,7 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
 
         throw error; // Let BullMQ handle retry logic
       }
-    },
+    }, job.data.correlationId),
     {
       connection: bullmqRedis,
       concurrency: 3,

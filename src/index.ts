@@ -196,6 +196,15 @@ async function main() {
       viewExt: "ejs",
     });
 
+    // ── Correlation ID — attach to request for downstream logging ──
+    server.addHook('onRequest', async (request, _reply) => {
+      const incomingId = request.headers['x-request-id'];
+      const correlationId =
+        (Array.isArray(incomingId) ? incomingId[0] : incomingId) ||
+        require('crypto').randomUUID();
+      (request as any).correlationId = correlationId;
+    });
+
     // ── Security headers (onRequest so they're set before any response) ──
     server.addHook('onRequest', async (_request, reply) => {
       reply.header('X-Content-Type-Options', 'nosniff');

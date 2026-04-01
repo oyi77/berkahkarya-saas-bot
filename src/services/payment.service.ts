@@ -217,7 +217,7 @@ export class PaymentService {
         const credits = Number(transaction.creditsAmount) || 0;
 
         if (transaction.type === 'subscription') {
-          const parts = transaction.packageName.split('_');
+          const parts = (transaction.packageName ?? '').split('_');
           const plan = parts[0] as PlanKey;
           const billingCycle: BillingCycle = parts[1] === 'annual' ? 'annual' : 'monthly';
 
@@ -231,7 +231,7 @@ export class PaymentService {
           this.sendFulfillmentNotification(transaction.userId, credits, plan).catch(err => logger.error('Fulfillment notification failed', { error: err.message }));
         } else {
           const plans = await getSubscriptionPlansAsync();
-          const planConfig = plans[transaction.packageName];
+          const planConfig = plans[transaction.packageName ?? ''];
           const userUpdateData: any = { creditBalance: { increment: credits } };
           if (planConfig && planConfig.tier) {
             userUpdateData.tier = planConfig.tier;
@@ -279,13 +279,13 @@ export class PaymentService {
             amount_idr: Number(transaction.amountIdr),
             transaction_id: notification.order_id,
             event_source_url: `${process.env.WEBHOOK_URL}/topup`,
-            utm_source: user?.utmSource,
-            utm_campaign: user?.utmCampaign,
-            utm_content: user?.utmContent,
-            lp_variant: user?.lpVariant,
-            fbc: user?.fbc,
-            fbp: user?.fbp,
-            ttclid: user?.ttclid,
+            utm_source: user?.utmSource ?? undefined,
+            utm_campaign: user?.utmCampaign ?? undefined,
+            utm_content: user?.utmContent ?? undefined,
+            lp_variant: user?.lpVariant ?? undefined,
+            fbc: user?.fbc ?? undefined,
+            fbp: user?.fbp ?? undefined,
+            ttclid: user?.ttclid ?? undefined,
             days_to_conversion: daysToConversion,
           });
 

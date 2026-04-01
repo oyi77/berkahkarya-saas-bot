@@ -10,10 +10,11 @@ import { logger } from '@/utils/logger';
 /**
  * Handle bot errors
  */
-export async function errorHandler(err: Error, ctx: BotContext): Promise<void> {
+export async function errorHandler(err: unknown, ctx: BotContext): Promise<void> {
+  const error = err instanceof Error ? err : new Error(String(err));
   logger.error('Bot error:', {
-    error: err.message,
-    stack: err.stack,
+    error: error.message,
+    stack: error.stack,
     update: ctx.update,
   });
 

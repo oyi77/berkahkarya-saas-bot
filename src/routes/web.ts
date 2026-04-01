@@ -937,4 +937,20 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       if (val.resetAt <= now) chatRateMap.delete(key);
     }
   }, 300_000);
+
+  // ── API v1 aliases (forward to unversioned /api/* for backward compat) ──
+  server.get("/api/v1/*", async (request, reply) => {
+    const sub = (request.params as Record<string, string>)["*"];
+    return reply.redirect(301, `/api/${sub}`);
+  });
+
+  server.post("/api/v1/*", async (request, reply) => {
+    const sub = (request.params as Record<string, string>)["*"];
+    return reply.redirect(307, `/api/${sub}`);
+  });
+
+  server.delete("/api/v1/*", async (request, reply) => {
+    const sub = (request.params as Record<string, string>)["*"];
+    return reply.redirect(307, `/api/${sub}`);
+  });
 }

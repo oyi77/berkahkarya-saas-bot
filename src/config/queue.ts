@@ -83,11 +83,11 @@ export const cleanupQueue = new Queue("cleanup-videos", {
 export async function initializeQueue(): Promise<void> {
   try {
     // Setup event handlers - BullMQ uses 'on' with proper typing
-    videoQueue.on("waiting" as any, (jobId) => {
+    videoQueue.on("waiting" as any, (jobId: string) => {
       logger.debug(`Video job waiting: ${jobId}`);
     });
 
-    paymentQueue.on("waiting" as any, (jobId) => {
+    paymentQueue.on("waiting" as any, (jobId: string) => {
       logger.debug(`Payment job waiting: ${jobId}`);
     });
 

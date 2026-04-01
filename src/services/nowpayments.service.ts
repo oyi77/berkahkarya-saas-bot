@@ -151,7 +151,7 @@ export class NowPaymentsService {
 
       // Determine and update user tier — only change tier for subscription packages
       const plans = await getSubscriptionPlansAsync();
-      const plan = plans[transaction.packageName];
+      const plan = plans[transaction.packageName ?? ''];
       const userUpdateData: any = { creditBalance: { increment: credits } };
       if (plan && plan.tier) {
         userUpdateData.tier = plan.tier; // Only set tier for subscription packages
@@ -199,13 +199,13 @@ export class NowPaymentsService {
           amount_idr: Number(transaction.amountIdr),
           transaction_id: order_id,
           event_source_url: `${process.env.WEBHOOK_URL}/topup`,
-          utm_source: user?.utmSource,
-          utm_campaign: user?.utmCampaign,
-          utm_content: user?.utmContent,
-          lp_variant: user?.lpVariant,
-          fbc: user?.fbc,
-          fbp: user?.fbp,
-          ttclid: user?.ttclid,
+          utm_source: user?.utmSource ?? undefined,
+          utm_campaign: user?.utmCampaign ?? undefined,
+          utm_content: user?.utmContent ?? undefined,
+          lp_variant: user?.lpVariant ?? undefined,
+          fbc: user?.fbc ?? undefined,
+          fbp: user?.fbp ?? undefined,
+          ttclid: user?.ttclid ?? undefined,
           days_to_conversion: daysToConversion,
         });
 

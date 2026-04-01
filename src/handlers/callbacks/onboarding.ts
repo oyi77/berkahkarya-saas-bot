@@ -48,7 +48,7 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
           logger.warn(`Failed to notify recipient ${recipientIdStr}`);
         }
       } else {
-        await ctx.editMessageText(t('cb.transfer_failed', lang, { error: result.error }), { parse_mode: "Markdown" });
+        await ctx.editMessageText(t('cb.transfer_failed', lang, { error: result.error ?? '' }), { parse_mode: "Markdown" });
       }
     } catch (error: any) {
       const lang = ctx.session?.userLang || 'id';

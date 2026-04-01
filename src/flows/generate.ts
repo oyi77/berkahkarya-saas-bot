@@ -25,6 +25,7 @@ import { ImageGenerationService } from '@/services/image.service';
 import { enqueueVideoGeneration } from '@/config/queue';
 import { generateVideoAsync } from '@/commands/create';
 import { t } from '@/i18n/translations';
+import { getCorrelationId } from '@/utils/correlation';
 import type { DurationPreset } from '@/config/hpas-engine';
 
 const execFileAsync = promisify(execFile);
@@ -287,6 +288,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           enableSubtitles: true,
           language: user.language || 'id',
           voScript: session.generateManualTranscript || undefined,
+          correlationId: getCorrelationId(),
         });
         await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
@@ -344,6 +346,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           enableVO: true,
           enableSubtitles: true,
           language: user.language || 'id',
+          correlationId: getCorrelationId(),
         });
         await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
@@ -400,6 +403,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
             enableVO: true,
             enableSubtitles: true,
             language: user.language || 'id',
+            correlationId: getCorrelationId(),
           });
           await ctx.reply(
             t('gen.campaign_processing', lang, { size: campSize, position }),
