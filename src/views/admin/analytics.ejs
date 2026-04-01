@@ -1401,7 +1401,7 @@ async function loadPricingTable(cat) {
         <td style="font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(JSON.stringify(r.value))}</td>
         <td style="font-size:11px;color:var(--muted);">${dt(r.updatedAt)}</td>
         <td><div style="display:flex;gap:4px;">
-          <button class="btn btn-ghost btn-sm" onclick="editPricing('${esc(cat)}','${esc(r.key)}',${esc(JSON.stringify(JSON.stringify(r.value)))})">✏️</button>
+          <button class="btn btn-ghost btn-sm" onclick="editPricing('${esc(cat)}','${esc(r.key)}')">✏️</button>
           <button class="btn btn-danger btn-sm" onclick="deletePricing('${esc(cat)}','${esc(r.key)}')">🗑</button>
         </div></td>
       </tr>`).join('')}</tbody>
@@ -1419,8 +1419,15 @@ function openPricingModal(cat, key, value) {
   openModal('modal-pricing');
 }
 
-function editPricing(cat, key, valueStr) {
-  openPricingModal(cat, key, valueStr);
+async function editPricing(cat, key) {
+  try {
+    const data = await api('/api/pricing/' + encodeURIComponent(cat));
+    const current = data[key];
+    const valueStr = current !== undefined ? (typeof current === 'object' ? JSON.stringify(current) : String(current)) : '';
+    openPricingModal(cat, key, valueStr);
+  } catch(e) {
+    toast('Failed to load value: ' + e.message, 'error');
+  }
 }
 
 async function deletePricing(cat, key) {
