@@ -1635,6 +1635,22 @@ const translations: Record<string, Record<Lang, string>> = {
   },
 
   // ---------------------------------------------------------------------------
+  // Social — Coming Soon
+  // ---------------------------------------------------------------------------
+  'social.coming_soon': {
+    id: '🔗 *Social Media Auto-Post*\n\nFitur koneksi akun sosial media dan auto-post sedang dalam pengembangan.\n\nSegera hadir: hubungkan TikTok, Instagram, Facebook, YouTube dan publikasikan video langsung dari bot!',
+    en: '🔗 *Social Media Auto-Post*\n\nSocial media account connection and auto-post is under development.\n\nComing soon: connect TikTok, Instagram, Facebook, YouTube and publish videos directly from the bot!',
+    ru: '🔗 *Авто-публикация в соцсетях*\n\nПодключение аккаунтов соцсетей и авто-публикация в разработке.\n\nСкоро: подключите TikTok, Instagram, Facebook, YouTube и публикуйте видео прямо из бота!',
+    zh: '🔗 *社交媒体自动发布*\n\n社交媒体账号连接和自动发布功能正在开发中。\n\n即将推出：连接TikTok、Instagram、Facebook、YouTube，直接从机器人发布视频！',
+  },
+  'social.coming_soon_short': {
+    id: '🚧 Segera hadir!',
+    en: '🚧 Coming soon!',
+    ru: '🚧 Скоро!',
+    zh: '🚧 即将推出！',
+  },
+
+  // ---------------------------------------------------------------------------
   // Misc
   // ---------------------------------------------------------------------------
   'misc.coming_soon': {
