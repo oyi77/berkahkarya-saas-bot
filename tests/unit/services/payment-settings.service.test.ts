@@ -301,30 +301,32 @@ describe("PaymentSettingsService", () => {
   // ─────────────────────────── initializePricingDefaults ───────────
 
   describe("initializePricingDefaults()", () => {
-    it("seeds defaults when pricing config table is empty", async () => {
-      mockPrismaPricingConfig.count.mockResolvedValue(0);
-      mockPrismaPricingConfig.createMany.mockResolvedValue({ count: 20 });
-
-      await PaymentSettingsService.initializePricingDefaults();
-
-      expect(mockPrismaPricingConfig.createMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.arrayContaining([
-            expect.objectContaining({ category: "global", key: "margin_percent" }),
-          ]),
-          skipDuplicates: true,
-        }),
-      );
-    });
-
-    it("does not seed when pricing config table already has rows", async () => {
-      mockPrismaPricingConfig.count.mockResolvedValue(15);
-      // normalizeLegacyScalars calls findUnique — mock it to avoid real call
+    it("seeds defaults on startup via upsert", async () => {
+      mockPrismaPricingConfig.upsert.mockResolvedValue({});
+      mockPrismaPricingConfig.deleteMany.mockResolvedValue({ count: 0 });
       mockPrismaPricingConfig.findUnique.mockResolvedValue(null);
 
       await PaymentSettingsService.initializePricingDefaults();
 
-      expect(mockPrismaPricingConfig.createMany).not.toHaveBeenCalled();
+      // Should upsert unit costs, packages, subscriptions, margin, providers
+      expect(mockPrismaPricingConfig.upsert).toHaveBeenCalled();
+      const calls = mockPrismaPricingConfig.upsert.mock.calls;
+      const categories = calls.map((c: any) => c[0]?.create?.category);
+      expect(categories).toContain('unit_cost');
+      expect(categories).toContain('package');
+      expect(categories).toContain('global');
+    });
+
+    it("cleans up legacy video_credit entries on seed", async () => {
+      mockPrismaPricingConfig.upsert.mockResolvedValue({});
+      mockPrismaPricingConfig.deleteMany.mockResolvedValue({ count: 3 });
+      mockPrismaPricingConfig.findUnique.mockResolvedValue(null);
+
+      await PaymentSettingsService.initializePricingDefaults();
+
+      expect(mockPrismaPricingConfig.deleteMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { category: 'video_credit' } }),
+      );
     });
   });
 

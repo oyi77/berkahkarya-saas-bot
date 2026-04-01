@@ -260,54 +260,54 @@ export class PaymentSettingsService {
   }
 
   static async initializePricingDefaults(): Promise<void> {
-    const count = await prisma.pricingConfig.count();
-    if (count > 0) {
-      // Existing data — still run normalization to fix legacy formats
-      await this.normalizeLegacyScalars();
-      return;
+    // Always upsert defaults from static config — ensures DB matches code on every startup
+    // Admin overrides are preserved because upsert only creates if missing
+    const { PACKAGES, SUBSCRIPTION_PLANS, UNIT_COSTS } = await import('../config/pricing.js');
+
+    const upsert = async (category: string, key: string, value: any) => {
+      await prisma.pricingConfig.upsert({
+        where: { category_key: { category, key } },
+        create: { category, key, value },
+        update: {}, // Don't overwrite admin changes — only create if missing
+      });
+    };
+
+    // Unit costs (matching getUnitCostAsync: category='unit_cost', key=UPPERCASE)
+    for (const [key, units] of Object.entries(UNIT_COSTS)) {
+      await upsert('unit_cost', key, { units, credits: (units as number) / 10 });
     }
 
-    const defaults: Array<{ category: string; key: string; value: any }> = [
-      // Global
-      { category: 'global', key: 'margin_percent', value: 30 },
-      // Image credit
-      { category: 'image_credit', key: 'default', value: { credits: 0.2 } },
-      // Video credits
-      { category: 'video_credit', key: '15', value: { credits: 0.8 } },
-      { category: 'video_credit', key: '30', value: { credits: 1.5 } },
-      { category: 'video_credit', key: '60', value: { credits: 3.0 } },
-      { category: 'video_credit', key: '120', value: { credits: 6.5 } },
-      // Unit costs (admin-adjustable — the actual price users pay in units, 10 units = 1 credit)
-      { category: 'unit_cost', key: 'VIDEO_15S', value: 8 },
-      { category: 'unit_cost', key: 'VIDEO_30S', value: 15 },
-      { category: 'unit_cost', key: 'VIDEO_60S', value: 30 },
-      { category: 'unit_cost', key: 'VIDEO_120S', value: 65 },
-      { category: 'unit_cost', key: 'IMAGE_UNIT', value: 2 },
-      { category: 'unit_cost', key: 'IMAGE_SET_7_SCENE', value: 15 },
-      { category: 'unit_cost', key: 'CLONE_STYLE', value: 8 },
-      { category: 'unit_cost', key: 'CAMPAIGN_5_VIDEO', value: 60 },
-      { category: 'unit_cost', key: 'CAMPAIGN_10_VIDEO', value: 110 },
-      // Provider costs (USD per generation)
-      { category: 'provider_cost', key: 'geminigen', value: { costUsd: 0.02 } },
-      { category: 'provider_cost', key: 'falai', value: { costUsd: 0.03 } },
-      { category: 'provider_cost', key: 'siliconflow', value: { costUsd: 0.01 } },
-      { category: 'provider_cost', key: 'nvidia', value: { costUsd: 0.01 } },
-      { category: 'provider_cost', key: 'gemini', value: { costUsd: 0.00 } },
-      { category: 'provider_cost', key: 'laozhang', value: { costUsd: 0.04 } },
-      { category: 'provider_cost', key: 'evolink', value: { costUsd: 0.03 } },
-      // Packages
-      { category: 'package', key: 'starter', value: { name: 'Starter Flow', nameId: 'Paket Starter', priceIdr: 49000, credits: 5, bonus: 1, description: 'Perfect for trying out' } },
-      { category: 'package', key: 'growth', value: { name: 'Growth Machine', nameId: 'Paket Growth', priceIdr: 149000, credits: 18, bonus: 4, description: 'Most popular', isPopular: true } },
-      { category: 'package', key: 'business', value: { name: 'Business Kingdom', nameId: 'Paket Bisnis', priceIdr: 499000, credits: 70, bonus: 15, description: 'Best value for teams' } },
-      // Subscriptions
-      { category: 'subscription', key: 'lite', value: { name: 'Lite', monthlyPriceIdr: 99000, annualPriceIdr: 990000, monthlyCredits: 20, dailyGenerationLimit: 3 } },
-      { category: 'subscription', key: 'pro', value: { name: 'Pro', monthlyPriceIdr: 199000, annualPriceIdr: 1990000, monthlyCredits: 50, dailyGenerationLimit: 10 } },
-      { category: 'subscription', key: 'agency', value: { name: 'Agency', monthlyPriceIdr: 499000, annualPriceIdr: 4990000, monthlyCredits: 150, dailyGenerationLimit: 30 } },
-    ];
+    // Credit packages (from static PACKAGES)
+    for (const pkg of PACKAGES) {
+      await upsert('package', pkg.id, pkg);
+    }
 
-    await prisma.pricingConfig.createMany({
-      data: defaults,
-      skipDuplicates: true,
-    });
+    // Subscription plans
+    for (const [key, plan] of Object.entries(SUBSCRIPTION_PLANS)) {
+      await upsert('subscription', key, plan);
+    }
+
+    // Global margin
+    await upsert('global', 'margin_percent', 30);
+
+    // Image credit default
+    await upsert('image_credit', 'default', { credits: 0.2 });
+
+    // Provider costs (USD per generation)
+    const providerCosts: Record<string, number> = {
+      geminigen: 0.02, falai: 0.03, siliconflow: 0.01, nvidia: 0.01,
+      gemini: 0.00, laozhang: 0.04, evolink: 0.03,
+    };
+    for (const [key, costUsd] of Object.entries(providerCosts)) {
+      await upsert('provider_cost', key, { costUsd });
+    }
+
+    // Clean up legacy 'video_credit' category (replaced by 'unit_cost')
+    await prisma.pricingConfig.deleteMany({ where: { category: 'video_credit' } });
+
+    // Normalize any legacy scalar wrappers
+    await this.normalizeLegacyScalars();
+
+    this.clearPricingCache();
   }
 }
