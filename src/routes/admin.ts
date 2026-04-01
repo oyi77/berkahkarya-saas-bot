@@ -1461,17 +1461,27 @@ You are an expert system administrator and architect for this platform. Give spe
     } catch { /* raw queries may fail on some DB configs */ }
 
     const totalRevenueIdr = Number(revenue._sum.amountIdr || 0);
-    const totalCostIdr = Number(costs._sum.costIdr || 0);
+    const totalCostUsd = Number(costs._sum.costUsd || 0);
+    // Always derive IDR from USD × current exchange rate (cost_idr in DB may be stale/wrong)
+    const currentRate = getConfig().USD_TO_IDR_RATE || 16000;
+    const totalCostIdr = Math.round(totalCostUsd * currentRate);
+
+    // Also fix daily costs — recalculate cost_idr from cost_usd
+    const fixedDailyCosts = dailyCosts.map((d: any) => ({
+      ...d,
+      cost_idr: Math.round((d.cost_usd || 0) * currentRate),
+    }));
 
     return {
       period: days,
       revenue: { totalIdr: totalRevenueIdr, transactions: revenue._count },
-      costs: { totalUsd: Number(costs._sum.costUsd || 0), totalIdr: totalCostIdr, apiCalls: costs._count },
+      costs: { totalUsd: totalCostUsd, totalIdr: totalCostIdr, apiCalls: costs._count },
       profit: {
         totalIdr: totalRevenueIdr - totalCostIdr,
         marginPercent: totalRevenueIdr > 0 ? Math.round((totalRevenueIdr - totalCostIdr) / totalRevenueIdr * 100) : 0,
       },
-      daily: { revenue: dailyRevenue, costs: dailyCosts },
+      daily: { revenue: dailyRevenue, costs: fixedDailyCosts },
+      exchangeRate: currentRate,
     };
   });
 
