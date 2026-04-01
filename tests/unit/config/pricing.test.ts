@@ -34,10 +34,10 @@ describe("Pricing Async Wrappers", () => {
 
   describe("getVideoCreditCostAsync()", () => {
     it("should return dynamic value from DB if available", async () => {
-      mockGetPricingConfig.mockResolvedValue({ credits: 5.5 });
+      mockGetPricingConfig.mockResolvedValue({ units: 55, credits: 5.5 });
       const cost = await getVideoCreditCostAsync(30);
-      expect(cost).toBe(5.5);
-      expect(mockGetPricingConfig).toHaveBeenCalledWith("video_credit", "30");
+      expect(cost).toBe(5.5); // 55 units / 10
+      expect(mockGetPricingConfig).toHaveBeenCalledWith("unit_cost", "VIDEO_30S");
     });
 
     it("should fallback to hardcoded if DB returns null", async () => {

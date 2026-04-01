@@ -1341,16 +1341,16 @@ You are an expert system administrator and architect for this platform. Give spe
     return { success: true };
   });
 
-  /** POST /api/settings/seed-pricing — Seed pricing DB from static config (idempotent) */
+  /** POST /api/settings/seed-pricing — Seed pricing DB from static config (always updates to match code) */
   server.post("/api/settings/seed-pricing", async () => {
-    const { PACKAGES, SUBSCRIPTION_PLANS, UNIT_COSTS } = await import('@/config/pricing.js');
+    const { PACKAGES, SUBSCRIPTION_PLANS, UNIT_COSTS } = await import('../config/pricing.js');
     let seeded = 0;
 
-    // Seed credit packages
+    // Seed credit packages — always update to match static config
     for (const pkg of PACKAGES) {
       await prisma.pricingConfig.upsert({
         where: { category_key: { category: 'package', key: pkg.id } },
-        update: {},
+        update: { value: pkg as any },
         create: { category: 'package', key: pkg.id, value: pkg as any },
       });
       seeded++;
@@ -1366,23 +1366,37 @@ You are an expert system administrator and architect for this platform. Give spe
       seeded++;
     }
 
-    // Seed video credit costs
+    // Seed unit costs — use 'unit_cost' category with UPPERCASE keys (matches getUnitCostAsync)
     for (const [key, units] of Object.entries(UNIT_COSTS)) {
       await prisma.pricingConfig.upsert({
-        where: { category_key: { category: 'video_credit', key: key.toLowerCase() } },
-        update: {},
-        create: { category: 'video_credit', key: key.toLowerCase(), value: { units, credits: units / 10 } as any },
+        where: { category_key: { category: 'unit_cost', key } },
+        update: { value: { units, credits: (units as number) / 10 } as any },
+        create: { category: 'unit_cost', key, value: { units, credits: (units as number) / 10 } as any },
       });
       seeded++;
     }
 
+    // Clean up old 'video_credit' category entries (legacy wrong category)
+    await prisma.pricingConfig.deleteMany({ where: { category: 'video_credit' } });
+
     // Seed global margin
     await prisma.pricingConfig.upsert({
       where: { category_key: { category: 'global', key: 'margin_percent' } },
-      update: {},
+      update: { value: 30 as any },
       create: { category: 'global', key: 'margin_percent', value: 30 as any },
     });
     seeded++;
+
+    // Seed niches from static config
+    const { NICHE_LIST } = await import('../config/niches.js');
+    for (const niche of NICHE_LIST) {
+      await prisma.pricingConfig.upsert({
+        where: { category_key: { category: 'niche', key: niche.id } },
+        update: { value: niche as any },
+        create: { category: 'niche', key: niche.id, value: niche as any },
+      });
+      seeded++;
+    }
 
     PaymentSettingsService.clearPricingCache();
     return { success: true, seeded };

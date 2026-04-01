@@ -124,16 +124,15 @@ export function getCustomDurationCreditCost(durationSeconds: number): number {
 // ── Asynchronous Pricing Engine (Dynamic Override) ──────────────────────────
 
 export async function getVideoCreditCostAsync(durationSeconds: number): Promise<number> {
-  let key = '120';
-  if (durationSeconds <= 15) key = '15';
-  else if (durationSeconds <= 30) key = '30';
-  else if (durationSeconds <= 60) key = '60';
+  // Map duration to UNIT_COSTS key
+  let unitKey: keyof typeof UNIT_COSTS = 'VIDEO_120S';
+  if (durationSeconds <= 15) unitKey = 'VIDEO_15S';
+  else if (durationSeconds <= 30) unitKey = 'VIDEO_30S';
+  else if (durationSeconds <= 60) unitKey = 'VIDEO_60S';
 
-  const config = await PaymentSettingsService.getPricingConfig('video_credit', key);
-  if (config && typeof config === 'object' && 'credits' in config) {
-    return (config as any).credits;
-  }
-  return getVideoCreditCost(durationSeconds);
+  // Read from unit_cost category (same as getUnitCostAsync)
+  const units = await getUnitCostAsync(unitKey);
+  return units / 10; // Convert units to credits
 }
 
 export async function getImageCreditCostAsync(provider?: string): Promise<number> {
@@ -169,8 +168,11 @@ export async function getSubscriptionPlansAsync(): Promise<Record<string, any>> 
 
 export async function getUnitCostAsync(key: keyof typeof UNIT_COSTS): Promise<number> {
   const config = await PaymentSettingsService.getPricingConfig('unit_cost', key);
-  if (config && typeof config === 'object' && 'value' in config) {
-    return (config as any).value;
+  if (config !== null && config !== undefined) {
+    // DB value can be: number (direct), { units: N }, or { value: N }
+    if (typeof config === 'number') return config;
+    if (typeof config === 'object' && 'units' in config) return (config as any).units;
+    if (typeof config === 'object' && 'value' in config) return (config as any).value;
   }
   return UNIT_COSTS[key];
 }
