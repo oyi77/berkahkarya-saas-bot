@@ -994,53 +994,10 @@ export async function trendingCommand(ctx: BotContext): Promise<void> {
 // ─── /fingerprint ────────────────────────────────────────────────────────────
 
 export async function fingerprintCommand(ctx: BotContext): Promise<void> {
-  try {
-    // For now, show a profile-based fingerprint (real analytics would query DB)
-    // Future: query actual user video history from DB
-    const msg =
-      `🧬 **YOUR PROMPT FINGERPRINT**\n` +
-      `─────────────────────────────────────\n\n` +
-      `Berdasarkan 127 generates yang kamu lakukan,\n` +
-      `ini style preference kamu:\n\n` +
-      `─────────────────────────────────────\n\n` +
-      `🎨 **Top Styles:**\n` +
-      `1. Cinematic — 45%\n` +
-      `2. Editorial — 23%\n` +
-      `3. Minimalist — 18%\n\n` +
-      `💡 **Preferred Lighting:**\n` +
-      `Golden Hour — 58% | Studio — 25% | Natural — 17%\n\n` +
-      `🎭 **Favorite Moods:**\n` +
-      `Cozy — 42% | Professional — 31% | Dramatic — 27%\n\n` +
-      `📂 **Primary Niche:**\n` +
-      `F&B — Food & Beverage\n\n` +
-      `─────────────────────────────────────\n\n` +
-      `✨ **RECOMMENDED FOR YOU:**\n\n` +
-      `**Steam & Zoom Drama** — 95% match!\n` +
-      `\`Cinematic food shot dengan steam rising...\`\n\n` +
-      `**Ambient Cafe Vibe** — 89% match!\n` +
-      `\`Cozy cafe atmosphere, latte art...\`\n\n` +
-      `─────────────────────────────────────\n\n` +
-      `💡 Semakin sering kamu pakai, semakin pintar AI mengenali style kamu!`;
-
-    await ctx.reply(msg, {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: "🚀 Gunakan Rekomendasi",
-              callback_data: "use_prompt_fnb_1",
-            },
-          ],
-          [{ text: "📚 Browse Prompt Library", callback_data: "back_prompts" }],
-        ],
-      },
-    });
-  } catch (err) {
-    logger.error("fingerprintCommand error:", err);
-    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
-    await ctx.reply(t('prompt.fingerprint_load_failed', errLang));
-  }
+  const lang = ctx.session?.userLang || 'id';
+  await ctx.reply(t('fingerprint.coming_soon', lang), {
+    reply_markup: { inline_keyboard: [[{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }]] },
+  });
 }
 
 // ─── Save prompt from library ─────────────────────────────────────────────────

@@ -26,6 +26,14 @@ export const userMiddleware: Middleware<BotContext> = async (ctx, next) => {
     });
 
     if (dbUser && ctx.session) {
+      // Ban check — allow /start to show ban message, block everything else silently
+      if (dbUser.isBanned) {
+        const isStartCommand = ctx.message && 'text' in ctx.message && ctx.message.text?.startsWith('/start');
+        if (!isStartCommand) {
+          return;
+        }
+      }
+
       // Store user ID in session for quick access
       ctx.session.stateData = {
         ...ctx.session.stateData,

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { timingSafeCompare } from './crypto';
 
 /**
  * Verify Telegram Login Widget data
@@ -29,7 +30,7 @@ export function checkTelegramHash(data: any, botToken: string): boolean {
     .update(dataCheckString)
     .digest('hex');
   
-  return hmac === hash;
+  return timingSafeCompare(hmac, hash);
 }
 
 /**
@@ -48,5 +49,5 @@ export function checkTWAHash(initData: string, botToken: string): boolean {
     .join('\n');
   const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
   const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-  return hmac === hash;
+  return timingSafeCompare(hmac, hash);
 }

@@ -196,21 +196,21 @@ export async function handlePromptLibraryCallbacks(ctx: BotContext, data: string
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "🍔 F&B", callback_data: "prompts_fnb" },
-                { text: "👗 Fashion", callback_data: "prompts_fashion" },
+                { text: t('niche.food', lang), callback_data: "prompts_fnb" },
+                { text: t('niche.fashion', lang), callback_data: "prompts_fashion" },
               ],
               [
-                { text: "📱 Tech", callback_data: "prompts_tech" },
-                { text: "💪 Health", callback_data: "prompts_health" },
+                { text: t('niche.tech', lang), callback_data: "prompts_tech" },
+                { text: t('niche.health', lang), callback_data: "prompts_health" },
               ],
               [
-                { text: "✈️ Travel", callback_data: "prompts_travel" },
-                { text: "📚 Education", callback_data: "prompts_education" },
+                { text: t('niche.travel', lang), callback_data: "prompts_travel" },
+                { text: t('niche.education', lang), callback_data: "prompts_education" },
               ],
               [
-                { text: "💰 Finance", callback_data: "prompts_finance" },
+                { text: t('niche.finance', lang), callback_data: "prompts_finance" },
                 {
-                  text: "🎭 Entertainment",
+                  text: t('niche.entertainment', lang),
                   callback_data: "prompts_entertainment",
                 },
               ],

@@ -27,6 +27,7 @@ const mockPrisma = {
   video: mockPrismaVideo,
   commission: mockPrismaCommission,
   $transaction: jest.fn<any>(),
+  $executeRaw: jest.fn<any>().mockResolvedValue(0),
 };
 
 jest.mock("@/config/database", () => ({

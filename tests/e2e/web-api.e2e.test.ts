@@ -120,6 +120,7 @@ jest.mock('../../src/config/pricing', () => ({
   }),
   getVideoCreditCostAsync: jest.fn().mockResolvedValue(5),
   getImageCreditCostAsync: jest.fn().mockResolvedValue(2),
+  getUnitCostAsync: jest.fn().mockResolvedValue(10),
   SUBSCRIPTION_PLANS: { basic: { monthlyCredits: 100 } },
   getPlanPrice: jest.fn().mockReturnValue(99000),
 }));
@@ -128,6 +129,7 @@ jest.mock('../../src/services/payment-settings.service', () => ({
   PaymentSettingsService: {
     get: jest.fn().mockResolvedValue(null),
     getAllSettings: jest.fn().mockResolvedValue({}),
+    getEnabledGateways: jest.fn().mockResolvedValue([{ id: 'duitku', gateway: 'duitku' }]),
   },
 }));
 
@@ -193,15 +195,16 @@ describe('Web API Endpoints', () => {
   // ── GET /api/packages ──
 
   describe('GET /api/packages', () => {
-    it('returns a JSON array of credit packages', async () => {
+    it('returns packages with gateways and unit costs', async () => {
       const res = await request(app.server).get('/api/packages');
       expect(res.status).toBe(200);
-      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveProperty('packages');
+      expect(Array.isArray(res.body.packages)).toBe(true);
     });
 
     it('each package has id, credits, and priceIdr fields', async () => {
       const res = await request(app.server).get('/api/packages');
-      const pkg = res.body[0];
+      const pkg = res.body.packages[0];
       expect(pkg).toHaveProperty('id');
       expect(pkg).toHaveProperty('credits');
       expect(pkg).toHaveProperty('priceIdr');

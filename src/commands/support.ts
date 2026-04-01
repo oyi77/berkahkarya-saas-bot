@@ -21,9 +21,9 @@ export async function supportCommand(ctx: BotContext): Promise<void> {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "💬 Chat Support", url: `https://t.me/${getConfig().SUPPORT_TELEGRAM_USERNAME || 'codergaboets'}` }],
-            [{ text: "📖 View Tutorial", callback_data: "view_tutorial" }],
-            [{ text: "🐛 Report Bug", callback_data: "report_bug" }],
+            [{ text: t('support.btn_chat', lang), url: `https://t.me/${getConfig().SUPPORT_TELEGRAM_USERNAME || 'codergaboets'}` }],
+            [{ text: t('support.btn_tutorial', lang), callback_data: "view_tutorial" }],
+            [{ text: t('support.btn_bug', lang), callback_data: "report_bug" }],
             [{ text: t('btn.main_menu', lang), callback_data: "main_menu" }],
           ],
         },

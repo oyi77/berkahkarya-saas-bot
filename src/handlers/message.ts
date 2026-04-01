@@ -27,7 +27,7 @@ import { AvatarService } from "@/services/avatar.service";
 import { ContentAnalysisService } from "@/services/content-analysis.service";
 import { PostAutomationService } from "@/services/postautomation.service";
 import { generateStoryboard } from "@/services/video-generation.service";
-import { getVideoCreditCost, getImageCreditCostAsync } from "@/config/pricing";
+import { getVideoCreditCost, getImageCreditCostAsync, CUSTOM_DURATION_MIN } from "@/config/pricing";
 import { canUseDailyFree, canUseWelcomeBonus, getNextDailyFreeReset } from "@/config/free-trial";
 import { prisma } from "@/config/database";
 import {
@@ -107,7 +107,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const input = message.text.trim();
       const duration = parseInt(input);
 
-      if (isNaN(duration) || duration < 6 || duration > 3600) {
+      if (isNaN(duration) || duration < CUSTOM_DURATION_MIN) {
         await ctx.reply(t('msg.duration_range_error', ctx.session?.userLang || 'id'), { parse_mode: 'Markdown' });
         return;
       }
@@ -262,12 +262,15 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const styles = ctx.session.selectedStyles || [];
       ctx.session.state = "DASHBOARD";
 
+      const almostLang = ctx.session?.userLang || 'id';
       await ctx.reply(
-        `🎬 **Almost Ready!**\n\n` +
-        `Requested: ${duration}s → Optimized: ${finalDuration}s (${bestFit.scenes} × ${bestFit.durationPerScene}s)\n` +
-        `💰 Credit cost: ${creditCost}\n\n` +
-        `📸 **Send a reference image** for your video,\n` +
-        `or type /skip to let AI generate everything.`,
+        t('msg.almost_ready', almostLang, {
+          requested: String(duration),
+          optimized: String(finalDuration),
+          scenes: String(bestFit.scenes),
+          sceneDuration: String(bestFit.durationPerScene),
+          creditCost: String(creditCost),
+        }),
         { parse_mode: "Markdown" },
       );
 
@@ -399,11 +402,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               inline_keyboard: [
                 [
                   {
-                    text: "🔗 Manage Accounts",
+                    text: t('msg.btn_manage_accounts', acLang),
                     callback_data: "manage_accounts",
                   },
                 ],
-                [{ text: "🎬 Create Video", callback_data: "create_video_new" }],
+                [{ text: t('msg.btn_create_video_new', acLang), callback_data: "create_video_new" }],
               ],
             },
           },
@@ -454,10 +457,10 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
-                  [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
-                  [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
-                  [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
+                  [{ text: t('msg.img_btn_product_photo', imgLang), callback_data: "img_product" }],
+                  [{ text: t('msg.img_btn_fnb', imgLang), callback_data: "img_fnb" }],
+                  [{ text: t('msg.img_btn_realestate', imgLang), callback_data: "img_realestate" }],
+                  [{ text: t('msg.img_btn_car', imgLang), callback_data: "img_car" }],
                 ],
               },
             });
@@ -517,28 +520,23 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     // Handle photo uploads
     if ("photo" in message) {
       if (ctx.session.state === "CREATE_VIDEO_UPLOAD") {
+        const cvuLang = ctx.session?.userLang || 'id';
         await ctx.reply(
-          "✅ Photo received!\n\n" + "Now, please select your niche:",
+          t('msg.photo_received_niche', cvuLang),
           {
             reply_markup: {
               inline_keyboard: [
                 [
-                  { text: "🍔 F&B", callback_data: "niche_fnb" },
-                  { text: "💄 Beauty", callback_data: "niche_beauty" },
+                  { text: t('msg.niche_btn_fnb', cvuLang), callback_data: "niche_fnb" },
+                  { text: t('msg.niche_btn_beauty', cvuLang), callback_data: "niche_beauty" },
                 ],
                 [
-                  { text: "🛍️ Retail", callback_data: "niche_retail" },
-                  { text: "🔧 Services", callback_data: "niche_services" },
+                  { text: t('msg.niche_btn_retail', cvuLang), callback_data: "niche_retail" },
+                  { text: t('msg.niche_btn_services', cvuLang), callback_data: "niche_services" },
                 ],
                 [
-                  {
-                    text: "🏢 Professional",
-                    callback_data: "niche_professional",
-                  },
-                  {
-                    text: "🏨 Hospitality",
-                    callback_data: "niche_hospitality",
-                  },
+                  { text: t('msg.niche_btn_professional', cvuLang), callback_data: "niche_professional" },
+                  { text: t('msg.niche_btn_hospitality', cvuLang), callback_data: "niche_hospitality" },
                 ],
               ],
             },
@@ -563,15 +561,14 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         mode: "img2img",
       };
 
+      const refImgLang = ctx.session?.userLang || 'id';
       await ctx.reply(
-        `📸 *Reference image received!*\n\n` +
-        `Now describe what you want to generate:\n\n` +
-        `_Example: "Product on marble table with soft studio lighting, marketing photo"_`,
+        t('msg.ref_image_received', refImgLang),
         {
           parse_mode: "Markdown",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "❌ Cancel", callback_data: "image_generate" }],
+              [{ text: t('msg.btn_cancel', refImgLang), callback_data: "image_generate" }],
             ],
           },
         },
@@ -589,9 +586,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       ctx.session.state = "AVATAR_NAME_WAITING";
       ctx.session.stateData = { avatarImageUrl: avatarUrl };
 
+      const avatarPhotoLang = ctx.session?.userLang || 'id';
       await ctx.reply(
-        `📸 *Photo received!*\n\n` +
-        `Give this avatar a name (e.g., "Sarah", "Product Model", "Brand Mascot"):`,
+        t('msg.avatar_photo_received', avatarPhotoLang),
         { parse_mode: "Markdown" },
       );
       return;
@@ -618,23 +615,23 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           avatarUrl,
         );
 
+        const avatarSavedLang = ctx.session?.userLang || 'id';
+        const defaultLine = avatar.isDefault ? t('msg.avatar_default_line', avatarSavedLang) : '';
+        const descLine = avatar.description ? `_${avatar.description.slice(0, 200)}_\n\n` : '';
         await ctx.reply(
-          `✅ *Avatar "${avatar.name}" saved!*\n` +
-          `${avatar.isDefault ? "⭐ Set as default avatar\n" : ""}\n` +
-          `${avatar.description ? `_${avatar.description.slice(0, 200)}_\n\n` : ""}` +
-          `You can now use this avatar when generating images to keep consistent characters.`,
+          t('msg.avatar_saved', avatarSavedLang, { name: avatar.name, defaultLine, descLine }),
           {
             parse_mode: "Markdown",
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "🖼️ Generate with Avatar",
+                    text: t('msg.btn_generate_with_avatar', avatarSavedLang),
                     callback_data: "image_generate",
                   },
                 ],
-                [{ text: "👤 Manage Avatars", callback_data: "avatar_manage" }],
-                [{ text: "◀️ Back to Menu", callback_data: "main_menu" }],
+                [{ text: t('msg.btn_manage_avatars', avatarSavedLang), callback_data: "avatar_manage" }],
+                [{ text: t('msg.btn_back_to_menu', avatarSavedLang), callback_data: "main_menu" }],
               ],
             },
           },
@@ -866,11 +863,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               .replace(/`/g, "")
               .slice(0, 1500);
 
-            const structuredDesc =
-              `📋 *Video Analysis Result*\n\n` +
-              `*Style:* ${result.style || "Modern/Dynamic"}\n\n` +
-              `*Description:*\n${cleanPrompt}\n\n` +
-              `Ready to create a similar video?`;
+            const cloneLang = ctx.session?.userLang || 'id';
+            const structuredDesc = t('msg.video_analysis_result', cloneLang, {
+              style: result.style || "Modern/Dynamic",
+              cleanPrompt,
+            });
 
             // Store result in session via direct Redis write
             await updateSessionDirectly(userId, (session) => {
@@ -885,16 +882,17 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "🎬 Create Similar Video", callback_data: "create_video_new" }],
-                  [{ text: "✏️ Edit Description", callback_data: "clone_edit_desc" }],
-                  [{ text: "❌ Cancel", callback_data: "main_menu" }],
+                  [{ text: t('msg.btn_create_similar_video', cloneLang), callback_data: "create_video_new" }],
+                  [{ text: t('msg.btn_edit_description', cloneLang), callback_data: "clone_edit_desc" }],
+                  [{ text: t('msg.btn_cancel_main_menu', cloneLang), callback_data: "main_menu" }],
                 ],
               },
             });
           } else {
+            const cloneFailLang = ctx.session?.userLang || 'id';
             await telegram.sendMessage(
               chatId,
-              `❌ *Analysis Failed*\n\nError: ${result.error || "Unknown error"}`,
+              t('msg.analysis_failed_error', cloneFailLang, { error: result.error || "Unknown error" }),
               { parse_mode: "Markdown" },
             );
           }
@@ -919,19 +917,19 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       // Update clone prompt with new description
       ctx.session.stateData.clonePrompt = newDescription;
 
-      const structuredDesc =
-        `✅ *Description Updated!*\n\n` +
-        `*Style:* ${ctx.session.stateData.cloneStyle || "Modern/Dynamic"}\n\n` +
-        `*New Description:*\n${newDescription}\n\n` +
-        `Ready to create video?`;
+      const cloneEditLang = ctx.session?.userLang || 'id';
+      const structuredDesc = t('msg.clone_desc_updated', cloneEditLang, {
+        style: String(ctx.session.stateData.cloneStyle || "Modern/Dynamic"),
+        newDescription,
+      });
 
       await ctx.reply(structuredDesc, {
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [{ text: "🎬 Create Video", callback_data: "create_video_new" }],
-            [{ text: "✏️ Edit Again", callback_data: "clone_edit_desc" }],
-            [{ text: "❌ Cancel", callback_data: "main_menu" }],
+            [{ text: t('msg.btn_create_video_new', cloneEditLang), callback_data: "create_video_new" }],
+            [{ text: t('msg.btn_edit_again', cloneEditLang), callback_data: "clone_edit_desc" }],
+            [{ text: t('msg.btn_cancel_main_menu', cloneEditLang), callback_data: "main_menu" }],
           ],
         },
       });
@@ -957,9 +955,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         return;
       }
 
+      const cloneImgLang = ctx.session?.userLang || 'id';
       await ctx.reply(
-        "⏳ *Analyzing image...*\n\n" +
-        "Extracting style and creating prompt...",
+        t('msg.clone_image_analyzing', cloneImgLang),
         { parse_mode: "Markdown" },
       );
 
@@ -976,20 +974,17 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             .slice(0, 1500); // Telegram message limit safety
 
           await ctx.reply(
-            `✅ Image Style Extracted:\n\n` +
-            `${cleanPrompt}\n\n` +
-            `Style: ${result.style || "N/A"}\n\n` +
-            `Ready to generate a similar image?`,
+            t('msg.clone_image_extracted', cloneImgLang, { cleanPrompt, style: result.style || "N/A" }),
             {
               reply_markup: {
                 inline_keyboard: [
                   [
                     {
-                      text: "🖼️ Generate Similar Image",
+                      text: t('msg.btn_generate_similar_image', cloneImgLang),
                       callback_data: "image_generate",
                     },
                   ],
-                  [{ text: "❌ Cancel", callback_data: "main_menu" }],
+                  [{ text: t('msg.btn_cancel_main_menu', cloneImgLang), callback_data: "main_menu" }],
                 ],
               },
             },
@@ -998,8 +993,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           ctx.session.stateData = { clonePrompt: result.prompt };
         } else {
           await ctx.reply(
-            `❌ *Analysis Failed*\n\n` +
-            `Error: ${result.error || "Unknown error"}`,
+            t('msg.analysis_failed_error', cloneImgLang, { error: result.error || "Unknown error" }),
             { parse_mode: "Markdown" },
           );
         }
@@ -1114,11 +1108,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: "🎬 Generate (Text-to-Video)", callback_data: "repurpose_generate_t2v" }],
+                  [{ text: t('msg.repurpose_generate_t2v', rpLang), callback_data: "repurpose_generate_t2v" }],
                   ...(hasFrames
-                    ? [[{ text: "🖼️ Generate (Image-to-Video)", callback_data: "repurpose_generate_i2v" }]]
+                    ? [[{ text: t('msg.repurpose_generate_i2v', rpLang), callback_data: "repurpose_generate_i2v" }]]
                     : []),
-                  [{ text: "❌ Cancel", callback_data: "main_menu" }],
+                  [{ text: t('msg.btn_cancel_main_menu', rpLang), callback_data: "main_menu" }],
                 ],
               },
             },
@@ -1160,21 +1154,21 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const MAX_PHOTOS = 5;
 
       if (currentPhotos.length >= MAX_PHOTOS) {
+        const maxPhotoLang = ctx.session?.userLang || 'id';
         await ctx.reply(
-          `You have already uploaded ${MAX_PHOTOS} photos (maximum).\n\n` +
-          `Tap "Generate Now" to start video creation, or /skip to generate without references.`,
+          t('msg.max_photos_reached', maxPhotoLang, { max: String(MAX_PHOTOS) }),
           {
             reply_markup: {
               inline_keyboard: [
                 [
                   {
-                    text: "▶️ Generate Now",
+                    text: t('msg.btn_generate_now', maxPhotoLang),
                     callback_data: "generate_video_now",
                   },
                 ],
                 [
                   {
-                    text: "⏭️ Skip Reference",
+                    text: t('msg.btn_skip_reference', maxPhotoLang),
                     callback_data: "skip_reference_image",
                   },
                 ],
@@ -1211,11 +1205,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         const finalCount =
           ctx.session.videoCreation.uploadedPhotos?.length || count;
 
+        const batchLang = ctx.session?.userLang || 'id';
+        const batchExtra = finalCount < MAX_PHOTOS
+          ? t('msg.batch_send_more', batchLang)
+          : t('msg.batch_max_reached', batchLang);
         await ctx.reply(
-          `📸 ${finalCount} photo(s) received!` +
-          (finalCount < MAX_PHOTOS
-            ? " Send more or tap Generate."
-            : " Maximum reached — tap Generate."),
+          t('msg.batch_photos_received', batchLang, { count: String(finalCount), extra: batchExtra }),
           {
             reply_markup: {
               inline_keyboard: [
@@ -1223,7 +1218,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                   ? [
                     [
                       {
-                        text: "📸 Add More",
+                        text: t('msg.btn_add_more', batchLang),
                         callback_data: "add_more_photos",
                       },
                     ],
@@ -1231,13 +1226,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                   : []),
                 [
                   {
-                    text: "▶️ Generate Now",
+                    text: t('msg.btn_generate_now', batchLang),
                     callback_data: "generate_video_now",
                   },
                 ],
                 [
                   {
-                    text: "⏭️ Skip Reference",
+                    text: t('msg.btn_skip_reference', batchLang),
                     callback_data: "skip_reference_image",
                   },
                 ],
@@ -1249,26 +1244,27 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       // Single photo upload (no media group) — reply immediately
+      const singleLang = ctx.session?.userLang || 'id';
+      const singleExtra = count < MAX_PHOTOS
+        ? t('msg.single_send_more', singleLang)
+        : t('msg.batch_max_reached', singleLang);
       await ctx.reply(
-        `📸 Photo ${count}/${MAX_PHOTOS} received!` +
-        (count < MAX_PHOTOS
-          ? " Send more photos or tap Generate."
-          : " Maximum reached — tap Generate."),
+        t('msg.single_photo_received', singleLang, { count: String(count), max: String(MAX_PHOTOS), extra: singleExtra }),
         {
           reply_markup: {
             inline_keyboard: [
               ...(count < MAX_PHOTOS
-                ? [[{ text: "📸 Add More", callback_data: "add_more_photos" }]]
+                ? [[{ text: t('msg.btn_add_more', singleLang), callback_data: "add_more_photos" }]]
                 : []),
               [
                 {
-                  text: "▶️ Generate Now",
+                  text: t('msg.btn_generate_now', singleLang),
                   callback_data: "generate_video_now",
                 },
               ],
               [
                 {
-                  text: "⏭️ Skip Reference",
+                  text: t('msg.btn_skip_reference', singleLang),
                   callback_data: "skip_reference_image",
                 },
               ],

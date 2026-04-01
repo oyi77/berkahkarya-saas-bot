@@ -54,7 +54,7 @@ describe("Cancel Command", () => {
 
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
-      expect(replyCall[0]).toContain("Tidak ada operasi yang sedang berjalan");
+      expect(replyCall[0]).toContain("Tidak ada operasi yang aktif");
     });
 
     it("should cancel VIDEO_CREATE operation", async () => {
@@ -111,7 +111,7 @@ describe("Cancel Command", () => {
 
       await cancelCommand(ctx as any);
 
-      expect(ctx.session.stateData).toEqual({});
+      expect(ctx.session.stateData).toBeUndefined();
     });
 
     it("should show main menu button after cancel", async () => {

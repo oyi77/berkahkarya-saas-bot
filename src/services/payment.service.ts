@@ -244,6 +244,11 @@ export class PaymentService {
             data: userUpdateData,
           });
 
+          await prisma.user.update({
+            where: { telegramId: transaction.userId },
+            data: { totalSpent: { increment: Number(transaction.amountIdr) } },
+          }).catch(() => {}); // non-critical
+
           const tierLabel = planConfig?.tier || 'unchanged';
           logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${tierLabel})`);
           this.sendFulfillmentNotification(transaction.userId, credits, planConfig?.tier || '').catch(err => logger.error('Fulfillment notification failed', { error: err.message }));

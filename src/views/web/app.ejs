@@ -522,7 +522,7 @@ function renderCreateStep() {
     generateStoryboardPreview();
   } else if (createState.step === 6) {
     const scenes = createState.storyboard?.scenes || [];
-    const creditCost = createState.duration <= 5 ? 0.2 : createState.duration <= 15 ? 0.5 : createState.duration <= 30 ? 1.0 : 2.0;
+    const creditCost = createState.duration <= 5 ? unitPricing.IMAGE_UNIT : createState.duration <= 15 ? unitPricing.VIDEO_15S : createState.duration <= 30 ? unitPricing.VIDEO_30S : createState.duration <= 60 ? unitPricing.VIDEO_60S : unitPricing.VIDEO_120S;
     const canAfford = Number(currentUser?.credits || 0) >= creditCost;
     c.innerHTML = `
       <div class="step-header">Konfirmasi & Generate</div>
@@ -635,8 +635,14 @@ function loadVideosList(videos) {
   container.innerHTML = videos.map(v => videoCard(v)).join('');
 }
 
+let unitPricing = { VIDEO_15S: 0.8, VIDEO_30S: 1.5, VIDEO_60S: 3.0, VIDEO_120S: 6.5, IMAGE_UNIT: 0.2 };
+let enabledGateways = [];
+
 async function loadBilling() {
-  const pkgs = await apiFetch('/api/packages');
+  const res = await apiFetch('/api/packages');
+  if (res && res.unitCosts) unitPricing = { ...unitPricing, ...res.unitCosts };
+  if (res && res.enabledGateways) enabledGateways = res.enabledGateways;
+  const pkgs = res && res.packages ? res.packages : (Array.isArray(res) ? res : []);
   const pc = document.getElementById('packages-container');
   if (pkgs && pkgs.length > 0) {
     pc.innerHTML = pkgs.map((p) => `
@@ -674,10 +680,11 @@ async function loadBilling() {
 }
 
 async function buyPackage(pkgId) {
+  const gateway = enabledGateways.length > 0 ? enabledGateways[0].id : 'duitku';
   toast('⏳ Membuat transaksi...', 'info');
   const data = await apiFetch('/api/payment/create', {
     method: 'POST',
-    body: JSON.stringify({ packageId: pkgId, gateway: 'duitku' })
+    body: JSON.stringify({ packageId: pkgId, gateway })
   });
   if (!data || data.error) { toast('Gagal: ' + (data?.error || 'Server error'), 'err'); return; }
   const url = data.paymentUrl || data.payment_url || data.invoiceUrl;

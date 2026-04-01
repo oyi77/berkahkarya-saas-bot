@@ -68,6 +68,8 @@ export class SubscriptionService {
         creditExpiresAt: periodEnd,
       },
     });
+    // Track subscription credits separately (field added in migration, available after prisma generate)
+    await prisma.$executeRaw`UPDATE "users" SET "subscription_credits" = "subscription_credits" + ${creditsToGrant} WHERE "telegramId" = ${telegramId}`;
 
     logger.info(`Subscription created: ${plan}/${billingCycle} for user ${telegramId}`);
     return subscription;
@@ -121,6 +123,7 @@ export class SubscriptionService {
         creditExpiresAt: newEnd,
       },
     });
+    await prisma.$executeRaw`UPDATE "users" SET "subscription_credits" = "subscription_credits" + ${creditsToGrant} WHERE "telegramId" = ${sub.userId}`;
 
     logger.info(`Subscription renewed: ${plan}/${sub.billingCycle} for user ${sub.userId} (+${creditsToGrant} credits)`);
   }
@@ -153,11 +156,23 @@ export class SubscriptionService {
         where: { id: sub.id },
         data: { status: 'expired' },
       });
+      // Only remove subscription-granted credits, preserve purchased credits
+      const user = await prisma.user.findUnique({
+        where: { telegramId: sub.userId },
+        select: { id: true, creditBalance: true },
+      });
+      // subscriptionCredits available after prisma generate with updated schema
+      const subCredits = Math.min((user as any)?.subscriptionCredits || 0, Number(user?.creditBalance || 0));
       await prisma.user.update({
         where: { telegramId: sub.userId },
-        data: { tier: 'free', creditBalance: 0, creditExpiresAt: null },
+        data: {
+          creditBalance: { decrement: subCredits },
+          tier: 'free',
+          creditExpiresAt: null,
+        },
       });
-      logger.info(`Subscription expired for user ${sub.userId}`);
+      await prisma.$executeRaw`UPDATE "users" SET "subscription_credits" = 0 WHERE "telegramId" = ${sub.userId}`;
+      logger.info(`Subscription expired for user ${sub.userId} (removed ${subCredits} sub credits, preserved purchased)`);
     }
 
     // Subscriptions that expired without cancelAtPeriodEnd: attempt auto-renewal if enabled,
@@ -170,9 +185,6 @@ export class SubscriptionService {
       },
     });
 
-    let autoRenewed = 0;
-    let renewalFailed = 0;
-
     for (const sub of dueForRenewal) {
       try {
         const user = await prisma.user.findUnique({
@@ -181,70 +193,25 @@ export class SubscriptionService {
         });
 
         if (user?.autoRenewal === true) {
-          const plans = await getSubscriptionPlansAsync();
-          const planConfig = plans[sub.plan as PlanKey];
-          const creditsNeeded = sub.billingCycle === 'annual'
-            ? (planConfig?.monthlyCredits || 0) * 12
-            : (planConfig?.monthlyCredits || 0);
-
-          if (Number(user.creditBalance) >= creditsNeeded) {
-            // Deduct credits for the renewal period then extend subscription
-            await prisma.user.update({
-              where: { telegramId: sub.userId },
-              data: { creditBalance: { decrement: creditsNeeded } },
-            });
-            await this.renewSubscription(sub.id);
-            autoRenewed++;
-            logger.info(`Auto-renewed subscription ${sub.id} for user ${sub.userId} (-${creditsNeeded} credits)`);
-
-            // Notify user of successful renewal
-            if (this.botInstance) {
-              try {
-                const renewed = await prisma.subscription.findUnique({ where: { id: sub.id } });
-                const lang = user.language || 'id';
-                const endDate = renewed?.currentPeriodEnd
-                  ? new Date(renewed.currentPeriodEnd).toLocaleDateString()
-                  : '';
-                await this.botInstance.telegram.sendMessage(
-                  sub.userId.toString(),
-                  t('subscription.auto_renewed', lang, { plan: sub.plan, endDate }),
-                  { parse_mode: 'Markdown' },
-                );
-              } catch (notifyErr) {
-                logger.warn(`Failed to send auto-renewal success notification to ${sub.userId}:`, notifyErr);
+          // Don't deduct credits — send renewal prompt instead
+          try {
+            const { Telegraf } = await import('telegraf');
+            const telegram = new Telegraf(process.env.BOT_TOKEN!).telegram;
+            const lang = user.language || 'id';
+            await telegram.sendMessage(
+              user.telegramId.toString(),
+              t('subscription.renewal_prompt', lang, { plan: sub.plan }),
+              {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: t('subscription.btn_renew', lang), callback_data: `subscribe_${sub.plan}_monthly` }],
+                    [{ text: t('subscription.btn_skip', lang), callback_data: 'main_menu' }],
+                  ],
+                },
               }
-            }
-          } else {
-            // Insufficient balance — cancel auto-renewal and notify
-            await prisma.subscription.update({
-              where: { id: sub.id },
-              data: { cancelAtPeriodEnd: true },
-            });
-            renewalFailed++;
-            logger.warn(`Auto-renewal failed (insufficient balance) for sub ${sub.id} user ${sub.userId}`);
-
-            if (this.botInstance) {
-              try {
-                const lang = user.language || 'id';
-                await this.botInstance.telegram.sendMessage(
-                  sub.userId.toString(),
-                  t('subscription.renewal_failed', lang, { plan: sub.plan }),
-                  {
-                    parse_mode: 'Markdown',
-                    reply_markup: {
-                      inline_keyboard: [
-                        [
-                          { text: t('menu.top_up', lang), callback_data: 'topup' },
-                        ],
-                      ],
-                    },
-                  },
-                );
-              } catch (notifyErr) {
-                logger.warn(`Failed to send auto-renewal failure notification to ${sub.userId}:`, notifyErr);
-              }
-            }
-          }
+            );
+          } catch { /* notification failure is non-critical */ }
         } else {
           // No auto-renewal: expire and notify user to re-subscribe manually.
           // Credits are NOT auto-granted — that would be giving away free credits.
@@ -263,9 +230,6 @@ export class SubscriptionService {
       }
     }
 
-    if (autoRenewed > 0 || renewalFailed > 0) {
-      logger.info(`Auto-renewal: ${autoRenewed} renewed, ${renewalFailed} failed (insufficient balance)`);
-    }
 
     logger.info(`Processed ${expiredCancelled.length} cancelled + ${dueForRenewal.length} expired subscriptions`);
     return expiredCancelled.length + dueForRenewal.length;

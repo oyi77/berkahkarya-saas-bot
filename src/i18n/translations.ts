@@ -231,11 +231,29 @@ const translations: Record<string, Record<Lang, string>> = {
   // ---------------------------------------------------------------------------
   // Errors
   // ---------------------------------------------------------------------------
+  'error.account_banned': {
+    id: 'Akun kamu telah disuspend. Hubungi support untuk bantuan.',
+    en: 'Your account has been suspended. Contact support for assistance.',
+    ru: 'Ваш аккаунт был заблокирован. Обратитесь в поддержку.',
+    zh: '您的账户已被封禁。请联系客服获取帮助。',
+  },
   'error.generic': {
     id: '❌ Terjadi kesalahan. Silakan coba lagi.',
     en: '❌ Something went wrong. Please try again.',
     ru: '❌ Что-то пошло не так. Пожалуйста, попробуйте снова.',
     zh: '❌ 出了点问题，请再试一次。',
+  },
+  'error.something_went_wrong': {
+    id: 'Terjadi kesalahan.',
+    en: 'Something went wrong.',
+    ru: 'Произошла ошибка.',
+    zh: '出了点问题。',
+  },
+  'error.try_start': {
+    id: 'Ketik /start untuk kembali ke menu.',
+    en: 'Type /start to return to menu.',
+    ru: 'Введите /start для возврата в меню.',
+    zh: '输入 /start 返回菜单。',
   },
   'error.user_not_found': {
     id: '❌ Pengguna tidak ditemukan. Silakan mulai dengan /start',
@@ -535,6 +553,22 @@ const translations: Record<string, Record<Lang, string>> = {
   },
 
   // ---------------------------------------------------------------------------
+  // Retention / notification buttons
+  // ---------------------------------------------------------------------------
+  'retention.btn_generate': {
+    id: '🎬 Generate Sekarang',
+    en: '🎬 Generate Now',
+    ru: '🎬 Создать сейчас',
+    zh: '🎬 立即生成',
+  },
+  'retention.btn_unsubscribe': {
+    id: '🔕 Unsubscribe',
+    en: '🔕 Unsubscribe',
+    ru: '🔕 Отписаться',
+    zh: '🔕 取消订阅',
+  },
+
+  // ---------------------------------------------------------------------------
   // Profile / referral headings
   // ---------------------------------------------------------------------------
   'profile.heading': {
@@ -657,6 +691,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '💬 Спросить ИИ — помогу выбрать',
     zh: '💬 咨询 AI — 我来帮您选',
   },
+  'onboarding.select_niche': {
+    id: '🏪 Bisnis kamu bergerak di bidang apa?',
+    en: '🏪 What type of business do you have?',
+    ru: '🏪 Какой у вас тип бизнеса?',
+    zh: '🏪 您的业务类型是什么？',
+  },
 
   // ---------------------------------------------------------------------------
   // Image reference & Avatar
@@ -749,6 +789,12 @@ const translations: Record<string, Record<Lang, string>> = {
   // ---------------------------------------------------------------------------
   // Generate flow (V3)
   // ---------------------------------------------------------------------------
+  'gen.daily_limit_reached': {
+    id: 'Kamu telah mencapai batas generate harian ({limit}). Coba lagi besok!',
+    en: "You've reached your daily generation limit ({limit}). Try again tomorrow!",
+    ru: 'Вы достигли дневного лимита генераций ({limit}). Попробуйте завтра!',
+    zh: '您已达到每日生成上限（{limit}）。明天再试吧！',
+  },
   'gen.analyzing_photo': {
     id: '🔍 *Menganalisis foto produk...*',
     en: '🔍 *Analyzing product photo...*',
@@ -984,12 +1030,93 @@ const translations: Record<string, Record<Lang, string>> = {
     zh: '✨ *内容已创建！*\n\n接下来做什么？',
   },
 
+  // Generate mode/action selection (i18n)
+  'gen.title': {
+    id: 'Generate Konten', en: 'Generate Content', ru: 'Создать контент', zh: '生成内容',
+  },
+  'gen.select_mode': {
+    id: 'Pilih mode:', en: 'Select mode:', ru: 'Выберите режим:', zh: '选择模式:',
+  },
+  'gen.mode_basic': {
+    id: '⚡ Basic — Full Auto', en: '⚡ Basic — Full Auto', ru: '⚡ Basic — Полный авто', zh: '⚡ Basic — 全自动',
+  },
+  'gen.mode_smart': {
+    id: '🎯 Smart — Pilih Preset', en: '🎯 Smart — Choose Preset', ru: '🎯 Smart — Выбрать пресет', zh: '🎯 Smart — 选择预设',
+  },
+  'gen.mode_pro': {
+    id: '👑 Pro — Full Control', en: '👑 Pro — Full Control', ru: '👑 Pro — Полный контроль', zh: '👑 Pro — 完全控制',
+  },
+  'gen.select_action': {
+    id: 'Pilih aksi:', en: 'Select action:', ru: 'Выберите действие:', zh: '选择操作:',
+  },
+  'gen.balance_label': {
+    id: 'Saldo', en: 'Balance', ru: 'Баланс', zh: '余额',
+  },
+  'gen.action_image_set': {
+    id: '📸 Image Set (7 scene) — {cost} kredit', en: '📸 Image Set (7 scenes) — {cost} credits',
+    ru: '📸 Набор изображений (7 сцен) — {cost} кредитов', zh: '📸 图片集（7 场景）— {cost} 积分',
+  },
+  'gen.action_video': {
+    id: '🎥 Video Iklan — mulai {cost} kredit', en: '🎥 Ad Video — from {cost} credits',
+    ru: '🎥 Рекламное видео — от {cost} кредитов', zh: '🎥 广告视频 — 起 {cost} 积分',
+  },
+  'gen.action_clone_style': {
+    id: '🔄 Clone Style — {cost} kredit', en: '🔄 Clone Style — {cost} credits',
+    ru: '🔄 Клонировать стиль — {cost} кредитов', zh: '🔄 克隆风格 — {cost} 积分',
+  },
+  'gen.action_campaign': {
+    id: '📦 Campaign (5/10 scene) — {cost5}/{cost10} kredit', en: '📦 Campaign (5/10 scenes) — {cost5}/{cost10} credits',
+    ru: '📦 Кампания (5/10 сцен) — {cost5}/{cost10} кредитов', zh: '📦 活动（5/10 场景）— {cost5}/{cost10} 积分',
+  },
+  'gen.no_credits_early': {
+    id: '💰 Saldo kamu *{balance} kredit*. Top up dulu untuk mulai membuat konten!',
+    en: '💰 Your balance is *{balance} credits*. Top up to start creating!',
+    ru: '💰 Ваш баланс: *{balance} кредитов*. Пополните для создания контента!',
+    zh: '💰 您的余额为 *{balance} 积分*。请充值以开始创建！',
+  },
+
   // Smart mode
   'gen.smart_select_duration': {
     id: '🎯 *Smart Mode*\n\nPilih durasi video:',
     en: '🎯 *Smart Mode*\n\nSelect video duration:',
     ru: '🎯 *Smart Mode*\n\nВыберите длительность видео:',
     zh: '🎯 *智能模式*\n\n选择视频时长:',
+  },
+
+  'gen.select_platform': {
+    id: 'Platform:',
+    en: 'Platform:',
+    ru: 'Платформа:',
+    zh: '平台:',
+  },
+
+  'gen.photo_fallback_desc': {
+    id: 'produk dari foto yang dikirim',
+    en: 'product from submitted photo',
+    ru: 'продукт из отправленного фото',
+    zh: '来自上传照片的产品',
+  },
+
+  'gen.pro_scene_review': {
+    id: '👑 *Pro Mode — Review Scene*\n\nIndustri terdeteksi: *{industry}*\n\n{scenes}\n\nTap scene untuk edit, atau lanjut:',
+    en: '👑 *Pro Mode — Scene Review*\n\nDetected industry: *{industry}*\n\n{scenes}\n\nTap a scene to edit, or continue:',
+    ru: '👑 *Pro Mode — Обзор сцен*\n\nОпределённая отрасль: *{industry}*\n\n{scenes}\n\nНажмите на сцену для редактирования или продолжите:',
+    zh: '👑 *Pro 模式 — 场景审核*\n\n检测到的行业: *{industry}*\n\n{scenes}\n\n点击场景进行编辑，或继续:',
+  },
+
+  'gen.btn_pro_continue': {
+    id: '✅ Lanjut ke Pilih Durasi',
+    en: '✅ Continue to Duration',
+    ru: '✅ Продолжить к выбору длительности',
+    zh: '✅ 继续选择时长',
+  },
+
+  // Fingerprint
+  'fingerprint.coming_soon': {
+    id: '🧬 *Prompt Fingerprint*\n\nFitur ini segera hadir! Kami sedang menganalisis pola generate kamu untuk memberikan rekomendasi style yang personal.',
+    en: '🧬 *Prompt Fingerprint*\n\nThis feature is coming soon! We are analyzing your generation patterns to provide personalized style recommendations.',
+    ru: '🧬 *Prompt Fingerprint*\n\nЭта функция скоро появится! Мы анализируем ваши паттерны генерации для персональных рекомендаций.',
+    zh: '🧬 *Prompt Fingerprint*\n\n此功能即将推出！我们正在分析您的生成模式，以提供个性化风格推荐。',
   },
 
   // Buttons
@@ -1585,6 +1712,18 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '❌ Не удалось отменить. Попробуйте снова.',
     zh: '❌ 取消失败。请重试。',
   },
+  'cancel.nothing_active': {
+    id: 'Tidak ada operasi yang aktif.',
+    en: 'No active operation to cancel.',
+    ru: 'Нет активной операции.',
+    zh: '没有活动操作可取消。',
+  },
+  'cancel.cancelled': {
+    id: 'Dibatalkan. Kembali ke menu utama.',
+    en: 'Cancelled. Returning to main menu.',
+    ru: 'Отменено. Возврат в главное меню.',
+    zh: '已取消。返回主菜单。',
+  },
   'sub.creating_payment': {
     id: 'Membuat pembayaran...',
     en: 'Creating payment...',
@@ -1766,6 +1905,268 @@ const translations: Record<string, Record<Lang, string>> = {
     en: 'Share feature coming soon!',
     ru: 'Функция поделиться скоро появится!',
     zh: '分享功能即将推出！',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Message handler — hardcoded strings replaced with t() calls
+  // ---------------------------------------------------------------------------
+  'msg.img_btn_product_photo': {
+    id: '🛍️ Foto Produk',
+    en: '🛍️ Product Photo',
+    ru: '🛍️ Фото товара',
+    zh: '🛍️ 产品照片',
+  },
+  'msg.img_btn_fnb': {
+    id: '🍔 F&B / Kuliner',
+    en: '🍔 F&B Food',
+    ru: '🍔 Еда и напитки',
+    zh: '🍔 餐饮美食',
+  },
+  'msg.img_btn_realestate': {
+    id: '🏠 Properti / Real Estate',
+    en: '🏠 Real Estate',
+    ru: '🏠 Недвижимость',
+    zh: '🏠 房地产',
+  },
+  'msg.img_btn_car': {
+    id: '🚗 Otomotif / Mobil',
+    en: '🚗 Car/Automotive',
+    ru: '🚗 Автомобиль',
+    zh: '🚗 汽车/汽车业',
+  },
+  'msg.photo_received_niche': {
+    id: '✅ Foto diterima!\n\nSekarang, pilih niche kamu:',
+    en: '✅ Photo received!\n\nNow, please select your niche:',
+    ru: '✅ Фото получено!\n\nТеперь выберите нишу:',
+    zh: '✅ 照片已收到！\n\n请选择您的类别：',
+  },
+  'msg.niche_btn_fnb': {
+    id: '🍔 F&B',
+    en: '🍔 F&B',
+    ru: '🍔 Еда',
+    zh: '🍔 餐饮',
+  },
+  'msg.niche_btn_beauty': {
+    id: '💄 Beauty',
+    en: '💄 Beauty',
+    ru: '💄 Красота',
+    zh: '💄 美妆',
+  },
+  'msg.niche_btn_retail': {
+    id: '🛍️ Retail',
+    en: '🛍️ Retail',
+    ru: '🛍️ Розница',
+    zh: '🛍️ 零售',
+  },
+  'msg.niche_btn_services': {
+    id: '🔧 Services',
+    en: '🔧 Services',
+    ru: '🔧 Услуги',
+    zh: '🔧 服务',
+  },
+  'msg.niche_btn_professional': {
+    id: '🏢 Professional',
+    en: '🏢 Professional',
+    ru: '🏢 Профессиональный',
+    zh: '🏢 专业',
+  },
+  'msg.niche_btn_hospitality': {
+    id: '🏨 Hospitality',
+    en: '🏨 Hospitality',
+    ru: '🏨 Гостеприимство',
+    zh: '🏨 酒店业',
+  },
+  'msg.ref_image_received': {
+    id: '📸 *Gambar referensi diterima!*\n\nSekarang deskripsikan yang ingin di-generate:\n\n_Contoh: "Produk di meja marmer dengan pencahayaan studio lembut, foto marketing"_',
+    en: '📸 *Reference image received!*\n\nNow describe what you want to generate:\n\n_Example: "Product on marble table with soft studio lighting, marketing photo"_',
+    ru: '📸 *Референсное изображение получено!*\n\nТеперь опишите, что хотите создать:\n\n_Пример: "Продукт на мраморном столе с мягким студийным освещением, маркетинговое фото"_',
+    zh: '📸 *参考图片已收到！*\n\n现在描述您想生成的内容：\n\n_示例："产品放在大理石桌上，柔和的工作室灯光，营销照片"_',
+  },
+  'msg.btn_cancel': {
+    id: '❌ Batal',
+    en: '❌ Cancel',
+    ru: '❌ Отмена',
+    zh: '❌ 取消',
+  },
+  'msg.avatar_photo_received': {
+    id: '📸 *Foto diterima!*\n\nBeri nama avatar ini (misal, "Sarah", "Model Produk", "Maskot Merek"):',
+    en: '📸 *Photo received!*\n\nGive this avatar a name (e.g., "Sarah", "Product Model", "Brand Mascot"):',
+    ru: '📸 *Фото получено!*\n\nДайте имя этому аватару (напр., "Сара", "Модель продукта", "Маскот бренда"):',
+    zh: '📸 *照片已收到！*\n\n为此头像取个名字（如"Sarah"、"产品模特"、"品牌吉祥物"）：',
+  },
+  'msg.avatar_saved': {
+    id: '✅ *Avatar "{name}" tersimpan!*\n{defaultLine}\n{descLine}Kamu bisa gunakan avatar ini saat generate gambar untuk karakter yang konsisten.',
+    en: '✅ *Avatar "{name}" saved!*\n{defaultLine}\n{descLine}You can now use this avatar when generating images to keep consistent characters.',
+    ru: '✅ *Аватар "{name}" сохранён!*\n{defaultLine}\n{descLine}Вы можете использовать этот аватар при генерации изображений для сохранения единого образа.',
+    zh: '✅ *头像"{name}"已保存！*\n{defaultLine}\n{descLine}您现在可以在生成图片时使用此头像以保持角色一致性。',
+  },
+  'msg.avatar_default_line': {
+    id: '⭐ Dijadikan avatar default\n',
+    en: '⭐ Set as default avatar\n',
+    ru: '⭐ Установлен как аватар по умолчанию\n',
+    zh: '⭐ 设为默认头像\n',
+  },
+  'msg.btn_generate_with_avatar': {
+    id: '🖼️ Generate dengan Avatar',
+    en: '🖼️ Generate with Avatar',
+    ru: '🖼️ Создать с аватаром',
+    zh: '🖼️ 使用头像生成',
+  },
+  'msg.btn_manage_avatars': {
+    id: '👤 Kelola Avatar',
+    en: '👤 Manage Avatars',
+    ru: '👤 Управление аватарами',
+    zh: '👤 管理头像',
+  },
+  'msg.btn_back_to_menu': {
+    id: '◀️ Kembali ke Menu',
+    en: '◀️ Back to Menu',
+    ru: '◀️ Назад в меню',
+    zh: '◀️ 返回菜单',
+  },
+  'msg.video_analysis_result': {
+    id: '📋 *Hasil Analisis Video*\n\n*Style:* {style}\n\n*Deskripsi:*\n{cleanPrompt}\n\nSiap buat video serupa?',
+    en: '📋 *Video Analysis Result*\n\n*Style:* {style}\n\n*Description:*\n{cleanPrompt}\n\nReady to create a similar video?',
+    ru: '📋 *Результат анализа видео*\n\n*Стиль:* {style}\n\n*Описание:*\n{cleanPrompt}\n\nГотовы создать похожее видео?',
+    zh: '📋 *视频分析结果*\n\n*风格:* {style}\n\n*描述：*\n{cleanPrompt}\n\n准备创建类似视频吗？',
+  },
+  'msg.btn_create_similar_video': {
+    id: '🎬 Buat Video Serupa',
+    en: '🎬 Create Similar Video',
+    ru: '🎬 Создать похожее видео',
+    zh: '🎬 创建类似视频',
+  },
+  'msg.btn_edit_description': {
+    id: '✏️ Edit Deskripsi',
+    en: '✏️ Edit Description',
+    ru: '✏️ Редактировать описание',
+    zh: '✏️ 编辑描述',
+  },
+  'msg.btn_cancel_main_menu': {
+    id: '❌ Batal',
+    en: '❌ Cancel',
+    ru: '❌ Отмена',
+    zh: '❌ 取消',
+  },
+  'msg.analysis_failed_error': {
+    id: '❌ *Analisis Gagal*\n\nError: {error}',
+    en: '❌ *Analysis Failed*\n\nError: {error}',
+    ru: '❌ *Анализ не удался*\n\nОшибка: {error}',
+    zh: '❌ *分析失败*\n\n错误: {error}',
+  },
+  'msg.clone_desc_updated': {
+    id: '✅ *Deskripsi Diperbarui!*\n\n*Style:* {style}\n\n*Deskripsi Baru:*\n{newDescription}\n\nSiap buat video?',
+    en: '✅ *Description Updated!*\n\n*Style:* {style}\n\n*New Description:*\n{newDescription}\n\nReady to create video?',
+    ru: '✅ *Описание обновлено!*\n\n*Стиль:* {style}\n\n*Новое описание:*\n{newDescription}\n\nГотовы создать видео?',
+    zh: '✅ *描述已更新！*\n\n*风格:* {style}\n\n*新描述：*\n{newDescription}\n\n准备创建视频吗？',
+  },
+  'msg.btn_create_video_new': {
+    id: '🎬 Buat Video',
+    en: '🎬 Create Video',
+    ru: '🎬 Создать видео',
+    zh: '🎬 创建视频',
+  },
+  'msg.btn_edit_again': {
+    id: '✏️ Edit Lagi',
+    en: '✏️ Edit Again',
+    ru: '✏️ Редактировать снова',
+    zh: '✏️ 再次编辑',
+  },
+  'msg.clone_image_extracted': {
+    id: '✅ Style Gambar Diekstrak:\n\n{cleanPrompt}\n\nStyle: {style}\n\nSiap generate gambar serupa?',
+    en: '✅ Image Style Extracted:\n\n{cleanPrompt}\n\nStyle: {style}\n\nReady to generate a similar image?',
+    ru: '✅ Стиль изображения извлечён:\n\n{cleanPrompt}\n\nСтиль: {style}\n\nГотовы создать похожее изображение?',
+    zh: '✅ 图片风格已提取：\n\n{cleanPrompt}\n\n风格: {style}\n\n准备生成类似图片吗？',
+  },
+  'msg.btn_generate_similar_image': {
+    id: '🖼️ Generate Gambar Serupa',
+    en: '🖼️ Generate Similar Image',
+    ru: '🖼️ Создать похожее изображение',
+    zh: '🖼️ 生成类似图片',
+  },
+  'msg.clone_image_analyzing': {
+    id: '⏳ *Menganalisis gambar...*\n\nMengekstrak style dan membuat prompt...',
+    en: '⏳ *Analyzing image...*\n\nExtracting style and creating prompt...',
+    ru: '⏳ *Анализируем изображение...*\n\nИзвлекаем стиль и создаём промпт...',
+    zh: '⏳ *正在分析图片...*\n\n提取风格并生成提示词...',
+  },
+  'msg.max_photos_reached': {
+    id: 'Kamu sudah upload {max} foto (maksimal).\n\nTap "Generate Sekarang" untuk mulai buat video, atau /skip untuk generate tanpa referensi.',
+    en: 'You have already uploaded {max} photos (maximum).\n\nTap "Generate Now" to start video creation, or /skip to generate without references.',
+    ru: 'Вы уже загрузили {max} фото (максимум).\n\nНажмите "Создать сейчас" для создания видео, или /skip без референсов.',
+    zh: '您已上传 {max} 张照片（最多）。\n\n点击"立即生成"开始创建视频，或 /skip 不使用参考图。',
+  },
+  'msg.btn_generate_now': {
+    id: '▶️ Generate Sekarang',
+    en: '▶️ Generate Now',
+    ru: '▶️ Создать сейчас',
+    zh: '▶️ 立即生成',
+  },
+  'msg.btn_skip_reference': {
+    id: '⏭️ Skip Referensi',
+    en: '⏭️ Skip Reference',
+    ru: '⏭️ Пропустить референс',
+    zh: '⏭️ 跳过参考',
+  },
+  'msg.batch_photos_received': {
+    id: '📸 {count} foto diterima!{extra}',
+    en: '📸 {count} photo(s) received!{extra}',
+    ru: '📸 {count} фото получено!{extra}',
+    zh: '📸 收到 {count} 张照片！{extra}',
+  },
+  'msg.batch_send_more': {
+    id: ' Kirim lagi atau tap Generate.',
+    en: ' Send more or tap Generate.',
+    ru: ' Отправьте ещё или нажмите Создать.',
+    zh: ' 发送更多或点击生成。',
+  },
+  'msg.batch_max_reached': {
+    id: ' Maksimum tercapai — tap Generate.',
+    en: ' Maximum reached — tap Generate.',
+    ru: ' Максимум достигнут — нажмите Создать.',
+    zh: ' 已达最大数量 — 点击生成。',
+  },
+  'msg.btn_add_more': {
+    id: '📸 Tambah Lagi',
+    en: '📸 Add More',
+    ru: '📸 Добавить ещё',
+    zh: '📸 添加更多',
+  },
+  'msg.single_photo_received': {
+    id: '📸 Foto {count}/{max} diterima!{extra}',
+    en: '📸 Photo {count}/{max} received!{extra}',
+    ru: '📸 Фото {count}/{max} получено!{extra}',
+    zh: '📸 已收到照片 {count}/{max}！{extra}',
+  },
+  'msg.single_send_more': {
+    id: ' Kirim lebih banyak foto atau tap Generate.',
+    en: ' Send more photos or tap Generate.',
+    ru: ' Отправьте больше фото или нажмите Создать.',
+    zh: ' 发送更多照片或点击生成。',
+  },
+  'msg.repurpose_generate_t2v': {
+    id: '🎬 Generate (Text-to-Video)',
+    en: '🎬 Generate (Text-to-Video)',
+    ru: '🎬 Создать (Text-to-Video)',
+    zh: '🎬 生成（文字转视频）',
+  },
+  'msg.repurpose_generate_i2v': {
+    id: '🖼️ Generate (Image-to-Video)',
+    en: '🖼️ Generate (Image-to-Video)',
+    ru: '🖼️ Создать (Image-to-Video)',
+    zh: '🖼️ 生成（图片转视频）',
+  },
+  'msg.almost_ready': {
+    id: '🎬 **Hampir Siap!**\n\nDiminta: {requested}d → Dioptimalkan: {optimized}d ({scenes} × {sceneDuration}d)\n💰 Biaya kredit: {creditCost}\n\n📸 **Kirim gambar referensi** untuk video kamu,\natau ketik /skip untuk biarkan AI generate semua.',
+    en: '🎬 **Almost Ready!**\n\nRequested: {requested}s → Optimized: {optimized}s ({scenes} × {sceneDuration}s)\n💰 Credit cost: {creditCost}\n\n📸 **Send a reference image** for your video,\nor type /skip to let AI generate everything.',
+    ru: '🎬 **Почти готово!**\n\nЗапрошено: {requested}с → Оптимизировано: {optimized}с ({scenes} × {sceneDuration}с)\n💰 Стоимость: {creditCost}\n\n📸 **Отправьте референс-изображение** для видео,\nили /skip, чтобы ИИ сгенерировал всё.',
+    zh: '🎬 **即将完成！**\n\n请求: {requested}秒 → 优化: {optimized}秒（{scenes} × {sceneDuration}秒）\n💰 积分费用: {creditCost}\n\n📸 **发送参考图片**以供视频使用，\n或输入 /skip 让 AI 全自动生成。',
+  },
+  'msg.btn_manage_accounts': {
+    id: '🔗 Kelola Akun',
+    en: '🔗 Manage Accounts',
+    ru: '🔗 Управление аккаунтами',
+    zh: '🔗 管理账号',
   },
 
   // ---------------------------------------------------------------------------
@@ -3010,6 +3411,18 @@ const translations: Record<string, Record<Lang, string>> = {
     id: '{credits} Kredit', en: '{credits} Credits',
     ru: '{credits} Кредитов', zh: '{credits} 积分',
   },
+  'topup.no_gateway_available': {
+    id: 'Tidak ada metode pembayaran yang tersedia saat ini. Coba lagi nanti.',
+    en: 'No payment method is available at the moment. Please try again later.',
+    ru: 'В данный момент нет доступных методов оплаты. Попробуйте позже.',
+    zh: '目前没有可用的支付方式，请稍后再试。',
+  },
+  'topup.gateway_unavailable': {
+    id: 'Metode pembayaran yang dipilih sedang tidak tersedia. Silakan pilih metode lain.',
+    en: 'The selected payment method is currently unavailable. Please choose another method.',
+    ru: 'Выбранный способ оплаты временно недоступен. Пожалуйста, выберите другой.',
+    zh: '所选支付方式暂时不可用，请选择其他方式。',
+  },
 
   // ---------------------------------------------------------------------------
   // referral.ts translations
@@ -3043,6 +3456,16 @@ const translations: Record<string, Record<Lang, string>> = {
   'referral.btn_stats': {
     id: '📊 Lihat Stats', en: '📊 View Stats',
     ru: '📊 Статистика', zh: '📊 查看统计',
+  },
+  'referral.how_it_works': {
+    id: '❓ Cara Kerja', en: '❓ How it Works',
+    ru: '❓ Как это работает', zh: '❓ 如何运作',
+  },
+  'referral.explanation': {
+    id: '❓ *Cara Kerja Program Referral*\n\n*Komisi 15%*\nSetiap kali teman yang kamu ajak melakukan pembelian, kamu otomatis mendapatkan komisi sebesar *15%* dari nilai transaksinya.\n\n*Cara Menggunakan Komisi*\nKomisi yang terkumpul bisa kamu gunakan dengan dua cara:\n• 🔄 *Tukar ke Kredit* — Ubah komisi menjadi kredit untuk membuat video\n• 💵 *Cairkan ke Admin* — Jual komisi ke admin dengan harga 50% dari nilai kredit\n\n*Cashout ke Admin*\nSaat kamu memilih cashout, admin akan memproses pembayaran sebesar *50%* dari total komisimu via transfer manual.\n\n*Terus Ajak Teman*\nSemakin banyak teman yang bergabung dan berbelanja, semakin besar komisi yang kamu kumpulkan. Tidak ada batas maksimal!',
+    en: '❓ *How the Referral Program Works*\n\n*15% Commission*\nEvery time a friend you invited makes a purchase, you automatically earn a *15%* commission on their transaction value.\n\n*Using Your Commission*\nYou can use your accumulated commission in two ways:\n• 🔄 *Convert to Credits* — Turn commission into credits for video creation\n• 💵 *Cash Out via Admin* — Sell commission to admin at 50% of credit value\n\n*Admin Cashout*\nWhen you choose to cash out, the admin will process payment of *50%* of your total commission via manual transfer.\n\n*Keep Referring*\nThe more friends who join and make purchases, the more commission you accumulate. There is no maximum limit!',
+    ru: '❓ *Как работает реферальная программа*\n\n*Комиссия 15%*\nКаждый раз, когда приглашённый вами друг совершает покупку, вы автоматически получаете комиссию в размере *15%* от суммы транзакции.\n\n*Использование комиссии*\nНакопленную комиссию можно использовать двумя способами:\n• 🔄 *Конвертировать в кредиты* — Превратить комиссию в кредиты для создания видео\n• 💵 *Вывод через админа* — Продать комиссию админу по цене 50% от стоимости кредита\n\n*Вывод через админа*\nПри выборе вывода, админ обработает выплату в размере *50%* от вашей общей комиссии через ручной перевод.\n\n*Продолжайте приглашать*\nЧем больше друзей присоединится и совершит покупки, тем больше комиссии вы накопите. Максимального предела нет!',
+    zh: '❓ *推荐计划如何运作*\n\n*15% 佣金*\n每当您邀请的朋友完成购买，您将自动获得其交易金额 *15%* 的佣金。\n\n*使用佣金*\n您可以通过两种方式使用累积的佣金：\n• 🔄 *兑换积分* — 将佣金转换为用于创建视频的积分\n• 💵 *向管理员提现* — 以积分价值50%的价格将佣金卖给管理员\n\n*管理员提现*\n选择提现后，管理员将通过手动转账处理您总佣金 *50%* 的付款。\n\n*持续推荐*\n加入并购买的朋友越多，您累积的佣金就越多。没有上限！',
   },
 
   // ---------------------------------------------------------------------------
@@ -3097,9 +3520,44 @@ const translations: Record<string, Record<Lang, string>> = {
     zh: '⚠️ *自动续订失败*\n\n余额不足，无法续订 *{plan}* 套餐。\n请充值以继续您的订阅计划。',
   },
 
+  'subscription.renewal_prompt': {
+    id: 'Langganan *{plan}* kamu akan segera berakhir. Perpanjang sekarang untuk menjaga kredit dan fitur premium kamu!',
+    en: 'Your *{plan}* subscription is expiring. Renew now to keep your credits and premium features!',
+    ru: 'Ваша подписка *{plan}* скоро истекает. Продлите сейчас, чтобы сохранить кредиты и премиум-функции!',
+    zh: '您的 *{plan}* 订阅即将到期。立即续订以保留您的积分和高级功能！',
+  },
+
+  'subscription.btn_renew': {
+    id: 'Perpanjang Sekarang',
+    en: 'Renew Now',
+    ru: 'Продлить сейчас',
+    zh: '立即续订',
+  },
+
+  'subscription.btn_skip': {
+    id: 'Nanti Saja',
+    en: 'Not Now',
+    ru: 'Не сейчас',
+    zh: '暂不续订',
+  },
+
   // ---------------------------------------------------------------------------
   // videos.ts translations
   // ---------------------------------------------------------------------------
+  'videos.empty': {
+    id: '📁 *Video Saya*\n\nBelum ada video. Buat yang pertama! 🎬\n\nVideo disimpan selama 30 hari.',
+    en: '📁 *My Videos*\n\nNo videos yet. Create your first one! 🎬\n\nVideos are stored for 30 days.',
+    ru: '📁 *Мои видео*\n\nВидео ещё нет. Создайте первое! 🎬\n\nВидео хранятся 30 дней.',
+    zh: '📁 *我的视频*\n\n还没有视频。创建第一个！🎬\n\n视频保存30天。',
+  },
+
+  'videos.list_header': {
+    id: '📁 *Video Saya*\n\nDitemukan {count} video\n\nKlik video untuk lihat/unduh:',
+    en: '📁 *My Videos*\n\nFound {count} video(s)\n\nClick a video to view/download:',
+    ru: '📁 *Мои видео*\n\nНайдено {count} видео\n\nНажмите на видео для просмотра/загрузки:',
+    zh: '📁 *我的视频*\n\n找到 {count} 个视频\n\n点击视频查看/下载:',
+  },
+
   'videos.btn_create_new': {
     id: '🎬 Buat Video Baru', en: '🎬 Create New Video',
     ru: '🎬 Создать новое видео', zh: '🎬 创建新视频',
@@ -3112,6 +3570,27 @@ const translations: Record<string, Record<Lang, string>> = {
   // ---------------------------------------------------------------------------
   // support.ts translations
   // ---------------------------------------------------------------------------
+  'support.btn_chat': {
+    id: '💬 Chat Support',
+    en: '💬 Chat Support',
+    ru: '💬 Чат поддержки',
+    zh: '💬 在线支持',
+  },
+
+  'support.btn_tutorial': {
+    id: '📖 Lihat Tutorial',
+    en: '📖 View Tutorial',
+    ru: '📖 Смотреть туториал',
+    zh: '📖 查看教程',
+  },
+
+  'support.btn_bug': {
+    id: '🐛 Laporkan Bug',
+    en: '🐛 Report Bug',
+    ru: '🐛 Сообщить об ошибке',
+    zh: '🐛 报告错误',
+  },
+
   'support.full_msg': {
     id: '🆘 *Bantuan & Support*\n\n*Pertanyaan Umum:*\n\n*T: Bagaimana cara membuat video?*\nJ: Gunakan perintah /create dan ikuti langkahnya.\n\n*T: Berapa lama pembuatan video?*\nJ: Biasanya 2-5 menit tergantung antrian.\n\n*T: Format apa yang didukung?*\nJ: TikTok, Instagram, YouTube, Facebook, Twitter.\n\n*T: Bagaimana cara kerja kredit?*\nJ: 1 kredit = 1 video (30d, 5 scene)\n\nButuh bantuan lain? Hubungi kami!',
     en: '🆘 *Help & Support*\n\n*Frequently Asked Questions:*\n\n*Q: How do I create a video?*\nA: Use /create command and follow the steps.\n\n*Q: How long does video generation take?*\nA: Usually 2-5 minutes depending on queue.\n\n*Q: What formats are supported?*\nA: TikTok, Instagram, YouTube, Facebook, Twitter.\n\n*Q: How do credits work?*\nA: 1 credit = 1 video (30s, 5 scenes)\n\nNeed more help? Contact us!',
@@ -3765,6 +4244,175 @@ const translations: Record<string, Record<Lang, string>> = {
     en: '📚 **PROMPT LIBRARY — 40+ Professional Templates**\n\nChoose your business niche to see relevant prompts:\n\n────────────────────────────────────────────\n🍔 **F&B** — Restaurant, cafe, food stall\n👗 **Fashion** — Clothing, hijab, accessories\n📱 **Tech** — Gadget, software, gaming\n💪 **Health** — Skincare, supplement, fitness\n✈️ **Travel** — Hotel, tour, destination\n📚 **Education** — Course, training, tutorial\n💰 **Finance** — Investment, insurance, fintech\n🎭 **Entertainment** — Event, content creator\n────────────────────────────────────────────\n\n🔥 **Trending Now** — Most popular prompts this week\n\nType a niche or `/prompts [niche]`\nExample: `/prompts fnb` or `/prompts fashion`',
     ru: '📚 **БИБЛИОТЕКА ПРОМПТОВ — 40+ Профессиональных шаблонов**\n\nВыберите нишу вашего бизнеса:\n\n────────────────────────────────────────────\n🍔 **F&B** — Рестораны, кафе\n👗 **Fashion** — Одежда, аксессуары\n📱 **Tech** — Гаджеты, софт, игры\n💪 **Health** — Уход, фитнес\n✈️ **Travel** — Отели, туры\n📚 **Education** — Курсы, обучение\n💰 **Finance** — Инвестиции, финтех\n🎭 **Entertainment** — Контент, события\n────────────────────────────────────────────\n\n🔥 **Тренды** — Популярные промпты за неделю\n\nВведите нишу или `/prompts [ниша]`',
     zh: '📚 **提示词库 — 40+ 专业模板**\n\n选择您的业务类别查看相关提示词:\n\n────────────────────────────────────────────\n🍔 **餐饮** — 餐厅、咖啡厅\n👗 **时尚** — 服装、配饰\n📱 **科技** — 数码、软件、游戏\n💪 **健康** — 护肤、健身\n✈️ **旅游** — 酒店、旅行\n📚 **教育** — 课程、培训\n💰 **金融** — 投资、保险\n🎭 **娱乐** — 活动、创作者\n────────────────────────────────────────────\n\n🔥 **热门** — 本周最受欢迎的提示词\n\n输入类别或 `/prompts [类别]`',
+  },
+  // ---------------------------------------------------------------------------
+  // Video completion notification (Sprint 3.2)
+  // ---------------------------------------------------------------------------
+  'video.completion_title': {
+    id: '✅ *Video Selesai!*',
+    en: '✅ *Video Complete!*',
+    ru: '✅ *Видео готово!*',
+    zh: '✅ *视频完成!*',
+  },
+  'video.completion_info': {
+    id: '🎬 Durasi: {duration}s | Platform: {platform}',
+    en: '🎬 Duration: {duration}s | Platform: {platform}',
+    ru: '🎬 Длительность: {duration}с | Платформа: {platform}',
+    zh: '🎬 时长: {duration}s | 平台: {platform}',
+  },
+  'video.completion_cta': {
+    id: 'Tap tombol di bawah untuk download atau publish:',
+    en: 'Tap the buttons below to download or publish:',
+    ru: 'Нажмите кнопки ниже для скачивания или публикации:',
+    zh: '点击下方按钮下载或发布：',
+  },
+  'video.btn_download': {
+    id: '⬇️ Download HD',
+    en: '⬇️ Download HD',
+    ru: '⬇️ Скачать HD',
+    zh: '⬇️ 下载 HD',
+  },
+  'video.btn_publish': {
+    id: '📤 Publish ke Social Media',
+    en: '📤 Publish to Social Media',
+    ru: '📤 Опубликовать в соцсетях',
+    zh: '📤 发布到社交媒体',
+  },
+  'video.btn_good': {
+    id: '👍 Bagus',
+    en: '👍 Good',
+    ru: '👍 Хорошо',
+    zh: '👍 不错',
+  },
+  'video.btn_needs_work': {
+    id: '👎 Perlu Perbaikan',
+    en: '👎 Needs Work',
+    ru: '👎 Нужно улучшить',
+    zh: '👎 需要改进',
+  },
+  'video.btn_create_another': {
+    id: '🎬 Buat Lagi',
+    en: '🎬 Create Another',
+    ru: '🎬 Создать ещё',
+    zh: '🎬 再创建一个',
+  },
+  'video.btn_my_videos': {
+    id: '📁 Video Saya',
+    en: '📁 My Videos',
+    ru: '📁 Мои видео',
+    zh: '📁 我的视频',
+  },
+  // ---------------------------------------------------------------------------
+  // First-video beginner tips (Sprint 3.3)
+  // ---------------------------------------------------------------------------
+  'video.first_video_tips': {
+    id: '🎉 *Selamat atas video pertamamu!*\n\nBerikut tips untuk memaksimalkan OpenClaw:\n\n💾 *Simpan promptmu* — Catat prompt yang berhasil agar bisa dipakai lagi\n🔄 *Coba niche berbeda* — Eksplorasi kategori lain untuk temukan gaya terbaikmu\n🔗 *Bagikan referral* — Dapatkan komisi 15% setiap kali teman mendaftar via linkmu\n📊 *Lihat videomu* — Gunakan /videos untuk kelola semua video yang sudah dibuat\n\nSelamat berkreasi! 🚀',
+    en: '🎉 *Congratulations on your first video!*\n\nHere are tips to get the most out of OpenClaw:\n\n💾 *Save your prompt* — Note down prompts that work well so you can reuse them\n🔄 *Try different niches* — Explore other categories to find your best style\n🔗 *Share your referral link* — Earn 15% commission every time a friend signs up via your link\n📊 *Manage your videos* — Use /videos to see and manage all your created videos\n\nHappy creating! 🚀',
+    ru: '🎉 *Поздравляем с первым видео!*\n\nСоветы по максимальному использованию OpenClaw:\n\n💾 *Сохраняйте промпты* — Записывайте удачные промпты для повторного использования\n🔄 *Пробуйте разные ниши* — Исследуйте другие категории, чтобы найти свой стиль\n🔗 *Делитесь реферальной ссылкой* — Получайте 15% комиссии за каждого приведённого друга\n📊 *Управляйте видео* — Используйте /videos для просмотра всех созданных видео\n\nТворите с удовольствием! 🚀',
+    zh: '🎉 *恭喜完成第一个视频！*\n\n以下是充分利用 OpenClaw 的技巧：\n\n💾 *保存您的提示词* — 记下效果好的提示词以便重复使用\n🔄 *尝试不同类别* — 探索其他类别，找到最适合您的风格\n🔗 *分享推荐链接* — 每次朋友通过您的链接注册可获得 15% 佣金\n📊 *管理您的视频* — 使用 /videos 查看和管理所有已创建的视频\n\n尽情创作吧！ 🚀',
+  },
+  // ---------------------------------------------------------------------------
+  // Prompt library niche buttons
+  // ---------------------------------------------------------------------------
+  'niche.food': {
+    id: '🍔 Makanan & Minuman',
+    en: '🍔 F&B',
+    ru: '🍔 Еда и напитки',
+    zh: '🍔 餐饮',
+  },
+  'niche.fashion': {
+    id: '👗 Fashion',
+    en: '👗 Fashion',
+    ru: '👗 Мода',
+    zh: '👗 时尚',
+  },
+  'niche.tech': {
+    id: '📱 Teknologi',
+    en: '📱 Tech',
+    ru: '📱 Технологии',
+    zh: '📱 科技',
+  },
+  'niche.health': {
+    id: '💪 Kesehatan',
+    en: '💪 Health',
+    ru: '💪 Здоровье',
+    zh: '💪 健康',
+  },
+  'niche.travel': {
+    id: '✈️ Perjalanan',
+    en: '✈️ Travel',
+    ru: '✈️ Путешествия',
+    zh: '✈️ 旅行',
+  },
+  'niche.education': {
+    id: '📚 Pendidikan',
+    en: '📚 Education',
+    ru: '📚 Образование',
+    zh: '📚 教育',
+  },
+  'niche.finance': {
+    id: '💰 Keuangan',
+    en: '💰 Finance',
+    ru: '💰 Финансы',
+    zh: '💰 金融',
+  },
+  'niche.entertainment': {
+    id: '🎭 Hiburan',
+    en: '🎭 Entertainment',
+    ru: '🎭 Развлечения',
+    zh: '🎭 娱乐',
+  },
+
+  // ── Pricing command ──
+  'pricing.title': {
+    id: 'Daftar Harga',
+    en: 'Pricing',
+    ru: 'Цены',
+    zh: '价格',
+  },
+  'pricing.per_video': {
+    id: 'Harga per Video',
+    en: 'Cost per Video',
+    ru: 'Стоимость видео',
+    zh: '每个视频价格',
+  },
+  'pricing.packages': {
+    id: 'Paket Kredit',
+    en: 'Credit Packages',
+    ru: 'Пакеты кредитов',
+    zh: '积分套餐',
+  },
+
+  // ── Template Video (Free Trial) ──
+  'gen.free_trial_video': {
+    id: '🎁 *Video Demo Gratis!*\n\nIni contoh video untuk niche _{niche}_. Suka hasilnya? Buat video custom milikmu sendiri!',
+    en: '🎁 *Free Demo Video!*\n\nHere\'s a sample video for the _{niche}_ niche. Like it? Create your own custom video!',
+    ru: '🎁 *Бесплатное демо-видео!*\n\nВот пример видео для ниши _{niche}_. Нравится? Создайте собственное!',
+    zh: '🎁 *免费演示视频!*\n\n这是_{niche}_领域的示例视频。喜欢吗？创建你自己的视频！',
+  },
+  'btn.create_own': {
+    id: '🎬 Buat Video Sendiri',
+    en: '🎬 Create My Own',
+    ru: '🎬 Создать своё',
+    zh: '🎬 创建我的视频',
+  },
+  'gen.generating_trial': {
+    id: '🎁 Membuat video demo gratis untukmu...',
+    en: '🎁 Generating your free demo video...',
+    ru: '🎁 Создаём бесплатное демо-видео...',
+    zh: '🎁 正在为你生成免费演示视频...',
+  },
+  'gen.trial_queued': {
+    id: '✅ Video demo sedang diproses! Kamu akan menerima notifikasi saat selesai.\n\nSuka hasilnya? Beli kredit untuk buat video custom!',
+    en: '✅ Your demo video is being processed! You\'ll be notified when ready.\n\nLike it? Buy credits to create custom videos!',
+    ru: '✅ Демо-видео обрабатывается! Мы уведомим, когда будет готово.\n\nПонравилось? Купите кредиты для создания своих видео!',
+    zh: '✅ 演示视频正在处理中！准备好后会通知你。\n\n喜欢吗？购买积分创建自定义视频！',
+  },
+  'gen.trial_failed': {
+    id: '😔 Maaf, gagal membuat video demo. Silakan coba lagi nanti.',
+    en: '😔 Sorry, failed to generate demo video. Please try again later.',
+    ru: '😔 Не удалось создать демо-видео. Попробуйте позже.',
+    zh: '😔 抱歉，生成演示视频失败。请稍后再试。',
   },
 };
 

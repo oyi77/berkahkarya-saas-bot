@@ -6,6 +6,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import crypto from "crypto";
+import { timingSafeCompare } from "@/utils/crypto";
 import { prisma } from "@/config/database";
 import { getQueueStats, addNotificationJob } from "@/config/queue";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
@@ -36,18 +37,6 @@ function trackingVars() {
   };
 }
 
-/** Timing-safe string comparison to prevent timing attacks */
-function timingSafeCompare(a: string, b: string): boolean {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) {
-    // Compare against self to keep constant time, then return false
-    crypto.timingSafeEqual(bufA, bufA);
-    return false;
-  }
-  return crypto.timingSafeEqual(bufA, bufB);
-}
 
 /** HMAC-SHA256 token derived from ADMIN_PASSWORD — not trivially reversible unlike base64 */
 function makeAdminToken(password: string): string {
@@ -114,6 +103,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/token-usage") ||
       url.startsWith("/api/profit-report") ||
       url.startsWith("/api/settings/") ||
+      url.startsWith("/api/niches") ||
       url.startsWith("/api/admin/") ||
       url.startsWith("/api/referral/") ||
       (url.startsWith("/api/system/") && url !== "/api/system/health");
@@ -281,12 +271,26 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     }
 
     try {
+      const telegramId = BigInt(params.id);
       const user = await prisma.user.update({
-        where: { telegramId: BigInt(params.id) },
-        data: {
-          creditBalance: { increment: body.amount },
-        },
+        where: { telegramId },
+        data: { creditBalance: { increment: body.amount } },
       });
+
+      // Create audit trail — Transaction record for admin grants
+      await prisma.transaction.create({
+        data: {
+          userId: user.id,
+          orderId: `ADMIN-GRANT-${Date.now()}`,
+          type: 'admin_grant',
+          gateway: 'admin',
+          packageName: 'admin_grant',
+          amountIdr: 0,
+          creditsAmount: body.amount,
+          status: 'success',
+          metadata: { reason: body.reason || 'Admin grant via dashboard', grantedBy: 'admin_dashboard' },
+        },
+      }).catch((err: any) => server.log.warn({ err }, 'Failed to create admin grant transaction record'));
 
       return { success: true, newBalance: user.creditBalance };
     } catch (error: any) {
@@ -1174,7 +1178,17 @@ You are an expert system administrator and architect for this platform. Give spe
   /** GET /api/settings/landing — Landing page config */
   server.get("/api/settings/landing", async () => {
     const data = await redis.get("admin:landing_config");
-    return data ? JSON.parse(data) : { headline: '', subheadline: '', ctaText: '', heroImageUrl: '' };
+    const base = data ? JSON.parse(data) : {};
+    return {
+      headline: base.headline || '',
+      subheadline: base.subheadline || '',
+      ctaText: base.ctaText || '',
+      heroImageUrl: base.heroImageUrl || '',
+      heroVideo: base.heroVideo || '',
+      testimonials: base.testimonials || [],
+      pricingNote: base.pricingNote || '',
+      footerText: base.footerText || '',
+    };
   });
 
   /** POST /api/settings/landing — Update landing page config */
@@ -1188,6 +1202,10 @@ You are an expert system administrator and architect for this platform. Give spe
       subheadline: body.subheadline || '',
       ctaText: body.ctaText || '',
       heroImageUrl: body.heroImageUrl || '',
+      heroVideo: body.heroVideo || '',
+      testimonials: Array.isArray(body.testimonials) ? body.testimonials : [],
+      pricingNote: body.pricingNote || '',
+      footerText: body.footerText || '',
       updatedAt: new Date().toISOString(),
     };
     await redis.set("admin:landing_config", JSON.stringify(config));
@@ -1198,10 +1216,61 @@ You are an expert system administrator and architect for this platform. Give spe
     return { success: true };
   });
 
+  // ── Niche Management ──
+  server.get("/api/niches", async () => {
+    const { getNichesAsync } = await import('../config/niches.js');
+    return getNichesAsync();
+  });
+
+  server.post("/api/niches", async (request, reply) => {
+    const body = request.body as { id: string; name: string; emoji: string; keywords?: string[]; colorPalettes?: string[] };
+    if (!body.id || !body.name) return reply.status(400).send({ error: 'id and name required' });
+
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'niche', key: body.id } },
+      create: { category: 'niche', key: body.id, value: body as any, updatedBy: BigInt(0) },
+      update: { value: body as any, updatedBy: BigInt(0) },
+    });
+    // Invalidate niche cache by re-exporting reset signal via module reload not possible; cache TTL handles it
+    return { success: true };
+  });
+
+  server.delete("/api/niches/:id", async (request) => {
+    const { id } = request.params as { id: string };
+    await prisma.pricingConfig.deleteMany({ where: { category: 'niche', key: id } });
+    return { success: true };
+  });
+
+  // ── Free Trial Settings ──
+  server.get("/api/settings/free-trial", async () => {
+    const { getFreeTrialConfigAsync } = await import('../config/free-trial.js');
+    return getFreeTrialConfigAsync();
+  });
+
+  server.post("/api/settings/free-trial", async (request) => {
+    const body = request.body as any;
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'free_trial', key: 'config' } },
+      create: { category: 'free_trial', key: 'config', value: body, updatedBy: BigInt(0) },
+      update: { value: body, updatedBy: BigInt(0) },
+    });
+    return { success: true };
+  });
+
   /** GET /api/settings/exchange-rate */
   server.get("/api/settings/exchange-rate", async () => {
-    const stored = await redis.get("admin:exchange_rate");
-    return { rate: stored ? Number(stored) : getConfig().USD_TO_IDR_RATE };
+    // Redis cache first, then DB, then env fallback
+    const cached = await redis.get("admin:exchange_rate");
+    if (cached) return { rate: Number(cached) };
+    const dbRow = await prisma.pricingConfig.findUnique({
+      where: { category_key: { category: 'system', key: 'exchange_rate' } },
+    });
+    if (dbRow) {
+      const rate = Number(dbRow.value);
+      await redis.set("admin:exchange_rate", String(rate)); // warm cache
+      return { rate };
+    }
+    return { rate: getConfig().USD_TO_IDR_RATE };
   });
 
   /** POST /api/settings/exchange-rate */
@@ -1210,17 +1279,30 @@ You are an expert system administrator and architect for this platform. Give spe
     if (!rate || isNaN(Number(rate)) || Number(rate) < 1000) {
       return reply.status(400).send({ error: "Invalid rate (must be > 1000)" });
     }
-    await redis.set("admin:exchange_rate", String(Number(rate)));
-    // Intentional: write back to process.env so the next getConfig() call reflects the new rate
-    // (getConfig() re-validates on each call, so this propagates the change without a restart)
-    process.env.USD_TO_IDR_RATE = String(Number(rate));
-    return { success: true, rate: Number(rate) };
+    const numRate = Number(rate);
+    // Persist to DB (survives restarts), keep Redis as cache
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'system', key: 'exchange_rate' } },
+      create: { category: 'system', key: 'exchange_rate', value: numRate, updatedBy: BigInt(0) },
+      update: { value: numRate, updatedBy: BigInt(0) },
+    });
+    await redis.set("admin:exchange_rate", String(numRate));
+    return { success: true, rate: numRate };
   });
 
   /** GET /api/settings/pixels */
   server.get("/api/settings/pixels", async () => {
-    const stored = await redis.get("admin:pixel_config");
-    if (stored) return JSON.parse(stored);
+    // Redis cache first, then DB, then env fallback
+    const cached = await redis.get("admin:pixel_config");
+    if (cached) return JSON.parse(cached);
+    const dbRow = await prisma.pricingConfig.findUnique({
+      where: { category_key: { category: 'system', key: 'pixel_config' } },
+    });
+    if (dbRow) {
+      const parsed = dbRow.value as { fbPixelId: string; ga4Id: string; ttPixelId: string };
+      await redis.set("admin:pixel_config", JSON.stringify(parsed)); // warm cache
+      return parsed;
+    }
     const cfg = getConfig();
     return {
       fbPixelId: cfg.FACEBOOK_PIXEL_ID || '',
@@ -1249,11 +1331,13 @@ You are an expert system administrator and architect for this platform. Give spe
       ga4Id: body.ga4Id || '',
       ttPixelId: body.ttPixelId || '',
     };
+    // Persist to DB (survives restarts), keep Redis as cache
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'system', key: 'pixel_config' } },
+      create: { category: 'system', key: 'pixel_config', value: config, updatedBy: BigInt(0) },
+      update: { value: config, updatedBy: BigInt(0) },
+    });
     await redis.set("admin:pixel_config", JSON.stringify(config));
-    // Intentional: write back to process.env so the next getConfig() call picks up new pixel IDs
-    process.env.FACEBOOK_PIXEL_ID = config.fbPixelId;
-    process.env.GA4_TRACKING_ID = config.ga4Id;
-    process.env.TIKTOK_PIXEL_ID = config.ttPixelId;
     return { success: true };
   });
 

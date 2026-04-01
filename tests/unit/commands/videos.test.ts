@@ -40,6 +40,12 @@ jest.mock("@/utils/logger", () => ({
   },
 }));
 
+jest.mock("@/services/user.service", () => ({
+  UserService: {
+    findByTelegramId: jest.fn<any>().mockResolvedValue(null),
+  },
+}));
+
 describe("Videos Command", () => {
   let ctx: ReturnType<typeof createMockContext>;
   let VideoService: any;

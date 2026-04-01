@@ -374,14 +374,22 @@ export async function handleTopupExtraCredit(ctx: BotContext, credits: number): 
     }
     const lang = dbUser.language || 'id';
 
-    const unitCost = await getUnitCostAsync('VIDEO_15S'); 
+    const unitCost = await getUnitCostAsync('VIDEO_15S');
     const amount = credits * unitCost;
-    
-    // For extra credits via bot, we'll use Duitku as default or Midtrans
-    // To be consistent, let's ask for gateway too, but for speed we just used Duitku in original code
-    // Let's refactor this to use handleTopupSelection style if we want full consistency
-    // But since "extra_X" isn't in main packages list, we handle it specially.
-    
+
+    // Check which gateways are enabled before defaulting to Duitku
+    const { PaymentSettingsService } = await import('@/services/payment-settings.service');
+    const gateways = await PaymentSettingsService.getEnabledGateways();
+    if (!gateways || gateways.length === 0) {
+      await ctx.editMessageText(t('topup.no_gateway_available', lang));
+      return;
+    }
+    const duitkuEnabled = gateways.some((g: any) => g.id === 'duitku' || g.gateway === 'duitku');
+    if (!duitkuEnabled) {
+      await ctx.editMessageText(t('topup.gateway_unavailable', lang));
+      return;
+    }
+
     const gatewayRes = await DuitkuService.createTransaction({
       userId: telegramId,
       packageId: `extra_${credits}`,

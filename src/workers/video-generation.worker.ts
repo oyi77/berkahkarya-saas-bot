@@ -17,7 +17,7 @@ import { VideoService } from '@/services/video.service';
 import { UserService } from '@/services/user.service';
 import { GeminiGenService } from '@/services/geminigen.service';
 import { generateVideoWithFallback } from '@/services/video-fallback.service';
-import { getVideoCreditCost } from '@/config/pricing';
+import { getVideoCreditCostAsync } from '@/config/pricing';
 import { actionableError } from '@/utils/errors';
 import { promisify } from 'util';
 import { execFile as execFileCallback } from 'child_process';
@@ -93,6 +93,8 @@ export interface VideoGenerationJobData {
   voScript?: string; // Pro mode: user-provided VO script (skip AI generation)
   userImages?: Array<{ sceneIndex: number; url: string }>; // Pro mode: per-scene user images
   correlationId?: string;
+  cacheAsTemplate?: boolean; // Signal to cache completed video as niche template
+  cacheNiche?: string;
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -401,7 +403,7 @@ async function processSingleScene(
       logger.warn(`Job ${jobId} already failed/refunded — skipping duplicate refund`);
       return;
     }
-    const creditCost = getVideoCreditCost(duration);
+    const creditCost = await getVideoCreditCostAsync(duration);
     await VideoService.updateStatus(jobId, 'failed', result.error);
     await UserService.refundCredits(telegramId, creditCost, jobId, result.error || 'Generation failed');
     const userMessage = actionableError(result.error || 'Generation failed', { jobId });
@@ -505,6 +507,22 @@ async function processSingleScene(
   await job.updateProgress(100);
 
   cancelTimeout();
+
+  // Cache as template if flagged (first free trial per niche — zero cost for future users)
+  if (job.data.cacheAsTemplate && job.data.cacheNiche) {
+    try {
+      const { TemplateVideoService } = await import('../services/template-video.service.js');
+      await TemplateVideoService.cacheGeneratedVideo(
+        job.data.cacheNiche,
+        result.videoUrl || deliveryPath,
+        undefined,
+        duration,
+      );
+      logger.info(`Cached template video for niche: ${job.data.cacheNiche}`);
+    } catch (cacheErr) {
+      logger.warn('Failed to cache template video', { error: (cacheErr as Error).message });
+    }
+  }
 
   if (job.data.campaignGroupId) {
     await handleCampaignJobComplete(
@@ -631,7 +649,7 @@ async function processExtendedScenes(
       logger.warn(`Job ${jobId} already failed/refunded (scene 1) — skipping duplicate refund`);
       return;
     }
-    const creditCost = getVideoCreditCost(duration);
+    const creditCost = await getVideoCreditCostAsync(duration);
     await VideoService.updateStatus(jobId, 'failed', err.message);
     await UserService.refundCredits(telegramId, creditCost, jobId, err.message);
     const sceneUserMessage = actionableError(err.message, { jobId });
@@ -703,7 +721,7 @@ async function processExtendedScenes(
       logger.warn(`Job ${jobId} already failed/refunded (all scenes) — skipping duplicate refund`);
       return;
     }
-    const creditCost = getVideoCreditCost(duration);
+    const creditCost = await getVideoCreditCostAsync(duration);
     await VideoService.updateStatus(jobId, 'failed', 'All scenes failed');
     await UserService.refundCredits(telegramId, creditCost, jobId, 'All scenes failed');
     const workerLangFail = job.data.language || 'id';
@@ -714,7 +732,7 @@ async function processExtendedScenes(
   // Proportional refund for failed scenes
   const failedSceneCount = scenes - successfulScenes.length;
   if (failedSceneCount > 0) {
-    const creditCost = getVideoCreditCost(duration);
+    const creditCost = await getVideoCreditCostAsync(duration);
     const refundAmount = Math.round((creditCost * failedSceneCount / scenes) * 100) / 100;
     if (refundAmount > 0) {
       await UserService.refundCredits(telegramId, refundAmount, jobId, `${failedSceneCount}/${scenes} scenes failed`)
@@ -1035,22 +1053,26 @@ async function sendVideoToUser(
     );
     const downloadUrl = `${webhookUrl}/video/${jobId}/download?token=${downloadToken}`;
 
+    // Look up user language for localized notification
+    const dbUser = userId && userId !== '0' ? await UserService.findByTelegramId(BigInt(userId)) : null;
+    const lang = dbUser?.language || 'id';
+
     const caption =
-      `✅ *Video Selesai!*\n\n` +
-      `🎬 Durasi: ${duration}s | Platform: ${platform.toUpperCase()}\n\n` +
-      `Tap tombol di bawah untuk download atau publish:`;
+      `${t('video.completion_title', lang)}\n\n` +
+      `${t('video.completion_info', lang, { duration, platform: platform.toUpperCase() })}\n\n` +
+      `${t('video.completion_cta', lang)}`;
 
     const replyMarkup = {
       inline_keyboard: [
-        [{ text: '⬇️ Download HD', url: downloadUrl }],
-        [{ text: '📤 Publish to Social Media', callback_data: `publish_video_${jobId}` }],
+        [{ text: t('video.btn_download', lang), url: downloadUrl }],
+        [{ text: t('video.btn_publish', lang), callback_data: `publish_video_${jobId}` }],
         [
-          { text: '👍 Good', callback_data: `feedback_good_${jobId}` },
-          { text: '👎 Needs Work', callback_data: `feedback_bad_${jobId}` },
+          { text: t('video.btn_good', lang), callback_data: `feedback_good_${jobId}` },
+          { text: t('video.btn_needs_work', lang), callback_data: `feedback_bad_${jobId}` },
         ],
         [
-          { text: '🎬 Create Another', callback_data: 'create_video_new' },
-          { text: '📁 My Videos', callback_data: 'videos_list' },
+          { text: t('video.btn_create_another', lang), callback_data: 'create_video_new' },
+          { text: t('video.btn_my_videos', lang), callback_data: 'videos_list' },
         ],
       ],
     };
@@ -1085,6 +1107,15 @@ async function sendVideoToUser(
         caption,
         { parse_mode: 'Markdown', reply_markup: replyMarkup },
       );
+    }
+
+    // Send first-video beginner tips (Sprint 3.3)
+    if (dbUser) {
+      const videoCount = await prisma.video.count({ where: { userId: dbUser.id } });
+      if (videoCount <= 1) {
+        const tips = t('video.first_video_tips', lang);
+        await telegram.sendMessage(chatId, tips, { parse_mode: 'Markdown' }).catch(() => {});
+      }
     }
 
     // Send auto-generated caption as a follow-up message
@@ -1156,7 +1187,7 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
             logger.warn(`Job ${job.data.jobId} already failed/refunded (catch) — skipping duplicate refund`);
           } else {
             const telegramId = BigInt(job.data.userId);
-            const creditCost = getVideoCreditCost(job.data.duration);
+            const creditCost = await getVideoCreditCostAsync(job.data.duration);
             await VideoService.updateStatus(job.data.jobId, 'failed', error.message);
             await UserService.refundCredits(telegramId, creditCost, job.data.jobId, error.message);
             const workerUserMessage = actionableError(error.message, { jobId: job.data.jobId });

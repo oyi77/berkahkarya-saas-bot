@@ -35,7 +35,7 @@ async function handleStoryboardRequest(ctx: BotContext, niche: string) {
           [
             {
               text: t('btn.create_video_now', lang),
-              callback_data: `confirm_create_${niche}`,
+              callback_data: 'confirm_create',
             },
           ],
           [

@@ -133,7 +133,7 @@ describe("Referral Command", () => {
 
       const keyboard = ctx.reply.mock.calls[0][1].reply_markup.inline_keyboard;
       expect(keyboard[0][0].url).toContain("t.me/share/url");
-      expect(keyboard[3][0].callback_data).toBe("main_menu");
+      expect(keyboard[4][0].callback_data).toBe("main_menu");
     });
 
     it("should include referral link in share URL", async () => {

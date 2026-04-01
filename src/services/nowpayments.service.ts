@@ -147,19 +147,35 @@ export class NowPaymentsService {
         return { success: true, message: 'Already processed' };
       }
 
-      const credits = Number(transaction.creditsAmount);
+      if (transaction.type === 'subscription') {
+        const { SubscriptionService } = await import('./subscription.service.js');
+        const parts = (transaction.packageName ?? '').split('_');
+        const planId = parts[0] || 'lite';
+        const cycle: 'monthly' | 'annual' = parts[1] === 'annual' ? 'annual' : 'monthly';
+        await SubscriptionService.createSubscription(transaction.userId, planId as any, cycle, order_id);
+        logger.info(`NOWPayments: subscription activated: ${planId}/${cycle} for user ${transaction.userId} (order ${order_id})`);
+      } else {
+        const credits = Number(transaction.creditsAmount);
 
-      // Determine and update user tier — only change tier for subscription packages
-      const plans = await getSubscriptionPlansAsync();
-      const plan = plans[transaction.packageName ?? ''];
-      const userUpdateData: any = { creditBalance: { increment: credits } };
-      if (plan && plan.tier) {
-        userUpdateData.tier = plan.tier; // Only set tier for subscription packages
+        // Determine and update user tier — only change tier for subscription packages
+        const plans = await getSubscriptionPlansAsync();
+        const plan = plans[transaction.packageName ?? ''];
+        const userUpdateData: any = { creditBalance: { increment: credits } };
+        if (plan && plan.tier) {
+          userUpdateData.tier = plan.tier; // Only set tier for subscription packages
+        }
+        await prisma.user.update({
+          where: { telegramId: transaction.userId },
+          data: userUpdateData,
+        });
+
+        await prisma.user.update({
+          where: { telegramId: transaction.userId },
+          data: { totalSpent: { increment: Number(transaction.amountIdr) } },
+        }).catch(() => {}); // non-critical
+
+        logger.info(`NOWPayments: ${credits} credits added for user ${transaction.userId} (order ${order_id})`);
       }
-      await prisma.user.update({
-        where: { telegramId: transaction.userId },
-        data: userUpdateData,
-      });
 
       // Process referral commissions using IDR amount (0 for crypto — acceptable)
       const amountIdr = Number(transaction.amountIdr) || 0;
@@ -170,8 +186,6 @@ export class NowPaymentsService {
           logger.warn('NOWPayments: referral commission error (non-fatal):', refErr);
         }
       }
-
-      logger.info(`NOWPayments: ${credits} credits added for user ${transaction.userId} (order ${order_id})`);
 
       // Track purchase analytics
       try {

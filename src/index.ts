@@ -241,6 +241,33 @@ async function main() {
     await server.register(webRoutes);
     logger.info("✅ Routes registered");
 
+    // 404 handler
+    server.setNotFoundHandler((request, reply) => {
+      const wantsHtml = request.headers.accept?.includes('text/html');
+      if (wantsHtml) {
+        return reply.status(404).type('text/html').send(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not Found</title>' +
+          '<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;text-align:center}.card{background:white;border-radius:16px;padding:40px;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.1)}a{color:#2563eb;text-decoration:none;font-weight:600}</style></head>' +
+          '<body><div class="card"><h1>404</h1><p>Page not found</p><p><a href="/">Home</a> | <a href="/app">Web App</a></p></div></body></html>'
+        );
+      }
+      return reply.status(404).send({ error: 'Not Found' });
+    });
+
+    // 500 handler
+    server.setErrorHandler((error, request, reply) => {
+      server.log.error(error);
+      const wantsHtml = request.headers.accept?.includes('text/html');
+      if (wantsHtml) {
+        return reply.status(500).type('text/html').send(
+          '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Error</title>' +
+          '<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5;text-align:center}.card{background:white;border-radius:16px;padding:40px;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.1)}a{color:#2563eb;text-decoration:none;font-weight:600}</style></head>' +
+          '<body><div class="card"><h1>500</h1><p>Something went wrong</p><p><a href="/">Home</a> | <a href="/app">Web App</a></p></div></body></html>'
+        );
+      }
+      return reply.status(500).send({ error: 'Internal Server Error' });
+    });
+
     // Start Fastify server FIRST (non-blocking)
     logger.info(`🌐 Starting HTTP server on port ${port}...`);
     server

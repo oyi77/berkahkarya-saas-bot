@@ -259,7 +259,7 @@ export class VideoService {
   /**
    * Get user's videos
    */
-  static async getUserVideos(userId: bigint, limit = 10): Promise<Video[]> {
+  static async getUserVideos(userId: bigint, limit = 10, offset = 0): Promise<Video[]> {
     return prisma.video.findMany({
       where: {
         userId,
@@ -267,6 +267,7 @@ export class VideoService {
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      skip: offset,
     });
   }
 

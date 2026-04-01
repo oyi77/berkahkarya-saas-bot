@@ -16,7 +16,7 @@ import {
 } from "@/services/video-generation.service";
 import { PostAutomationService } from "@/services/postautomation.service";
 import { SceneConsistencyEngine } from "@/services/scene-consistency.service";
-import { getVideoCreditCost, SUBSCRIPTION_PLANS } from "@/config/pricing";
+import { getVideoCreditCost, SUBSCRIPTION_PLANS, CUSTOM_DURATION_MIN } from "@/config/pricing";
 import {
   MARKETING_HOOKS,
   MARKETING_CTAS,
@@ -87,7 +87,7 @@ export async function handleDurationSelection(
     }
 
     // Validate duration
-    if (duration < 6 || duration > 300) {
+    if (duration < CUSTOM_DURATION_MIN) {
       await ctx.answerCbQuery(t('msg.invalid_duration', ctx.session?.userLang || 'id')).catch(() => {});
       return;
     }
@@ -98,16 +98,27 @@ export async function handleDurationSelection(
     // Get or create user
     let dbUser = await UserService.findByTelegramId(BigInt(user.id.toString()));
 
-    // If user doesn't exist, create them
+    // If user doesn't exist, create them (guard against concurrent creation)
     if (!dbUser) {
-      dbUser = await UserService.create({
-        telegramId: BigInt(user.id),
-        username: user.username,
-        firstName: user.first_name,
-        lastName: user.last_name,
-      });
-      await ctx.reply(`👋 Welcome to BK Vilona!`);
+      try {
+        dbUser = await UserService.create({
+          telegramId: BigInt(user.id),
+          username: user.username,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        });
+        await ctx.reply(`👋 Welcome to BK Vilona!`);
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          // Created concurrently by another handler — fetch the existing record
+          dbUser = await UserService.findByTelegramId(BigInt(user.id));
+        } else {
+          throw err;
+        }
+      }
     }
+
+    if (!dbUser) return;
 
     const creditCost = getVideoCreditCost(duration);
 

@@ -33,14 +33,15 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    // Get user's videos from database
-    const videos = await VideoService.getUserVideos(BigInt(user.id), 10);
+    const lang = ctx.from?.language_code || 'id';
+
+    // Get user's videos from database with pagination
+    const page = parseInt((ctx.session as any)?.videosPage as string) || 0;
+    const videos = await VideoService.getUserVideos(BigInt(user.id), 10, page * 10);
 
     if (videos.length === 0) {
       await ctx.reply(
-        '📁 *My Videos*\n\n' +
-        'No videos yet. Create your first one! 🎬\n\n' +
-        'Videos are stored for 30 days.',
+        t('videos.empty', lang),
         {
           parse_mode: 'Markdown',
           reply_markup: {
@@ -55,27 +56,31 @@ export async function videosCommand(ctx: BotContext): Promise<void> {
 
     // Build video list with buttons
     const videoButtons = videos.map((v, idx) => {
-      const statusEmoji = v.status === 'completed' ? '✅' : 
-                          v.status === 'processing' ? '⏳' : 
+      const statusEmoji = v.status === 'completed' ? '✅' :
+                          v.status === 'processing' ? '⏳' :
                           v.status === 'failed' ? '❌' : '📹';
-    
+
       return [{
         text: `${statusEmoji} ${v.title || `Video ${idx + 1}`} (${v.duration}s)`,
         callback_data: `video_view_${v.jobId}`
       }];
     });
 
+    const navButtons: { text: string; callback_data: string }[] = [];
+    if (page > 0) navButtons.push({ text: '◀️ Prev', callback_data: 'videos_prev' });
+    navButtons.push({ text: `Page ${page + 1}`, callback_data: 'videos_page' });
+    if (videos.length === 10) navButtons.push({ text: 'Next ▶️', callback_data: 'videos_next' });
+
     await ctx.reply(
-      `📁 *My Videos*\n\n` +
-      `Found ${videos.length} video(s)\n\n` +
-      `Click a video to view/download:`,
+      t('videos.list_header', lang, { count: videos.length }),
       {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             ...videoButtons,
-            [{ text: t('videos.btn_create_new', ctx.from?.language_code || 'id'), callback_data: 'create_video_new' }],
-            [{ text: t('btn.main_menu', ctx.from?.language_code || 'id'), callback_data: 'main_menu' }],
+            navButtons,
+            [{ text: t('videos.btn_create_new', lang), callback_data: 'create_video_new' }],
+            [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
           ],
         },
       }

@@ -19,25 +19,7 @@ export async function handleSettingsCallbacks(ctx: BotContext, data: string): Pr
         parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
-            [
-              {
-                text: t('btn.fav_workflows', lang),
-                callback_data: "account_favorites",
-              },
-            ],
-            [
-              {
-                text: t('btn.workflow_prefs', lang),
-                callback_data: "account_preferences",
-              },
-            ],
             [{ text: t('btn.referral_code', lang), callback_data: "open_referral" }],
-            [
-              {
-                text: t('btn.lang_notif', lang),
-                callback_data: "account_settings",
-              },
-            ],
             [{ text: t('btn.help_faq', lang), callback_data: "open_help" }],
             [{ text: t('btn.main_menu', lang), callback_data: "main_menu" }],
           ],
@@ -196,6 +178,9 @@ export async function handleSettingsCallbacks(ctx: BotContext, data: string): Pr
     const userId = ctx.from?.id;
     if (userId) {
       await UserService.update(BigInt(userId), { language: langCode });
+    }
+    if (ctx.session) {
+      ctx.session.userLang = langCode;
     }
     await ctx.editMessageText(
       t('cb2.lang_updated', langCode, { flag: langCfg.flag, label: langCfg.label }),

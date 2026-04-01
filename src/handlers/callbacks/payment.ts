@@ -9,18 +9,21 @@ export async function handlePaymentCallbacks(ctx: BotContext, data: string): Pro
     const lang = ctx.session?.userLang || 'id';
     const [, method, packageId] = data.split("_");
 
+    const isProduction = process.env.NODE_ENV === 'production';
     await ctx.editMessageText(
       t('cb.payment_processing', lang, { method }),
       {
         reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: t('btn.simulate_success', lang),
-                callback_data: `simulate_success_${packageId}`,
-              },
-            ],
-          ],
+          inline_keyboard: isProduction
+            ? []
+            : [
+                [
+                  {
+                    text: t('btn.simulate_success', lang),
+                    callback_data: `simulate_success_${packageId}`,
+                  },
+                ],
+              ],
         },
       },
     );
@@ -29,6 +32,12 @@ export async function handlePaymentCallbacks(ctx: BotContext, data: string): Pro
 
   // simulate_success_*
   if (data.startsWith("simulate_success_")) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn(`Blocked simulate_success attempt from user ${ctx.from?.id}`);
+      await ctx.answerCbQuery('This feature is disabled.').catch(() => {});
+      return true;
+    }
+
     const packageId = data.replace("simulate_success_", "");
 
     const credits: Record<string, number> = {

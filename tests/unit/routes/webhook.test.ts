@@ -38,6 +38,31 @@ jest.mock("@/services/nowpayments.service", () => ({
   },
 }));
 
+jest.mock("@/services/user.service", () => ({
+  UserService: {
+    findByTelegramId: jest.fn<any>().mockResolvedValue({ language: 'id' }),
+  },
+}));
+
+jest.mock("@/i18n/translations", () => ({
+  t: jest.fn<any>((key: string, _lang: string, params?: any) => {
+    if (key === 'payment.crypto_success') return `Pembayaran Crypto Berhasil! ${params?.coin || 'CRYPTO'} ${params?.amount || ''}`;
+    return key;
+  }),
+}));
+
+jest.mock("@/config/database", () => ({
+  prisma: {
+    transaction: {
+      findUnique: jest.fn<any>().mockResolvedValue(null),
+    },
+  },
+}));
+
+jest.mock("@/services/admin-alert.service", () => ({
+  sendAdminAlert: jest.fn(),
+}));
+
 const mockHandleUpdate = jest.fn();
 const mockSendMessage = jest.fn();
 const mockBot = {

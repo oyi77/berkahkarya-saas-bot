@@ -171,6 +171,7 @@
     <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
     <div class="nav-item" data-section="profit">💹 Revenue</div>
     <div class="nav-item" data-section="settings">⚙️ Settings</div>
+    <div class="nav-item" data-section="niches">🏷️ Niches</div>
     <div class="nav-item" data-section="ai-assistant" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">🤖 AI Assistant</div>
   </nav>
   <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
@@ -539,6 +540,18 @@
             <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Image URL</div>
             <input type="text" id="st-lpHeroImage" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.png">
           </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Video URL</div>
+            <input type="text" id="st-lpHeroVideo" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.mp4">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Pricing Note</div>
+            <input type="text" id="st-lpPricingNote" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Special offer ends soon!">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Footer Text</div>
+            <input type="text" id="st-lpFooterText" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="© 2026 BK Vilona AI — All rights reserved.">
+          </div>
           <div style="margin-top:8px;">
             <a href="/" target="_blank" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);padding:4px 12px;border-radius:6px;color:var(--text);font-size:12px;text-decoration:none;">👁️ Preview Landing Page</a>
           </div>
@@ -613,6 +626,58 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- Free Trial Settings -->
+    <div style="margin-top:20px;">
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">🎁 Free Trial Settings</div>
+          <button class="btn btn-gold btn-sm" onclick="saveFreeTrial()">Save</button>
+        </div>
+        <div id="st-freeTrialConfig"><div class="loading">Loading...</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====== NICHES ====== -->
+  <div id="section-niches" class="section">
+    <div class="section-title">Niche Management</div>
+    <div class="section-sub">Configure business niches shown during onboarding and the prompt library.</div>
+
+    <div class="card" style="padding:20px;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:13px;color:var(--muted);">Niches are shown to users during onboarding to personalise their video content.</div>
+        <button class="btn btn-gold btn-sm" onclick="showNicheForm()">+ Add Niche</button>
+      </div>
+      <div id="nicheList"><div class="loading">Loading...</div></div>
+    </div>
+
+    <div id="nicheForm" style="display:none;margin-top:20px;padding:20px;background:var(--card);border:1px solid var(--border);border-radius:8px;">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">New / Edit Niche</div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">ID (slug)</div>
+          <input id="nicheId" type="text" placeholder="food_culinary" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Name</div>
+          <input id="nicheName" type="text" placeholder="Food &amp; Culinary" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Emoji</div>
+          <input id="nicheEmoji" type="text" placeholder="🍜" style="width:80px;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);">
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Keywords (comma-separated)</div>
+          <input id="nicheKeywords" type="text" placeholder="delicious, fresh, homemade" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);">
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button onclick="saveNiche()" class="btn btn-gold btn-sm">Save Niche</button>
+          <button onclick="document.getElementById('nicheForm').style.display='none'" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -881,6 +946,7 @@ function loadSection(sec) {
   else if (sec === 'tokens') loadTokenStats();
   else if (sec === 'profit') loadProfitReport();
   else if (sec === 'settings') loadSettings();
+  else if (sec === 'niches') loadNiches();
   // ai-assistant section is static, no load needed
 }
 
@@ -1674,6 +1740,9 @@ async function loadSettings() {
     document.getElementById('st-lpSub').value = landData.subheadline || '';
     document.getElementById('st-lpCta').value = landData.ctaText || '';
     document.getElementById('st-lpHeroImage').value = landData.heroImageUrl || '';
+    document.getElementById('st-lpHeroVideo').value = landData.heroVideo || '';
+    document.getElementById('st-lpPricingNote').value = landData.pricingNote || '';
+    document.getElementById('st-lpFooterText').value = landData.footerText || '';
 
     // Exchange Rate
     try {
@@ -1698,6 +1767,9 @@ async function loadSettings() {
     document.getElementById('st-refSellRate').value = refData.sellRate || 3000;
     document.getElementById('st-refBuyRate').value = refData.buyRate || 6000;
   } catch(e) { toast('Failed to load settings: ' + e.message, 'error'); }
+
+  // Free trial (separate try so it doesn't block settings load)
+  loadFreeTrial();
 }
 
 async function saveProviders() {
@@ -1718,6 +1790,9 @@ async function saveLanding() {
     subheadline: document.getElementById('st-lpSub').value,
     ctaText: document.getElementById('st-lpCta').value,
     heroImageUrl: document.getElementById('st-lpHeroImage').value,
+    heroVideo: (document.getElementById('st-lpHeroVideo') || {}).value || '',
+    pricingNote: (document.getElementById('st-lpPricingNote') || {}).value || '',
+    footerText: (document.getElementById('st-lpFooterText') || {}).value || '',
   };
   const res = await api('/api/settings/landing', { method: 'POST', body: payload });
   res !== null ? toast('Landing page saved!') : toast('Failed to save landing page', 'error');
@@ -1762,6 +1837,112 @@ async function saveReferralRates() {
   if (!sellRate || sellRate <= 0 || !buyRate || buyRate <= 0) { toast('Rates must be positive numbers', 'error'); return; }
   const res = await api('/api/settings/referral', { method: 'POST', body: { sellRate, buyRate } });
   res !== null ? toast('Referral rates saved!') : toast('Failed to save rates', 'error');
+}
+
+// ===================== FREE TRIAL =====================
+async function loadFreeTrial() {
+  try {
+    const data = await api('/api/settings/free-trial');
+    if (!data) return;
+    const el = document.getElementById('st-freeTrialConfig');
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="font-size:13px;min-width:160px;">Welcome Bonus Enabled</label>
+          <input type="checkbox" id="ft-welcomeEnabled" ${data.welcomeBonus?.enabled ? 'checked' : ''}>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="font-size:13px;min-width:160px;">Welcome Bonus Count</label>
+          <input type="number" id="ft-welcomeCount" value="${data.welcomeBonus?.count ?? 1}" min="0" style="width:80px;background:var(--bg);border:1px solid var(--border);padding:6px;border-radius:6px;color:var(--text);">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="font-size:13px;min-width:160px;">Allow Video Generation</label>
+          <input type="checkbox" id="ft-videoGen" ${data.restrictions?.videoGeneration ? 'checked' : ''}>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="font-size:13px;min-width:160px;">Max Video Duration (s)</label>
+          <input type="number" id="ft-maxDuration" value="${data.restrictions?.maxVideoDuration ?? 15}" min="5" max="60" style="width:80px;background:var(--bg);border:1px solid var(--border);padding:6px;border-radius:6px;color:var(--text);">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="font-size:13px;min-width:160px;">Watermark</label>
+          <input type="checkbox" id="ft-watermark" ${data.restrictions?.watermark ? 'checked' : ''}>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <label style="font-size:13px;min-width:160px;">Allow Custom Prompt</label>
+          <input type="checkbox" id="ft-customPrompt" ${data.restrictions?.customPrompt ? 'checked' : ''}>
+        </div>
+      </div>`;
+  } catch(e) { document.getElementById('st-freeTrialConfig').textContent = 'Failed to load'; }
+}
+
+async function saveFreeTrial() {
+  const payload = {
+    welcomeBonus: {
+      enabled: document.getElementById('ft-welcomeEnabled').checked,
+      count: parseInt(document.getElementById('ft-welcomeCount').value) || 1,
+      type: 'image_generation',
+      provider: 'google_gemini',
+    },
+    restrictions: {
+      videoGeneration: document.getElementById('ft-videoGen').checked,
+      maxVideoDuration: parseInt(document.getElementById('ft-maxDuration').value) || 15,
+      watermark: document.getElementById('ft-watermark').checked,
+      customPrompt: document.getElementById('ft-customPrompt').checked,
+      promptSource: 'library_only',
+      queuePriority: 'lowest',
+    },
+  };
+  const res = await api('/api/settings/free-trial', { method: 'POST', body: payload });
+  res !== null ? toast('Free trial settings saved!') : toast('Failed to save free trial settings', 'error');
+}
+
+// ===================== NICHES =====================
+async function loadNiches() {
+  try {
+    const niches = await api('/api/niches');
+    if (!niches) return;
+    const el = document.getElementById('nicheList');
+    if (!niches.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;">No niches configured. Add one below.</div>'; return; }
+    el.innerHTML = `<table><thead><tr><th>Emoji</th><th>ID</th><th>Name</th><th>Keywords</th><th></th></tr></thead><tbody>
+      ${niches.map(n => `<tr>
+        <td style="font-size:20px;">${n.emoji || ''}</td>
+        <td style="font-size:12px;color:var(--muted);">${n.id}</td>
+        <td style="font-size:13px;">${n.name}</td>
+        <td style="font-size:12px;color:var(--muted);">${(n.keywords || []).join(', ')}</td>
+        <td><button class="btn btn-sm" style="background:rgba(255,68,68,0.1);color:#ff4444;border:1px solid rgba(255,68,68,0.2);padding:4px 10px;font-size:12px;" onclick="deleteNiche('${n.id}')">Delete</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  } catch(e) { toast('Failed to load niches: ' + e.message, 'error'); }
+}
+
+function showNicheForm() {
+  document.getElementById('nicheId').value = '';
+  document.getElementById('nicheName').value = '';
+  document.getElementById('nicheEmoji').value = '';
+  document.getElementById('nicheKeywords').value = '';
+  document.getElementById('nicheForm').style.display = 'block';
+}
+
+async function saveNiche() {
+  const id = document.getElementById('nicheId').value.trim();
+  const name = document.getElementById('nicheName').value.trim();
+  const emoji = document.getElementById('nicheEmoji').value.trim();
+  const keywords = document.getElementById('nicheKeywords').value.split(',').map(k => k.trim()).filter(Boolean);
+  if (!id || !name) { toast('ID and Name are required', 'error'); return; }
+  const res = await api('/api/niches', { method: 'POST', body: { id, name, emoji, keywords } });
+  if (res !== null) {
+    toast('Niche saved!');
+    document.getElementById('nicheForm').style.display = 'none';
+    loadNiches();
+  } else {
+    toast('Failed to save niche', 'error');
+  }
+}
+
+async function deleteNiche(id) {
+  if (!confirm(`Delete niche "${id}"?`)) return;
+  const res = await api('/api/niches/' + id, { method: 'DELETE' });
+  res !== null ? (toast('Niche deleted'), loadNiches()) : toast('Failed to delete niche', 'error');
 }
 
 // ===================== AI ASSISTANT =====================

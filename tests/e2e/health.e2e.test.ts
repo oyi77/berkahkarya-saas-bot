@@ -118,7 +118,7 @@ describe('Health Endpoints', () => {
   describe('GET /health/db', () => {
     it('returns status healthy when DB query succeeds', async () => {
       isolatedPrisma.$queryRaw.mockResolvedValueOnce([{ '?column?': 1 }]);
-      const res = await request(app.server).get('/health/db');
+      const res = await request(app.server).get('/health/db?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('healthy');
       expect(res.body.service).toBe('database');
@@ -126,7 +126,7 @@ describe('Health Endpoints', () => {
 
     it('returns status unhealthy when DB query throws', async () => {
       isolatedPrisma.$queryRaw.mockRejectedValueOnce(new Error('connection refused'));
-      const res = await request(app.server).get('/health/db');
+      const res = await request(app.server).get('/health/db?token=test-admin-password');
       expect(res.status).toBe(200); // route catches and returns 200 with unhealthy body
       expect(res.body.status).toBe('unhealthy');
       expect(res.body.error).toBeDefined();
@@ -136,7 +136,7 @@ describe('Health Endpoints', () => {
   describe('GET /health/redis', () => {
     it('returns status healthy when redis ping succeeds', async () => {
       isolatedRedis.ping.mockResolvedValueOnce('PONG');
-      const res = await request(app.server).get('/health/redis');
+      const res = await request(app.server).get('/health/redis?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('healthy');
       expect(res.body.service).toBe('redis');
@@ -144,7 +144,7 @@ describe('Health Endpoints', () => {
 
     it('returns status unhealthy when redis ping throws', async () => {
       isolatedRedis.ping.mockRejectedValueOnce(new Error('ECONNREFUSED'));
-      const res = await request(app.server).get('/health/redis');
+      const res = await request(app.server).get('/health/redis?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('unhealthy');
       expect(res.body.error).toBeDefined();
@@ -154,7 +154,7 @@ describe('Health Endpoints', () => {
   describe('GET /health/queue', () => {
     it('returns status healthy with stats when queue check succeeds', async () => {
       isolatedGetQueueStats.mockResolvedValueOnce({ waiting: 1, active: 0, completed: 5, failed: 0 });
-      const res = await request(app.server).get('/health/queue');
+      const res = await request(app.server).get('/health/queue?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('healthy');
       expect(res.body.stats).toBeDefined();
@@ -162,7 +162,7 @@ describe('Health Endpoints', () => {
 
     it('returns status unhealthy when queue check throws', async () => {
       isolatedGetQueueStats.mockRejectedValueOnce(new Error('queue unavailable'));
-      const res = await request(app.server).get('/health/queue');
+      const res = await request(app.server).get('/health/queue?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('unhealthy');
     });
@@ -174,7 +174,7 @@ describe('Health Endpoints', () => {
       isolatedRedis.ping.mockResolvedValueOnce('PONG');
       isolatedGetQueueStats.mockResolvedValueOnce({ waiting: 0, active: 0, completed: 0, failed: 0 });
 
-      const res = await request(app.server).get('/health/all');
+      const res = await request(app.server).get('/health/all?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('healthy');
       expect(res.body.checks.database.status).toBe('healthy');
@@ -187,7 +187,7 @@ describe('Health Endpoints', () => {
       isolatedRedis.ping.mockResolvedValueOnce('PONG');
       isolatedGetQueueStats.mockResolvedValueOnce({ waiting: 0, active: 0, completed: 0, failed: 0 });
 
-      const res = await request(app.server).get('/health/all');
+      const res = await request(app.server).get('/health/all?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.status).toBe('degraded');
       expect(res.body.checks.database.status).toBe('unhealthy');
@@ -198,7 +198,7 @@ describe('Health Endpoints', () => {
   describe('GET /health/providers', () => {
     it('returns video and image provider objects', async () => {
       isolatedRedis.get.mockResolvedValue(null);
-      const res = await request(app.server).get('/health/providers');
+      const res = await request(app.server).get('/health/providers?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.video).toBeDefined();
       expect(res.body.image).toBeDefined();
@@ -208,7 +208,7 @@ describe('Health Endpoints', () => {
 
   describe('GET /metrics', () => {
     it('returns metrics with timestamp', async () => {
-      const res = await request(app.server).get('/metrics');
+      const res = await request(app.server).get('/metrics?token=test-admin-password');
       expect(res.status).toBe(200);
       expect(res.body.timestamp).toBeDefined();
     });

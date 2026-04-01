@@ -1,4 +1,5 @@
 import { redis } from '@/config/redis';
+import { prisma } from '@/config/database';
 import { PROVIDER_CONFIG, VideoProviderConfig, ImageProviderConfig } from '@/config/providers';
 
 const PROVIDER_KEY = 'admin:provider_settings';
@@ -6,19 +7,40 @@ const PROVIDER_KEY = 'admin:provider_settings';
 export class ProviderSettingsService {
   static async getDynamicSettings() {
     try {
-      const data = await redis.get(PROVIDER_KEY);
-      if (data) {
-        return JSON.parse(data);
+      // Redis cache first
+      const cached = await redis.get(PROVIDER_KEY);
+      if (cached) {
+        return JSON.parse(cached);
       }
     } catch {
-      // Return defaults if Redis fails
+      // Fall through to DB
+    }
+    try {
+      // DB fallback (persistent store)
+      const dbRow = await prisma.pricingConfig.findUnique({
+        where: { category_key: { category: 'provider', key: 'settings' } },
+      });
+      if (dbRow) {
+        const settings = dbRow.value as { video?: Record<string, { priority: number; enabled?: boolean }>; image?: Record<string, { priority: number; enabled?: boolean }> };
+        // Warm Redis cache (no TTL — DB is source of truth)
+        await redis.set(PROVIDER_KEY, JSON.stringify(settings));
+        return settings;
+      }
+    } catch {
+      // Return defaults if both Redis and DB fail
     }
     return { video: {}, image: {} }; // Empty overrides returns default sorting
   }
 
   static async updateSettings(settings: { video?: Record<string, { priority: number; enabled?: boolean }>; image?: Record<string, { priority: number; enabled?: boolean }> }) {
-    // Set with 24h TTL as safety net against stale/corrupt configs
-    await redis.set(PROVIDER_KEY, JSON.stringify(settings), 'EX', 86400);
+    // Persist to DB (survives restarts)
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'provider', key: 'settings' } },
+      create: { category: 'provider', key: 'settings', value: settings, updatedBy: BigInt(0) },
+      update: { value: settings, updatedBy: BigInt(0) },
+    });
+    // Keep Redis as cache (no TTL)
+    await redis.set(PROVIDER_KEY, JSON.stringify(settings));
   }
 
   static async getSortedVideoProviders(): Promise<Array<{ key: string } & VideoProviderConfig>> {

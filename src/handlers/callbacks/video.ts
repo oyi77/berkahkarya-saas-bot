@@ -95,6 +95,19 @@ export async function handleVideoCallbacks(ctx: BotContext, data: string): Promi
     return true;
   }
 
+  if (data === 'videos_prev' || data === 'videos_next') {
+    const currentPage = parseInt((ctx.session as any)?.videosPage as string) || 0;
+    const newPage = data === 'videos_next' ? currentPage + 1 : Math.max(0, currentPage - 1);
+    if (ctx.session) (ctx.session as any).videosPage = String(newPage);
+    await videosCommand(ctx);
+    return true;
+  }
+
+  if (data === 'videos_page') {
+    await ctx.answerCbQuery().catch(() => {});
+    return true;
+  }
+
   if (data === "videos_back" || data === "videos_list") {
     await ctx.deleteMessage().catch(() => { });
     await videosCommand(ctx);

@@ -183,6 +183,12 @@ export class TripayService {
             where: { telegramId: transaction.userId },
             data: userUpdateData,
           });
+
+          await prisma.user.update({
+            where: { telegramId: transaction.userId },
+            data: { totalSpent: { increment: Number(transaction.amountIdr) } },
+          }).catch(() => {}); // non-critical
+
           logger.info(`Added ${credits} credits to user ${transaction.userId} via Tripay (tier: ${plan?.tier || 'unchanged'})`);
         }
 

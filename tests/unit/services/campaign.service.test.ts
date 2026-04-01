@@ -8,7 +8,16 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 jest.mock('@/utils/logger', () => ({
   logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('@/config/database', () => ({ prisma: {} }));
+jest.mock('@/config/database', () => ({
+  prisma: {
+    pricingConfig: { findUnique: jest.fn<any>().mockResolvedValue(null) },
+  },
+}));
+jest.mock('@/services/payment-settings.service', () => ({
+  PaymentSettingsService: {
+    getPricingConfig: jest.fn<any>().mockResolvedValue(null),
+  },
+}));
 
 import { CampaignService, HOOK_VARIATIONS } from '@/services/campaign.service';
 
@@ -111,53 +120,49 @@ describe('CampaignService.generateCampaignSpecs', () => {
 // ── getCampaignCost ───────────────────────────────────────────────────────────
 
 describe('CampaignService.getCampaignCost', () => {
-  it('returns a positive number for size=5', () => {
-    expect(CampaignService.getCampaignCost(5)).toBeGreaterThan(0);
+  it('returns a positive number for size=5', async () => {
+    expect(await CampaignService.getCampaignCost(5)).toBeGreaterThan(0);
   });
 
-  it('returns a positive number for size=10', () => {
-    expect(CampaignService.getCampaignCost(10)).toBeGreaterThan(0);
+  it('returns a positive number for size=10', async () => {
+    expect(await CampaignService.getCampaignCost(10)).toBeGreaterThan(0);
   });
 
-  it('cost for size=10 is greater than cost for size=5', () => {
-    expect(CampaignService.getCampaignCost(10)).toBeGreaterThan(CampaignService.getCampaignCost(5));
+  it('cost for size=10 is greater than cost for size=5', async () => {
+    expect(await CampaignService.getCampaignCost(10)).toBeGreaterThan(await CampaignService.getCampaignCost(5));
   });
 });
 
 // ── getCampaignSavings ────────────────────────────────────────────────────────
 
 describe('CampaignService.getCampaignSavings', () => {
-  // NOTE: The current implementation compares creditCost (credits) against
-  // UNIT_COSTS (units) without converting units, so savings will be negative.
-  // These tests verify the actual runtime behavior rather than the intended design.
-  it('returns a number for size=5', () => {
-    expect(typeof CampaignService.getCampaignSavings(5)).toBe('number');
+  it('returns a number for size=5', async () => {
+    expect(typeof await CampaignService.getCampaignSavings(5)).toBe('number');
   });
 
-  it('returns a number for size=10', () => {
-    expect(typeof CampaignService.getCampaignSavings(10)).toBe('number');
+  it('returns a number for size=10', async () => {
+    expect(typeof await CampaignService.getCampaignSavings(10)).toBe('number');
   });
 });
 
 // ── formatCampaignMessage ─────────────────────────────────────────────────────
 
 describe('CampaignService.formatCampaignMessage', () => {
-  it('returns non-empty string for size=5', () => {
-    const msg = CampaignService.formatCampaignMessage(5);
+  it('returns non-empty string for size=5', async () => {
+    const msg = await CampaignService.formatCampaignMessage(5);
     expect(typeof msg).toBe('string');
     expect(msg.length).toBeGreaterThan(0);
   });
 
-  it('returns non-empty string for size=10', () => {
-    const msg = CampaignService.formatCampaignMessage(10);
+  it('returns non-empty string for size=10', async () => {
+    const msg = await CampaignService.formatCampaignMessage(10);
     expect(typeof msg).toBe('string');
     expect(msg.length).toBeGreaterThan(0);
   });
 
-  it('message contains campaign size info', () => {
-    const msg5  = CampaignService.formatCampaignMessage(5);
-    const msg10 = CampaignService.formatCampaignMessage(10);
-    // At least one should mention the count
+  it('message contains campaign size info', async () => {
+    const msg5  = await CampaignService.formatCampaignMessage(5);
+    const msg10 = await CampaignService.formatCampaignMessage(10);
     expect(msg5.includes('5') || msg10.includes('10')).toBe(true);
   });
 });

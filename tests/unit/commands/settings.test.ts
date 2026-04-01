@@ -17,6 +17,12 @@ jest.mock("@/utils/logger", () => ({
   },
 }));
 
+jest.mock("@/services/user.service", () => ({
+  UserService: {
+    findByTelegramId: jest.fn<any>().mockResolvedValue({ language: 'en' }),
+  },
+}));
+
 describe("Settings Command", () => {
   let ctx: ReturnType<typeof createMockContext>;
 

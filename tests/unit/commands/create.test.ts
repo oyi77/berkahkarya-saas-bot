@@ -109,6 +109,7 @@ jest.mock("@/config/pricing", () => ({
     lite: { monthlyCredits: 20 },
     agency: { monthlyCredits: 150 },
   },
+  CUSTOM_DURATION_MIN: 6,
 }));
 
 jest.mock("@/config/audio-subtitle-engine", () => ({

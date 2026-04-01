@@ -25,6 +25,7 @@ model User {
   // Tier & Credits
   tier              String    @default("free") @db.VarChar(16)
   creditBalance     Decimal   @default(0) @map("credit_balance") @db.Decimal(10, 2)
+  subscriptionCredits Int     @default(0) @map("subscription_credits")
   creditExpiresAt   DateTime? @map("credit_expires_at")
   
   // Referral
@@ -490,4 +491,25 @@ model RetentionLog {
   @@index([triggerType])
   @@index([sentAt])
   @@map("retention_logs")
+}
+
+// =============================================================================
+// TEMPLATE VIDEO MODEL (Pre-generated demo videos for free trial)
+// =============================================================================
+model TemplateVideo {
+  id           BigInt   @id @default(autoincrement())
+  niche        String   @db.VarChar(32)
+  title        String   @db.VarChar(128)
+  description  String?  @db.Text
+  videoUrl     String   @map("video_url") @db.VarChar(512)
+  thumbnailUrl String?  @map("thumbnail_url") @db.VarChar(512)
+  duration     Int      @default(15)
+  platform     String   @default("tiktok") @db.VarChar(16)
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([niche, isActive])
+  @@map("template_videos")
 }

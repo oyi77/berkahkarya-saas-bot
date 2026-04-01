@@ -4,7 +4,7 @@
  * API endpoints for health monitoring, provider status, and metrics
  */
 
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '@/config/database';
 import { redis } from '@/config/redis';
 import { getQueueStats } from '@/config/queue';
@@ -12,11 +12,20 @@ import { PROVIDER_CONFIG } from '@/config/providers';
 import { MetricsService } from '@/services/metrics.service';
 import { getConfig } from '@/config/env';
 
+const adminCheck = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  const token =
+    request.headers.authorization?.replace('Bearer ', '') ||
+    (request.query as any).token;
+  if (token !== process.env.ADMIN_PASSWORD) {
+    reply.status(401).send({ error: 'Unauthorized' });
+  }
+};
+
 /**
  * Register health check routes
  */
 export async function healthCheckRoutes(server: FastifyInstance): Promise<void> {
-  // Basic health check
+  // Basic health check (public — required for load balancers)
   server.get('/health', async () => {
     return {
       status: 'healthy',
@@ -27,7 +36,7 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   });
 
   // Database health check
-  server.get('/health/db', async () => {
+  server.get('/health/db', { preHandler: [adminCheck] }, async () => {
     try {
       await prisma.$queryRaw`SELECT 1`;
       return {
@@ -47,7 +56,7 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   });
 
   // Redis health check
-  server.get('/health/redis', async () => {
+  server.get('/health/redis', { preHandler: [adminCheck] }, async () => {
     try {
       await redis.ping();
       return {
@@ -67,7 +76,7 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   });
 
   // Queue health check
-  server.get('/health/queue', async () => {
+  server.get('/health/queue', { preHandler: [adminCheck] }, async () => {
     try {
       const stats = await getQueueStats();
       return {
@@ -88,7 +97,7 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   });
 
   // Comprehensive health check
-  server.get('/health/all', async () => {
+  server.get('/health/all', { preHandler: [adminCheck] }, async () => {
     const checks = await Promise.allSettled([
       prisma.$queryRaw`SELECT 1`,
       redis.ping(),
@@ -121,7 +130,7 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   });
 
   // ── Provider circuit breaker status ──
-  server.get('/health/providers', async () => {
+  server.get('/health/providers', { preHandler: [adminCheck] }, async () => {
     const CB_PREFIX = 'cb:';
 
     const providerStatus = async (
@@ -171,7 +180,7 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   });
 
   // ── Metrics endpoint ──
-  server.get('/metrics', async (request) => {
+  server.get('/metrics', { preHandler: [adminCheck] }, async (request) => {
     const query = request.query as Record<string, string>;
     const date = query.date || undefined;
     const metrics = await MetricsService.getAll(date);

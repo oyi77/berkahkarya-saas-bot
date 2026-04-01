@@ -15,6 +15,7 @@ import { Worker, Job, Queue } from 'bullmq';
 import { bullmqRedis } from '@/config/redis';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { t } from '@/i18n/translations';
 import type { Telegram } from 'telegraf';
 
 export const retentionQueue = new Queue('retention', { connection: bullmqRedis });
@@ -30,6 +31,8 @@ const ANTI_SPAM = {
 };
 
 // ── Message Templates ─────────────────────────────────────────────────────────
+// TODO: convert remaining templates to t() calls for full i18n support
+// Currently button labels are localized; message bodies remain Indonesian-only
 
 const MESSAGES = {
   // Type 1: Deposit no use
@@ -46,21 +49,21 @@ const MESSAGES = {
   free_1h: (name: string) =>
     `${name}, tadi hasilnya gimana? 😊\n\nKalau mau generate lagi, paket paling terjangkau cuma Rp 25.000 (1 credit). Bisa untuk image set 7 scene + 1 video!\n\n👉 Tap /topup`,
   free_24h: (name: string) =>
-    `${name}! 100+ UMKM sudah pakai BK Vilona bulan ini 📊\n\n_"Kontennya bagus, hemat waktu banget"_ — owner kafe Surabaya\n_"Video-nya langsung viral di TikTok"_ — toko fashion Jakarta\n\nMau bergabung? Mulai dari Rp 25.000 👉 /topup`,
+    `${name}! Bergabunglah dengan komunitas kreator konten kami 📊\n\nBuat video iklan profesional dari satu foto produk. Mulai dari Rp 25.000 👉 /topup`,
   free_3d: (name: string) =>
-    `${name}, spesial buat kamu yang udah coba! 🎁\n\nDiskon Rp 10.000 untuk paket pertama (Rp 99.000 → Rp 89.000)\nBerlaku 24 jam aja.\n\n👉 /topup`,
+    `${name}, masih tertarik generate konten? 🎁\n\nSatu foto produk bisa jadi video iklan profesional dalam 60 detik.\n\nTap /create untuk mulai generate lagi!`,
   free_7d: (name: string) =>
     `${name}, ini pesan terakhir dari gue.\n\nKalau berubah pikiran, kita selalu siap bantu. Sampai ketemu! 👋`,
 
   // Type 3: Used once, stopped
   used_3d: (name: string) =>
-    `${name}, video yang kemarin udah di-post belum? 📱\n\nUser yang post rutin 3-5x/minggu rata-rata engagement-nya 3x lebih tinggi. Mau buat konten baru?`,
+    `${name}, video yang kemarin udah di-post belum? 📱\n\nYuk buat konten baru sekarang! Tap /create untuk mulai generate lagi.`,
   used_7d: (name: string) =>
     `${name}! Tips: buat 5 variasi video dengan hook berbeda, test mana yang paling banyak klik 📈\n\nFitur Campaign Builder di BK Vilona bisa bantu kamu. Mau coba?`,
   used_14d: (name: string) =>
     `${name}, ada fitur Campaign Builder nih — generate 5-10 video sekaligus dengan hook berbeda untuk A/B testing iklan! 📦\n\nCocok banget untuk kamu yang mau scale konten. /create`,
   used_21d: (name: string) =>
-    `${name}, khusus buat kamu yang sudah pernah pakai 🎁\n\nDiskon 50% untuk 1x generate. Berlaku 48 jam.\n\nTap /create dan masukkan kode: COMEBACK50`,
+    `${name}, udah lama gak generate nih! 🎬\n\nYuk buat konten baru sekarang. Satu foto produk → video iklan profesional dalam 60 detik.\n\nTap /create untuk mulai generate lagi!`,
 
   // Type 4: Active no affiliate
   active_3rd_gen: (name: string) =>
@@ -68,11 +71,11 @@ const MESSAGES = {
   active_5th_gen: (name: string) =>
     `${name}, kamu aktif banget nih! 🔥\n\nShare BK Vilona ke teman-teman UMKM kamu. Mereka dapat tools powerful, kamu dapat passive income 15% dari setiap deposit mereka.\n\n👉 /referral`,
   active_10th_gen: (name: string) =>
-    `${name}! User lain yang rajin refer bisa dapat Rp 500k+ credit per bulan 💎\n\nGratis, tinggal share link. /referral`,
+    `${name}! Ajak teman-temanmu dan dapatkan komisi dari setiap deposit mereka 💎\n\nGratis, tinggal share link. /referral`,
 
   // Type 5: Churned
   churn_30d: (name: string) =>
-    `Hai ${name}! Lama gak jumpa 😊\n\nBK Vilona baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nSpecial comeback offer: paket Starter Rp 99k → Rp 69k. Berlaku 72 jam. /topup`,
+    `Hai ${name}! Lama gak jumpa 😊\n\nBK Vilona baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nTap /create untuk mulai generate lagi!`,
   churn_60d: (name: string) =>
     `${name}, ini pesan terakhir dari kami.\n\nSemoga bisnis kamu makin berkembang ya! Kalau mau balik, kami selalu di sini 🙏\n\nTap /start kapan saja.`,
 
@@ -80,7 +83,7 @@ const MESSAGES = {
   sub_expiring_3d: (name: string) =>
     `⭐ ${name}, langganan kamu akan berakhir dalam 3 hari!\n\nPerpanjang sekarang supaya kredit bulananmu tetap aktif dan tidak kehilangan akses fitur premium.\n\n👉 /topup`,
   sub_expiring_1d: (name: string) =>
-    `⚠️ ${name}, langganan kamu berakhir besok!\n\nKredit yang belum dipakai akan hangus setelah langganan berakhir. Perpanjang sekarang!\n\n👉 /topup`,
+    `⚠️ ${name}, langganan kamu berakhir besok!\n\nKredit langganan yang belum dipakai akan hangus setelah berakhir. Kredit yang dibeli tetap aman. Perpanjang sekarang!\n\n👉 /topup`,
 };
 
 // ── Scheduler ────────────────────────────────────────────────────────────────
@@ -133,14 +136,14 @@ export class RetentionScheduler {
           status: 'active',
           currentPeriodEnd: { gte: targetStart, lte: targetEnd },
         },
-        include: { user: { select: { id: true, telegramId: true, firstName: true, notificationsEnabled: true } } },
+        include: { user: { select: { id: true, telegramId: true, firstName: true, notificationsEnabled: true, language: true } } },
         take: 50,
       });
 
       for (const sub of subs) {
         if (!sub.user?.notificationsEnabled) continue;
         if (await this.canSend(sub.user.id, 'subscription')) {
-          await this.sendMessage(bot, sub.user.telegramId, MESSAGES[trigger.msgKey](sub.user.firstName));
+          await this.sendMessage(bot, sub.user.telegramId, MESSAGES[trigger.msgKey](sub.user.firstName), sub.user.language || 'id');
           await this.logSent(sub.user.id, 'subscription');
         }
       }
@@ -175,7 +178,7 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'deposit')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName));
+          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
           await this.logSent(user.id, 'deposit');
         }
       }
@@ -210,7 +213,7 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'free_trial')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName));
+          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
           await this.logSent(user.id, 'free_trial');
         }
       }
@@ -244,7 +247,7 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'inactive')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName));
+          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
           await this.logSent(user.id, 'inactive');
         }
       }
@@ -266,7 +269,7 @@ export class RetentionScheduler {
           isBanned: false,
           commissions: { none: {} },  // No referral commissions earned
         },
-        select: { id: true, telegramId: true, firstName: true, _count: { select: { videos: { where: { status: { in: ['completed', 'done'] } } } } } },
+        select: { id: true, telegramId: true, firstName: true, language: true, _count: { select: { videos: { where: { status: { in: ['completed', 'done'] } } } } } },
         take: 100,
       });
 
@@ -275,7 +278,7 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'affiliate')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[msgKey](user.firstName));
+          await this.sendMessage(bot, user.telegramId, MESSAGES[msgKey](user.firstName), user.language || 'id');
           await this.logSent(user.id, 'affiliate');
         }
       }
@@ -307,7 +310,7 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'churn')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName));
+          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
           await this.logSent(user.id, 'churn');
         }
       }
@@ -370,7 +373,8 @@ export class RetentionScheduler {
   private static async sendMessage(
     bot: { telegram: Telegram },
     telegramId: bigint,
-    message: string
+    message: string,
+    lang: string = 'id'
   ): Promise<void> {
     try {
       await bot.telegram.sendMessage(Number(telegramId), message, {
@@ -378,8 +382,8 @@ export class RetentionScheduler {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '🎬 Generate Sekarang', callback_data: 'generate_start' },
-              { text: '🔕 Unsubscribe', callback_data: 'notif_unsubscribe' },
+              { text: t('retention.btn_generate', lang), callback_data: 'generate_start' },
+              { text: t('retention.btn_unsubscribe', lang), callback_data: 'notif_unsubscribe' },
             ],
           ],
         },

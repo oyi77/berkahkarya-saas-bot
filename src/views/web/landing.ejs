@@ -862,7 +862,7 @@
     <div class="container">
       <div class="hero-pain" data-i18n="hero_pain">⚠️ Kompetitor Posting 10 Video/Hari, Kamu Masih Stuck di 1 Video/Minggu?</div>
       <% if (landingConfig && landingConfig.headline) { %>
-        <h1><%- landingConfig.headline %></h1>
+        <h1><%= landingConfig.headline %></h1>
       <% } else { %>
         <h1 data-i18n="hero_title">Ubah 1 Foto Jadi <span class="highlight">Video Iklan Viral</span><br>dalam 60 Detik</h1>
       <% } %>
@@ -1139,6 +1139,9 @@
       <p style="text-align:center; margin-top:16px; color:var(--dim); font-size:13px;" data-i18n="pricing_bonus" data-i18n-html="true">
         🎁 <strong>Bonus User Baru:</strong> 1x generate image GRATIS (sekali seumur hidup, bukan harian)
       </p>
+      <% if (landingConfig && landingConfig.pricingNote) { %>
+      <p style="text-align:center; margin-top:16px; color:var(--dim); font-size:13px;"><%= landingConfig.pricingNote %></p>
+      <% } %>
     </div>
   </section>
 
@@ -1152,7 +1155,7 @@
   </section>
 
   <footer>
-    <p data-i18n="footer_copy">© 2026 BK Vilona AI — All rights reserved.</p>
+    <p data-i18n="footer_copy"><%= (landingConfig && landingConfig.footerText) ? landingConfig.footerText : '© 2026 BK Vilona AI — All rights reserved.' %></p>
     <p style="margin-top:8px">
       <a href="https://t.me/<%= botUsername %>">Telegram Bot</a> ·
       <a href="/app">Web App</a> ·

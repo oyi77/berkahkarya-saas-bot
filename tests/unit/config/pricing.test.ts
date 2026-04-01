@@ -43,7 +43,7 @@ describe("Pricing Async Wrappers", () => {
     it("should fallback to hardcoded if DB returns null", async () => {
       mockGetPricingConfig.mockResolvedValue(null);
       const cost = await getVideoCreditCostAsync(30);
-      expect(cost).toBe(1.0); // Hardcoded value for 30s
+      expect(cost).toBe(1.5); // Fallback via getVideoCreditCost(30)
     });
   });
 

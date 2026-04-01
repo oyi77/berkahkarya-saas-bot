@@ -27,10 +27,30 @@ import { generateVideoAsync } from '@/commands/create';
 import { t } from '@/i18n/translations';
 import { getConfig } from '@/config/env';
 import { getCorrelationId } from '@/utils/correlation';
+import { sendAdminAlert } from '@/services/admin-alert.service';
 import type { DurationPreset } from '@/config/hpas-engine';
 
 const execFileAsync = promisify(execFile);
 const VIDEO_DIR = getConfig().VIDEO_DIR;
+
+/** Reset all generate-flow session fields and return to DASHBOARD.
+ *  Field list kept in sync with cleanup in showGenerateMode(). */
+function clearGenerateSession(ctx: BotContext): void {
+  if (!ctx.session) return;
+  const fields = ['generateMode','generateAction','generatePreset','generatePlatform',
+    'generateProductDesc','generatePhotoUrl','generateAspectRatio','generateResolution',
+    'generateCampaignSize','generateScenes','generateStoryboardMode',
+    'generateManualStoryboard','generateManualTranscript','customPresetConfig',
+    'generatePhotos','generatePhotoCount'] as const;
+  for (const f of fields) delete (ctx.session as any)[f];
+  ctx.session.state = 'DASHBOARD';
+}
+
+function getStepIndicator(mode: string, step: number): string {
+  const totalSteps: Record<string, number> = { basic: 4, smart: 6, pro: 11 };
+  const total = totalSteps[mode] || 6;
+  return `[${step}/${total}]`;
+}
 
 /** Download a URL to a local file. Returns the local path or null on failure. */
 async function downloadToLocal(url: string, filename: string): Promise<string | null> {
@@ -68,7 +88,7 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
       await ctx.reply(t('gen.analyzing_photo', lang), { parse_mode: 'Markdown' });
 
       const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
-      productDesc = analysis.success && analysis.prompt ? analysis.prompt : 'produk dari foto yang dikirim';
+      productDesc = analysis.success && analysis.prompt ? analysis.prompt : t('gen.photo_fallback_desc', ctx.session?.userLang || 'id');
     } else if (message.text && !message.text.startsWith('/')) {
       productDesc = message.text;
     } else {
@@ -151,7 +171,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
   // Idempotency lock: prevent double-click from deducting credits twice
   const { redis } = await import('../config/redis.js');
   const lockKey = `generating:${telegramId}`;
-  const lockAcquired = await redis.set(lockKey, '1', 'EX', 30, 'NX');
+  const lockAcquired = await redis.set(lockKey, '1', 'EX', 300, 'NX');
   if (lockAcquired !== 'OK') {
     await ctx.reply(t('gen.already_processing', ctx.session?.userLang || 'id'));
     return;
@@ -182,32 +202,63 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     const lang = user.language || 'id';
     if (ctx.session) ctx.session.userLang = lang;
 
+    if (user.isBanned) {
+      await ctx.reply(t('error.account_banned', lang));
+      clearGenerateSession(ctx);
+      return;
+    }
+
+    // Check daily generation limit for subscribers
+    if (user.tier !== 'free') {
+      try {
+        const { SubscriptionService } = await import('../services/subscription.service.js');
+        const limitCheck = await SubscriptionService.canGenerate(BigInt(user.telegramId));
+        if (limitCheck && !limitCheck.allowed && limitCheck.reason?.includes('Daily limit')) {
+          await ctx.reply(t('gen.daily_limit_reached', lang, { limit: String(limitCheck.reason.match(/\d+/)?.[0] || ''), reset: '24h' }), {
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: [[{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }]] },
+          });
+          clearGenerateSession(ctx);
+          return;
+        }
+      } catch { /* if check fails, allow generation */ }
+    }
+
     const unitBalance = creditsToUnits(Number(user.creditBalance));
 
-    // Cost check
+    // Cost check — use admin-configured pricing (falls back to static UNIT_COSTS if DB empty)
+    const { getUnitCostAsync } = await import('../config/pricing.js');
     let cost = 0;
-    if (action === 'image_set') cost = UNIT_COSTS.IMAGE_SET_7_SCENE;
-    else if (action === 'video') cost = presetConfig.creditCost;
-    else if (action === 'clone_style') cost = UNIT_COSTS.CLONE_STYLE;
-    else if (action === 'campaign') cost = CampaignService.getCampaignCost((session.generateCampaignSize as 5 | 10) || 5);
+    if (action === 'image_set') cost = await getUnitCostAsync('IMAGE_SET_7_SCENE');
+    else if (action === 'video') cost = await getUnitCostAsync(presetConfig.totalSeconds <= 15 ? 'VIDEO_15S' : presetConfig.totalSeconds <= 30 ? 'VIDEO_30S' : presetConfig.totalSeconds <= 60 ? 'VIDEO_60S' : 'VIDEO_120S');
+    else if (action === 'clone_style') cost = await getUnitCostAsync('CLONE_STYLE');
+    else if (action === 'campaign') cost = await CampaignService.getCampaignCost((session.generateCampaignSize as 5 | 10) || 5);
 
-    // Free trial check for image_set (welcome bonus / daily free)
+    // Free trial check for image_set and video (welcome bonus / daily free)
     let useFreeSlot = false;
-    if (unitBalance < cost && action === 'image_set') {
-      const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
-      if (canUseWelcomeBonus(user)) {
-        // Atomic check-and-set to prevent double-claim on concurrent requests
-        const updated = await prisma.user.updateMany({
-          where: { id: user.id, welcomeBonusUsed: false },
-          data: { welcomeBonusUsed: true },
-        });
-        if (updated.count > 0) {
-          useFreeSlot = true;
+    if (unitBalance < cost && (action === 'image_set' || action === 'video')) {
+      // For video, only allow free trial for 15s (quick preset)
+      if (action === 'video' && presetConfig.totalSeconds > 15) {
+        useFreeSlot = false;
+      } else {
+        const { canUseWelcomeBonus, canUseDailyFree, getNextDailyFreeReset } = await import('../config/free-trial.js');
+        if (canUseWelcomeBonus(user)) {
+          // Atomic check-and-set to prevent double-claim on concurrent requests
+          const updated = await prisma.user.updateMany({
+            where: { id: user.id, welcomeBonusUsed: false },
+            data: { welcomeBonusUsed: true },
+          });
+          if (updated.count > 0) {
+            useFreeSlot = true;
+          }
         }
-      }
-      if (!useFreeSlot && canUseDailyFree(user)) {
-        useFreeSlot = true;
-        await prisma.user.update({ where: { id: user.id }, data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() } });
+        if (!useFreeSlot) {
+          const dailyClaimed = await prisma.user.updateMany({
+            where: { id: user.id, dailyFreeUsed: false },
+            data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() },
+          });
+          if (dailyClaimed.count > 0) useFreeSlot = true;
+        }
       }
     }
 
@@ -218,6 +269,98 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         t('gen.insufficient_credits', lang, { cost: costCredits, balance: balCredits }),
         { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }]] } }
       );
+      clearGenerateSession(ctx);
+      return;
+    }
+
+    // Serve cached template video for free trial — zero token cost
+    if (useFreeSlot) {
+      const { TemplateVideoService } = await import('../services/template-video.service.js');
+      const userNiche = user.selectedNiche || 'general';
+      const template = await TemplateVideoService.getRandom(userNiche);
+
+      if (template) {
+        try {
+          await ctx.replyWithVideo(template.videoUrl, {
+            caption: t('gen.free_trial_video', lang, { niche: userNiche }),
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: [
+              [{ text: t('btn.create_own', lang), callback_data: 'generate_start' }],
+              [{ text: t('btn.topup', lang), callback_data: 'topup' }],
+            ]},
+          });
+        } catch {
+          // If video send fails, try as URL link
+          await ctx.reply(t('gen.free_trial_video', lang, { niche: userNiche }) + `\n\n[Download](${template.videoUrl})`, {
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: [
+              [{ text: t('btn.create_own', lang), callback_data: 'generate_start' }],
+              [{ text: t('btn.topup', lang), callback_data: 'topup' }],
+            ]},
+          });
+        }
+        // Mark welcome bonus as used
+        await prisma.user.updateMany({
+          where: { telegramId, welcomeBonusUsed: false },
+          data: { welcomeBonusUsed: true },
+        });
+        clearGenerateSession(ctx);
+        await redis.del(lockKey).catch(() => {});
+        return;
+      }
+      // No template for this niche — generate one, cache it, and serve it
+      // First user per niche pays the cost; all future users get the cached version
+      await ctx.reply(t('gen.generating_trial', lang), { parse_mode: 'Markdown' });
+
+      // Generate a 15s video, then cache it as template
+      const trialScenes = generateVideoScenePrompts(industry, productDesc || userNiche, 'quick', (lang === 'en' ? 'en' : 'id'));
+      const trialStoryboard = trialScenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }));
+
+      try {
+        const { VideoService: TrialVS } = await import('../services/video.service.js');
+        const trialVideo = await TrialVS.createJob({
+          userId: telegramId,
+          niche: userNiche,
+          platform: 'tiktok',
+          duration: 15,
+          scenes: trialStoryboard.length,
+        });
+
+        const { enqueueVideoGeneration } = await import('../config/queue.js');
+        await enqueueVideoGeneration({
+          jobId: trialVideo.jobId,
+          userId: telegramId.toString(),
+          chatId: ctx.chat!.id,
+          niche: userNiche,
+          platform: 'tiktok',
+          duration: 15,
+          scenes: trialStoryboard.length,
+          storyboard: trialStoryboard,
+          enableVO: false,
+          enableSubtitles: true,
+          language: lang,
+          cacheAsTemplate: true,
+          cacheNiche: userNiche,
+        });
+
+        await ctx.reply(t('gen.trial_queued', lang), {
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [
+            [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
+          ]},
+        });
+      } catch (trialErr) {
+        logger.error('Free trial generation failed', { error: trialErr });
+        await ctx.reply(t('gen.trial_failed', lang));
+      }
+
+      // Mark welcome bonus as used regardless of outcome
+      await prisma.user.updateMany({
+        where: { telegramId, welcomeBonusUsed: false },
+        data: { welcomeBonusUsed: true },
+      });
+      clearGenerateSession(ctx);
+      await redis.del(lockKey).catch(() => {});
       return;
     }
 
@@ -225,7 +368,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
     // Image Set → Video Pipeline (generate 7 scene images, then queue video)
     if (action === 'image_set') {
-      const scenes = generateVideoScenePrompts(industry, productDesc, 'standard', 'id');
+      const scenes = generateVideoScenePrompts(industry, productDesc, 'standard', (lang === 'en' ? 'en' : 'id'));
       const creditCost = cost / 10;
 
       // ── Phase A: Silent image generation with 3x retry per scene ──
@@ -270,6 +413,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
       if (userImages.length === 0) {
         await ctx.reply(t('gen.all_scenes_failed', lang));
+        clearGenerateSession(ctx);
         return;
       }
 
@@ -330,7 +474,11 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         generateVideoAsync(ctx, video.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds,
           storyboard).catch(async (err) => {
           logger.error('Video generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(() => {});
+          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(async (refundErr) => {
+            logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr });
+            await UserService.queueRefundRetry(telegramId, creditCost, 'generate-imgset-fallback', String(refundErr));
+            sendAdminAlert('critical', 'Refund Failed', { userId: telegramId.toString(), amount: creditCost, error: String(refundErr) });
+          });
           await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.video_failed_refund', lang)).catch(() => {});
         });
         await ctx.reply(t('gen.video_processing', lang));
@@ -344,7 +492,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       const useManualStoryboard = session.generateStoryboardMode === 'manual' && session.generateManualStoryboard?.length;
       const scenes = useManualStoryboard
         ? session.generateManualStoryboard!
-        : generateVideoScenePrompts(industry, productDesc, preset, 'id');
+        : generateVideoScenePrompts(industry, productDesc, preset, (lang === 'en' ? 'en' : 'id'));
       const creditCost = cost / 10;
 
       const { VideoService: VS } = await import('../services/video.service.js');
@@ -385,7 +533,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       } catch {
         generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: useManualStoryboard ? s.description : s.prompt }))).catch(async (err) => {
           logger.error('Video generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
+          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); sendAdminAlert('critical', 'Refund Failed', { userId: telegramId.toString(), amount: creditCost, error: String(refundErr) }); });
           await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.video_failed_refund', lang)).catch(() => {});
         });
         await ctx.reply(t('gen.video_processing', lang));
@@ -409,7 +557,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       }
 
       const combinedPrompt = `${productDesc}${styleHint}`;
-      const scenes = generateVideoScenePrompts(industry, combinedPrompt, 'standard', 'id');
+      const scenes = generateVideoScenePrompts(industry, combinedPrompt, 'standard', (lang === 'en' ? 'en' : 'id'));
 
       const { VideoService: VS2 } = await import('../services/video.service.js');
       const video2 = await VS2.createJob({
@@ -443,7 +591,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       } catch {
         generateVideoAsync(ctx, video2.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
           logger.error('Clone style generateVideoAsync failed:', err);
-          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
+          await UserService.refundCredits(telegramId, creditCost, video2.jobId, err?.message || 'fallback failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); sendAdminAlert('critical', 'Refund Failed', { userId: telegramId.toString(), amount: creditCost, error: String(refundErr) }); });
           await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.video_failed_refund', lang)).catch(() => {});
         });
         await ctx.reply(t('gen.video_processing', lang));
@@ -467,7 +615,6 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       });
 
       const totalDuration = storyboard.reduce((s, sc) => s + sc.duration, 0);
-      await UserService.deductCredits(telegramId, creditCost);
 
       const { VideoService: VS3 } = await import('../services/video.service.js');
       try {
@@ -479,6 +626,9 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           scenes: campSize,
           title: `Campaign ${campSize} Scene — ${productDesc.slice(0, 40)}`,
         });
+
+        // Deduct AFTER job creation succeeds (no refund needed in jobErr catch)
+        await UserService.deductCredits(telegramId, creditCost);
 
         try {
           const { position } = await enqueueVideoGeneration({
@@ -503,15 +653,15 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         } catch {
           generateVideoAsync(ctx, vid.jobId, industry, platform, totalDuration, storyboard).catch(async (err) => {
             logger.error('Campaign generateVideoAsync failed:', err);
-            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
+            await UserService.refundCredits(telegramId, creditCost, vid.jobId, err?.message || 'campaign failure').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); sendAdminAlert('critical', 'Refund Failed', { userId: telegramId.toString(), amount: creditCost, error: String(refundErr) }); });
             await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.campaign_failed', lang)).catch(() => {});
           });
           await ctx.reply(t('gen.video_processing', lang));
         }
       } catch (jobErr) {
         logger.error('Campaign job creation failed:', jobErr);
-        await UserService.refundCredits(telegramId, creditCost, `campaign-${Date.now()}`, 'campaign job failed').catch(async (refundErr) => { logger.error('CRITICAL: refundCredits failed', { telegramId: telegramId.toString(), creditCost, err: refundErr }); await UserService.queueRefundRetry(telegramId, creditCost, 'generate-fallback', String(refundErr)); });
         await ctx.reply(t('gen.campaign_failed', lang), { parse_mode: 'Markdown' });
+        clearGenerateSession(ctx);
         return;
       }
       await showPostDelivery(ctx);
@@ -520,6 +670,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
   } catch (err) {
     logger.error('executeGeneration error', err);
+    clearGenerateSession(ctx);
     await ctx.reply(t('gen.generation_failed', ctx.session?.userLang || 'id'));
   } finally {
     // Release idempotency lock
@@ -564,17 +715,18 @@ export async function showGenerateMode(ctx: BotContext): Promise<void> {
       }
     }
 
+    const lang = ctx.session?.userLang || 'id';
     const prefilledPrompt = ctx.session?.generateProductDesc;
-    const text = prefilledPrompt 
-      ? `🎬 *Generate Konten*\n\nPrompt: \`${prefilledPrompt.slice(0, 50)}${prefilledPrompt.length > 50 ? '...' : ''}\`\n\nPilih mode:`
-      : `🎬 *Generate Konten*\n\nPilih mode:`;
+    const text = prefilledPrompt
+      ? `🎬 *${t('gen.title', lang)}*\n\nPrompt: \`${prefilledPrompt.slice(0, 50)}${prefilledPrompt.length > 50 ? '...' : ''}\`\n\n${t('gen.select_mode', lang)}`
+      : `🎬 *${t('gen.title', lang)}*\n\n${t('gen.select_mode', lang)}`;
 
     const markup = {
       inline_keyboard: [
-        [{ text: '⚡ Basic — Full Auto', callback_data: 'mode_basic' }],
-        [{ text: '🎯 Smart — Pilih Preset', callback_data: 'mode_smart' }],
-        [{ text: '👑 Pro — Full Control', callback_data: 'mode_pro' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+        [{ text: t('gen.mode_basic', lang), callback_data: 'mode_basic' }],
+        [{ text: t('gen.mode_smart', lang), callback_data: 'mode_smart' }],
+        [{ text: t('gen.mode_pro', lang), callback_data: 'mode_pro' }],
+        [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],
     };
 
@@ -598,22 +750,51 @@ export async function showGenerateAction(ctx: BotContext, mode: GenerateMode): P
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
+    const lang = ctx.session?.userLang || 'id';
+
+    // Fix 2.5: Pre-creation credit check
+    const dbUser = await UserService.findByTelegramId(BigInt(ctx.from!.id));
+    if (dbUser) {
+      const balance = creditsToUnits(Number(dbUser.creditBalance));
+      const minCost = UNIT_COSTS.IMAGE_UNIT; // cheapest possible action
+      const { canUseWelcomeBonus, canUseDailyFree } = await import('../config/free-trial.js');
+      const hasFreeSlot = canUseWelcomeBonus(dbUser) || canUseDailyFree(dbUser);
+      if (balance < minCost && !hasFreeSlot) {
+        await ctx.reply(t('gen.no_credits_early', lang, { balance: balance / 10 }), {
+          parse_mode: 'Markdown',
+          reply_markup: { inline_keyboard: [[{ text: t('btn.topup', lang), callback_data: 'topup' }], [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }]] },
+        });
+        return;
+      }
+    }
+
     const modeLabel = mode === 'basic' ? '⚡ Basic' : mode === 'smart' ? '🎯 Smart' : '👑 Pro';
 
     if (ctx.session) {
       ctx.session.generateMode = mode;
     }
 
-    const text = `${modeLabel} Mode\n\nPilih aksi:`;
+    // Fix 2.6: Dynamic credit costs
+    const { getUnitCostAsync } = await import('../config/pricing.js');
+    const [imgSetCost, videoCost, cloneCost, camp5Cost, camp10Cost] = await Promise.all([
+      getUnitCostAsync('IMAGE_SET_7_SCENE'),
+      getUnitCostAsync('VIDEO_15S'),
+      getUnitCostAsync('CLONE_STYLE'),
+      getUnitCostAsync('CAMPAIGN_5_VIDEO'),
+      getUnitCostAsync('CAMPAIGN_10_VIDEO'),
+    ]);
+
+    const balanceDisplay = dbUser ? ` (${t('gen.balance_label', lang)}: ${creditsToUnits(Number(dbUser.creditBalance)) / 10} cr)` : '';
+    const text = `${getStepIndicator(mode, 2)} ${modeLabel} Mode${balanceDisplay}\n\n${t('gen.select_action', lang)}`;
 
     const markup = {
       inline_keyboard: [
-        [{ text: `📸 Image Set (7 scene) — ${UNIT_COSTS.IMAGE_SET_7_SCENE / 10} kredit`, callback_data: 'action_image_set' }],
-        [{ text: `🎥 Video Iklan — mulai ${UNIT_COSTS.VIDEO_15S / 10} kredit`, callback_data: 'action_video' }],
-        [{ text: `🔄 Clone Style — ${UNIT_COSTS.CLONE_STYLE / 10} kredit`, callback_data: 'action_clone_style' }],
-        [{ text: `📦 Campaign (5/10 scene) — ${UNIT_COSTS.CAMPAIGN_5_VIDEO / 10}/${UNIT_COSTS.CAMPAIGN_10_VIDEO / 10} kredit`, callback_data: 'action_campaign' }],
-        [{ text: '◀️ Kembali', callback_data: 'generate_start' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+        [{ text: t('gen.action_image_set', lang, { cost: imgSetCost / 10 }), callback_data: 'action_image_set' }],
+        [{ text: t('gen.action_video', lang, { cost: videoCost / 10 }), callback_data: 'action_video' }],
+        [{ text: t('gen.action_clone_style', lang, { cost: cloneCost / 10 }), callback_data: 'action_clone_style' }],
+        [{ text: t('gen.action_campaign', lang, { cost5: camp5Cost / 10, cost10: camp10Cost / 10 }), callback_data: 'action_campaign' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+        [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],
     };
     try {
@@ -795,8 +976,9 @@ export async function showImageAspectRatio(ctx: BotContext): Promise<void> {
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
     const lang = ctx.session?.userLang || 'id';
+    const mode = ctx.session?.generateMode as string || 'basic';
 
-    const text = t('gen.select_aspect_ratio', lang);
+    const text = `${getStepIndicator(mode, 3)} ${t('gen.select_aspect_ratio', lang)}`;
     const markup = {
       inline_keyboard: [
         [
@@ -824,8 +1006,9 @@ export async function showImageResolution(ctx: BotContext): Promise<void> {
   try {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
     const lang = ctx.session?.userLang || 'id';
+    const mode = ctx.session?.generateMode as string || 'basic';
 
-    const text = t('gen.select_resolution', lang);
+    const text = `${getStepIndicator(mode, 4)} ${t('gen.select_resolution', lang)}`;
     const markup = {
       inline_keyboard: [
         [{ text: t('gen.res_standard', lang), callback_data: 'img_res_standard' }],
@@ -1034,7 +1217,8 @@ export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
     if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
 
     const lang = ctx.session?.userLang || 'id';
-    const text = t('gen.smart_select_duration', lang);
+    const mode = ctx.session?.generateMode as string || 'smart';
+    const text = `${getStepIndicator(mode, 3)} ${t('gen.smart_select_duration', lang)}`;
 
     const markup = {
       inline_keyboard: [
@@ -1064,7 +1248,7 @@ export async function showSmartPlatformSelection(ctx: BotContext, preset: Durati
     }
 
     const lang = ctx.session?.userLang || 'id';
-    const text = `Platform:`;
+    const text = t('gen.select_platform', lang);
 
     const markup = {
       inline_keyboard: [
@@ -1092,8 +1276,9 @@ export async function showProSceneReview(
   productDescription: string
 ): Promise<void> {
   try {
+    const lang = ctx.session?.userLang || 'id';
     const industry = detectIndustry(productDescription);
-    const scenes = generateVideoScenePrompts(industry, productDescription, 'standard', 'id');
+    const scenes = generateVideoScenePrompts(industry, productDescription, 'standard', (lang === 'en' ? 'en' : 'id'));
 
     if (ctx.session) {
       ctx.session.generateScenes = scenes;
@@ -1103,16 +1288,16 @@ export async function showProSceneReview(
       .map((s, i) => `${i + 1}. *${HPAS_SCENES[s.sceneId].nameId}* (${s.durationSeconds}s)\n   ${s.prompt.slice(0, 60)}...`)
       .join('\n\n');
 
-    const text = `👑 *Pro Mode — Review Scene*\n\nIndustri terdeteksi: *${industry}*\n\n${sceneList}\n\nTap scene untuk edit, atau lanjut:`;
+    const text = t('gen.pro_scene_review', lang, { industry, scenes: sceneList });
 
     await ctx.reply(text, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           ...scenes.map((s, i) => [{ text: `✏️ Edit Scene ${i + 1}: ${HPAS_SCENES[s.sceneId].nameId}`, callback_data: `edit_scene_${s.sceneId}` }]),
-          [{ text: '✅ Lanjut ke Pilih Durasi', callback_data: 'pro_select_duration' }],
-          [{ text: '◀️ Kembali', callback_data: 'action_video' }],
-          [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+          [{ text: t('gen.btn_pro_continue', lang), callback_data: 'pro_select_duration' }],
+          [{ text: t('btn.back', lang), callback_data: 'action_video' }],
+          [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
         ],
       },
     });
@@ -1144,12 +1329,13 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
 
     const resMultipliers: Record<string, number> = { standard: 1, hd: 2, ultra: 4 };
     const resMult = resMultipliers[(session.generateResolution as string) || 'standard'] || 1;
-    if (action === 'image_set') { cost = UNIT_COSTS.IMAGE_SET_7_SCENE * resMult; actionLabel = '📸 Image Set 7 Scene'; }
-    else if (action === 'video') { cost = presetConfig.creditCost; actionLabel = `🎥 Video ${presetConfig.totalSeconds}s`; }
-    else if (action === 'clone_style') { cost = UNIT_COSTS.CLONE_STYLE; actionLabel = '🔄 Clone Style'; }
+    const { getUnitCostAsync: getConfirmCost } = await import('../config/pricing.js');
+    if (action === 'image_set') { cost = (await getConfirmCost('IMAGE_SET_7_SCENE')) * resMult; actionLabel = '📸 Image Set 7 Scene'; }
+    else if (action === 'video') { cost = await getConfirmCost(presetConfig.totalSeconds <= 15 ? 'VIDEO_15S' : presetConfig.totalSeconds <= 30 ? 'VIDEO_30S' : presetConfig.totalSeconds <= 60 ? 'VIDEO_60S' : 'VIDEO_120S'); actionLabel = `🎥 Video ${presetConfig.totalSeconds}s`; }
+    else if (action === 'clone_style') { cost = await getConfirmCost('CLONE_STYLE'); actionLabel = '🔄 Clone Style'; }
     else if (action === 'campaign') {
       const campSize = (session.generateCampaignSize as 5 | 10) || 5;
-      cost = CampaignService.getCampaignCost(campSize);
+      cost = await CampaignService.getCampaignCost(campSize);
       actionLabel = `📦 Campaign ${campSize} Video`;
     }
 
@@ -1161,7 +1347,9 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     const selectedRes = (session.generateResolution as string) || '';
 
     const lang = ctx.session?.userLang || 'id';
-    let text = t('gen.confirm_title', lang) + `\n\n` +
+    const totalSteps: Record<string, number> = { basic: 4, smart: 6, pro: 11 };
+    const confirmStep = totalSteps[mode] || 6;
+    let text = `${getStepIndicator(mode, confirmStep)} ${t('gen.confirm_title', lang)}` + `\n\n` +
       `Mode: ${modeLabel}\n` +
       `Aksi: ${actionLabel}\n`;
 

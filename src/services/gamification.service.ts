@@ -197,6 +197,18 @@ export class GamificationService {
           where: { id: userId },
           data: { creditBalance: { increment: rewardCredit } },
         });
+        await prisma.transaction.create({
+          data: {
+            userId,
+            orderId: `GAMIFY-streak-${Date.now()}`,
+            type: 'gamification_reward',
+            gateway: 'system',
+            amountIdr: 0,
+            creditsAmount: rewardCredit,
+            status: 'success',
+            metadata: { reason: 'Streak reward' },
+          },
+        }).catch(() => {}); // non-critical, don't fail the reward
       }
 
       return {
@@ -247,6 +259,18 @@ export class GamificationService {
                 where: { id: userId },
                 data: { creditBalance: { increment: badge.creditReward } },
               });
+              await prisma.transaction.create({
+                data: {
+                  userId,
+                  orderId: `GAMIFY-${badge.id}-${Date.now()}`,
+                  type: 'gamification_reward',
+                  gateway: 'system',
+                  amountIdr: 0,
+                  creditsAmount: badge.creditReward,
+                  status: 'success',
+                  metadata: { reason: `Badge: ${badge.id}` },
+                },
+              }).catch(() => {}); // non-critical, don't fail the reward
             }
 
             // Send Telegram notification for the badge and mark as notified

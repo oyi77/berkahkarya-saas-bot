@@ -5,39 +5,91 @@
  * and backward compatibility of text-to-image flow.
  */
 
+// Mock database before importing services
+const mockAvatars: any[] = [];
+jest.mock('@/config/database', () => ({
+  prisma: {
+    userAvatar: {
+      deleteMany: jest.fn<any>().mockResolvedValue({ count: 0 }),
+      findMany: jest.fn<any>().mockImplementation(() => Promise.resolve([...mockAvatars])),
+      findFirst: jest.fn<any>().mockImplementation(({ where }: any) => {
+        if (where?.isDefault) return Promise.resolve(mockAvatars.find(a => a.isDefault) || null);
+        if (where?.id) return Promise.resolve(mockAvatars.find(a => a.id === where.id) || null);
+        return Promise.resolve(mockAvatars[0] || null);
+      }),
+      findUnique: jest.fn<any>().mockImplementation(({ where }: any) =>
+        Promise.resolve(mockAvatars.find(a => a.id === where?.id) || null)),
+      create: jest.fn<any>().mockImplementation(({ data }: any) => {
+        const avatar = { id: BigInt(mockAvatars.length + 1), ...data, createdAt: new Date(), updatedAt: new Date() };
+        mockAvatars.push(avatar);
+        return Promise.resolve(avatar);
+      }),
+      update: jest.fn<any>().mockImplementation(({ where, data }: any) => {
+        const idx = mockAvatars.findIndex(a => a.id === where?.id);
+        if (idx >= 0) Object.assign(mockAvatars[idx], data);
+        return Promise.resolve(mockAvatars[idx] || null);
+      }),
+      updateMany: jest.fn<any>().mockImplementation(({ where, data }: any) => {
+        mockAvatars.forEach(a => {
+          const matchesUser = !where?.userId || a.userId === where.userId;
+          const matchesDefault = where?.isDefault === undefined || a.isDefault === where.isDefault;
+          if (matchesUser && matchesDefault) Object.assign(a, data);
+        });
+        return Promise.resolve({ count: mockAvatars.length });
+      }),
+      delete: jest.fn<any>().mockImplementation(({ where }: any) => {
+        const idx = mockAvatars.findIndex(a => a.id === where?.id);
+        const deleted = idx >= 0 ? mockAvatars.splice(idx, 1)[0] : null;
+        return Promise.resolve(deleted);
+      }),
+      count: jest.fn<any>().mockImplementation(() => Promise.resolve(mockAvatars.length)),
+    },
+    user: {
+      upsert: jest.fn<any>().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
+      findUnique: jest.fn<any>().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
+    },
+    $disconnect: jest.fn<any>().mockResolvedValue(undefined),
+    $transaction: jest.fn<any>().mockImplementation(async (arg: any) => {
+      if (Array.isArray(arg)) return Promise.all(arg);
+      if (typeof arg === 'function') {
+        const txPrisma = {
+          userAvatar: {
+            updateMany: jest.fn<any>().mockImplementation(({ data }: any) => {
+              // Unset isDefault on all avatars
+              mockAvatars.forEach(a => { a.isDefault = data.isDefault ?? false; });
+              return Promise.resolve({ count: mockAvatars.length });
+            }),
+            update: jest.fn<any>().mockImplementation(({ where, data }: any) => {
+              const idx = mockAvatars.findIndex(a => a.id === where?.id);
+              if (idx >= 0) Object.assign(mockAvatars[idx], data);
+              return Promise.resolve(mockAvatars[idx] || null);
+            }),
+          },
+        };
+        return arg(txPrisma);
+      }
+    }),
+  },
+}));
+
+jest.mock('@/utils/logger', () => ({
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock('@/services/geminigen.service', () => ({
+  GeminiGenService: {
+    generateImage: jest.fn<any>().mockResolvedValue({ success: true, imageUrl: 'https://example.com/generated.jpg' }),
+  },
+}));
+
 import { ImageGenerationService, ImageGenerationParams, ImageGenerationMode } from '@/services/image.service';
 import { AvatarService } from '@/services/avatar.service';
-import { prisma } from '@/config/database';
 
 // ── Test user setup ──
 const TEST_TELEGRAM_ID = BigInt(999999999);
 
-beforeAll(async () => {
-  // Clean up any leftover test avatars from previous runs
-  try {
-    await prisma.userAvatar.deleteMany({ where: { userId: TEST_TELEGRAM_ID } });
-  } catch (_) { /* table might not exist yet */ }
-
-  // Ensure test user exists
-  await prisma.user.upsert({
-    where: { telegramId: TEST_TELEGRAM_ID },
-    update: {},
-    create: {
-      telegramId: TEST_TELEGRAM_ID,
-      firstName: 'TestUser',
-      username: 'testuser_imgref',
-      tier: 'pro',
-      creditBalance: 100,
-    },
-  });
-});
-
-afterAll(async () => {
-  // Clean up test avatars
-  await prisma.userAvatar.deleteMany({
-    where: { userId: TEST_TELEGRAM_ID },
-  });
-  await prisma.$disconnect();
+beforeAll(() => {
+  mockAvatars.length = 0; // Clear avatars before all tests
 });
 
 // ── Mode Detection ──

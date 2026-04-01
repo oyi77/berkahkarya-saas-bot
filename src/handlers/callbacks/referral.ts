@@ -7,6 +7,18 @@ import { PaymentSettingsService } from "@/services/payment-settings.service";
 import { t } from "@/i18n/translations";
 
 export async function handleReferralCallbacks(ctx: BotContext, data: string): Promise<boolean> {
+  if (data === 'referral_explain') {
+    await ctx.answerCbQuery().catch(() => {});
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.reply(t('referral.explanation', lang), {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[{ text: t('btn.back', lang), callback_data: 'referral_menu' }]],
+      },
+    });
+    return true;
+  }
+
   if (data === "share_referral") {
     const lang = ctx.session?.userLang || 'id';
     await ctx.answerCbQuery(t('misc.share_coming_soon', lang));

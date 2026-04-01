@@ -388,6 +388,7 @@ describe("VideoService", () => {
         },
         orderBy: { createdAt: "desc" },
         take: 10,
+        skip: 0,
       });
       expect(result).toHaveLength(2);
     });
@@ -404,6 +405,7 @@ describe("VideoService", () => {
         },
         orderBy: { createdAt: "desc" },
         take: 5,
+        skip: 0,
       });
     });
 
@@ -418,6 +420,7 @@ describe("VideoService", () => {
         }),
         orderBy: { createdAt: "desc" },
         take: 10,
+        skip: 0,
       });
     });
   });

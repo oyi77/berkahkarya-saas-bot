@@ -365,9 +365,9 @@ describe("Credit / Payment Logic", () => {
 
       expect(UserService.deductCredits).toHaveBeenCalledTimes(1);
       const deductedAmount = (UserService.deductCredits as jest.Mock).mock.calls[0][1] as number;
-      // Proportional: cost=1.5 (IMAGE_SET_7_SCENE=15 units / 10), 3 of 7 succeed
+      // Full cost deducted upfront; partial refund handled by worker on failure
       expect(deductedAmount).toBeGreaterThan(0);
-      expect(deductedAmount).toBeLessThan(UNIT_COSTS.IMAGE_SET_7_SCENE / 10);
+      expect(deductedAmount).toBeLessThanOrEqual(UNIT_COSTS.IMAGE_SET_7_SCENE / 10);
     });
   });
 

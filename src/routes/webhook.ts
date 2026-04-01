@@ -11,6 +11,7 @@ import { NowPaymentsService } from '@/services/nowpayments.service';
 import { UserService } from '@/services/user.service';
 import { t } from '@/i18n/translations';
 import crypto from 'crypto';
+import { timingSafeCompare } from '@/utils/crypto';
 
 interface WebhookOptions {
   bot: Telegraf<BotContext>;
@@ -29,7 +30,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       }
       if (webhookSecret) {
         const secret = request.headers['x-telegram-bot-api-secret-token'];
-        if (secret !== webhookSecret) {
+        if (!secret || !timingSafeCompare(String(secret), webhookSecret)) {
           logger.warn('Invalid webhook secret');
           return reply.status(401).send({ error: 'Unauthorized' });
         }
@@ -96,7 +97,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
         .update(JSON.stringify(body))
         .digest('hex');
 
-      if (signature !== expectedSignature) {
+      if (!signature || !timingSafeCompare(signature, expectedSignature)) {
         logger.warn('Invalid Tripay signature', { received: signature, expected: expectedSignature });
         return reply.status(401).send({ error: 'Invalid signature' });
       }
@@ -159,7 +160,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
           Object.keys(body).sort().reduce((acc: any, key) => { acc[key] = body[key]; return acc; }, {})
         );
         const expectedSig = crypto.createHmac('sha512', ipnSecret).update(sortedBody).digest('hex');
-        if (signature !== expectedSig) {
+        if (!timingSafeCompare(signature, expectedSig)) {
           logger.warn('NOWPayments: invalid IPN signature');
           return reply.status(401).send({ error: 'Invalid signature' });
         }

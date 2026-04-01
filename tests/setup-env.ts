@@ -18,3 +18,6 @@ if (!process.env.DUITKU_MERCHANT_CODE) {
 if (!process.env.DUITKU_API_KEY) {
   process.env.DUITKU_API_KEY = 'test-api-key';
 }
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'test-jwt-secret-that-is-at-least-32-characters-long';
+}

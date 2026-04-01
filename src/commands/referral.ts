@@ -52,6 +52,7 @@ export async function referralCommand(ctx: BotContext): Promise<void> {
         [{ text: t('referral.btn_share', lang), url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(t('referral.share_text', lang))}` }],
         [{ text: t('referral.btn_withdraw', lang), callback_data: 'referral_withdraw' }],
         [{ text: t('referral.btn_stats', lang), callback_data: 'referral_stats' }],
+        [{ text: t('referral.how_it_works', lang), callback_data: 'referral_explain' }],
         [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],
     };

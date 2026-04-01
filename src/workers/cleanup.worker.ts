@@ -225,6 +225,23 @@ async function cleanupExpiredTransactions(): Promise<number> {
 }
 
 /**
+ * Mark pending transactions whose expiredAt timestamp has passed as 'expired'.
+ * These are gateway-issued payment links that have hit their own deadline.
+ */
+async function cleanupGatewayExpiredTransactions(): Promise<void> {
+  const result = await prisma.transaction.updateMany({
+    where: {
+      status: 'pending',
+      expiredAt: { lt: new Date() },
+    },
+    data: { status: 'expired' },
+  });
+  if (result.count > 0) {
+    logger.info(`Marked ${result.count} expired pending transactions`);
+  }
+}
+
+/**
  * Main cleanup job processor.
  */
 async function processCleanup(_job: Job): Promise<CleanupResult> {
@@ -237,6 +254,8 @@ async function processCleanup(_job: Job): Promise<CleanupResult> {
     cleanupStuckVideos(),
     cleanupExpiredTransactions(),
   ]);
+
+  await cleanupGatewayExpiredTransactions();
 
   const freedMB = Math.round((localResult.freedBytes / (1024 * 1024)) * 100) / 100;
 

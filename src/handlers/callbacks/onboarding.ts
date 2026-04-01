@@ -127,32 +127,30 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
 
     const telegramId = BigInt(user.id);
 
-    let dbUser = await UserService.findByTelegramId(telegramId);
-
-    if (!dbUser) {
-      const detectedLang = (ctx.session?.stateData?.detectedLang as string) || "id";
-      dbUser = await UserService.create({
+    const detectedLang = (ctx.session?.stateData?.detectedLang as string) || "id";
+    await prisma.user.upsert({
+      where: { telegramId },
+      create: {
         telegramId,
         username: user.username,
         firstName: user.first_name,
         lastName: user.last_name,
         language: detectedLang,
-      });
+        selectedNiche: niche,
+        welcomeBonusUsed: false,
+        dailyFreeUsed: false,
+        dailyFreeResetAt: null,
+        referralCode: await UserService.generateReferralCode(user.username || user.first_name),
+        tier: 'free',
+        creditBalance: 0,
+        notificationsEnabled: true,
+      },
+      update: {
+        selectedNiche: niche,
+      },
+    });
 
-      await prisma.user.update({
-        where: { telegramId },
-        data: {
-          selectedNiche: niche,
-          welcomeBonusUsed: false,
-          dailyFreeUsed: false,
-          dailyFreeResetAt: null,
-        },
-      });
-
-      logger.info(
-        `New user created with free trial: ${telegramId}, niche: ${niche}`,
-      );
-    }
+    logger.info(`Upserted user with niche: ${telegramId}, niche: ${niche}`);
 
     const nicheLabels: Record<string, string> = {
       fnb: "🍔 F&B",
@@ -165,24 +163,47 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
       entertainment: "🎬 Entertainment",
     };
 
-    const lang = ctx.session?.userLang || 'id';
+    const lang = (ctx.session?.stateData?.detectedLang as string) || ctx.session?.userLang || detectedLang;
+
+    // Continue to welcome flow
     await ctx.editMessageText(
       t('cb.onboard_account_created', lang, { niche: nicheLabels[niche] || niche }),
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: t('btn.use_welcome_bonus', lang),
-                callback_data: "use_welcome_bonus",
-              },
-            ],
-            [{ text: t('btn.buy_credits', lang), callback_data: "topup" }],
-          ],
-        },
-      },
+      { parse_mode: "Markdown" },
     );
+
+    await ctx.reply(t("onboarding.welcome", lang), {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t('btn.create_video', lang), callback_data: "create_video_new" }],
+          [{ text: t('btn.create_image', lang), callback_data: "create_image_new" }],
+          [{ text: t('btn.credits_packages', lang), callback_data: "credits_menu" }],
+          [{ text: t('btn.my_videos_emoji', lang), callback_data: "videos_list" }],
+          [{ text: t('btn.account', lang), callback_data: "account_menu" }],
+        ],
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 1500));
+    await ctx.reply(t("onboarding.features", lang), { parse_mode: "Markdown" });
+
+    await new Promise((r) => setTimeout(r, 1500));
+    await ctx.reply(t("onboarding.cta", lang), {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t("onboarding.btn_create_video", lang), callback_data: "back_prompts" }],
+          [{ text: t("onboarding.btn_try_image", lang), callback_data: "daily_open" }],
+          [{ text: t("onboarding.btn_chat_ai", lang), callback_data: "open_chat" }],
+        ],
+      },
+    });
+
+    if (ctx.session) {
+      ctx.session.state = "DASHBOARD";
+      ctx.session.lastActivity = new Date();
+      ctx.session.stateData = {};
+    }
     return true;
   }
 
@@ -379,13 +400,25 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
     }
 
     const user = ctx.from!;
-    await UserService.create({
-      telegramId: BigInt(user.id),
-      username: user.username,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      language: langCode,
-      referredBy,
+    await prisma.user.upsert({
+      where: { telegramId: BigInt(user.id) },
+      create: {
+        telegramId: BigInt(user.id),
+        username: user.username,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        language: langCode,
+        referredBy,
+        referralCode: await UserService.generateReferralCode(user.username || user.first_name),
+        tier: 'free',
+        creditBalance: 0,
+        welcomeBonusUsed: false,
+        dailyFreeUsed: false,
+        notificationsEnabled: true,
+      },
+      update: {
+        language: langCode,
+      },
     });
 
     await ctx.editMessageText(`${langCfg.flag} ${langCfg.label} \u2705`, {
@@ -394,57 +427,16 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
 
     const lang = langCode;
 
-    await ctx.reply(t("onboarding.welcome", lang), {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: t('btn.create_video', lang), callback_data: "create_video_new" }],
-          [{ text: t('btn.create_image', lang), callback_data: "create_image_new" }],
-          [{ text: t('btn.credits_packages', lang), callback_data: "credits_menu" }],
-          [{ text: t('btn.my_videos_emoji', lang), callback_data: "videos_list" }],
-          [{ text: t('btn.account', lang), callback_data: "account_menu" }],
-        ],
-      },
-    });
-
-    await new Promise((r) => setTimeout(r, 1500));
-    await ctx.reply(t("onboarding.features", lang), {
-      parse_mode: "Markdown",
-    });
-
-    await new Promise((r) => setTimeout(r, 1500));
-    await ctx.reply(t("onboarding.cta", lang), {
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: t("onboarding.btn_create_video", lang),
-              callback_data: "back_prompts",
-            },
-          ],
-          [
-            {
-              text: t("onboarding.btn_try_image", lang),
-              callback_data: "daily_open",
-            },
-          ],
-          [
-            {
-              text: t("onboarding.btn_chat_ai", lang),
-              callback_data: "open_chat",
-            },
-          ],
-        ],
-      },
-    });
-
-    if (ctx.session) {
-      ctx.session.state = "DASHBOARD";
-      ctx.session.lastActivity = new Date();
-      ctx.session.stateData = {};
-    }
-    return true;
+    // Show niche picker before welcome flow
+    const nicheKeyboard = {
+      inline_keyboard: [
+        [{ text: '🍔 F&B', callback_data: 'onboard_niche_fnb' }, { text: '👗 Fashion', callback_data: 'onboard_niche_fashion' }],
+        [{ text: '💄 Beauty', callback_data: 'onboard_niche_beauty' }, { text: '📱 Tech', callback_data: 'onboard_niche_tech' }],
+        [{ text: '🏠 Property', callback_data: 'onboard_niche_property' }, { text: '🎯 Other', callback_data: 'onboard_niche_general' }],
+      ],
+    };
+    await ctx.reply(t('onboarding.select_niche', lang), { reply_markup: nicheKeyboard });
+    return true; // Wait for niche selection before showing welcome
   }
 
   return false;

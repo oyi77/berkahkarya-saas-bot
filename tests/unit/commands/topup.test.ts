@@ -560,6 +560,7 @@ describe("Topup Command", () => {
         ...mockUser,
         tier: "free",
       });
+      PaymentSettingsService.getEnabledGateways.mockResolvedValue([{ id: 'duitku', gateway: 'duitku' }]);
       DuitkuService.createTransaction.mockResolvedValue({
         orderId: "ORDER-EXTRA-5",
         paymentUrl: "https://duitku.example.com/pay",
@@ -576,6 +577,7 @@ describe("Topup Command", () => {
         ...mockUser,
         tier: "free",
       });
+      PaymentSettingsService.getEnabledGateways.mockResolvedValue([{ id: 'duitku', gateway: 'duitku' }]);
       DuitkuService.createTransaction.mockRejectedValue(new Error("Payment error"));
 
       await handleTopupExtraCredit(ctx as any, 5);

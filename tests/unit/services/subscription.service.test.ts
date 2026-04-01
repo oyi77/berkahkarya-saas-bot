@@ -17,6 +17,7 @@ const mockPrisma = {
   video: {
     count: jest.fn(),
   },
+  $executeRaw: jest.fn().mockResolvedValue(0),
 };
 
 const mockLogger = {

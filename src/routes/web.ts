@@ -22,6 +22,7 @@ import {
   getImageCreditCostAsync,
   getPackagesAsync,
   getSubscriptionPlansAsync,
+  getUnitCostAsync,
   SUBSCRIPTION_PLANS,
   getPlanPrice,
 } from "@/config/pricing";
@@ -123,6 +124,25 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     return reply.send(stream);
   });
 
+  // Payment finish — redirect target after gateway payment
+  server.get("/payment/finish", async (request, reply) => {
+    const { order_id } = request.query as any;
+    let statusMessage = 'Payment is being processed';
+    let statusIcon = '⏳';
+    let statusClass = 'pending';
+    if (order_id) {
+      try {
+        const tx = await prisma.transaction.findFirst({ where: { orderId: String(order_id) }, select: { status: true } });
+        if (tx?.status === 'success') { statusMessage = 'Payment successful! Credits added to your account.'; statusIcon = '✅'; statusClass = 'success'; }
+        else if (tx?.status === 'failed') { statusMessage = 'Payment failed. Please try again or contact support.'; statusIcon = '❌'; statusClass = 'failed'; }
+      } catch { /* ignore lookup errors */ }
+    }
+    const botUsername = getConfig().BOT_USERNAME || 'BKVilonaBot';
+    return reply.type('text/html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Status</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}.card{background:white;border-radius:16px;padding:40px;text-align:center;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.1)}.icon{font-size:48px;margin-bottom:16px}.success{color:#16a34a}.pending{color:#d97706}.failed{color:#dc2626}.btn{display:inline-block;padding:12px 24px;border-radius:8px;text-decoration:none;margin:8px;font-weight:600}.btn-primary{background:#2563eb;color:white}.btn-secondary{background:#e5e7eb;color:#374151}</style></head>
+<body><div class="card"><div class="icon">${statusIcon}</div><h2 class="${statusClass}">${statusMessage}</h2><p><a class="btn btn-primary" href="https://t.me/${botUsername}">Return to Bot</a></p><p><a class="btn btn-secondary" href="/app">Open Web App</a></p></div></body></html>`);
+  });
+
   // Web app
   server.get("/app", async (_request, reply) => {
     reply.view("web/app.ejs", {
@@ -164,13 +184,27 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
       let user = await UserService.findByTelegramId(BigInt(userData.id));
       if (!user) {
-        user = await UserService.create({
-          telegramId: BigInt(userData.id),
-          username: userData.username,
-          firstName: userData.first_name,
-          lastName: userData.last_name,
-        });
+        try {
+          user = await UserService.create({
+            telegramId: BigInt(userData.id),
+            username: userData.username,
+            firstName: userData.first_name,
+            lastName: userData.last_name,
+          });
+        } catch (err: any) {
+          if (err?.code === 'P2002') {
+            // Created concurrently — fetch the existing record
+            user = await UserService.findByTelegramId(BigInt(userData.id));
+          } else {
+            throw err;
+          }
+        }
       }
+
+      if (!user) {
+        return reply.status(500).send({ error: 'User creation failed' });
+      }
+
       const token = jwt.sign(
         {
           userId: user.uuid,
@@ -502,7 +536,25 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   // ── PACKAGES ──
   server.get("/api/packages", async (_request, reply) => {
     try {
-      return await getPackagesAsync();
+      const [packages, enabledGateways, unitCostsRaw] = await Promise.all([
+        getPackagesAsync(),
+        PaymentSettingsService.getEnabledGateways(),
+        Promise.all([
+          getUnitCostAsync('VIDEO_15S'),
+          getUnitCostAsync('VIDEO_30S'),
+          getUnitCostAsync('VIDEO_60S'),
+          getUnitCostAsync('VIDEO_120S'),
+          getUnitCostAsync('IMAGE_UNIT'),
+        ]),
+      ]);
+      const unitCosts = {
+        VIDEO_15S: unitCostsRaw[0] / 10,
+        VIDEO_30S: unitCostsRaw[1] / 10,
+        VIDEO_60S: unitCostsRaw[2] / 10,
+        VIDEO_120S: unitCostsRaw[3] / 10,
+        IMAGE_UNIT: unitCostsRaw[4] / 10,
+      };
+      return { packages, unitCosts, enabledGateways };
     } catch (error) {
       server.log.error({ error }, "Failed to load packages");
       return reply.status(500).send({ error: "Failed to load packages" });
@@ -791,22 +843,9 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         });
       }
 
-      // If gateway doesn't natively know sub_ packages, create the tx record here
+      // If gateway doesn't natively know sub_ packages, return error instead of unpayable record
       if (!result?.paymentUrl && !result?.payment_url) {
-        const orderId = `OC-SUB-${Date.now()}-${user.telegramId}`;
-        await prisma.transaction.create({
-          data: {
-            orderId,
-            userId: user.telegramId,
-            type: "subscription",
-            packageName: `${planKey}_${billingCycle}`,
-            amountIdr: price,
-            creditsAmount: planConfig.monthlyCredits,
-            gateway,
-            status: "pending",
-          },
-        });
-        return { ok: true, orderId, plan: planKey, cycle: billingCycle, amountIdr: price };
+        return reply.status(502).send({ error: 'Payment gateway unavailable. Please try again.' });
       }
 
       return { ok: true, ...result, plan: planKey, cycle: billingCycle, amountIdr: price };

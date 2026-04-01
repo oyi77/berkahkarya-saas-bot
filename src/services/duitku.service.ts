@@ -201,6 +201,12 @@ export class DuitkuService {
           where: { telegramId: transaction.userId },
           data: userUpdateData,
         });
+
+        await prisma.user.update({
+          where: { telegramId: transaction.userId },
+          data: { totalSpent: { increment: Number(transaction.amountIdr) } },
+        }).catch(() => {}); // non-critical
+
         logger.info(`Added ${credits} credits for user ${transaction.userId} (tier: ${plan?.tier || 'unchanged'})`);
       }
 

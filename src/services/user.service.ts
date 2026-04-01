@@ -181,6 +181,9 @@ export class UserService {
       throw new Error('Insufficient credits');
     }
 
+    // Decrement subscription credits tracking (subscription credits are used first)
+    await prisma.$executeRaw`UPDATE "users" SET "subscription_credits" = GREATEST(0, "subscription_credits" - ${amount}) WHERE "telegram_id" = ${telegramId}`;
+
     const updated = await this.findByTelegramId(telegramId);
     if (!updated) throw new Error('User not found after credit deduction');
 

@@ -32,4 +32,11 @@ export async function errorHandler(err: unknown, ctx: BotContext): Promise<void>
   } catch (replyError) {
     logger.error('Failed in error handler:', replyError);
   }
+
+  try {
+    const lang = (ctx as any).session?.userLang || 'id';
+    const { t } = await import('../i18n/translations.js');
+    const { safeReply } = await import('../utils/safe-reply.js');
+    await safeReply(ctx, t('error.something_went_wrong', lang) + '\n\n' + t('error.try_start', lang));
+  } catch { /* prevent error-in-error-handler */ }
 }

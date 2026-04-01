@@ -172,31 +172,33 @@ export class CampaignService {
   /**
    * Calculate total unit cost for campaign
    */
-  static getCampaignCost(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): number {
-    const baseCost = size === 5 ? UNIT_COSTS.CAMPAIGN_5_VIDEO : UNIT_COSTS.CAMPAIGN_10_VIDEO;
+  static async getCampaignCost(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): Promise<number> {
+    const { getUnitCostAsync } = await import('../config/pricing.js');
+    const baseCost = size === 5 ? await getUnitCostAsync('CAMPAIGN_5_VIDEO') : await getUnitCostAsync('CAMPAIGN_10_VIDEO');
     // Scale campaign cost based on duration preset — base cost is for 'standard' (30s)
-    const standardCreditCost = DURATION_PRESETS.standard.creditCost;
-    const presetCreditCost = DURATION_PRESETS[preset].creditCost;
-    const durationMultiplier = presetCreditCost / standardCreditCost;
+    const standardSeconds = DURATION_PRESETS.standard.totalSeconds;
+    const presetSeconds = DURATION_PRESETS[preset].totalSeconds;
+    const durationMultiplier = presetSeconds / standardSeconds;
     return Math.round(baseCost * durationMultiplier);
   }
 
   /**
    * Get savings percentage vs individual video cost
    */
-  static getCampaignSavings(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): number {
-    const presetCost = DURATION_PRESETS[preset].creditCost;
+  static async getCampaignSavings(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): Promise<number> {
+    const { getVideoCreditCostAsync } = await import('../config/pricing.js');
+    const presetCost = await getVideoCreditCostAsync(DURATION_PRESETS[preset].totalSeconds);
     const individualTotal = presetCost * size;
-    const campaignCost = this.getCampaignCost(size, preset);
+    const campaignCost = await this.getCampaignCost(size, preset);
     return Math.round(((individualTotal - campaignCost) / individualTotal) * 100);
   }
 
   /**
    * Format campaign pricing message for Telegram
    */
-  static formatCampaignMessage(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): string {
-    const cost = this.getCampaignCost(size, preset);
-    const savings = this.getCampaignSavings(size, preset);
+  static async formatCampaignMessage(size: CampaignSize, preset: 'quick' | 'standard' | 'extended' = 'standard'): Promise<string> {
+    const cost = await this.getCampaignCost(size, preset);
+    const savings = await this.getCampaignSavings(size, preset);
     const hooks = this.getHookVariations(size);
 
     const hookList = hooks.map((h, i) => `  ${i + 1}. ${h.name} — ${h.description}`).join('\n');

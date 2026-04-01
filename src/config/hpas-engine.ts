@@ -30,7 +30,7 @@ export interface DurationPresetConfig {
   totalSeconds: number;
   scenesIncluded: SceneId[];
   sceneDurations: Partial<Record<SceneId, number>>; // seconds per scene
-  creditCost: number; // in units
+  creditCost: number; // in units — DEPRECATED: use getUnitCostAsync() for billing; kept for legacy ratio calculations
   description: string;
 }
 

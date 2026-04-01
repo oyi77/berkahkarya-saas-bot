@@ -26,6 +26,8 @@ export const UNIT_COSTS = {
   CAMPAIGN_10_VIDEO: 110, // 11.0 Credits (was 7.5) — margin 50%
 };
 
+export const CUSTOM_DURATION_MIN = 6; // seconds — no max limit, pricing scales dynamically
+
 // Aliases for transition
 export const VIDEO_UNIT_COSTS = UNIT_COSTS;
 export const IMAGE_UNIT_COST = UNIT_COSTS.IMAGE_UNIT;
@@ -131,7 +133,7 @@ export async function getVideoCreditCostAsync(durationSeconds: number): Promise<
   if (config && typeof config === 'object' && 'credits' in config) {
     return (config as any).credits;
   }
-  return durationSeconds <= 15 ? 0.5 : (durationSeconds <= 30 ? 1.0 : (durationSeconds <= 60 ? 2.0 : 4.5));
+  return getVideoCreditCost(durationSeconds);
 }
 
 export async function getImageCreditCostAsync(provider?: string): Promise<number> {

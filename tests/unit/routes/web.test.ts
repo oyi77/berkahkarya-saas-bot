@@ -76,6 +76,8 @@ const mockPaymentSettingsGet = jest.fn();
 jest.mock("@/services/payment-settings.service", () => ({
   PaymentSettingsService: {
     get: mockPaymentSettingsGet,
+    getEnabledGateways: jest.fn().mockResolvedValue([{ id: 'duitku', gateway: 'duitku' }]),
+    getPricingConfig: jest.fn().mockResolvedValue(null),
   },
 }));
 
@@ -131,6 +133,7 @@ jest.mock("@/config/pricing", () => ({
   getImageCreditCostAsync: mockGetImageCreditCostAsync,
   getPackagesAsync: mockGetPackagesAsync,
   getSubscriptionPlansAsync: mockGetSubscriptionPlansAsync,
+  getUnitCostAsync: jest.fn().mockResolvedValue(10),
   SUBSCRIPTION_PLANS: {
     lite: { name: "Lite", tier: "basic", monthlyCredits: 30, monthlyPriceIdr: 49000, annualPriceIdr: 490000 },
     pro: { name: "Pro", tier: "pro", monthlyCredits: 100, monthlyPriceIdr: 99000, annualPriceIdr: 990000 },
@@ -148,7 +151,7 @@ jest.mock("fs", () => ({
   statSync: mockStatSync,
 }));
 
-process.env.JWT_SECRET = "test-jwt-secret";
+process.env.JWT_SECRET = "test-jwt-secret-that-is-at-least-32-characters-long";
 process.env.BOT_TOKEN = "test-bot-token";
 process.env.NODE_ENV = "test";
 
@@ -806,7 +809,9 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       const result = await handler()(request, reply);
       expect(mockGetPackagesAsync).toHaveBeenCalled();
-      expect(result).toEqual(mockPackages);
+      // Packages endpoint now returns { packages, gateways, unitCosts }
+      expect(result).toHaveProperty('packages');
+      expect(result.packages).toEqual(mockPackages);
     });
   });
 

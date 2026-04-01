@@ -10,23 +10,12 @@ export async function cancelCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    const currentState = ctx.session?.state;
-    
-    if (currentState && (
-      currentState.includes('VIDEO_CREATE') ||
-      currentState.includes('CREATE') ||
-      currentState.includes('IMAGE_CREATE') ||
-      currentState.includes('CUSTOM_')
-    )) {
-      if (ctx.session) {
-        ctx.session.state = 'DASHBOARD';
-        ctx.session.videoCreation = undefined;
-        ctx.session.videoCreationNew = undefined;
-        ctx.session.stateData = {};
-      }
-      
+    const lang = ctx.session?.userLang || 'id';
+    const state = ctx.session?.state;
+
+    if (!state || state === 'DASHBOARD') {
       await ctx.reply(
-        'Dibatalkan. Operasi yang sedang berjalan telah dibatalkan.',
+        t('cancel.nothing_active', lang),
         {
           reply_markup: {
             inline_keyboard: [
@@ -35,20 +24,27 @@ export async function cancelCommand(ctx: BotContext): Promise<void> {
           },
         }
       );
-      
-      logger.info(`User ${user.id} cancelled operation`);
-    } else {
-      await ctx.reply(
-        'Tidak ada operasi yang sedang berjalan.',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'Menu Utama', callback_data: 'main_menu' }],
-            ],
-          },
-        }
-      );
+      return;
     }
+
+    // Reset to dashboard and clear flow-specific data
+    ctx.session.state = 'DASHBOARD';
+    ctx.session.videoCreation = undefined;
+    ctx.session.videoCreationNew = undefined;
+    delete (ctx.session as any).stateData;
+
+    await ctx.reply(
+      t('cancel.cancelled', lang),
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: 'Menu Utama', callback_data: 'main_menu' }],
+          ],
+        },
+      }
+    );
+
+    logger.info(`User ${user.id} cancelled operation from state: ${state}`);
   } catch (error) {
     logger.error('Error in cancel command:', error);
     await ctx.reply(t('error.generic', 'id'));

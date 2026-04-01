@@ -29,6 +29,7 @@ import {
 } from "./prompts";
 import { cancelCommand } from "./cancel";
 import { sendCommand } from "./send";
+import { pricingCommand } from "./pricing";
 
 // Feature-based flows
 export * from "@/flows/generate";
@@ -64,6 +65,7 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("support", supportCommand);
   bot.command("cancel", cancelCommand);
   bot.command("send", sendCommand);
+  bot.command("pricing", pricingCommand);
   bot.command("image", (ctx) => (ctx as any).reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
     parse_mode: "Markdown",
     reply_markup: {
@@ -85,10 +87,6 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("daily", dailyCommand);
   bot.command("trending", trendingCommand);
   bot.command("fingerprint", fingerprintCommand);
-  // Ads commands - disabled for now, focus on content generation
-  // bot.command('report_today', reportTodayCommand);
-  // bot.command('creative_ideas', creativeIdeasCommand);
-
   // Admin commands (with middleware check)
   bot.command("broadcast", adminBroadcastCommand);
   bot.command("system_status", adminSystemStatusCommand);
@@ -106,7 +104,6 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
     { command: "prompts", description: "📚 Browse prompt library" },
     { command: "trending", description: "🔥 Prompt trending minggu ini" },
     { command: "daily", description: "🎁 Mystery prompt harian" },
-    { command: "fingerprint", description: "🧬 Style preference kamu" },
     { command: "videos", description: "📁 Video saya" },
     { command: "topup", description: "💰 Beli kredit" },
     { command: "subscription", description: "⭐ Upgrade langganan" },
