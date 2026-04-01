@@ -1283,6 +1283,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: '❌ Не удалось обработать вывод. Попробуйте снова.',
     zh: '❌ 提现处理失败。请重试。',
   },
+  'referral.cashout_completed': {
+    id: '✅ *Penarikan Komisi Selesai!*\n\nPenarikan komisi sebesar *Rp {amount}* telah diproses dan ditransfer ke rekening Anda!',
+    en: '✅ *Commission Withdrawal Complete!*\n\nYour commission withdrawal of *Rp {amount}* has been processed and transferred!',
+    ru: '✅ *Вывод комиссии завершён!*\n\nВаш вывод на сумму *Rp {amount}* был обработан и переведён!',
+    zh: '✅ *佣金提现完成！*\n\n您的佣金提现 *Rp {amount}* 已处理并转账！',
+  },
   'referral.load_failed': {
     id: '❌ Gagal memuat info referral. Coba lagi.',
     en: '❌ Unable to load referral info. Please try again.',
@@ -2987,6 +2993,20 @@ const translations: Record<string, Record<Lang, string>> = {
     en: '✅ *Subscription Cancelled*\n\nYour subscription will end at the current billing period.\nYou\'ll keep access and credits until then.\n\nUse /subscription to re-subscribe anytime.',
     ru: '✅ *Подписка отменена*\n\nВаша подписка завершится в конце текущего периода.\nКредиты сохранятся до этого момента.\n\nИспользуйте /subscription для повторной подписки.',
     zh: '✅ *订阅已取消*\n\n您的订阅将在当前计费周期结束时终止。\n积分可以使用到那时。\n\n使用 /subscription 重新订阅。',
+  },
+
+  'subscription.auto_renewed': {
+    id: '✅ *Langganan Diperpanjang Otomatis*\n\nLangganan *{plan}* kamu telah diperpanjang secara otomatis!\nPeriode baru berakhir: *{endDate}*.',
+    en: '✅ *Subscription Auto-Renewed*\n\nYour *{plan}* subscription has been automatically renewed!\nNew period ends *{endDate}*.',
+    ru: '✅ *Подписка автоматически продлена*\n\nВаша подписка *{plan}* была автоматически продлена!\nНовый период заканчивается: *{endDate}*.',
+    zh: '✅ *订阅已自动续订*\n\n您的 *{plan}* 订阅已自动续订！\n新周期结束时间：*{endDate}*。',
+  },
+
+  'subscription.renewal_failed': {
+    id: '⚠️ *Perpanjangan Otomatis Gagal*\n\nSaldo kredit tidak cukup untuk memperbarui paket *{plan}*.\nSilakan top up agar langganan kamu tetap aktif.',
+    en: '⚠️ *Auto-Renewal Failed*\n\nAuto-renewal failed — insufficient balance. Please top up to continue your *{plan}* plan.',
+    ru: '⚠️ *Ошибка автопродления*\n\nНедостаточно кредитов для продления подписки *{plan}*.\nПополните баланс, чтобы продолжить использование плана.',
+    zh: '⚠️ *自动续订失败*\n\n余额不足，无法续订 *{plan}* 套餐。\n请充值以继续您的订阅计划。',
   },
 
   // ---------------------------------------------------------------------------

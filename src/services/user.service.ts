@@ -146,6 +146,21 @@ export class UserService {
   }
 
   /**
+   * Send a Telegram DM to a user. Fire-and-forget safe — never throws.
+   * Returns true if the message was delivered, false otherwise.
+   */
+  static async sendMessage(telegramId: bigint | string, message: string, options?: { parse_mode?: 'Markdown' | 'HTML' }): Promise<boolean> {
+    if (!this.botInstance) return false;
+    try {
+      await this.botInstance.telegram.sendMessage(telegramId.toString(), message, options);
+      return true;
+    } catch (err) {
+      logger.warn(`Failed to send Telegram message to ${telegramId}:`, err);
+      return false;
+    }
+  }
+
+  /**
    * Deduct credits from user
    */
   static async deductCredits(telegramId: bigint, amount: number): Promise<User> {

@@ -19,6 +19,8 @@ import { CREDIT_PACKAGES_V3, SUBSCRIPTION_PLANS_V3, UNIT_COSTS, REFERRAL_COMMISS
 import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 import { ProviderSettingsService } from "@/services/provider-settings.service";
 import { getOmniRouteService } from "@/services/omniroute.service";
+import { UserService } from "@/services/user.service";
+import { t } from "@/i18n/translations";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
@@ -111,6 +113,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/profit-report") ||
       url.startsWith("/api/settings/") ||
       url.startsWith("/api/admin/") ||
+      url.startsWith("/api/referral/") ||
       (url.startsWith("/api/system/") && url !== "/api/system/health");
     if (isAdminRoute) {
       await verifyAdmin(request, reply);
@@ -1396,5 +1399,65 @@ You are an expert system administrator and architect for this platform. Give spe
         user: { select: { username: true, firstName: true } },
       },
     });
+  });
+
+  /** GET /api/referral/pending-cashouts — List all pending cashout transactions for admin */
+  server.get("/api/referral/pending-cashouts", async () => {
+    return prisma.transaction.findMany({
+      where: { type: "referral_cashout", status: "pending" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        user: {
+          select: {
+            telegramId: true,
+            username: true,
+            firstName: true,
+          },
+        },
+      },
+    });
+  });
+
+  /** POST /api/referral/complete-cashout — Mark a pending cashout as completed and notify the user */
+  server.post("/api/referral/complete-cashout", async (request, reply) => {
+    const { transactionId } = request.body as { transactionId: string };
+    if (!transactionId) {
+      return reply.status(400).send({ error: "transactionId is required" });
+    }
+
+    const transaction = await prisma.transaction.findFirst({
+      where: { orderId: transactionId, type: "referral_cashout", status: "pending" },
+    });
+
+    if (!transaction) {
+      return reply.status(404).send({ error: "Pending cashout transaction not found" });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.transaction.update({
+        where: { orderId: transactionId },
+        data: { status: "success", paidAt: new Date() },
+      });
+
+      await tx.commission.updateMany({
+        where: { referrerId: transaction.userId, status: "pending_cashout" },
+        data: { status: "withdrawn" },
+      });
+    });
+
+    // Notify the user via Telegram DM
+    const user = await prisma.user.findUnique({
+      where: { telegramId: transaction.userId },
+      select: { language: true },
+    });
+    const lang = user?.language || 'id';
+    const amount = Number(transaction.amountIdr).toLocaleString("id-ID");
+    await UserService.sendMessage(
+      transaction.userId,
+      t('referral.cashout_completed', lang, { amount }),
+      { parse_mode: 'Markdown' },
+    );
+
+    return { success: true, transactionId, amount: Number(transaction.amountIdr) };
   });
 }

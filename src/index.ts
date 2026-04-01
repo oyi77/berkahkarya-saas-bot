@@ -61,6 +61,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN!);
 // Allow services to send proactive DMs
 UserService.setBotInstance(bot);
 PaymentService.setBotInstance(bot);
+SubscriptionService.setBotInstance(bot);
 
 // Global BigInt serializer patch (Prisma returns BigInt for telegramId)
 (BigInt.prototype as any).toJSON = function () { return this.toString(); };
