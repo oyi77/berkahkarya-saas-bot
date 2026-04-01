@@ -33,14 +33,12 @@ import jwt from "jsonwebtoken";
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@/utils/logger";
+import { getConfig } from "@/config/env";
 import crypto from "crypto";
 import { validateUrl } from "@/utils/url-validator";
 
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is required");
-}
-const getJwtSecret = (): string => process.env.JWT_SECRET!;
-const BOT_TOKEN = process.env.BOT_TOKEN || "";
+const getJwtSecret = (): string => getConfig().JWT_SECRET!;
+function getBotToken(): string { return getConfig().BOT_TOKEN; }
 
 // ─── Landing Page ───────────────────────────────────────────────────────────
 
@@ -62,10 +60,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     reply.view("web/landing.ejs", {
       landingConfig,
       packages,
-      botUsername: process.env.BOT_USERNAME || 'berkahkarya_saas_bot',
-      fbPixelId: process.env.FACEBOOK_PIXEL_ID || "",
-      ga4Id: process.env.GA4_TRACKING_ID || "",
-      ttPixelId: process.env.TIKTOK_PIXEL_ID || "",
+      botUsername: getConfig().BOT_USERNAME || 'berkahkarya_saas_bot',
+      fbPixelId: getConfig().FACEBOOK_PIXEL_ID || "",
+      ga4Id: getConfig().GA4_TRACKING_ID || "",
+      ttPixelId: getConfig().TIKTOK_PIXEL_ID || "",
     });
   });
 
@@ -128,7 +126,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   // Web app
   server.get("/app", async (_request, reply) => {
     reply.view("web/app.ejs", {
-      botUsername: process.env.BOT_USERNAME || 'berkahkarya_saas_bot'
+      botUsername: getConfig().BOT_USERNAME || 'berkahkarya_saas_bot'
     });
   });
 
@@ -139,7 +137,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
       // Support Telegram Web App (Mini App) initData format
       if (userData?.initData) {
-        const isValidTWA = checkTWAHash(userData.initData as string, BOT_TOKEN);
+        const isValidTWA = checkTWAHash(userData.initData as string, getBotToken());
         if (!isValidTWA) {
           return reply.status(401).send({ error: 'Invalid TWA initData' });
         }
@@ -158,7 +156,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         if (!userData || !userData.id) {
           return reply.status(400).send({ error: "Invalid user data" });
         }
-        const isValid = checkTelegramHash(userData, BOT_TOKEN);
+        const isValid = checkTelegramHash(userData, getBotToken());
         if (!isValid) {
           return reply.status(401).send({ error: 'Auth hash verification failed' });
         }
@@ -638,7 +636,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       const sellRate = sellRateStr ? parseInt(sellRateStr) : 3000;
       const creditsIfConverted = Math.floor(availableCommission / sellRate);
 
-      const BOT_USERNAME = process.env.BOT_USERNAME || "berkahkarya_saas_bot";
+      const BOT_USERNAME = getConfig().BOT_USERNAME || "berkahkarya_saas_bot";
       const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${user.referralCode}`;
 
       return {

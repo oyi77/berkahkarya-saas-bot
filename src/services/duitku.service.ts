@@ -7,13 +7,16 @@ import { SubscriptionService } from '@/services/subscription.service';
 import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } from '@/config/pricing';
 import { AnalyticsService } from '@/services/analytics.service';
 import { PaymentService } from '@/services/payment.service';
+import { getConfig } from '@/config/env';
 
-const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
-  ? 'https://passport.duitku.com'
-  : 'https://sandbox.duitku.com';
-
-const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
-const API_KEY = process.env.DUITKU_API_KEY || '';
+function getDuitkuBaseUrl() {
+  const config = getConfig();
+  return (config.DUITKU_ENVIRONMENT || 'sandbox') === 'production'
+    ? 'https://passport.duitku.com'
+    : 'https://sandbox.duitku.com';
+}
+function getMerchantCode() { return getConfig().DUITKU_MERCHANT_CODE || ''; }
+function getApiKey() { return getConfig().DUITKU_API_KEY || ''; }
 
 export interface DuitkuCreateResponse {
   merchantCode: string;
@@ -37,14 +40,14 @@ export class DuitkuService {
   static async getPaymentMethods(amount: number): Promise<DuitkuPaymentMethod[]> {
     const datetime = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const signature = crypto.createHash('sha256')
-      .update(MERCHANT_CODE + amount + datetime + API_KEY)
+      .update(getMerchantCode() + amount + datetime + getApiKey())
       .digest('hex');
 
     try {
       const response = await axios.post(
-        `${DUITKU_BASE_URL}/webapi/api/merchant/paymentmethod/getpaymentmethod`,
+        `${getDuitkuBaseUrl()}/webapi/api/merchant/paymentmethod/getpaymentmethod`,
         {
-          merchantcode: MERCHANT_CODE,
+          merchantcode: getMerchantCode(),
           amount,
           datetime,
           signature,
@@ -81,7 +84,7 @@ export class DuitkuService {
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     const orderId = `OC-${Date.now()}-${params.userId}-${random}`;
     const signature = crypto.createHash('md5')
-      .update(MERCHANT_CODE + orderId + price + API_KEY)
+      .update(getMerchantCode() + orderId + price + getApiKey())
       .digest('hex');
 
     await prisma.transaction.create({
@@ -99,9 +102,9 @@ export class DuitkuService {
 
     try {
       const response = await axios.post(
-        `${DUITKU_BASE_URL}/webapi/api/merchant/v2/inquiry`,
+        `${getDuitkuBaseUrl()}/webapi/api/merchant/v2/inquiry`,
         {
-          merchantCode: MERCHANT_CODE,
+          merchantCode: getMerchantCode(),
           paymentAmount: price,
           paymentMethod: params.paymentMethod || 'VC',
           merchantOrderId: orderId,
@@ -109,8 +112,8 @@ export class DuitkuService {
           customerVaName: params.username || 'Customer',
           email: params.email || 'customer@email.com',
           phoneNumber: params.phone || '08123456789',
-          callbackUrl: `${process.env.WEBHOOK_URL}/webhook/duitku`,
-          returnUrl: `${process.env.WEBHOOK_URL}/payment/finish`,
+          callbackUrl: `${getConfig().WEBHOOK_URL}/webhook/duitku`,
+          returnUrl: `${getConfig().WEBHOOK_URL}/payment/finish`,
           signature,
           expiryPeriod: 60,
         },
@@ -136,7 +139,7 @@ export class DuitkuService {
     signature: string;
   }): Promise<{ success: boolean; message: string }> {
     const expectedSignature = crypto.createHash('md5')
-      .update(params.merchantCode + params.amount + params.merchantOrderId + API_KEY)
+      .update(params.merchantCode + params.amount + params.merchantOrderId + getApiKey())
       .digest('hex');
 
     if (params.signature !== expectedSignature) {
@@ -271,7 +274,7 @@ export class DuitkuService {
           user_id: transaction.userId.toString(),
           amount_idr: Number(transaction.amountIdr),
           transaction_id: params.merchantOrderId,
-          event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+          event_source_url: `${getConfig().WEBHOOK_URL}/topup`,
           utm_source: user?.utmSource ?? undefined,
           utm_campaign: user?.utmCampaign ?? undefined,
           utm_content: user?.utmContent ?? undefined,
@@ -306,13 +309,13 @@ export class DuitkuService {
     amount: number;
   } | null> {
     const signature = crypto.createHash('md5')
-      .update(MERCHANT_CODE + orderId + API_KEY)
+      .update(getMerchantCode() + orderId + getApiKey())
       .digest('hex');
 
     try {
       const response = await axios.post(
-        `${DUITKU_BASE_URL}/webapi/api/merchant/transactionStatus`,
-        { merchantCode: MERCHANT_CODE, merchantOrderId: orderId, signature },
+        `${getDuitkuBaseUrl()}/webapi/api/merchant/transactionStatus`,
+        { merchantCode: getMerchantCode(), merchantOrderId: orderId, signature },
         { headers: { 'Content-Type': 'application/json' } }
       );
 

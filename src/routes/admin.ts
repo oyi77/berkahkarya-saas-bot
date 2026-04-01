@@ -21,18 +21,18 @@ import { ProviderSettingsService } from "@/services/provider-settings.service";
 import { getOmniRouteService } from "@/services/omniroute.service";
 import { UserService } from "@/services/user.service";
 import { t } from "@/i18n/translations";
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+import { getConfig, getConfigForAdmin } from "@/config/env";
 
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
 
 /** Pixel/analytics IDs passed to all EJS views */
 function trackingVars() {
+  const config = getConfig();
   return {
-    fbPixelId: process.env.FACEBOOK_PIXEL_ID || "",
-    ga4Id: process.env.GA4_TRACKING_ID || "",
-    ttPixelId: process.env.TIKTOK_PIXEL_ID || "",
+    fbPixelId: config.FACEBOOK_PIXEL_ID || "",
+    ga4Id: config.GA4_TRACKING_ID || "",
+    ttPixelId: config.TIKTOK_PIXEL_ID || "",
   };
 }
 
@@ -55,6 +55,7 @@ function makeAdminToken(password: string): string {
 }
 
 async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
+  const ADMIN_PASSWORD = getConfig().ADMIN_PASSWORD;
   if (!ADMIN_PASSWORD) {
     return reply.status(503).send({ error: "Admin password not configured" });
   }
@@ -97,6 +98,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url === "/admin/prompts" ||
       url === "/admin/settings" ||
       url === "/admin/users" ||
+      url === "/admin/config" ||
       url.startsWith("/api/stats") ||
       url.startsWith("/api/analytics") ||
       url.startsWith("/api/users") ||
@@ -132,7 +134,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       .find((c) => c.trim().startsWith("admin_token="));
     if (cookie) {
       const token = cookie.split("=")[1]?.trim();
-      if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD))) {
+      if (token && timingSafeCompare(token, makeAdminToken(getConfig().ADMIN_PASSWORD))) {
         return reply.redirect("/admin/dashboard");
       }
     }
@@ -144,7 +146,8 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     // Origin check — reject cross-origin login submissions
     const origin = request.headers.origin as string | undefined;
     if (origin) {
-      const siteUrl = process.env.WEBHOOK_URL || process.env.WEB_APP_URL || "";
+      const config = getConfig();
+      const siteUrl = config.WEBHOOK_URL || config.WEB_APP_URL || "";
       const expectedOrigin = siteUrl ? new URL(siteUrl).origin : null;
       if (expectedOrigin && origin !== expectedOrigin) {
         return reply.status(403).send({ error: "Forbidden" });
@@ -160,11 +163,12 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       return reply.status(429).send({ error: "Too many login attempts. Try again in 15 minutes." });
     }
 
+    const ADMIN_PASSWORD = getConfig().ADMIN_PASSWORD;
     const { password } = request.body as { password: string };
     if (password && timingSafeCompare(password, ADMIN_PASSWORD)) {
       await redis.del(rateLimitKey);
       const token = makeAdminToken(ADMIN_PASSWORD);
-      const secureSuffix = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+      const secureSuffix = getConfig().NODE_ENV === 'production' ? '; Secure' : '';
       return reply
         .header(
           "Set-Cookie",
@@ -386,18 +390,14 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return { success: true, recipientCount: users.length };
   });
 
-  // API: Get config
-  server.get("/api/config", async () => {
-    return {
-      botToken: "***REDACTED***",
-      botUsername: process.env.BOT_USERNAME,
-      environment: process.env.NODE_ENV,
-      features: {
-        videoGeneration: process.env.FEATURE_VIDEO_GENERATION === "true",
-        payment: process.env.FEATURE_PAYMENT === "true",
-        referral: process.env.FEATURE_REFERRAL === "true",
-      },
-    };
+  // API: Get config — returns all env vars grouped by concern with secrets masked
+  server.get("/api/config", async (_request, reply) => {
+    return reply.send(getConfigForAdmin());
+  });
+
+  // Admin config view page
+  server.get("/admin/config", async (_request, reply) => {
+    return reply.view("admin/config.ejs", trackingVars());
   });
 
   // API: Get payment settings
@@ -520,7 +520,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // ── Pricing Recommendation (admin tool) ──
   // Calculates minimum credit price per action based on actual API costs + target margin
   server.get("/api/pricing-recommendation", async () => {
-    const USD_TO_IDR = Number(process.env.USD_TO_IDR_RATE) || 16000;
+    const USD_TO_IDR = getConfig().USD_TO_IDR_RATE;
     const margin = await PaymentSettingsService.getMarginPercent();
     const providerCosts = await PaymentSettingsService.getAllPricingByCategory("provider_cost");
     const unitCosts = await PaymentSettingsService.getAllPricingByCategory("unit_cost");
@@ -782,7 +782,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     try { await redis.ping(); checks.redis = { status: "ok" }; }
     catch (e: any) { checks.redis = { status: "error", message: e.message }; }
     try {
-      const token = process.env.BOT_TOKEN;
+      const token = getConfig().BOT_TOKEN;
       if (token) {
         const res = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
         const data = await res.json() as any;
@@ -797,7 +797,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return {
       status: Object.values(checks).every((c: any) => c.status === "ok") ? "healthy" : "degraded",
       checks,
-      environment: process.env.NODE_ENV,
+      environment: getConfig().NODE_ENV,
       version: "3.0.0",
       uptime: process.uptime(),
     };
@@ -1025,7 +1025,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     try {
       // ioredis: create a new subscriber instance (duplicate() is node-redis v4, not ioredis)
       const Redis = (await import('ioredis')).default;
-      const subscriber = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+      const subscriber = new Redis(getConfig().REDIS_URL, {
         retryStrategy: (times: number) => Math.min(times * 50, 2000),
         maxRetriesPerRequest: 3,
       });
@@ -1131,7 +1131,7 @@ LIVE SYSTEM CONTEXT (as of ${new Date().toISOString()}):
 - Total videos generated: ${stats.videoCount}
 - Successful transactions: ${stats.txCount}
 - Last 30d revenue: Rp ${Number(profitData._sum.amountIdr || 0).toLocaleString()} (${profitData._count} transactions)
-- USD/IDR rate: ${exchangeRate || process.env.USD_TO_IDR_RATE || '16000'}
+- USD/IDR rate: ${exchangeRate || getConfig().USD_TO_IDR_RATE}
 - Provider overrides: ${JSON.stringify(providerOverrides || {})}
 
 ARCHITECTURE:
@@ -1201,7 +1201,7 @@ You are an expert system administrator and architect for this platform. Give spe
   /** GET /api/settings/exchange-rate */
   server.get("/api/settings/exchange-rate", async () => {
     const stored = await redis.get("admin:exchange_rate");
-    return { rate: stored ? Number(stored) : (Number(process.env.USD_TO_IDR_RATE) || 16000) };
+    return { rate: stored ? Number(stored) : getConfig().USD_TO_IDR_RATE };
   });
 
   /** POST /api/settings/exchange-rate */
@@ -1211,7 +1211,8 @@ You are an expert system administrator and architect for this platform. Give spe
       return reply.status(400).send({ error: "Invalid rate (must be > 1000)" });
     }
     await redis.set("admin:exchange_rate", String(Number(rate)));
-    // Also update the env var in-memory so all services use the new rate
+    // Intentional: write back to process.env so the next getConfig() call reflects the new rate
+    // (getConfig() re-validates on each call, so this propagates the change without a restart)
     process.env.USD_TO_IDR_RATE = String(Number(rate));
     return { success: true, rate: Number(rate) };
   });
@@ -1220,10 +1221,11 @@ You are an expert system administrator and architect for this platform. Give spe
   server.get("/api/settings/pixels", async () => {
     const stored = await redis.get("admin:pixel_config");
     if (stored) return JSON.parse(stored);
+    const cfg = getConfig();
     return {
-      fbPixelId: process.env.FACEBOOK_PIXEL_ID || '',
-      ga4Id: process.env.GA4_TRACKING_ID || '',
-      ttPixelId: process.env.TIKTOK_PIXEL_ID || '',
+      fbPixelId: cfg.FACEBOOK_PIXEL_ID || '',
+      ga4Id: cfg.GA4_TRACKING_ID || '',
+      ttPixelId: cfg.TIKTOK_PIXEL_ID || '',
     };
   });
 
@@ -1248,7 +1250,7 @@ You are an expert system administrator and architect for this platform. Give spe
       ttPixelId: body.ttPixelId || '',
     };
     await redis.set("admin:pixel_config", JSON.stringify(config));
-    // Update in-memory env vars so views pick up changes immediately
+    // Intentional: write back to process.env so the next getConfig() call picks up new pixel IDs
     process.env.FACEBOOK_PIXEL_ID = config.fbPixelId;
     process.env.GA4_TRACKING_ID = config.ga4Id;
     process.env.TIKTOK_PIXEL_ID = config.ttPixelId;

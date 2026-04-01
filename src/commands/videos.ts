@@ -7,14 +7,15 @@
 import jwt from 'jsonwebtoken';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { VideoService } from '@/services/video.service';
 import { UserService } from '@/services/user.service';
 import { t } from '@/i18n/translations';
 
 /** Generate a signed download URL for a video job (valid 30d). Never exposes provider CDN URLs. */
 function makeDownloadUrl(jobId: string, userId: string): string {
-  const base = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
-  const secret = process.env.JWT_SECRET;
+  const base = (getConfig().WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
+  const secret = getConfig().JWT_SECRET;
   if (!secret) throw new Error('JWT_SECRET environment variable is required');
   const token = jwt.sign({ telegramId: userId, jobId }, secret, { expiresIn: '30d' });
   return `${base}/video/${jobId}/download?token=${token}`;

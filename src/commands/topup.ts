@@ -6,6 +6,7 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { UserService } from '@/services/user.service';
 import { PaymentService } from '@/services/payment.service';
 import { DuitkuService } from '@/services/duitku.service';
@@ -23,7 +24,7 @@ import { t } from '@/i18n/translations';
 const formatIdr = (amount: number): string =>
   new Intl.NumberFormat('id-ID').format(amount);
 
-const USD_RATE = () => Number(process.env.USD_TO_IDR_RATE) || 16000;
+const USD_RATE = () => getConfig().USD_TO_IDR_RATE;
 
 /** Format price with dual currency based on user language */
 function formatPrice(idr: number, lang: string): string {

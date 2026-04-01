@@ -6,6 +6,7 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { UserService } from '@/services/user.service';
 import { prisma } from '@/config/database';
 
@@ -13,7 +14,7 @@ import { prisma } from '@/config/database';
  * Check if user is admin
  */
 function isAdmin(userId: number): boolean {
-  const adminIds = process.env.ADMIN_TELEGRAM_IDS?.split(',').map(id => parseInt(id.trim())) || [];
+  const adminIds = getConfig().ADMIN_TELEGRAM_IDS?.split(',').map(id => parseInt(id.trim())) || [];
   return adminIds.includes(userId);
 }
 

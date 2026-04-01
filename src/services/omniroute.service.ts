@@ -6,10 +6,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { logger } from '@/utils/logger';
 import { trackTokens } from '@/services/token-tracker.service';
-
-const OMNIROUTE_URL = process.env.OMNIROUTE_URL || 'http://localhost:20128/v1';
-const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || '';
-const DEFAULT_MODEL = process.env.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
+import { getConfig } from '@/config/env';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -192,17 +189,22 @@ export class OmniRouteService {
   private conversationHistory: Map<string, ChatMessage[]> = new Map();
 
   constructor() {
+    const config = getConfig();
+    const omniUrl = config.OMNIROUTE_URL || 'http://localhost:20128/v1';
+    const omniApiKey = config.OMNIROUTE_API_KEY || '';
     this.client = axios.create({
-      baseURL: OMNIROUTE_URL,
+      baseURL: omniUrl,
       timeout: 120_000,
       headers: {
         'Content-Type': 'application/json',
-        ...(OMNIROUTE_API_KEY ? { 'Authorization': `Bearer ${OMNIROUTE_API_KEY}` } : {}),
+        ...(omniApiKey ? { 'Authorization': `Bearer ${omniApiKey}` } : {}),
       },
     });
   }
 
   async chat(userId: string, message: string, model?: string): Promise<ChatResponse> {
+    const config = getConfig();
+    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
     const history = this.conversationHistory.get(userId) || [];
 
     // Inject system prompt if this is the start of conversation

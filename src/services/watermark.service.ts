@@ -10,6 +10,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -19,9 +20,11 @@ import { trackTokens } from '@/services/token-tracker.service';
 
 const execFile = promisify(execFileCb);
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-const WORK_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+function getGeminiVisionUrl() {
+  const config = getConfig();
+  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${config.GEMINI_API_KEY || ''}`;
+}
+function getWorkDir() { return getConfig().VIDEO_DIR; }
 
 export interface WatermarkDetection {
   hasWatermark: boolean;
@@ -44,7 +47,7 @@ export class WatermarkService {
    * Returns bounding box regions as percentages of image dimensions.
    */
   static async detect(imageUrl: string): Promise<WatermarkDetection> {
-    if (!GEMINI_API_KEY) {
+    if (!getConfig().GEMINI_API_KEY) {
       return { hasWatermark: false, regions: [], confidence: 0 };
     }
 
@@ -55,7 +58,7 @@ export class WatermarkService {
       let mimeType = imgResp.headers['content-type'] || 'image/jpeg';
       if (!mimeType.startsWith('image/')) mimeType = 'image/jpeg';
 
-      const response = await axios.post(GEMINI_VISION_URL, {
+      const response = await axios.post(getGeminiVisionUrl(), {
         contents: [{
           parts: [
             {
@@ -198,8 +201,8 @@ Respond with ONLY the JSON, no other text.`,
       }
 
       // Download image to temp file
-      if (!fs.existsSync(WORK_DIR)) fs.mkdirSync(WORK_DIR, { recursive: true });
-      const tmpFile = path.join(WORK_DIR, `wm_${Date.now()}.jpg`);
+      if (!fs.existsSync(getWorkDir())) fs.mkdirSync(getWorkDir(), { recursive: true });
+      const tmpFile = path.join(getWorkDir(), `wm_${Date.now()}.jpg`);
       const imgResp = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
       fs.writeFileSync(tmpFile, Buffer.from(imgResp.data));
 
@@ -231,7 +234,7 @@ Respond with ONLY the JSON, no other text.`,
   static async cleanVideo(videoPath: string): Promise<string> {
     try {
       // Extract a frame from the middle to detect watermarks
-      const framePath = path.join(WORK_DIR, `wm_frame_${Date.now()}.jpg`);
+      const framePath = path.join(getWorkDir(), `wm_frame_${Date.now()}.jpg`);
       await execFile('ffmpeg', [
         '-y', '-i', videoPath, '-vf', 'select=eq(n\\,30)', '-frames:v', '1', framePath,
       ]);
@@ -261,12 +264,12 @@ Respond with ONLY the JSON, no other text.`,
    * Detect watermark from base64 image data (avoids re-download).
    */
   private static async detectFromBase64(base64: string, mimeType: string): Promise<WatermarkDetection> {
-    if (!GEMINI_API_KEY) {
+    if (!getConfig().GEMINI_API_KEY) {
       return { hasWatermark: false, regions: [], confidence: 0 };
     }
 
     try {
-      const response = await axios.post(GEMINI_VISION_URL, {
+      const response = await axios.post(getGeminiVisionUrl(), {
         contents: [{
           parts: [
             {

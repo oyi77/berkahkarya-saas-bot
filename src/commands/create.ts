@@ -21,6 +21,7 @@ import {
   MARKETING_HOOKS,
   MARKETING_CTAS,
 } from "@/config/audio-subtitle-engine";
+import { getConfig } from "@/config/env";
 import { actionableError } from "@/utils/errors";
 import { t } from "@/i18n/translations";
 import { promisify } from "util";
@@ -30,11 +31,8 @@ import * as path from "path";
 
 const execFile = promisify(execFileCallback);
 
-// Video storage directory
-const VIDEO_DIR = process.env.VIDEO_DIR || "/tmp/videos";
-if (!fs.existsSync(VIDEO_DIR)) {
-  fs.mkdirSync(VIDEO_DIR, { recursive: true });
-}
+// Video storage directory — resolved at call time to respect initConfig() ordering
+function getVideoDir(): string { return getConfig().VIDEO_DIR; }
 
 /** Resolve the user's preferred language from the DB record. */
 function getUserLang(dbUser: { language?: string } | null): string {
@@ -512,7 +510,7 @@ async function generateExtendedVideoAsync(
     // Generate each scene sequentially
     for (let i = 0; i < scenes; i++) {
       const scene = storyboard[i];
-      const scenePath = path.join(VIDEO_DIR, `${jobId}_scene_${i + 1}.mp4`);
+      const scenePath = path.join(getVideoDir(), `${jobId}_scene_${i + 1}.mp4`);
 
       logger.info(
         `🎬 Generating scene ${i + 1}/${scenes}: ${scene.description}`,
@@ -619,7 +617,7 @@ async function generateExtendedVideoAsync(
     }
 
     // Concatenate scenes with crossfade
-    const finalPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
+    const finalPath = path.join(getVideoDir(), `${jobId}.mp4`);
     logger.info(`🎞️ Concatenating ${scenes} scenes...`);
     await concatenateVideos(sceneVideos, finalPath);
     logger.info(`✅ Concatenation complete: ${finalPath}`);
@@ -661,7 +659,7 @@ async function concatenateVideos(
   outputPath: string,
 ): Promise<void> {
   // Create concat list file
-  const listPath = path.join(VIDEO_DIR, "concat_list.txt");
+  const listPath = path.join(getVideoDir(), "concat_list.txt");
   const listContent = inputPaths
     .map((p) => `file '${p}'\nduration 0.5`)
     .join("\n");
@@ -682,7 +680,7 @@ async function concatenateVideos(
     ]);
   } else {
     // Fallback: simple concat without crossfade
-    const simpleListPath = path.join(VIDEO_DIR, "simple_list.txt");
+    const simpleListPath = path.join(getVideoDir(), "simple_list.txt");
     const simpleListContent = inputPaths.map((p) => `file '${p}'`).join("\n");
     fs.writeFileSync(simpleListPath, simpleListContent);
     await execFile('ffmpeg', [
@@ -695,7 +693,7 @@ async function concatenateVideos(
  * Download video from URL
  */
 async function downloadVideo(url: string, jobId: string): Promise<string> {
-  const outputPath = path.join(VIDEO_DIR, `${jobId}.mp4`);
+  const outputPath = path.join(getVideoDir(), `${jobId}.mp4`);
   await execFile('wget', ['-O', outputPath, url]);
   return outputPath;
 }
@@ -838,11 +836,9 @@ async function sendSuccessNotification(
   if (!video) return;
 
   // Build download URL
-  const webhookUrl = (
-    process.env.WEBHOOK_URL || "http://localhost:3000"
-  ).replace(/\/webhook.*$/, "");
+  const webhookUrl = (getConfig().WEBHOOK_URL || "http://localhost:3000").replace(/\/webhook.*$/, "");
   const videoUserId = video.userId.toString();
-  const jwtSecret = process.env.JWT_SECRET;
+  const jwtSecret = getConfig().JWT_SECRET;
   if (!jwtSecret) throw new Error('JWT_SECRET environment variable is required');
   const downloadToken = (await import("jsonwebtoken")).default.sign(
     { telegramId: videoUserId, jobId },

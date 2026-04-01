@@ -12,6 +12,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { promisify } from 'util';
 import { exec as execCallback } from 'child_process';
 import * as fs from 'fs';
@@ -25,10 +26,10 @@ import {
 
 const exec = promisify(execCallback);
 
-const AUDIO_DIR = process.env.AUDIO_DIR || '/tmp/audio';
-
-if (!fs.existsSync(AUDIO_DIR)) {
-  fs.mkdirSync(AUDIO_DIR, { recursive: true });
+function getAudioDir(): string {
+  const dir = getConfig().AUDIO_DIR || '/tmp/audio';
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 // ── Types ──
@@ -76,8 +77,8 @@ export class AudioVOService {
     language?: string
   ): Promise<TTSResult> {
     const id = jobId || `tts-${Date.now()}`;
-    const audioPath = path.join(AUDIO_DIR, `${id}.mp3`);
-    const vttPath = path.join(AUDIO_DIR, `${id}.vtt`);
+    const audioPath = path.join(getAudioDir(), `${id}.mp3`);
+    const vttPath = path.join(getAudioDir(), `${id}.vtt`);
 
     try {
       let edgeVoice: string;
@@ -255,14 +256,14 @@ export class AudioVOService {
       }
 
       // Step 2: Generate SRT from subtitle blocks
-      const srtPath = path.join(AUDIO_DIR, `${jobId}.srt`);
+      const srtPath = path.join(getAudioDir(), `${jobId}.srt`);
       if (tts.subtitleBlocks && tts.subtitleBlocks.length > 0) {
         this.generateSRT(tts.subtitleBlocks, srtPath);
         logger.info(`📝 Generated ${tts.subtitleBlocks.length} subtitle blocks`);
       }
 
       // Step 3: Merge audio with video
-      const mergedPath = path.join(AUDIO_DIR, `${jobId}_voiced.mp4`);
+      const mergedPath = path.join(getAudioDir(), `${jobId}_voiced.mp4`);
       const merge = await this.mergeAudioVideo(
         videoPath, tts.audioPath, options?.bgmPath, mergedPath, options?.bgmVolume
       );
@@ -272,7 +273,7 @@ export class AudioVOService {
 
       // Step 4: Burn subtitles (if we have them)
       if (fs.existsSync(srtPath) && fs.statSync(srtPath).size > 0) {
-        const finalPath = path.join(AUDIO_DIR, `${jobId}_final.mp4`);
+        const finalPath = path.join(getAudioDir(), `${jobId}_final.mp4`);
         const burn = await this.burnSubtitles(
           merge.outputPath, srtPath, finalPath, options?.subtitleStyle
         );

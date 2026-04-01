@@ -1,5 +1,6 @@
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
+import { getConfig } from "@/config/env";
 import { prisma } from "@/config/database";
 import { UserService } from "@/services/user.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
@@ -246,7 +247,7 @@ export async function handleReferralCallbacks(ctx: BotContext, data: string): Pr
         },
       });
 
-      const adminIds = (process.env.ADMIN_TELEGRAM_IDS || "").split(",").filter(Boolean);
+      const adminIds = (getConfig().ADMIN_TELEGRAM_IDS || "").split(",").filter(Boolean);
       const user = await UserService.findByTelegramId(telegramId);
       const userName = user?.firstName || user?.username || String(telegramId);
       for (const adminId of adminIds) {

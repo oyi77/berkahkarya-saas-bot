@@ -25,23 +25,13 @@ import { ProviderRouter } from './provider-router.service';
 import { PromptEngine } from '@/config/prompt-engine';
 import { VideoPostProcessing } from './video-post-processing.service';
 import { AIPromptOptimizer } from './ai-prompt-optimizer.service';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import FormData from 'form-data';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// ── Provider Keys ──
-const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || '';
 const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
-const FALAI_API_KEY = process.env.FALAI_API_KEY || '';
-const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || '';
-const XAI_API_KEY = process.env.XAI_API_KEY || '';
-const LAOZHANG_API_KEY = process.env.LAOZHANG_API_KEY || '';
-const EVOLINK_API_KEY = process.env.EVOLINK_API_KEY || '';
-const HYPEREAL_API_KEY = process.env.HYPEREAL_API_KEY || '';
-const BYTEPLUS_API_KEY = process.env.BYTEPLUS_API_KEY || '';
-const KIE_API_KEY = process.env.KIE_API_KEY || '';
-const PIAPI_API_KEY = process.env.PIAPI_API_KEY || '';
 
 export interface VideoFallbackParams {
   prompt: string;
@@ -81,7 +71,7 @@ function mapAspectRatio(ratio: string): string {
   return map[ratio] || 'portrait';
 }
 
-const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+function getVideoDir(): string { return getConfig().VIDEO_DIR; }
 
 async function downloadToFile(url: string, outputPath: string): Promise<void> {
   const { execFile: execFileCb } = await import('child_process');
@@ -153,7 +143,7 @@ async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoF
   }
 
   const response = await axios.post(`${GEMINIGEN_API_BASE}/video-gen/grok`, formData, {
-    headers: { 'x-api-key': GEMINIGEN_API_KEY, ...formData.getHeaders() },
+    headers: { 'x-api-key': getConfig().GEMINIGEN_API_KEY || '', ...formData.getHeaders() },
     timeout: 30000,
   });
 
@@ -162,7 +152,7 @@ async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoF
 
   const videoUrl = await pollUntilComplete('GeminiGen', uuid, async (id) => {
     const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${id}`, {
-      headers: { 'x-api-key': GEMINIGEN_API_KEY },
+      headers: { 'x-api-key': getConfig().GEMINIGEN_API_KEY || '' },
       timeout: 10000,
     });
     const { status: s, generated_video, error_message } = poll.data;
@@ -198,7 +188,7 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
     `https://queue.fal.run/${model}`,
     payload,
     {
-      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}`, 'Content-Type': 'application/json' },
       timeout: 30000,
     }
   );
@@ -217,7 +207,7 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
   let pollCount = 0;
   const videoUrl = await pollUntilComplete('Fal.ai', requestId, async (_id) => {
     const statusRes = await axios.get(statusUrl, {
-      headers: { Authorization: `Key ${FALAI_API_KEY}` },
+      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}` },
       timeout: 15000,
     });
     const status = statusRes.data?.status;
@@ -227,7 +217,7 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
     if (status === 'COMPLETED') {
       // Fetch result using the canonical response URL
       const resultRes = await axios.get(responseUrl, {
-        headers: { Authorization: `Key ${FALAI_API_KEY}` },
+        headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}` },
         timeout: 15000,
       });
       const url =
@@ -259,7 +249,7 @@ async function generateViaSiliconFlow(params: VideoFallbackParams): Promise<Vide
   }
 
   const response = await axios.post('https://api.siliconflow.cn/v1/video/submit', payload, {
-    headers: { Authorization: `Bearer ${SILICONFLOW_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ''}`, 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
@@ -268,7 +258,7 @@ async function generateViaSiliconFlow(params: VideoFallbackParams): Promise<Vide
 
   const videoUrl = await pollUntilComplete('SiliconFlow', requestId, async (id) => {
     const poll = await axios.post('https://api.siliconflow.cn/v1/video/status', { requestId: id }, {
-      headers: { Authorization: `Bearer ${SILICONFLOW_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ''}`, 'Content-Type': 'application/json' },
       timeout: 10000,
     });
     const status = poll.data?.status;
@@ -300,7 +290,7 @@ async function generateViaXAI(params: VideoFallbackParams): Promise<VideoFallbac
   }
 
   // Try via GeminiGen proxy first (uses GEMINIGEN_API_KEY)
-  const apiKey = GEMINIGEN_API_KEY || XAI_API_KEY;
+  const apiKey = getConfig().GEMINIGEN_API_KEY || getConfig().XAI_API_KEY || '';
   if (!apiKey) throw new Error('XAI: no API key available');
 
   const response = await axios.post(`${GEMINIGEN_API_BASE}/video-gen/grok`, formData, {
@@ -361,7 +351,7 @@ async function generateViaLaoZhang(params: VideoFallbackParams): Promise<VideoFa
 
   const response = await axios.post('https://api.laozhang.ai/v1/chat/completions', body, {
     headers: {
-      Authorization: `Bearer ${LAOZHANG_API_KEY}`,
+      Authorization: `Bearer ${getConfig().LAOZHANG_API_KEY || ''}`,
       'Content-Type': 'application/json',
     },
     timeout: 120000,
@@ -403,7 +393,7 @@ async function generateViaEvoLink(params: VideoFallbackParams): Promise<VideoFal
 
   const response = await axios.post('https://api.evolink.ai/v1/videos/generations', body, {
     headers: {
-      Authorization: `Bearer ${EVOLINK_API_KEY}`,
+      Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ''}`,
       'Content-Type': 'application/json',
     },
     timeout: 30000,
@@ -423,7 +413,7 @@ async function generateViaEvoLink(params: VideoFallbackParams): Promise<VideoFal
 
   const videoUrl = await pollUntilComplete('EvoLink', taskId, async (id) => {
     const poll = await axios.get(`https://api.evolink.ai/v1/tasks/${id}`, {
-      headers: { Authorization: `Bearer ${EVOLINK_API_KEY}` },
+      headers: { Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ''}` },
       timeout: 10000,
     });
     const status = poll.data?.status;
@@ -469,7 +459,7 @@ async function generateViaHypereal(params: VideoFallbackParams): Promise<VideoFa
 
   const response = await axios.post('https://api.hypereal.tech/v1/videos/generate', body, {
     headers: {
-      Authorization: `Bearer ${HYPEREAL_API_KEY}`,
+      Authorization: `Bearer ${getConfig().HYPEREAL_API_KEY || ''}`,
       'Content-Type': 'application/json',
     },
     timeout: 30000,
@@ -484,7 +474,7 @@ async function generateViaHypereal(params: VideoFallbackParams): Promise<VideoFa
     const poll = await axios.get(
       `https://api.hypereal.tech/v1/jobs/${id}?model=${encodeURIComponent(model)}&type=video`,
       {
-        headers: { Authorization: `Bearer ${HYPEREAL_API_KEY}` },
+        headers: { Authorization: `Bearer ${getConfig().HYPEREAL_API_KEY || ''}` },
         timeout: 10000,
       }
     );
@@ -512,7 +502,7 @@ async function generateViaByteplus(params: VideoFallbackParams): Promise<VideoFa
   };
 
   const response = await axios.post('https://api.aimlapi.com/v2/video/generations', payload, {
-    headers: { Authorization: `Bearer ${BYTEPLUS_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || ''}`, 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
@@ -521,7 +511,7 @@ async function generateViaByteplus(params: VideoFallbackParams): Promise<VideoFa
 
   const videoUrl = await pollUntilComplete('BytePlus', id, async (jobId) => {
     const poll = await axios.get(`https://api.aimlapi.com/v2/video/generations/${jobId}`, {
-      headers: { Authorization: `Bearer ${BYTEPLUS_API_KEY}` },
+      headers: { Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || ''}` },
       timeout: 10000,
     });
     if (poll.data?.status === 'failed') throw new Error(`BytePlus: ${poll.data?.error || 'failed'}`);
@@ -554,7 +544,7 @@ async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbac
 
   const response = await axios.post('https://api.kie.ai/api/v1/runway/generate', body, {
     headers: {
-      Authorization: `Bearer ${KIE_API_KEY}`,
+      Authorization: `Bearer ${getConfig().KIE_API_KEY || ''}`,
       'Content-Type': 'application/json',
     },
     timeout: 30000,
@@ -577,7 +567,7 @@ async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbac
 
   const videoUrl = await pollUntilComplete('Kie.ai', taskId, async (id) => {
     const poll = await axios.get(`https://api.kie.ai/api/v1/runway/record-detail?taskId=${id}`, {
-      headers: { Authorization: `Bearer ${KIE_API_KEY}` },
+      headers: { Authorization: `Bearer ${getConfig().KIE_API_KEY || ''}` },
       timeout: 10000,
     });
     // Non-200 API code means the record isn't ready yet — treat as pending
@@ -619,7 +609,7 @@ async function generateViaPiAPI(params: VideoFallbackParams): Promise<VideoFallb
     task_type: taskType,
     input,
   }, {
-    headers: { 'x-api-key': PIAPI_API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '', 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
@@ -630,7 +620,7 @@ async function generateViaPiAPI(params: VideoFallbackParams): Promise<VideoFallb
 
   const videoUrl = await pollUntilComplete('PiAPI', taskId, async (id) => {
     const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${id}`, {
-      headers: { 'x-api-key': PIAPI_API_KEY },
+      headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '' },
       timeout: 10000,
     });
     // Handle rate limit responses with an extended back-off
@@ -664,16 +654,16 @@ async function generateViaPiAPI(params: VideoFallbackParams): Promise<VideoFallb
 
 function getProviders(): VideoProvider[] {
   return [
-    { key: 'geminigen', name: 'GeminiGen', enabled: !!GEMINIGEN_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaGeminiGen },
-    { key: 'falai', name: 'Fal.ai Video', enabled: !!FALAI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaFalai },
-    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!SILICONFLOW_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaSiliconFlow },
-    { key: 'xai', name: 'XAI Grok', enabled: !!(GEMINIGEN_API_KEY || XAI_API_KEY), supportsRefImage: true, maxDuration: 5, generate: generateViaXAI },
-    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!LAOZHANG_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaLaoZhang },
-    { key: 'evolink', name: 'EvoLink Video', enabled: !!EVOLINK_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaEvoLink },
-    { key: 'hypereal', name: 'Hypereal AI', enabled: !!HYPEREAL_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaHypereal },
-    { key: 'byteplus', name: 'BytePlus Seedance', enabled: !!BYTEPLUS_API_KEY, supportsRefImage: false, maxDuration: 5, generate: generateViaByteplus },
-    { key: 'kie', name: 'Kie.ai', enabled: !!KIE_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaKie },
-    { key: 'piapi', name: 'PiAPI (Kling)', enabled: !!PIAPI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaPiAPI },
+    { key: 'geminigen', name: 'GeminiGen', enabled: !!getConfig().GEMINIGEN_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaGeminiGen },
+    { key: 'falai', name: 'Fal.ai Video', enabled: !!getConfig().FALAI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaFalai },
+    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!getConfig().SILICONFLOW_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaSiliconFlow },
+    { key: 'xai', name: 'XAI Grok', enabled: !!(getConfig().GEMINIGEN_API_KEY || getConfig().XAI_API_KEY), supportsRefImage: true, maxDuration: 5, generate: generateViaXAI },
+    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!getConfig().LAOZHANG_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaLaoZhang },
+    { key: 'evolink', name: 'EvoLink Video', enabled: !!getConfig().EVOLINK_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaEvoLink },
+    { key: 'hypereal', name: 'Hypereal AI', enabled: !!getConfig().HYPEREAL_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaHypereal },
+    { key: 'byteplus', name: 'BytePlus Seedance', enabled: !!getConfig().BYTEPLUS_API_KEY, supportsRefImage: false, maxDuration: 5, generate: generateViaByteplus },
+    { key: 'kie', name: 'Kie.ai', enabled: !!getConfig().KIE_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaKie },
+    { key: 'piapi', name: 'PiAPI (Kling)', enabled: !!getConfig().PIAPI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaPiAPI },
   ];
 }
 
@@ -831,14 +821,14 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
           }
 
           // Download scene to temp file
-          const scenePath = path.join(VIDEO_DIR, `fallback_${Date.now()}_scene_${si + 1}.mp4`);
+          const scenePath = path.join(getVideoDir(), `fallback_${Date.now()}_scene_${si + 1}.mp4`);
           await downloadToFile(sceneResult.videoUrl, scenePath);
           sceneVideos.push(scenePath);
         }
 
         if (allScenesOk && sceneVideos.length === scenesNeeded) {
           // Concatenate scenes with transitions
-          const outputPath = path.join(VIDEO_DIR, `fallback_${Date.now()}_final.mp4`);
+          const outputPath = path.join(getVideoDir(), `fallback_${Date.now()}_final.mp4`);
           await VideoPostProcessing.concatenateWithTransitions(sceneVideos, outputPath, {
             transitionType: 'fade',
             transitionDuration: 0.3,

@@ -14,6 +14,7 @@ import { Worker, Job, Queue } from 'bullmq';
 import { bullmqRedis } from '@/config/redis';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { GamificationService } from '@/services/gamification.service';
 import type { Telegram } from 'telegraf';
 
@@ -68,7 +69,7 @@ export class WeeklyLeaderboardService {
       }
 
       // 3. Broadcast leaderboard to community (optional channel)
-      const channelId = process.env.COMMUNITY_CHANNEL_ID;
+      const channelId = getConfig().COMMUNITY_CHANNEL_ID;
       if (channelId) {
         try {
           const message = GamificationService.formatLeaderboardMessage(leaderboard);

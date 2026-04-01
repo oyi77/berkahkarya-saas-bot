@@ -1,5 +1,6 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { UserService } from '@/services/user.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import { t } from '@/i18n/translations';
@@ -16,18 +17,20 @@ import crypto from 'crypto';
 const formatIdr = (amount: number): string =>
   new Intl.NumberFormat('id-ID').format(amount);
 
-const USD_RATE = () => Number(process.env.USD_TO_IDR_RATE) || 16000;
 function formatPrice(idr: number, lang: string): string {
+  const usdRate = getConfig().USD_TO_IDR_RATE;
   if (lang === 'id') return `Rp ${formatIdr(idr)}`;
-  const usd = (idr / USD_RATE()).toFixed(2);
+  const usd = (idr / usdRate).toFixed(2);
   return `$${usd} (~Rp ${formatIdr(idr)})`;
 }
 
-const DUITKU_BASE_URL = process.env.DUITKU_ENVIRONMENT === 'production'
-  ? 'https://passport.duitku.com'
-  : 'https://sandbox.duitku.com';
-const MERCHANT_CODE = process.env.DUITKU_MERCHANT_CODE || '';
-const API_KEY = process.env.DUITKU_API_KEY || '';
+function getDuitkuBaseUrl() {
+  return (getConfig().DUITKU_ENVIRONMENT || 'sandbox') === 'production'
+    ? 'https://passport.duitku.com'
+    : 'https://sandbox.duitku.com';
+}
+function getMerchantCode() { return getConfig().DUITKU_MERCHANT_CODE || ''; }
+function getApiKey() { return getConfig().DUITKU_API_KEY || ''; }
 
 export async function subscriptionCommand(ctx: BotContext): Promise<void> {
   try {
@@ -118,7 +121,7 @@ export async function handleSubscriptionPurchase(
     const orderId = `OC-${Date.now()}-${telegramId}`;
 
     const signature = crypto.createHash('md5')
-      .update(MERCHANT_CODE + orderId + price + API_KEY)
+      .update(getMerchantCode() + orderId + price + getApiKey())
       .digest('hex');
 
     await prisma.transaction.create({
@@ -134,10 +137,11 @@ export async function handleSubscriptionPurchase(
       },
     });
 
+    const webhookUrl = getConfig().WEBHOOK_URL || 'http://localhost:3000';
     const response = await axios.post(
-      `${DUITKU_BASE_URL}/webapi/api/merchant/v2/inquiry`,
+      `${getDuitkuBaseUrl()}/webapi/api/merchant/v2/inquiry`,
       {
-        merchantCode: MERCHANT_CODE,
+        merchantCode: getMerchantCode(),
         paymentAmount: price,
         paymentMethod: 'VC',
         merchantOrderId: orderId,
@@ -145,8 +149,8 @@ export async function handleSubscriptionPurchase(
         customerVaName: user.username || user.first_name || 'Customer',
         email: 'customer@email.com',
         phoneNumber: '08123456789',
-        callbackUrl: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/webhook/duitku`,
-        returnUrl: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/payment/finish`,
+        callbackUrl: `${webhookUrl}/webhook/duitku`,
+        returnUrl: `${webhookUrl}/payment/finish`,
         signature,
         expiryPeriod: 60,
       },

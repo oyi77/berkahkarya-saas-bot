@@ -7,9 +7,8 @@
 import { BotContext } from '@/types';
 import { UserService } from '@/services/user.service';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { t } from '@/i18n/translations';
-
-const BOT_USERNAME = process.env.BOT_USERNAME || 'berkahkarya_saas_bot';
 
 /**
  * Handle /profile command
@@ -37,7 +36,7 @@ export async function profileCommand(ctx: BotContext): Promise<void> {
     const tierLabel = user.tier.charAt(0).toUpperCase() + user.tier.slice(1);
     const creditBalance = Number(user.creditBalance);
     const referralCode = user.referralCode || 'N/A';
-    const referralLink = `https://t.me/${BOT_USERNAME}?start=ref_${referralCode}`;
+    const referralLink = `https://t.me/${getConfig().BOT_USERNAME || 'berkahkarya_saas_bot'}?start=ref_${referralCode}`;
 
     const formatRupiah = (amount: number): string => {
       return `Rp ${amount.toLocaleString('id-ID')}`;

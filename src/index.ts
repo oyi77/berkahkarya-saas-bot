@@ -8,8 +8,8 @@
 import { config } from "dotenv";
 config();
 
-import { validateEnv } from "@/config/env";
-validateEnv();
+import { initConfig } from "@/config/env";
+const appConfig = initConfig();
 
 import { Telegraf } from "telegraf";
 import Fastify from "fastify";
@@ -46,18 +46,8 @@ import axios from "axios";
 axios.defaults.timeout = 30_000;
 axios.defaults.headers.common["User-Agent"] = "BerkahKarya-Bot/3.0";
 
-// Validate environment variables
-const requiredEnvVars = ["BOT_TOKEN", "DATABASE_URL", "REDIS_URL"];
-
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    logger.error(`Missing required environment variable: ${envVar}`);
-    process.exit(1);
-  }
-}
-
 // Initialize bot
-const bot = new Telegraf(process.env.BOT_TOKEN!);
+const bot = new Telegraf(appConfig.BOT_TOKEN);
 // Allow services to send proactive DMs
 UserService.setBotInstance(bot);
 PaymentService.setBotInstance(bot);
@@ -72,7 +62,7 @@ const server = Fastify({
 });
 
 async function main() {
-  const port = parseInt(process.env.PORT || "3000");
+  const port = appConfig.PORT;
 
   try {
     logger.info("🚀 Starting OpenClaw Bot v3.0.0...");
@@ -164,8 +154,8 @@ async function main() {
     // Set telegram instance for cleanup notifications, admin alerts, and run startup cleanup
     setCleanupTelegram(bot.telegram);
     setAlertTelegram(bot.telegram);
-    if (process.env.ADMIN_ALERT_CHAT_ID) {
-      sendGroupAlert('info', 'Bot Started', { version: 'v3.0', env: process.env.NODE_ENV || 'development' });
+    if (appConfig.ADMIN_ALERT_CHAT_ID) {
+      sendGroupAlert('info', 'Bot Started', { version: 'v3.0', env: appConfig.NODE_ENV });
     }
     try {
       const stuckCount = await cleanupStuckVideos(bot.telegram);
@@ -213,7 +203,7 @@ async function main() {
     });
 
     // ── CORS (onRequest to avoid conflicts with SSE/raw responses) ──
-    const corsOrigin = process.env.CORS_ORIGIN || process.env.WEBHOOK_URL || process.env.WEB_APP_URL || '';
+    const corsOrigin = appConfig.CORS_ORIGIN || appConfig.WEBHOOK_URL || appConfig.WEB_APP_URL || '';
     server.addHook('onRequest', async (request, reply) => {
       const origin = request.headers.origin;
       if (origin && corsOrigin) {
@@ -263,12 +253,12 @@ async function main() {
       });
 
     // Start bot
-    const webhookUrl = process.env.WEBHOOK_URL;
-    const forcePolling = process.env.FORCE_POLLING === "true";
+    const webhookUrl = appConfig.WEBHOOK_URL;
+    const forcePolling = appConfig.FORCE_POLLING;
 
-    if (!forcePolling && process.env.NODE_ENV === "production" && webhookUrl) {
+    if (!forcePolling && appConfig.NODE_ENV === "production" && webhookUrl) {
       // In production, set Telegram webhook to point at our Fastify route
-      const webhookSecret = process.env.WEBHOOK_SECRET || "";
+      const webhookSecret = appConfig.WEBHOOK_SECRET || "";
       const fullUrl = `${webhookUrl}/webhook/telegram`;
       await bot.telegram.setWebhook(fullUrl, {
         secret_token: webhookSecret,
@@ -310,7 +300,7 @@ async function main() {
 
     // Admin alert for unhandled errors
     const adminIds =
-      process.env.ADMIN_TELEGRAM_IDS?.split(",")
+      appConfig.ADMIN_TELEGRAM_IDS?.split(",")
         .map((id) => id.trim())
         .filter(Boolean) || [];
     const sendAdminAlert = async (msg: string) => {

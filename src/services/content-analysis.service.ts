@@ -6,11 +6,13 @@
  */
 
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import { trackTokens } from '@/services/token-tracker.service';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+function getGeminiVisionUrl() {
+  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
+}
 
 export interface AnalysisResult {
   success: boolean;
@@ -104,7 +106,7 @@ export class ContentAnalysisService {
     try {
       logger.info(`Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
 
-      if (!GEMINI_API_KEY) {
+      if (!getConfig().GEMINI_API_KEY) {
         logger.warn('GEMINI_API_KEY not set, returning fallback response');
         return this.getFallbackResult(mediaType);
       }
@@ -179,7 +181,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
         },
       };
 
-      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 45000,
       });
@@ -222,7 +224,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
     try {
       logger.info(`Cloning video: ${sourceUrl.slice(0, 50)}...`);
 
-      if (!GEMINI_API_KEY) {
+      if (!getConfig().GEMINI_API_KEY) {
         logger.warn('GEMINI_API_KEY not set, returning fallback response');
         const fallback = this.getFallbackResult('video');
         fallback.prompt = `Clone style: ${fallback.prompt}`;
@@ -271,7 +273,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
         },
       };
 
-      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 60000,
       });
@@ -314,7 +316,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
     try {
       logger.info(`Cloning image: ${sourceUrl.slice(0, 50)}...`);
 
-      if (!GEMINI_API_KEY) {
+      if (!getConfig().GEMINI_API_KEY) {
         logger.warn('GEMINI_API_KEY not set, returning fallback response');
         const fallback = this.getFallbackResult('image');
         fallback.prompt = `Clone style: ${fallback.prompt}`;
@@ -354,7 +356,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
         },
       };
 
-      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 45000,
       });

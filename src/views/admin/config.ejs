@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Config — BerkahKarya Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #0d0d14;
+      --sidebar: #111118;
+      --card: #1a1a24;
+      --border: #2a2a3a;
+      --gold: #c4a35a;
+      --gold-dim: #8a6f3a;
+      --text: #e0e0f0;
+      --muted: #888899;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; min-height: 100vh; }
+    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 50; display: flex; flex-direction: column; }
+    .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; color: var(--muted); font-size: 14px; text-decoration: none; }
+    .nav-item:hover { background: rgba(196,163,90,0.08); color: var(--text); }
+    .nav-item.active { border-left-color: var(--gold); color: var(--gold); background: rgba(196,163,90,0.1); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-gold { background: var(--gold); color: #0d0d14; }
+    .btn-gold:hover { background: #d4b36a; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .input { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; width: 100%; }
+    .input:focus { border-color: var(--gold); }
+    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .group-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 16px; background: #111118; border-radius: 8px; margin-bottom: 2px; user-select: none; }
+    .group-header:hover { background: rgba(196,163,90,0.06); }
+    .group-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .group-body { border: 1px solid var(--border); border-radius: 0 0 8px 8px; overflow: hidden; margin-bottom: 12px; }
+    .config-row { display: grid; grid-template-columns: 260px 1fr 100px; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(42,42,58,0.5); font-size: 13px; }
+    .config-row:last-child { border-bottom: none; }
+    .config-row:hover { background: rgba(196,163,90,0.03); }
+    .config-key { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: #a0a0c0; word-break: break-all; }
+    .config-val { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text); word-break: break-all; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+    .badge-set { background: #0f3020; color: #4ade80; }
+    .badge-default { background: #3a2a0a; color: #fbbf24; }
+    .badge-unset { background: #3a0f0f; color: #f87171; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; }
+      .hamburger { display: block; }
+      .config-row { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+    <div style="font-size: 16px; font-weight: 700; color: var(--gold);">&#9889; BerkahKarya</div>
+    <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
+  </div>
+  <nav style="flex: 1; padding: 12px 0;">
+    <a href="/admin/dashboard" class="nav-item">&#128202; Overview</a>
+    <a href="/admin/pricing" class="nav-item">&#128176; Pricing</a>
+    <a href="/admin/prompts" class="nav-item">&#9997;&#65039; Prompts</a>
+    <a href="/admin/config" class="nav-item active">&#9881;&#65039; Config</a>
+  </nav>
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+    <button class="btn btn-ghost btn-sm" style="width: 100%; justify-content: center;" onclick="logout()">&#128682; Logout</button>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main">
+  <div class="section-title">Environment Config</div>
+  <div class="section-sub">All 72 environment variables grouped by concern. Secrets are masked. Green = configured, yellow = using default, red = not set.</div>
+
+  <!-- Toolbar -->
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+    <input class="input" id="search" placeholder="Filter by key name..." style="max-width: 320px;" oninput="filterRows(this.value)" />
+    <button class="btn btn-ghost btn-sm" onclick="expandAll()">Expand All</button>
+    <button class="btn btn-ghost btn-sm" onclick="collapseAll()">Collapse All</button>
+    <button class="btn btn-gold btn-sm" onclick="loadConfig()">&#8635; Refresh</button>
+    <span id="summary" style="font-size: 12px; color: var(--muted);"></span>
+  </div>
+
+  <div id="config-container">
+    <div style="text-align: center; padding: 40px; color: var(--muted);">Loading configuration...</div>
+  </div>
+</div>
+
+<script>
+  let configData = {};
+
+  async function loadConfig() {
+    document.getElementById('config-container').innerHTML =
+      '<div style="text-align: center; padding: 40px; color: var(--muted);">Loading...</div>';
+    try {
+      const res = await fetch('/api/config');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      configData = await res.json();
+      renderConfig(configData);
+    } catch (e) {
+      document.getElementById('config-container').innerHTML =
+        '<div style="text-align: center; padding: 40px; color: #f87171;">Failed to load config: ' + e.message + '</div>';
+    }
+  }
+
+  function renderConfig(data, filterText) {
+    // Group by group field
+    const groups = {};
+    for (const [key, entry] of Object.entries(data)) {
+      if (!groups[entry.group]) groups[entry.group] = [];
+      groups[entry.group].push({ key, ...entry });
+    }
+
+    const ft = (filterText || '').toLowerCase();
+    let totalSet = 0, totalUnset = 0, totalDefault = 0;
+
+    let html = '';
+    for (const [group, entries] of Object.entries(groups)) {
+      const filtered = ft ? entries.filter(e => e.key.toLowerCase().includes(ft)) : entries;
+      if (filtered.length === 0) continue;
+
+      const groupId = 'group-' + group.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+      let rowsHtml = '';
+      for (const entry of filtered) {
+        const isUnset = entry.value === '(not set)';
+        const isDefault = !isUnset && !entry.sensitive && isDefaultValue(entry.key, entry.value);
+        let badgeClass, badgeLabel;
+        if (isUnset) {
+          badgeClass = 'badge-unset'; badgeLabel = 'not set';
+          totalUnset++;
+        } else if (isDefault) {
+          badgeClass = 'badge-default'; badgeLabel = 'default';
+          totalDefault++;
+        } else {
+          badgeClass = 'badge-set'; badgeLabel = 'set';
+          totalSet++;
+        }
+
+        rowsHtml += `
+          <div class="config-row" data-key="${entry.key}">
+            <div class="config-key">${entry.key}</div>
+            <div class="config-val">${escHtml(entry.value)}</div>
+            <div><span class="badge ${badgeClass}">${badgeLabel}</span></div>
+          </div>`;
+      }
+
+      html += `
+        <div class="group-wrapper" id="${groupId}-wrapper">
+          <div class="group-header" onclick="toggleGroup('${groupId}')">
+            <span class="group-title">${group} <span style="color: var(--muted); font-weight: 400; font-size: 12px;">(${filtered.length})</span></span>
+            <span id="${groupId}-arrow" style="color: var(--muted); font-size: 12px;">&#9660;</span>
+          </div>
+          <div class="group-body" id="${groupId}-body">
+            ${rowsHtml}
+          </div>
+        </div>`;
+    }
+
+    document.getElementById('config-container').innerHTML = html || '<div style="text-align:center;padding:40px;color:var(--muted);">No matching variables.</div>';
+
+    if (!ft) {
+      document.getElementById('summary').textContent =
+        `${totalSet} set · ${totalDefault} default · ${totalUnset} not set`;
+    } else {
+      document.getElementById('summary').textContent = '';
+    }
+  }
+
+  // Known defaults to colour-code yellow
+  const DEFAULTS = {
+    NODE_ENV: 'development',
+    PORT: '3000',
+    LOG_LEVEL: 'info',
+    FORCE_POLLING: 'false',
+    DEMO_MODE: 'false',
+    VIDEO_DIR: '/tmp/videos',
+    AUDIO_DIR: '/tmp/audio',
+    MIDTRANS_ENVIRONMENT: 'sandbox',
+    TRIPAY_ENVIRONMENT: 'sandbox',
+    DUITKU_ENVIRONMENT: 'sandbox',
+    USD_TO_IDR_RATE: '16000',
+    FEATURE_PAYMENT: 'false',
+    FEATURE_REFERRAL: 'false',
+    FEATURE_VIDEO_GENERATION: 'false',
+    REDIS_URL: 'redis://localhost:6379',
+  };
+
+  function isDefaultValue(key, val) {
+    return DEFAULTS[key] !== undefined && val === DEFAULTS[key];
+  }
+
+  function filterRows(text) {
+    renderConfig(configData, text);
+  }
+
+  function toggleGroup(id) {
+    const body = document.getElementById(id + '-body');
+    const arrow = document.getElementById(id + '-arrow');
+    if (!body) return;
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? '' : 'none';
+    if (arrow) arrow.innerHTML = isHidden ? '&#9660;' : '&#9658;';
+  }
+
+  function expandAll() {
+    document.querySelectorAll('.group-body').forEach(el => { el.style.display = ''; });
+    document.querySelectorAll('[id$="-arrow"]').forEach(el => { el.innerHTML = '&#9660;'; });
+  }
+
+  function collapseAll() {
+    document.querySelectorAll('.group-body').forEach(el => { el.style.display = 'none'; });
+    document.querySelectorAll('[id$="-arrow"]').forEach(el => { el.innerHTML = '&#9658;'; });
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function logout() {
+    document.cookie = 'admin_token=; Max-Age=0; Path=/';
+    window.location.href = '/admin/login';
+  }
+
+  loadConfig();
+</script>
+</body>
+</html>

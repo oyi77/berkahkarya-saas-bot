@@ -20,10 +20,7 @@ import { createHash } from 'crypto';
 import { logger } from '@/utils/logger.js';
 import { redis } from '@/config/redis.js';
 import { trackTokens } from '@/services/token-tracker.service';
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const OMNIROUTE_URL = process.env.OMNIROUTE_URL || 'http://localhost:20128/v1';
-const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || '';
+import { getConfig } from '@/config/env';
 
 const LLM_TIMEOUT = 5000; // 5 seconds per LLM call
 const CACHE_TTL = 3600;   // 1 hour in seconds
@@ -88,6 +85,7 @@ async function saveToCache(key: string, value: string): Promise<void> {
 
 /** Tier 1: Gemini Flash */
 async function tryGemini(metaPrompt: string): Promise<string | null> {
+  const GEMINI_API_KEY = getConfig().GEMINI_API_KEY || '';
   if (!GEMINI_API_KEY) return null;
 
   try {
@@ -125,6 +123,9 @@ async function tryGemini(metaPrompt: string): Promise<string | null> {
 
 /** Tier 2: OmniRoute (OpenAI-compatible) */
 async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
+  const config = getConfig();
+  const OMNIROUTE_URL = config.OMNIROUTE_URL || 'http://localhost:20128/v1';
+  const OMNIROUTE_API_KEY = config.OMNIROUTE_API_KEY || '';
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (OMNIROUTE_API_KEY) {

@@ -15,13 +15,14 @@ import { Worker, Job } from 'bullmq';
 import { bullmqRedis } from '@/config/redis';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { UserService } from '@/services/user.service';
 import { getVideoCreditCost } from '@/config/pricing';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Telegram } from 'telegraf';
 
-const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+const VIDEO_DIR = getConfig().VIDEO_DIR;
 const FRAME_DIR = '/tmp/quality_check_frames';
 const RETENTION_DAYS = 7;
 const RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000;

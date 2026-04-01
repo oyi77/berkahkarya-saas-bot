@@ -12,10 +12,9 @@
  */
 
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
 let telegramInstance: any = null;
-
-const ALERT_CHAT_ID = process.env.ADMIN_ALERT_CHAT_ID || '';
 
 /** Set the Telegram instance (call once at startup) */
 export function setAlertTelegram(telegram: any): void {
@@ -39,6 +38,7 @@ export function sendAdminAlert(
   title: string,
   details?: Record<string, any>,
 ): void {
+  const ALERT_CHAT_ID = getConfig().ADMIN_ALERT_CHAT_ID || '';
   if (!ALERT_CHAT_ID || !telegramInstance) return;
 
   const emoji = LEVEL_EMOJI[level];

@@ -12,16 +12,8 @@ import { ReferralService } from '@/services/referral.service';
 import { SubscriptionService } from '@/services/subscription.service';
 import { AnalyticsService } from '@/services/analytics.service';
 import { PaymentService } from '@/services/payment.service';
+import { getConfig } from '@/config/env';
 import crypto from 'crypto';
-
-const TRIPAY_API_KEY = process.env.TRIPAY_API_KEY || '';
-const TRIPAY_PRIVATE_KEY = process.env.TRIPAY_PRIVATE_KEY || '';
-const TRIPAY_MERCHANT_CODE = process.env.TRIPAY_MERCHANT_CODE || '';
-const TRIPAY_ENVIRONMENT = process.env.TRIPAY_ENVIRONMENT || 'sandbox';
-
-const BASE_URL = TRIPAY_ENVIRONMENT === 'production'
-  ? 'https://tripay.co.id/api/v1'
-  : 'https://tripay.co.id/api-sandbox';
 
 interface TripayCreatePaymentParams {
   userId: bigint;
@@ -39,10 +31,18 @@ interface TripayPayment {
 
 export class TripayService {
   private static getHeaders() {
+    const config = getConfig();
     return {
-      'Authorization': `Bearer ${TRIPAY_API_KEY}`,
+      'Authorization': `Bearer ${config.TRIPAY_API_KEY || ''}`,
       'Content-Type': 'application/json',
     };
+  }
+
+  private static getBaseUrl() {
+    const config = getConfig();
+    return (config.TRIPAY_ENVIRONMENT || 'sandbox') === 'production'
+      ? 'https://tripay.co.id/api/v1'
+      : 'https://tripay.co.id/api-sandbox';
   }
 
   static async createTransaction(params: TripayCreatePaymentParams): Promise<TripayPayment> {
@@ -73,13 +73,13 @@ export class TripayService {
             quantity: 1,
           },
         ],
-        callback_url: `${process.env.WEBHOOK_URL}/webhook/tripay`,
-        return_url: `${process.env.WEBHOOK_URL}/payment/finish`,
+        callback_url: `${getConfig().WEBHOOK_URL}/webhook/tripay`,
+        return_url: `${getConfig().WEBHOOK_URL}/payment/finish`,
         expired_time: Math.floor(Date.now() / 1000) + (24 * 3600), // 24 hours
         signature: this.generateSignature(orderId, price),
       };
 
-      const response = await axios.post(`${BASE_URL}/transaction/create`, payload, {
+      const response = await axios.post(`${this.getBaseUrl()}/transaction/create`, payload, {
         headers: this.getHeaders(),
       });
 
@@ -218,7 +218,7 @@ export class TripayService {
             user_id: transaction.userId.toString(),
             amount_idr: Number(transaction.amountIdr),
             transaction_id: merchant_ref,
-            event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+            event_source_url: `${getConfig().WEBHOOK_URL}/topup`,
             utm_source: user?.utmSource ?? undefined,
             utm_campaign: user?.utmCampaign ?? undefined,
             utm_content: user?.utmContent ?? undefined,
@@ -288,7 +288,7 @@ export class TripayService {
 
   static async checkTransaction(reference: string): Promise<any> {
     try {
-      const response = await axios.get(`${BASE_URL}/transaction/detail`, {
+      const response = await axios.get(`${this.getBaseUrl()}/transaction/detail`, {
         headers: this.getHeaders(),
         params: { reference },
       });
@@ -301,9 +301,10 @@ export class TripayService {
   }
 
   private static generateSignature(merchantRef: string, amount: number): string {
+    const config = getConfig();
     return crypto
-      .createHmac('sha256', TRIPAY_PRIVATE_KEY)
-      .update(TRIPAY_MERCHANT_CODE + merchantRef + amount)
+      .createHmac('sha256', config.TRIPAY_PRIVATE_KEY || '')
+      .update((config.TRIPAY_MERCHANT_CODE || '') + merchantRef + amount)
       .digest('hex');
   }
 

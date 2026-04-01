@@ -10,12 +10,14 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 
 const execFile = promisify(execFileCb);
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+function getGeminiVisionUrl() {
+  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
+}
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -159,7 +161,7 @@ export class VideoAnalysisService {
       }
     } catch (err: any) {
       logger.warn(`[VideoAnalysis] Download failed: ${err.message}`);
-      if (!GEMINI_API_KEY) return buildFallbackResult(videoUrl);
+      if (!getConfig().GEMINI_API_KEY) return buildFallbackResult(videoUrl);
       // Try to proceed with Gemini using the original URL directly
       return VideoAnalysisService._analyzeViaUrl(videoUrl);
     }
@@ -195,7 +197,7 @@ export class VideoAnalysisService {
 
     // ── 4. Gemini analysis ─────────────────────────────────────────────────
     let analysisResult: VideoAnalysisResult;
-    if (!GEMINI_API_KEY) {
+    if (!getConfig().GEMINI_API_KEY) {
       logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — using fallback result');
       analysisResult = buildFallbackResult(videoUrl);
       analysisResult.totalDuration = totalDuration;
@@ -289,7 +291,7 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
 
     let responseText = '';
     try {
-      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 60_000,
       });
@@ -381,7 +383,7 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
     };
 
     try {
-      const response = await axios.post(GEMINI_VISION_URL, requestBody, {
+      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 30_000,
       });

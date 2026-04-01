@@ -25,11 +25,12 @@ import { ImageGenerationService } from '@/services/image.service';
 import { enqueueVideoGeneration } from '@/config/queue';
 import { generateVideoAsync } from '@/commands/create';
 import { t } from '@/i18n/translations';
+import { getConfig } from '@/config/env';
 import { getCorrelationId } from '@/utils/correlation';
 import type { DurationPreset } from '@/config/hpas-engine';
 
 const execFileAsync = promisify(execFile);
-const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+const VIDEO_DIR = getConfig().VIDEO_DIR;
 
 /** Download a URL to a local file. Returns the local path or null on failure. */
 async function downloadToLocal(url: string, filename: string): Promise<string | null> {

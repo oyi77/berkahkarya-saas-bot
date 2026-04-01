@@ -6,13 +6,14 @@
 
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { getQueueStats } from '@/config/queue';
 
 /**
  * Check if user is admin
  */
 function isAdmin(userId: number): boolean {
-  const adminIds = process.env.ADMIN_TELEGRAM_IDS?.split(',').map(id => parseInt(id.trim())) || [];
+  const adminIds = getConfig().ADMIN_TELEGRAM_IDS?.split(',').map(id => parseInt(id.trim())) || [];
   return adminIds.includes(userId);
 }
 

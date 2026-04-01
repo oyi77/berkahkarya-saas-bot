@@ -8,6 +8,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { trackTokens } from '@/services/token-tracker.service';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
 export interface GrokAskRequest {
   proxy?: string;
@@ -42,7 +43,7 @@ export class GrokApiService {
   private context: GrokConversationContext | null = null;
 
   constructor(
-    private baseUrl: string = process.env.GROK_API_URL || 'http://localhost:6969',
+    private baseUrl: string = getConfig().GROK_API_URL || 'http://localhost:6969',
     private defaultModel: string = 'grok-3-fast',
     private proxy: string = '',
     private autoStart: boolean = true,
@@ -72,7 +73,7 @@ export class GrokApiService {
   ): Promise<boolean> {
     try {
       const { spawn } = await import('child_process');
-      const GROK_REPO = process.env.GROK_API_REPO ||
+      const GROK_REPO = getConfig().GROK_API_REPO ||
         '/home/openclaw/.openclaw/workspace/projects/grok-api';
 
       const child = spawn('/usr/bin/python3', [

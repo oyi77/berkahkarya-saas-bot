@@ -10,6 +10,7 @@
 import { Worker, Job } from 'bullmq';
 import { redis, bullmqRedis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { runWithCorrelation } from '@/utils/correlation';
 import { sendAdminAlert } from '@/services/admin-alert.service';
 import { VideoService } from '@/services/video.service';
@@ -38,7 +39,7 @@ import { t } from '@/i18n/translations';
 
 const execFile = promisify(execFileCallback);
 
-const VIDEO_DIR = process.env.VIDEO_DIR || '/tmp/videos';
+const VIDEO_DIR = getConfig().VIDEO_DIR;
 
 // ── Progress notification helpers ──
 
@@ -187,7 +188,7 @@ async function generateVOScriptWithAI(
   language: string,
   totalDuration: number
 ): Promise<string> {
-  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+  const GEMINI_API_KEY = getConfig().GEMINI_API_KEY || '';
   if (!GEMINI_API_KEY) throw new Error('No Gemini API key');
 
   const sceneDescriptions = storyboard.map((s, i) =>
@@ -331,7 +332,7 @@ async function applyVOPipeline(
         return videoPath;
       }
 
-      const srtPath = path.join(process.env.AUDIO_DIR || '/tmp/audio', `${jobId}.srt`);
+      const srtPath = path.join(getConfig().AUDIO_DIR || '/tmp/audio', `${jobId}.srt`);
       AudioVOService.generateSRT(tts.subtitleBlocks, srtPath);
 
       await notifyProgress(telegram, chatId, '\ud83d\udcdd Burning subtitles...');
@@ -1019,10 +1020,10 @@ async function sendVideoToUser(
 ): Promise<void> {
   try {
     // Build download URL
-    const webhookUrl = (process.env.WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
+    const webhookUrl = (getConfig().WEBHOOK_URL || 'http://localhost:3000').replace(/\/webhook.*$/, '');
     const video = await VideoService.getByJobId(jobId);
     const userId = video?.userId?.toString() || '0';
-    const jwtSecret = process.env.JWT_SECRET;
+    const jwtSecret = getConfig().JWT_SECRET;
     if (!jwtSecret) throw new Error('JWT_SECRET environment variable is required');
     const downloadToken = (await import('jsonwebtoken')).default.sign(
       { telegramId: userId, jobId },

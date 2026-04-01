@@ -6,6 +6,7 @@
 
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { Video } from '@prisma/client';
 import { processVideoJob } from './video-generation.service';
 import crypto from 'crypto';
@@ -482,7 +483,7 @@ Visual style: Cinematic, high quality, engaging transitions.
     // For other languages, generate via Gemini API
     try {
       const languageLabel = getAILabel(lang);
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = getConfig().GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error('GEMINI_API_KEY not configured');
       }

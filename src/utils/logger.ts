@@ -7,6 +7,10 @@
 import winston from 'winston';
 import { getCorrelationId } from './correlation';
 
+// Uses process.env directly — logger is loaded before config init
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
 const { combine, timestamp, json, printf, colorize } = winston.format;
 
 // Enriches every log entry with the current async-context correlationId
@@ -26,10 +30,10 @@ const devFormat = printf(({ level, message, timestamp, ...metadata }) => {
 
 // Create logger instance
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: LOG_LEVEL,
   defaultMeta: {
     service: 'openclaw-bot',
-    environment: process.env.NODE_ENV || 'development',
+    environment: NODE_ENV,
   },
   transports: [
     // Console transport
@@ -38,7 +42,7 @@ const logger = winston.createLogger({
         correlationFormat(),
         colorize(),
         timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-        process.env.NODE_ENV === 'production' ? json() : devFormat
+        NODE_ENV === 'production' ? json() : devFormat
       ),
     }),
 

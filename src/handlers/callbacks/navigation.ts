@@ -1,5 +1,6 @@
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
+import { getConfig } from "@/config/env";
 import { UserService } from "@/services/user.service";
 import {
   topupCommand,
@@ -76,7 +77,7 @@ export async function handleNavigationCallbacks(ctx: BotContext, data: string): 
       ],
     ];
 
-    const webAppUrl = process.env.WEB_APP_URL;
+    const webAppUrl = getConfig().WEB_APP_URL;
     if (webAppUrl) {
       rows.push([{ text: t('btn.web_dashboard', lang), web_app: { url: `${webAppUrl}/app` } }]);
     }

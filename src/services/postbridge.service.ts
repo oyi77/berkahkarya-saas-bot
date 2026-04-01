@@ -7,17 +7,19 @@
 import axios from 'axios';
 // import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
-const PB_API_KEY = process.env.POSTBRIDGE_API_KEY || '';
 const PB_BASE_URL = 'https://api.post-bridge.com/v1';
 
-const pbClient = axios.create({
-  baseURL: PB_BASE_URL,
-  headers: {
-    'Authorization': `Bearer ${PB_API_KEY}`,
-    'Content-Type': 'application/json',
-  },
-});
+function createPbClient() {
+  return axios.create({
+    baseURL: PB_BASE_URL,
+    headers: {
+      'Authorization': `Bearer ${getConfig().POSTBRIDGE_API_KEY || ''}`,
+      'Content-Type': 'application/json',
+    },
+  });
+}
 
 export class PostBridgeService {
   /**
@@ -29,7 +31,7 @@ export class PostBridgeService {
     try {
       // In production, PB has an endpoint to generate OAuth URL for specific platform
       // For now, returning placeholder for the dashboard integration
-      return `https://app.post-bridge.com/connect/${platform}?callback_url=${process.env.WEBHOOK_URL}/auth/pb-callback`;
+      return `https://app.post-bridge.com/connect/${platform}?callback_url=${getConfig().WEBHOOK_URL || ''}/auth/pb-callback`;
     } catch (error) {
       logger.error('Error getting PB connect URL:', error);
       throw error;
@@ -46,7 +48,7 @@ export class PostBridgeService {
     scheduledAt?: Date;
   }) {
     try {
-      const response = await pbClient.post('/posts', {
+      const response = await createPbClient().post('/posts', {
         caption: params.caption,
         social_accounts: params.socialAccountIds,
         media_urls: [params.videoUrl],
@@ -67,7 +69,7 @@ export class PostBridgeService {
   static async syncUserAccounts(_userId: bigint) {
     try {
       // This would normally fetch from PB and update our local SocialAccount table
-      // response = await pbClient.get('/social-accounts');
+      // response = await createPbClient().get('/social-accounts');
       return true;
     } catch (error) {
        logger.error('Error syncing PB accounts:', error);

@@ -1,0 +1,454 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1775007936222,
+  "projectRoot": "/mnt/data/openclaw/projects/openclaw-saas-bot",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=20.0.0",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastify",
+        "version": "4.24.0",
+        "category": "backend"
+      },
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": "Node.js 20.0.0"
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "tsx watch src/index.ts",
+      "build": "tsc -p tsconfig.build.json",
+      "start": "tsx src/index.ts",
+      "start:prod": "NODE_ENV=production tsx src/index.ts",
+      "test": "jest",
+      "test:watch": "jest --watch",
+      "test:coverage": "jest --coverage",
+      "test:e2e": "jest --config jest.e2e.config.js",
+      "lint": "eslint src/ --ext .ts",
+      "lint:fix": "eslint src/ --ext .ts --fix",
+      "format": "prettier --write \"src/**/*.ts\"",
+      "format:check": "prettier --check \"src/**/*.ts\"",
+      "typecheck": "tsc --noEmit",
+      "migrate:dev": "prisma migrate dev",
+      "migrate:prod": "prisma migrate deploy",
+      "migrate:status": "prisma migrate status",
+      "db:seed": "tsx prisma/seed.ts",
+      "db:studio": "prisma studio",
+      "db:generate": "prisma generate",
+      "setup": "bash scripts/setup.sh",
+      "deploy": "bash scripts/deploy.sh",
+      "health-check": "bash scripts/health-check.sh",
+      "backup": "bash scripts/backup.sh",
+      "docker:build": "docker build -t openclaw-bot:latest .",
+      "docker:run": "docker run -d --env-file .env -p 3000:3000 openclaw-bot:latest",
+      "prepare": "husky install"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": "*.test.ts",
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "public",
+      "scripts",
+      "src",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "master",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "config": {
+      "path": "config",
+      "purpose": "Configuration files",
+      "fileCount": 5,
+      "lastAccessed": 1775007936211,
+      "keyFiles": [
+        "README.md",
+        "ai.yml",
+        "database.yml",
+        "features.yml",
+        "payment.yml"
+      ]
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 1,
+      "lastAccessed": 1775007936211,
+      "keyFiles": [
+        "dump.rdb"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 11,
+      "lastAccessed": 1775007936215,
+      "keyFiles": [
+        "AI_System_Prompts.md",
+        "Detail_Affiliate_System.md",
+        "MASTER_PROMPT.md",
+        "OpenClaw_SaaS_Bot_Summary.md",
+        "OpenClaw_v3_MASTER_DOCUMENT (2).md"
+      ]
+    },
+    "init.sql": {
+      "path": "init.sql",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1775007936216,
+      "keyFiles": []
+    },
+    "landing": {
+      "path": "landing",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "index-new.html",
+        "index.html"
+      ]
+    },
+    "logs": {
+      "path": "logs",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "bot-error.log",
+        "bot.log",
+        "combined.log",
+        "error.log",
+        "exceptions.log"
+      ]
+    },
+    "monitoring": {
+      "path": "monitoring",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "README.md",
+        "prometheus.yml"
+      ]
+    },
+    "prisma": {
+      "path": "prisma",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "README.md",
+        "schema.prisma",
+        "seed.ts"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 0,
+      "lastAccessed": 1775007936216,
+      "keyFiles": []
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 6,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "README.md",
+        "backup.sh",
+        "daily-report.ts",
+        "deploy.sh",
+        "health-check.sh"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 2,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "README.md",
+        "index.ts"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 14,
+      "lastAccessed": 1775007936216,
+      "keyFiles": [
+        "README.md",
+        "comprehensive_results.json",
+        "comprehensive_test.py",
+        "e2e_flow_verification.py",
+        "e2e_full_coverage.py"
+      ]
+    },
+    "prisma/migrations": {
+      "path": "prisma/migrations",
+      "purpose": "Database migrations",
+      "fileCount": 1,
+      "lastAccessed": 1775007936217,
+      "keyFiles": [
+        "migration_lock.toml"
+      ]
+    },
+    "src/config": {
+      "path": "src/config",
+      "purpose": "Configuration files",
+      "fileCount": 20,
+      "lastAccessed": 1775007936218,
+      "keyFiles": [
+        "audio-subtitle-engine.ts",
+        "bot_name.txt",
+        "database.ts"
+      ]
+    },
+    "src/middleware": {
+      "path": "src/middleware",
+      "purpose": "Middleware",
+      "fileCount": 5,
+      "lastAccessed": 1775007936218,
+      "keyFiles": [
+        "index.ts",
+        "logging.ts",
+        "rateLimit.ts"
+      ]
+    },
+    "src/public": {
+      "path": "src/public",
+      "purpose": "Public files",
+      "fileCount": 4,
+      "lastAccessed": 1775007936218,
+      "keyFiles": [
+        "favicon.ico",
+        "favicon.svg",
+        "hero-comparison.png"
+      ]
+    },
+    "tests/fixtures": {
+      "path": "tests/fixtures",
+      "purpose": "Test fixtures",
+      "fileCount": 1,
+      "lastAccessed": 1775007936218,
+      "keyFiles": [
+        "index.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/services/token-tracker.service.ts",
+      "accessCount": 10,
+      "lastAccessed": 1775008246085,
+      "type": "file"
+    },
+    {
+      "path": "src/services/image.service.ts",
+      "accessCount": 9,
+      "lastAccessed": 1775008236984,
+      "type": "directory"
+    },
+    {
+      "path": "src/services/audio-vo.service.ts",
+      "accessCount": 9,
+      "lastAccessed": 1775008268109,
+      "type": "directory"
+    },
+    {
+      "path": "src/commands/create.ts",
+      "accessCount": 8,
+      "lastAccessed": 1775008194225,
+      "type": "file"
+    },
+    {
+      "path": "src/workers/video-generation.worker.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775008093599,
+      "type": "file"
+    },
+    {
+      "path": "src/services/video-fallback.service.ts",
+      "accessCount": 7,
+      "lastAccessed": 1775008195472,
+      "type": "file"
+    },
+    {
+      "path": "src/services/video.service.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775008113421,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 5,
+      "lastAccessed": 1775008179511,
+      "type": "directory"
+    },
+    {
+      "path": "src/routes/webhook.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775008375259,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers/callbacks/navigation.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008033548,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers/callbacks/referral.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008034628,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers/messages/video-uploader.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008035782,
+      "type": "file"
+    },
+    {
+      "path": "src/menus/main.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008036490,
+      "type": "file"
+    },
+    {
+      "path": "src/routes/admin.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008142225,
+      "type": "file"
+    },
+    {
+      "path": "src/services/video-analysis.service.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775008229912,
+      "type": "directory"
+    },
+    {
+      "path": "src/commands/topup.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775007992730,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/videos.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775007994782,
+      "type": "file"
+    },
+    {
+      "path": "src/flows/generate.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008023684,
+      "type": "file"
+    },
+    {
+      "path": "src/services/content-analysis.service.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008211410,
+      "type": "file"
+    },
+    {
+      "path": "src/services/watermark.service.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008225346,
+      "type": "directory"
+    },
+    {
+      "path": "src/services/quality-check.service.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008226739,
+      "type": "directory"
+    },
+    {
+      "path": "src/config/env.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008313913,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit/routes/webhook.test.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775008331611,
+      "type": "file"
+    },
+    {
+      "path": "src/routes/health.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775008114722,
+      "type": "file"
+    },
+    {
+      "path": "src/services/geminigen.service.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775008196270,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/subscription.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775007949139,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers/callbacks",
+      "accessCount": 1,
+      "lastAccessed": 1775007960943,
+      "type": "directory"
+    },
+    {
+      "path": "src/handlers/messages",
+      "accessCount": 1,
+      "lastAccessed": 1775007965971,
+      "type": "directory"
+    },
+    {
+      "path": "src/menus",
+      "accessCount": 1,
+      "lastAccessed": 1775007966735,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

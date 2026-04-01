@@ -5,6 +5,7 @@
 
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
 // Cost per 1K tokens in USD (input / output)
 const MODEL_COSTS: Record<string, { input: number; output: number }> = {
@@ -56,7 +57,7 @@ const GENERATION_COSTS: Record<string, number> = {
   default_gen:     0.03,
 };
 
-const USD_TO_IDR = Number(process.env.USD_TO_IDR_RATE) || 16000;
+const USD_TO_IDR = () => getConfig().USD_TO_IDR_RATE;
 
 export function estimateCost(
   model: string,
@@ -70,7 +71,7 @@ export function estimateCost(
   const rates = MODEL_COSTS[modelKey];
   const usd =
     (promptTokens / 1000) * rates.input + (completionTokens / 1000) * rates.output;
-  return { usd, idr: usd * USD_TO_IDR };
+  return { usd, idr: usd * USD_TO_IDR() };
 }
 
 export interface TrackTokensInput {
@@ -92,7 +93,7 @@ export async function trackTokens(input: TrackTokensInput): Promise<void> {
     let finalCost = cost;
     if (isGeneration && input.promptTokens === 0 && input.completionTokens === 0) {
       const genCostUsd = GENERATION_COSTS[input.provider] || GENERATION_COSTS.default_gen;
-      finalCost = { usd: genCostUsd, idr: genCostUsd * USD_TO_IDR };
+      finalCost = { usd: genCostUsd, idr: genCostUsd * USD_TO_IDR() };
     }
 
     await prisma.tokenUsage.create({

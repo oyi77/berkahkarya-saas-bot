@@ -9,6 +9,7 @@
 import axios from "axios";
 import crypto from "crypto";
 import { logger } from "@/utils/logger";
+import { getConfig } from "@/config/env";
 
 interface TrackingEvent {
   event_name: string;
@@ -29,13 +30,13 @@ interface TrackingEvent {
 }
 
 export class AnalyticsService {
-  private static GA4_MEASUREMENT_ID = process.env.GA4_MEASUREMENT_ID || "G-V9C14XZ9SG";
-  private static GA4_API_SECRET = process.env.GA4_API_SECRET || "";
-  private static TIKTOK_PIXEL_ID = process.env.TIKTOK_PIXEL_ID || "D6IA84RC77UCTB9KG9OG";
-  private static TIKTOK_PIXEL_EVENT_TOKEN = process.env.TIKTOK_PIXEL_EVENT_TOKEN || "";
-  private static META_PIXEL_ID = process.env.META_PIXEL_ID || "771021905629860";
-  private static META_PIXEL_ACCESS_TOKEN = process.env.META_PIXEL_ACCESS_TOKEN || "";
-  private static META_PIXEL_DATA_SET_ID = process.env.META_PIXEL_DATA_SET_ID || "";
+  private static get GA4_MEASUREMENT_ID() { return getConfig().GA4_MEASUREMENT_ID || "G-V9C14XZ9SG"; }
+  private static get GA4_API_SECRET() { return getConfig().GA4_API_SECRET || ""; }
+  private static get TIKTOK_PIXEL_ID() { return getConfig().TIKTOK_PIXEL_ID || "D6IA84RC77UCTB9KG9OG"; }
+  private static get TIKTOK_PIXEL_EVENT_TOKEN() { return getConfig().TIKTOK_PIXEL_EVENT_TOKEN || ""; }
+  private static get META_PIXEL_ID() { return getConfig().META_PIXEL_ID || "771021905629860"; }
+  private static get META_PIXEL_ACCESS_TOKEN() { return getConfig().META_PIXEL_ACCESS_TOKEN || ""; }
+  private static get META_PIXEL_DATA_SET_ID() { return getConfig().META_PIXEL_DATA_SET_ID || ""; }
 
   /**
    * SHA256 hash for PII (email, phone, user ID)

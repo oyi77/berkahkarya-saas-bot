@@ -23,13 +23,14 @@
 
 import { logger } from '@/utils/logger';
 import { createHash } from 'crypto';
+import { getConfig } from '@/config/env';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const PIXEL_ID = process.env.META_PIXEL_ID || '';
-const ACCESS_TOKEN = process.env.META_CAPI_TOKEN || '';
-const API_URL = `https://graph.facebook.com/v18.0/${PIXEL_ID}/events`;
-const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE || ''; // For testing
+function getPixelId() { return getConfig().META_PIXEL_ID || ''; }
+function getAccessToken() { return getConfig().META_CAPI_TOKEN || ''; }
+function getApiUrl() { return `https://graph.facebook.com/v18.0/${getPixelId()}/events`; }
+function getTestEventCode() { return getConfig().META_TEST_EVENT_CODE || ''; }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function buildUserDataPayload(userData: UserData): Record<string, unknown> {
 export class MetaCAPIService {
 
   private static isConfigured(): boolean {
-    return !!(PIXEL_ID && ACCESS_TOKEN);
+    return !!(getPixelId() && getAccessToken());
   }
 
   /**
@@ -112,11 +113,11 @@ export class MetaCAPIService {
         user_data: buildUserDataPayload(event.userData),
         custom_data: event.customData || {},
       }],
-      ...(TEST_EVENT_CODE && { test_event_code: TEST_EVENT_CODE }),
+      ...(getTestEventCode() && { test_event_code: getTestEventCode() }),
     };
 
     try {
-      const response = await fetch(`${API_URL}?access_token=${ACCESS_TOKEN}`, {
+      const response = await fetch(`${getApiUrl()}?access_token=${getAccessToken()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -149,10 +150,10 @@ export class MetaCAPIService {
     }));
 
     try {
-      const response = await fetch(`${API_URL}?access_token=${ACCESS_TOKEN}`, {
+      const response = await fetch(`${getApiUrl()}?access_token=${getAccessToken()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data, ...(TEST_EVENT_CODE && { test_event_code: TEST_EVENT_CODE }) }),
+        body: JSON.stringify({ data, ...(getTestEventCode() && { test_event_code: getTestEventCode() }) }),
         signal: AbortSignal.timeout(5000),
       });
 
@@ -194,7 +195,7 @@ export class MetaCAPIService {
     await this.sendEvent({
       eventName: 'InitiateCheckout',
       userData,
-      customData: { content_ids: [packageId], value: priceIdr / (Number(process.env.USD_TO_IDR_RATE) || 16000), currency: 'IDR', num_items: 1 },
+      customData: { content_ids: [packageId], value: priceIdr / (getConfig().USD_TO_IDR_RATE), currency: 'IDR', num_items: 1 },
     });
   }
 
@@ -219,7 +220,7 @@ export class MetaCAPIService {
       userData,
       customData: {
         order_id: orderId,
-        value: priceIdr / (Number(process.env.USD_TO_IDR_RATE) || 16000),
+        value: priceIdr / (getConfig().USD_TO_IDR_RATE),
         currency: 'IDR',
         content_ids: [packageId],
         content_type: 'product',
@@ -308,7 +309,7 @@ export class MetaCAPIService {
       customData: {
         event_type: 'SubscriptionStart',
         plan,
-        value: priceIdr / (Number(process.env.USD_TO_IDR_RATE) || 16000),
+        value: priceIdr / (getConfig().USD_TO_IDR_RATE),
         currency: 'IDR',
       },
     });

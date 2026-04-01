@@ -12,9 +12,9 @@ import { ReferralService } from '@/services/referral.service';
 import { AnalyticsService } from '@/services/analytics.service';
 import { PaymentService } from '@/services/payment.service';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
 const BASE_URL = 'https://api.nowpayments.io/v1';
-const API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
 
 // USD pricing per credit package
 // Note: NOWPayments minimum is ~$19 USD, so all packages must meet this threshold
@@ -68,11 +68,11 @@ export class NowPaymentsService {
         pay_currency: params.coin,
         order_id: orderId,
         order_description: `${params.credits} credits for @berkahkarya_saas_bot`,
-        ipn_callback_url: `${process.env.WEBHOOK_URL || 'http://localhost:3000'}/webhook/nowpayments`,
+        ipn_callback_url: `${getConfig().WEBHOOK_URL || 'http://localhost:3000'}/webhook/nowpayments`,
       },
       {
         headers: {
-          'x-api-key': API_KEY,
+          'x-api-key': getConfig().NOWPAYMENTS_API_KEY || '',
           'Content-Type': 'application/json',
         },
       }
@@ -87,7 +87,7 @@ export class NowPaymentsService {
         userId: params.userId,
         type: 'topup',
         packageName: `crypto_${params.credits}`,
-        amountIdr: Math.round(pkg.usd * (Number(process.env.USD_TO_IDR_RATE) || 16000)),
+        amountIdr: Math.round(pkg.usd * getConfig().USD_TO_IDR_RATE),
         creditsAmount: params.credits,
         gateway: 'nowpayments',
         status: 'pending',
@@ -198,7 +198,7 @@ export class NowPaymentsService {
           user_id: transaction.userId.toString(),
           amount_idr: Number(transaction.amountIdr),
           transaction_id: order_id,
-          event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+          event_source_url: `${getConfig().WEBHOOK_URL}/topup`,
           utm_source: user?.utmSource ?? undefined,
           utm_campaign: user?.utmCampaign ?? undefined,
           utm_content: user?.utmContent ?? undefined,

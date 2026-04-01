@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { Telegraf } from 'telegraf';
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { prisma } from '@/config/database';
 import { sendAdminAlert } from '@/services/admin-alert.service';
 import { PaymentService } from '@/services/payment.service';
@@ -20,8 +21,9 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
 
   server.post('/webhook/telegram', async (request, reply) => {
     try {
-      const webhookSecret = process.env.WEBHOOK_SECRET;
-      if (!webhookSecret && process.env.NODE_ENV === 'production') {
+      const config = getConfig();
+      const webhookSecret = config.WEBHOOK_SECRET;
+      if (!webhookSecret && config.NODE_ENV === 'production') {
         logger.error('WEBHOOK_SECRET is not set in production — rejecting Telegram webhook');
         return reply.status(503).send({ error: 'Webhook secret not configured' });
       }
@@ -81,7 +83,7 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
 
   server.post('/webhook/tripay', async (request, reply) => {
     try {
-      const tripayPrivateKey = process.env.TRIPAY_PRIVATE_KEY || '';
+      const tripayPrivateKey = getConfig().TRIPAY_PRIVATE_KEY || '';
       if (!tripayPrivateKey) {
         logger.error('TRIPAY_PRIVATE_KEY is not set — rejecting Tripay webhook');
         return reply.status(500).send({ error: 'Tripay webhook not configured' });
@@ -141,8 +143,9 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
       const body = request.body as any;
 
       // Verify IPN signature — mandatory when NOWPAYMENTS_IPN_SECRET is configured
+      // Use process.env directly — tests mutate this at runtime to test the "no secret" path
       const ipnSecret = process.env.NOWPAYMENTS_IPN_SECRET;
-      if (!ipnSecret && process.env.NODE_ENV === 'production') {
+      if (!ipnSecret && getConfig().NODE_ENV === 'production') {
         logger.error('NOWPAYMENTS_IPN_SECRET is not set in production — rejecting webhook');
         return reply.status(503).send({ error: 'IPN secret not configured' });
       }

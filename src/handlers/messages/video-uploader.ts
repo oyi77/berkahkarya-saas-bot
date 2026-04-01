@@ -1,6 +1,7 @@
 
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
+import { getConfig } from "@/config/env";
 import { UserService } from "@/services/user.service";
 import { ContentAnalysisService } from "@/services/content-analysis.service";
 import { VideoService } from "@/services/video.service";
@@ -146,7 +147,7 @@ export async function handleVideoCreationImage(
       await ctx.telegram.getFileLink(primaryFileId)
     ).toString();
 
-    const VIDEO_DIR = process.env.VIDEO_DIR || "/tmp/videos";
+    const VIDEO_DIR = getConfig().VIDEO_DIR;
     if (!fs.existsSync(VIDEO_DIR)) {
       fs.mkdirSync(VIDEO_DIR, { recursive: true });
     }

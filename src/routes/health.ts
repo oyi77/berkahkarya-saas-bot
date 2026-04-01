@@ -10,6 +10,7 @@ import { redis } from '@/config/redis';
 import { getQueueStats } from '@/config/queue';
 import { PROVIDER_CONFIG } from '@/config/providers';
 import { MetricsService } from '@/services/metrics.service';
+import { getConfig } from '@/config/env';
 
 /**
  * Register health check routes
@@ -19,9 +20,9 @@ export async function healthCheckRoutes(server: FastifyInstance): Promise<void> 
   server.get('/health', async () => {
     return {
       status: 'healthy',
-      version: process.env.npm_package_version || '3.0.0',
+      version: process.env.npm_package_version || '3.0.0', // npm_package_version is injected by npm, not in AppConfig
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
+      environment: getConfig().NODE_ENV,
     };
   });
 

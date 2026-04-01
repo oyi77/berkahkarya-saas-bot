@@ -14,13 +14,15 @@ import { PlanKey, BillingCycle, getPackagesAsync, getSubscriptionPlansAsync } fr
 import crypto from 'crypto';
 import { Telegraf } from 'telegraf';
 import { t } from '@/i18n/translations';
+import { getConfig } from '@/config/env';
 
-// Payment gateway configuration
-const MIDTRANS_BASE_URL = process.env.MIDTRANS_ENVIRONMENT === 'production'
-  ? 'https://app.midtrans.com/snap/v1'
-  : 'https://app.sandbox.midtrans.com/snap/v1';
-
-const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
+function getMidtransBaseUrl() {
+  const config = getConfig();
+  return (config.MIDTRANS_ENVIRONMENT || 'sandbox') === 'production'
+    ? 'https://app.midtrans.com/snap/v1'
+    : 'https://app.sandbox.midtrans.com/snap/v1';
+}
+function getMidtransServerKey() { return getConfig().MIDTRANS_SERVER_KEY || ''; }
 
 export class PaymentService {
   /** Optional reference to the running Telegraf bot instance for sending fulfillment notifications. */
@@ -83,10 +85,10 @@ export class PaymentService {
 
     // Call Midtrans API
     try {
-      const auth = Buffer.from(`${MIDTRANS_SERVER_KEY}:`).toString('base64');
-      
+      const auth = Buffer.from(`${getMidtransServerKey()}:`).toString('base64');
+
       const response = await axios.post(
-        `${MIDTRANS_BASE_URL}/transactions`,
+        `${getMidtransBaseUrl()}/transactions`,
         {
           transaction_details: {
             order_id: orderId,
@@ -104,7 +106,7 @@ export class PaymentService {
             },
           ],
           callbacks: {
-            finish: `${process.env.WEBHOOK_URL}/payment/finish`,
+            finish: `${getConfig().WEBHOOK_URL}/payment/finish`,
           },
         },
         {
@@ -139,7 +141,7 @@ export class PaymentService {
   ): boolean {
     const expectedSignature = crypto
       .createHash('sha512')
-      .update(`${orderId}${statusCode}${grossAmount}${MIDTRANS_SERVER_KEY}`)
+      .update(`${orderId}${statusCode}${grossAmount}${getMidtransServerKey()}`)
       .digest('hex');
     
     return signatureKey === expectedSignature;
@@ -278,7 +280,7 @@ export class PaymentService {
             user_id: transaction.userId.toString(),
             amount_idr: Number(transaction.amountIdr),
             transaction_id: notification.order_id,
-            event_source_url: `${process.env.WEBHOOK_URL}/topup`,
+            event_source_url: `${getConfig().WEBHOOK_URL}/topup`,
             utm_source: user?.utmSource ?? undefined,
             utm_campaign: user?.utmCampaign ?? undefined,
             utm_content: user?.utmContent ?? undefined,

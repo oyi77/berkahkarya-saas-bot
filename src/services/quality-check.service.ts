@@ -12,6 +12,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import { trackTokens } from '@/services/token-tracker.service';
 import * as fs from 'fs';
@@ -21,8 +22,9 @@ import { exec as execCallback } from 'child_process';
 
 const exec = promisify(execCallback);
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+function getGeminiVisionUrl() {
+  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
+}
 
 const FRAME_DIR = '/tmp/quality_check_frames';
 const QUALITY_THRESHOLD = 6;
@@ -56,7 +58,7 @@ export class QualityCheckService {
     };
 
     // If Gemini API key is not configured, skip quality check and pass
-    if (!GEMINI_API_KEY) {
+    if (!getConfig().GEMINI_API_KEY) {
       logger.warn('[QualityCheck] GEMINI_API_KEY not configured, skipping quality check');
       return defaultResult;
     }
@@ -171,7 +173,7 @@ export class QualityCheckService {
       },
     };
 
-    const response = await axios.post(GEMINI_VISION_URL, payload, {
+    const response = await axios.post(getGeminiVisionUrl(), payload, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     });

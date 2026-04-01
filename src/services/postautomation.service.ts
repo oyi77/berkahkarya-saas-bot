@@ -7,10 +7,10 @@
 
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 
 const POSTBRIDGE_API = 'https://api.post-bridge.com/v1';
-const POSTBRIDGE_API_KEY = process.env.POSTBRIDGE_API_KEY || '';
 
 export interface SocialAccount {
   id: number;
@@ -49,7 +49,7 @@ export class PostAutomationService {
         `${POSTBRIDGE_API}/social-accounts`,
         {
           headers: {
-            'Authorization': `Bearer ${POSTBRIDGE_API_KEY}`,
+            'Authorization': `Bearer ${getConfig().POSTBRIDGE_API_KEY || ''}`,
           },
         }
       );
@@ -149,7 +149,7 @@ export class PostAutomationService {
         },
         {
           headers: {
-            'Authorization': `Bearer ${POSTBRIDGE_API_KEY}`,
+            'Authorization': `Bearer ${getConfig().POSTBRIDGE_API_KEY || ''}`,
             'Content-Type': 'application/json',
           },
         }
@@ -208,7 +208,7 @@ export class PostAutomationService {
           postData,
           {
             headers: {
-              'Authorization': `Bearer ${POSTBRIDGE_API_KEY}`,
+              'Authorization': `Bearer ${getConfig().POSTBRIDGE_API_KEY || ''}`,
               'Content-Type': 'application/json',
             },
           }

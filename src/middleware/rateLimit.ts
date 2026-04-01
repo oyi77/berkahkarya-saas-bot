@@ -8,6 +8,7 @@ import { Middleware } from 'telegraf';
 import { BotContext } from '@/types';
 import { redis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
 // Rate limit configuration
 const RATE_LIMIT_WINDOW = 60; // 1 minute in seconds
@@ -25,7 +26,8 @@ export const rateLimitMiddleware: Middleware<BotContext> = async (ctx, next) => 
   }
 
   // Skip rate limiting for admin users
-  const adminIds = process.env.ADMIN_TELEGRAM_IDS?.split(',').map(id => parseInt(id.trim())) || [];
+  const config = getConfig();
+  const adminIds = config.ADMIN_TELEGRAM_IDS?.split(',').map(id => parseInt(id.trim())) || [];
   if (adminIds.includes(userId)) {
     return next();
   }

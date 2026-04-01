@@ -23,27 +23,16 @@ import { ContentAnalysisService } from './content-analysis.service';
 import { WatermarkService } from './watermark.service';
 import { PromptEngine } from '@/config/prompt-engine';
 import { AIPromptOptimizer } from './ai-prompt-optimizer.service';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import FormData from 'form-data';
 import * as fs from 'fs';
 
-// ── Provider API keys (shared with video providers where applicable) ──
-const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || '';
 const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
-
-const FALAI_API_KEY = process.env.FALAI_API_KEY || '';
-const LAOZHANG_API_KEY = process.env.LAOZHANG_API_KEY || '';
-const EVOLINK_API_KEY = process.env.EVOLINK_API_KEY || '';
-const TOGETHER_API_KEY = process.env.TOGETHER_API_KEY || '';
-const SEGMIND_API_KEY = process.env.SEGMIND_API_KEY || '';
-const SILICONFLOW_API_KEY = process.env.SILICONFLOW_API_KEY || '';
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '';
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const PIAPI_API_KEY = process.env.PIAPI_API_KEY || '';
 
 // Read dynamically so tests can toggle it
 function isDemoMode(): boolean {
-  return process.env.DEMO_MODE === 'true';
+  return getConfig().DEMO_MODE;
 }
 
 export type ImageGenerationMode = 'text2img' | 'img2img' | 'ip_adapter';
@@ -124,7 +113,7 @@ async function generateViaGeminiGen(prompt: string, params: ImageGenerationParam
   formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
 
   const response = await axios.post(`${GEMINIGEN_API_BASE}/generate_image`, formData, {
-    headers: { 'x-api-key': GEMINIGEN_API_KEY, ...formData.getHeaders() },
+    headers: { 'x-api-key': getConfig().GEMINIGEN_API_KEY || '', ...formData.getHeaders() },
     timeout: 60000,
   });
 
@@ -132,7 +121,7 @@ async function generateViaGeminiGen(prompt: string, params: ImageGenerationParam
   if (status === 2 || status === 1) {
     for (let i = 0; i < 30; i++) {
       const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${uuid}`, {
-        headers: { 'x-api-key': GEMINIGEN_API_KEY },
+        headers: { 'x-api-key': getConfig().GEMINIGEN_API_KEY || '' },
         timeout: 10000,
       });
       const { status: s, generated_image, thumbnail_url } = poll.data;
@@ -165,7 +154,7 @@ async function generateViaFalai(prompt: string, params: ImageGenerationParams): 
       num_images: 1,
     },
     {
-      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}`, 'Content-Type': 'application/json' },
       timeout: 60000,
     }
   );
@@ -196,7 +185,7 @@ async function generateViaFalaiImg2Img(prompt: string, params: ImageGenerationPa
       guidance_scale: 3.5,
     },
     {
-      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}`, 'Content-Type': 'application/json' },
       timeout: 90000,
     }
   );
@@ -227,7 +216,7 @@ async function generateViaFalaiIPAdapter(prompt: string, params: ImageGeneration
       guidance_scale: 3.5,
     },
     {
-      headers: { Authorization: `Key ${FALAI_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}`, 'Content-Type': 'application/json' },
       timeout: 90000,
     }
   );
@@ -252,7 +241,7 @@ async function generateViaSiliconFlow(prompt: string, params: ImageGenerationPar
       num_inference_steps: 20,
     },
     {
-      headers: { Authorization: `Bearer ${SILICONFLOW_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ''}`, 'Content-Type': 'application/json' },
       timeout: 60000,
     }
   );
@@ -282,7 +271,7 @@ async function generateViaNvidia(prompt: string, params: ImageGenerationParams):
     },
     {
       headers: {
-        Authorization: `Bearer ${NVIDIA_API_KEY}`,
+        Authorization: `Bearer ${getConfig().NVIDIA_API_KEY || ''}`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
@@ -300,7 +289,7 @@ async function generateViaNvidia(prompt: string, params: ImageGenerationParams):
 /** Tier 5: Google Gemini — text-to-image */
 async function generateViaGemini(prompt: string, _params: ImageGenerationParams): Promise<ImageGenerationResult> {
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`,
     {
       contents: [{
         parts: [{ text: `Generate a high-quality image: ${prompt}` }],
@@ -347,7 +336,7 @@ async function generateViaGeminiImg2Img(prompt: string, params: ImageGenerationP
   }
 
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`,
     {
       contents: [{
         parts: [
@@ -395,7 +384,7 @@ async function generateViaLaoZhangKontext(prompt: string, params: ImageGeneratio
   formData.append('model', 'flux-kontext-pro');
 
   const response = await axios.post('https://api.laozhang.ai/v1/images/edits', formData, {
-    headers: { Authorization: `Bearer ${LAOZHANG_API_KEY}`, ...formData.getHeaders() },
+    headers: { Authorization: `Bearer ${getConfig().LAOZHANG_API_KEY || ''}`, ...formData.getHeaders() },
     timeout: 120000,
   });
 
@@ -423,7 +412,7 @@ async function generateViaLaoZhangGptImage(prompt: string, params: ImageGenerati
         n: 1,
         size,
       }, {
-        headers: { Authorization: `Bearer ${LAOZHANG_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${getConfig().LAOZHANG_API_KEY || ''}`, 'Content-Type': 'application/json' },
         timeout: 120000,
       });
 
@@ -462,7 +451,7 @@ async function evolinkImageGenerate(model: string, prompt: string, imageUrl?: st
   if (imageUrl) body.image_url = imageUrl;
 
   const response = await axios.post('https://api.evolink.ai/v1/images/generations', body, {
-    headers: { Authorization: `Bearer ${EVOLINK_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ''}`, 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
@@ -472,7 +461,7 @@ async function evolinkImageGenerate(model: string, prompt: string, imageUrl?: st
   // Poll for completion (same pattern as video-fallback.service.ts)
   for (let i = 0; i < 60; i++) {
     const poll = await axios.get(`https://api.evolink.ai/v1/tasks/${taskId}`, {
-      headers: { Authorization: `Bearer ${EVOLINK_API_KEY}` },
+      headers: { Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ''}` },
       timeout: 10000,
     });
     const status = poll.data?.status;
@@ -505,7 +494,7 @@ async function generateViaPiAPI(prompt: string, params: ImageGenerationParams): 
       num_inference_steps: 28,
     },
   }, {
-    headers: { 'x-api-key': PIAPI_API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '', 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
@@ -515,7 +504,7 @@ async function generateViaPiAPI(prompt: string, params: ImageGenerationParams): 
   // Poll for completion
   for (let i = 0; i < 60; i++) {
     const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${taskId}`, {
-      headers: { 'x-api-key': PIAPI_API_KEY },
+      headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '' },
       timeout: 10000,
     });
     const pollData = poll.data?.data;
@@ -568,7 +557,7 @@ async function generateViaPiAPIImg2Img(prompt: string, params: ImageGenerationPa
       height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
     },
   }, {
-    headers: { 'x-api-key': PIAPI_API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '', 'Content-Type': 'application/json' },
     timeout: 30000,
   });
 
@@ -577,7 +566,7 @@ async function generateViaPiAPIImg2Img(prompt: string, params: ImageGenerationPa
 
   for (let i = 0; i < 60; i++) {
     const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${taskId}`, {
-      headers: { 'x-api-key': PIAPI_API_KEY },
+      headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '' },
       timeout: 10000,
     });
     const pollData = poll.data?.data;
@@ -621,7 +610,7 @@ async function generateViaTogether(prompt: string, params: ImageGenerationParams
       : params.aspectRatio === '9:16' ? { width: 576, height: 1024 }
       : { width: 1024, height: 1024 }),
   }, {
-    headers: { Authorization: `Bearer ${TOGETHER_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${getConfig().TOGETHER_API_KEY || ''}`, 'Content-Type': 'application/json' },
     timeout: 60000,
   });
 
@@ -648,7 +637,7 @@ async function generateViaSegmindIPAdapter(prompt: string, params: ImageGenerati
     width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
     height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
   }, {
-    headers: { 'x-api-key': SEGMIND_API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': getConfig().SEGMIND_API_KEY || '', 'Content-Type': 'application/json' },
     timeout: 90000,
     responseType: 'arraybuffer',
   });
@@ -674,7 +663,7 @@ async function generateViaSegmindImg2Img(prompt: string, params: ImageGeneration
     guidance_scale: 7,
     seed: Math.floor(Math.random() * 2147483647),
   }, {
-    headers: { 'x-api-key': SEGMIND_API_KEY, 'Content-Type': 'application/json' },
+    headers: { 'x-api-key': getConfig().SEGMIND_API_KEY || '', 'Content-Type': 'application/json' },
     timeout: 90000,
     responseType: 'arraybuffer',
   });
@@ -695,7 +684,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'together',
       name: 'Together.ai (FLUX Schnell)',
-      enabled: !!TOGETHER_API_KEY,
+      enabled: !!getConfig().TOGETHER_API_KEY,
       supportsImg2Img: false,
       supportsIPAdapter: false,
       generate: generateViaTogether,
@@ -704,7 +693,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'piapi',
       name: 'PiAPI (Flux Dev)',
-      enabled: !!PIAPI_API_KEY,
+      enabled: !!getConfig().PIAPI_API_KEY,
       supportsImg2Img: true,
       supportsIPAdapter: false,
       generate: generateViaPiAPI,
@@ -714,7 +703,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'gemini',
       name: 'Google Gemini',
-      enabled: !!GEMINI_API_KEY,
+      enabled: !!getConfig().GEMINI_API_KEY,
       supportsImg2Img: true,
       supportsIPAdapter: false,
       generate: generateViaGemini,
@@ -724,7 +713,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'segmind',
       name: 'SegMind (SDXL + IP-Adapter)',
-      enabled: !!SEGMIND_API_KEY,
+      enabled: !!getConfig().SEGMIND_API_KEY,
       supportsImg2Img: true,
       supportsIPAdapter: true,
       generate: generateViaSegmindImg2Img,
@@ -735,7 +724,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'siliconflow',
       name: 'SiliconFlow Flux',
-      enabled: !!SILICONFLOW_API_KEY,
+      enabled: !!getConfig().SILICONFLOW_API_KEY,
       supportsImg2Img: false,
       supportsIPAdapter: false,
       generate: generateViaSiliconFlow,
@@ -744,7 +733,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'falai',
       name: 'Fal.ai Flux',
-      enabled: !!FALAI_API_KEY,
+      enabled: !!getConfig().FALAI_API_KEY,
       supportsImg2Img: true,
       supportsIPAdapter: true,
       generate: generateViaFalai,
@@ -755,7 +744,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'laozhang',
       name: 'LaoZhang (Kontext + GPT-Image)',
-      enabled: !!LAOZHANG_API_KEY,
+      enabled: !!getConfig().LAOZHANG_API_KEY,
       supportsImg2Img: true,
       supportsIPAdapter: false,
       generate: generateViaLaoZhangGptImage,
@@ -765,7 +754,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'evolink',
       name: 'EvoLink (Wan2.5 + Qwen)',
-      enabled: !!EVOLINK_API_KEY,
+      enabled: !!getConfig().EVOLINK_API_KEY,
       supportsImg2Img: true,
       supportsIPAdapter: false,
       generate: generateViaEvoLinkImg2Img,
@@ -775,7 +764,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'nvidia',
       name: 'NVIDIA SDXL',
-      enabled: !!NVIDIA_API_KEY,
+      enabled: !!getConfig().NVIDIA_API_KEY,
       supportsImg2Img: false,
       supportsIPAdapter: false,
       generate: generateViaNvidia,
@@ -784,7 +773,7 @@ function getProviders(): ImageProvider[] {
     {
       key: 'geminigen',
       name: 'GeminiGen',
-      enabled: !!GEMINIGEN_API_KEY,
+      enabled: !!getConfig().GEMINIGEN_API_KEY,
       supportsImg2Img: false,
       supportsIPAdapter: false,
       generate: generateViaGeminiGen,

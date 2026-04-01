@@ -4,16 +4,14 @@
  * Handles AI video generation via GeminiGen.ai API
  */
 
-import { config } from 'dotenv';
-config();
-
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import FormData from 'form-data';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || '';
+function getApiKey() { return getConfig().GEMINIGEN_API_KEY || ''; }
 const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
 
 export interface VideoGenerationResult {
@@ -65,8 +63,8 @@ export async function generateVideo(params: VideoGenerationParams): Promise<Vide
   try {
     logger.info(`🎬 Starting video generation: ${params.prompt.slice(0, 50)}...`);
 
-    if (!GEMINIGEN_API_KEY) {
-      return { success: false, error: 'GEMINIGEN_API_KEY not configured' };
+    if (!getApiKey()) {
+      return { success: false, error: 'getApiKey() not configured' };
     }
 
     const formData = new FormData();
@@ -97,7 +95,7 @@ export async function generateVideo(params: VideoGenerationParams): Promise<Vide
       formData,
       {
         headers: {
-          'x-api-key': GEMINIGEN_API_KEY,
+          'x-api-key': getApiKey(),
           ...formData.getHeaders(),
         },
         timeout: 30000,
@@ -130,7 +128,7 @@ async function pollForCompletion(uuid: string, maxAttempts = 60): Promise<VideoG
     try {
       const response = await axios.get(
         `${GEMINIGEN_API_BASE}/history/${uuid}`,
-        { headers: { 'x-api-key': GEMINIGEN_API_KEY }, timeout: 10000 }
+        { headers: { 'x-api-key': getApiKey() }, timeout: 10000 }
       );
 
       const { status, status_percentage, generated_video, thumbnail_url, error_message } = response.data;
@@ -206,8 +204,8 @@ export async function generateExtend(params: VideoExtendParams): Promise<VideoGe
   try {
     logger.info(`🎬 Starting video extend with ref: ${params.refHistory}`);
 
-    if (!GEMINIGEN_API_KEY) {
-      return { success: false, error: 'GEMINIGEN_API_KEY not configured' };
+    if (!getApiKey()) {
+      return { success: false, error: 'getApiKey() not configured' };
     }
 
     // Download the reference video and extract last frame
@@ -233,7 +231,7 @@ export async function generateExtend(params: VideoExtendParams): Promise<VideoGe
       formData,
       {
         headers: {
-          'x-api-key': GEMINIGEN_API_KEY,
+          'x-api-key': getApiKey(),
           ...formData.getHeaders(),
         },
         timeout: 60000,
@@ -265,7 +263,7 @@ async function extractLastFrameFromHistory(refHistory: string): Promise<string |
     for (let i = 0; i < maxAttempts; i++) {
       const response = await axios.get(
         `${GEMINIGEN_API_BASE}/history/${refHistory}`,
-        { headers: { 'x-api-key': GEMINIGEN_API_KEY }, timeout: 10000 }
+        { headers: { 'x-api-key': getApiKey() }, timeout: 10000 }
       );
 
       const { status, generated_video } = response.data;

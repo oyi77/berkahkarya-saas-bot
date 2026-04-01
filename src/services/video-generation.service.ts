@@ -8,6 +8,7 @@
  */
 
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import axios from 'axios';
 import FormData from 'form-data';
 import { CircuitBreaker } from '@/services/circuit-breaker.service';
@@ -15,14 +16,13 @@ import { PromptOptimizer } from '@/services/prompt-optimizer.service';
 import { ProviderSettingsService } from '@/services/provider-settings.service';
 import { getVideoCreditCost } from '@/config/pricing';
 
-// Configuration
-const GEMINIGEN_API_KEY = process.env.GEMINIGEN_API_KEY || '';
 const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
-const BYTEPLUS_API_KEY = process.env.BYTEPLUS_API_KEY || process.env.AIML_API_KEY || '';
 
 // Demo mode - returns sample video URLs for testing
-// DEMO_MODE evaluated lazily so tests can override process.env
-function isDemoMode(): boolean { return process.env.DEMO_MODE === 'true' || !process.env.GEMINIGEN_API_KEY; }
+function isDemoMode(): boolean {
+  const config = getConfig();
+  return config.DEMO_MODE || !config.GEMINIGEN_API_KEY;
+}
 
 // ============================================================================
 // NICHES & STYLES
@@ -42,13 +42,13 @@ export const NICHES = {
 export const PROVIDERS = {
   geminigen: {
     name: 'GeminiGen',
-    apiKey: GEMINIGEN_API_KEY,
+    apiKey: getConfig().GEMINIGEN_API_KEY || '',
     priority: 1,
     maxDuration: 5,
   },
   byteplus: {
     name: 'BytePlus Seedance',
-    apiKey: BYTEPLUS_API_KEY,
+    apiKey: getConfig().BYTEPLUS_API_KEY || getConfig().AIML_API_KEY || '',
     priority: 2,
     maxDuration: 5,
   },
@@ -107,7 +107,7 @@ export async function generateVideo(params: VideoGenerationParams): Promise<Vide
     prompt = generatePromptFromNiche(niche, styles, duration);
   }
 
-  if (GEMINIGEN_API_KEY) {
+  if (getConfig().GEMINIGEN_API_KEY) {
     try {
       logger.info('🤖 Trying GeminiGen (priority 0)...');
       const result = await generateWithGeminiGen({
@@ -221,7 +221,7 @@ async function generateWithGeminiGen(params: VideoGenerationParams): Promise<Vid
     const response = await axios.post(`${GEMINIGEN_API_BASE}/video-gen/grok`, formData, {
       headers: {
         ...formData.getHeaders(),
-        'x-api-key': GEMINIGEN_API_KEY,
+        'x-api-key': getConfig().GEMINIGEN_API_KEY || '',
       },
       timeout: 30000,
     });
@@ -256,7 +256,7 @@ async function generateWithByteplus(params: VideoGenerationParams): Promise<Vide
   try {
     const response = await axios.post('https://api.aimlapi.com/v2/video/generations', payload, {
       headers: {
-        Authorization: `Bearer ${BYTEPLUS_API_KEY}`,
+        Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || getConfig().AIML_API_KEY || ''}`,
         'Content-Type': 'application/json',
       },
       timeout: 30000,
@@ -284,7 +284,7 @@ async function pollGeminiGen(jobId: string, maxAttempts: number): Promise<VideoG
     try {
       const response = await axios.get(`${GEMINIGEN_API_BASE}/history/${jobId}`, {
         headers: {
-          'x-api-key': GEMINIGEN_API_KEY,
+          'x-api-key': getConfig().GEMINIGEN_API_KEY || '',
         },
         timeout: 10000,
       });
@@ -336,7 +336,7 @@ async function pollByteplus(jobId: string, maxAttempts: number): Promise<VideoGe
     try {
       const response = await axios.get(`https://queue.fal.run/fal-ai/bytedance-seedance/requests/${jobId}`, {
         headers: {
-          Authorization: `Bearer ${BYTEPLUS_API_KEY}`,
+          Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || getConfig().AIML_API_KEY || ''}`,
         },
         timeout: 10000,
       });

@@ -8,6 +8,7 @@
 
 import { redis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 
 interface RateLimitConfig {
   /** Window in seconds */
@@ -96,8 +97,9 @@ export async function checkRateLimit(
  * Admin ID list from env
  */
 export function getAdminIds(): number[] {
+  const config = getConfig();
   return (
-    process.env.ADMIN_TELEGRAM_IDS?.split(',')
+    config.ADMIN_TELEGRAM_IDS?.split(',')
       .map((id) => parseInt(id.trim(), 10))
       .filter(Boolean) ?? []
   );

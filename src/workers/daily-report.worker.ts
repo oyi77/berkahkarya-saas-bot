@@ -8,10 +8,11 @@ import { prisma } from "@/config/database";
 import { format, subDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { logger } from "@/utils/logger";
+import { getConfig } from "@/config/env";
 import cron from "node-cron";
 
 export function startDailyReportWorker(bot: Telegraf) {
-  const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || "6077091585";
+  const ADMIN_CHAT_ID = getConfig().ADMIN_CHAT_ID || "6077091585";
 
   // Schedule: Every day at 00:00 WIB (which is 17:00 UTC previous day)
   // Cron: "0 17 * * *" for UTC (00:00 WIB = 17:00 UTC)

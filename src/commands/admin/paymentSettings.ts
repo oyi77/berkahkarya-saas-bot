@@ -1,9 +1,10 @@
 import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
+import { getConfig } from '@/config/env';
 import { PaymentSettingsService } from '@/services/payment-settings.service';
 
 function isAdmin(userId: number): boolean {
-  const adminIds = process.env.SUPER_ADMIN_IDS?.split(',').map(id => parseInt(id.trim())) || [];
+  const adminIds = getConfig().SUPER_ADMIN_IDS?.split(',').map(id => parseInt(id.trim())) || [];
   return adminIds.includes(userId);
 }
 
