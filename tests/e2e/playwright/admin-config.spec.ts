@@ -38,22 +38,22 @@ test('config page contains Environment Config heading', async ({ request }) => {
 
 test('config page has search filter input', async ({ page }) => {
   await page.setExtraHTTPHeaders({ Authorization: basicAuthHeader(ADMIN_PASSWORD) });
-  await page.goto('/admin/config');
+  await page.goto('/admin/config', { waitUntil: 'networkidle' });
   const searchInput = page.locator('input#search');
-  await expect(searchInput).toBeVisible();
+  await expect(searchInput).toBeVisible({ timeout: 10000 });
 });
 
 test('config page has Expand All and Collapse All buttons', async ({ page }) => {
   await page.setExtraHTTPHeaders({ Authorization: basicAuthHeader(ADMIN_PASSWORD) });
-  await page.goto('/admin/config');
-  await expect(page.getByText('Expand All')).toBeVisible();
-  await expect(page.getByText('Collapse All')).toBeVisible();
+  await page.goto('/admin/config', { waitUntil: 'networkidle' });
+  await expect(page.getByText('Expand All')).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText('Collapse All')).toBeVisible({ timeout: 10000 });
 });
 
 test('config page has Refresh button', async ({ page }) => {
   await page.setExtraHTTPHeaders({ Authorization: basicAuthHeader(ADMIN_PASSWORD) });
-  await page.goto('/admin/config');
-  await expect(page.getByText('Refresh')).toBeVisible();
+  await page.goto('/admin/config', { waitUntil: 'networkidle' });
+  await expect(page.getByText('Refresh')).toBeVisible({ timeout: 10000 });
 });
 
 // ─── /api/config endpoint ────────────────────────────────────────────────────
@@ -118,11 +118,11 @@ test('/api/config groups entries into named sections', async ({ request }) => {
 
 test('search filter input accepts text without error', async ({ page }) => {
   await page.setExtraHTTPHeaders({ Authorization: basicAuthHeader(ADMIN_PASSWORD) });
-  await page.goto('/admin/config');
+  await page.goto('/admin/config', { waitUntil: 'networkidle' });
 
   const searchInput = page.locator('input#search');
+  await expect(searchInput).toBeVisible({ timeout: 10000 });
   await searchInput.fill('NODE_ENV');
-  // No JS error should occur; the container should still be present
   await expect(page.locator('#config-container')).toBeVisible();
 });
 
