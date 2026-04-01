@@ -554,6 +554,9 @@ async function processExtendedScenes(
 
     let result: any;
 
+    // Use per-scene generated image as reference if available (from image_set flow)
+    const sceneRef = job.data.userImages?.find(u => u.sceneIndex === sceneIndex)?.url || referenceImage;
+
     // First attempt
     if (sceneIndex === 0) {
       result = await generateVideoWithFallback({
@@ -562,7 +565,7 @@ async function processExtendedScenes(
         aspectRatio: getAspectRatio(platform),
         style: getStyleForNiche(niche),
         niche,
-        referenceImage,
+        referenceImage: sceneRef,
       });
     } else if (useExtend && lastUuidRef) {
       try {
@@ -575,7 +578,7 @@ async function processExtendedScenes(
           aspectRatio: getAspectRatio(platform),
           style: getStyleForNiche(niche),
           niche,
-          referenceImage,
+          referenceImage: sceneRef,
         });
       }
     } else {
@@ -585,7 +588,7 @@ async function processExtendedScenes(
         aspectRatio: getAspectRatio(platform),
         style: getStyleForNiche(niche),
         niche,
-        referenceImage,
+        referenceImage: sceneRef,
       });
     }
 
@@ -598,7 +601,7 @@ async function processExtendedScenes(
         aspectRatio: getAspectRatio(platform),
         style: getStyleForNiche(niche),
         niche,
-        referenceImage,
+        referenceImage: sceneRef,
       });
     }
 

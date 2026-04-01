@@ -91,6 +91,15 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
         ctx.session.generatePreset = 'standard';
         ctx.session.generatePlatform = 'tiktok';
       }
+      // Image set in basic mode: still ask for aspect ratio + resolution
+      if (action === 'image_set' && !ctx.session?.generateAspectRatio) {
+        await showImageAspectRatio(ctx);
+        return;
+      }
+      if (action === 'image_set' && !ctx.session?.generateResolution) {
+        await showImageResolution(ctx);
+        return;
+      }
       await showConfirmScreen(ctx);
       return;
     }
@@ -111,7 +120,19 @@ export async function handleProductInput(ctx: BotContext, message: any): Promise
       return;
     }
 
-    // Image set / campaign → go to confirm
+    // Image set → aspect ratio + resolution before confirm
+    if (action === 'image_set') {
+      if (!ctx.session?.generateAspectRatio) {
+        await showImageAspectRatio(ctx);
+        return;
+      }
+      if (!ctx.session?.generateResolution) {
+        await showImageResolution(ctx);
+        return;
+      }
+    }
+
+    // Campaign / others → go to confirm
     await showConfirmScreen(ctx);
   } catch (err) {
     logger.error('handleProductInput error', err);
@@ -202,49 +223,118 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
     await ctx.reply(t('gen.generating', lang), { parse_mode: 'Markdown' });
 
-    // Image Set (7 scene HPAS)
+    // Image Set → Video Pipeline (generate 7 scene images, then queue video)
     if (action === 'image_set') {
       const scenes = generateVideoScenePrompts(industry, productDesc, 'standard', 'id');
       const creditCost = cost / 10;
 
-      const results: string[] = [];
+      // ── Phase A: Silent image generation with 3x retry per scene ──
       const isLocalRef = photoUrl && !photoUrl.startsWith('http');
+      const selectedAR = (session.generateAspectRatio as string) || '9:16';
+      const selectedRes = (session.generateResolution || 'standard') as 'standard' | 'hd' | 'ultra';
       const imgParams = {
         category: industry,
-        aspectRatio: '9:16' as const,
+        aspectRatio: selectedAR,
         style: 'commercial',
+        resolution: selectedRes,
         referenceImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
         referenceImagePath: isLocalRef ? photoUrl : undefined,
-        mode: (photoUrl ? 'img2img' : 'text2img') as 'img2img' | 'text2img',
+        mode: (photoUrl ? 'ip_adapter' : 'text2img') as 'img2img' | 'text2img' | 'ip_adapter',
+        avatarImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
+        avatarImagePath: isLocalRef ? photoUrl : undefined,
       };
+
+      const userImages: Array<{ sceneIndex: number; url: string }> = [];
+      const MAX_RETRIES = 3;
+
       for (let i = 0; i < Math.min(scenes.length, 7); i++) {
         const scene = scenes[i];
-        await ctx.reply(t('gen.scene_generating', lang, { n: i + 1, name: HPAS_SCENES[scene.sceneId]?.nameId || scene.sceneId }), { parse_mode: 'Markdown' });
-        let result = await ImageGenerationService.generateImage({ prompt: scene.prompt, ...imgParams });
-        // Single retry on failure before skipping
-        if (!result.success || !result.imageUrl) {
-          logger.warn(`Image scene ${i + 1} failed, retrying once...`);
-          result = await ImageGenerationService.generateImage({ prompt: scene.prompt, ...imgParams });
+        let scenePrompt = scene.prompt;
+        if (photoUrl && productDesc) {
+          scenePrompt = `${productDesc}. ${scene.prompt}. IMPORTANT: maintain the exact same product/subject appearance, colors, shape, branding, and details as the reference image.`;
         }
-        if (result.success && result.imageUrl) results.push(result.imageUrl);
+
+        // Silent retry — no per-scene messages to user
+        let success = false;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          const result = await ImageGenerationService.generateImage({ prompt: scenePrompt, ...imgParams });
+          if (result.success && result.imageUrl) {
+            userImages.push({ sceneIndex: i, url: result.imageUrl });
+            success = true;
+            break;
+          }
+          if (attempt < MAX_RETRIES) logger.warn(`Image scene ${i + 1} attempt ${attempt}/${MAX_RETRIES} failed, retrying silently...`);
+        }
+        if (!success) logger.error(`Image scene ${i + 1} failed after ${MAX_RETRIES} attempts, skipping`);
       }
 
-      if (results.length === 0) {
+      if (userImages.length === 0) {
         await ctx.reply(t('gen.all_scenes_failed', lang));
         return;
       }
 
-      // Only charge after at least one scene succeeds; scale cost proportionally
-      const proportionalCost = Math.ceil(creditCost * results.length / 7 * 10) / 10;
-      await UserService.deductCredits(telegramId, proportionalCost);
+      // ── Phase B: Immediately enqueue video job with generated images ──
+      const { VideoService: VS } = await import('../services/video.service.js');
+      const video = await VS.createJob({
+        userId: telegramId,
+        niche: industry,
+        platform,
+        duration: DURATION_PRESETS['standard'].totalSeconds,
+        scenes: scenes.length,
+        title: `Video ${new Date().toLocaleDateString('id-ID')}`,
+      });
 
-      const mediaGroup = results.map((url, i) => ({
-        type: 'photo' as const,
-        media: url,
-        ...(i === 0 ? { caption: `✅ *${results.length}/7 scene berhasil!*\n🏭 Industri: ${industry}`, parse_mode: 'Markdown' as const } : {}),
-      }));
-      await ctx.replyWithMediaGroup(mediaGroup);
-      await showPostDelivery(ctx);
+      await UserService.deductCredits(telegramId, creditCost);
+
+      const storyboard = scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }));
+
+      try {
+        const { position } = await enqueueVideoGeneration({
+          jobId: video.jobId,
+          niche: industry,
+          platform,
+          duration: DURATION_PRESETS['standard'].totalSeconds,
+          scenes: scenes.length,
+          storyboard,
+          referenceImage: photoUrl || null,
+          userImages,
+          userId: telegramId.toString(),
+          chatId: ctx.chat!.id,
+          enableVO: true,
+          enableSubtitles: true,
+          language: user.language || 'id',
+          correlationId: getCorrelationId(),
+        });
+
+        // ── Phase C: Non-blocking preview offer ──
+        await ctx.reply(
+          t('gen.imgset_preview_offer', lang, { count: userImages.length, position }),
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: t('gen.btn_preview_images', lang), callback_data: `imgset_preview_${video.jobId}` }],
+                [{ text: t('gen.btn_skip_preview', lang), callback_data: 'imgset_skip' }],
+              ],
+            },
+          },
+        );
+
+        // Store image URLs in session for preview callback
+        if (ctx.session) {
+          ctx.session.stateData = { ...ctx.session.stateData, imgsetPreviewUrls: userImages.map(u => u.url) };
+        }
+      } catch (enqueueErr) {
+        logger.error('Image set video enqueue failed, falling back to direct send:', enqueueErr);
+        // Fallback: generate video directly (like the video action fallback)
+        generateVideoAsync(ctx, video.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds,
+          storyboard).catch(async (err) => {
+          logger.error('Video generateVideoAsync failed:', err);
+          await UserService.refundCredits(telegramId, creditCost, video.jobId, err?.message || 'fallback failure').catch(() => {});
+          await ctx.telegram.sendMessage(ctx.chat!.id, t('gen.video_failed_refund', lang)).catch(() => {});
+        });
+        await ctx.reply(t('gen.video_processing', lang));
+      }
       return;
     }
 
@@ -459,6 +549,8 @@ export async function showGenerateMode(ctx: BotContext): Promise<void> {
       delete ctx.session.generateScenes;
       delete ctx.session.generateCampaignSize;
       delete ctx.session.customPresetConfig;
+      delete ctx.session.generateAspectRatio;
+      delete ctx.session.generateResolution;
       delete ctx.session.generatePhotos;
       delete ctx.session.generatePhotoCount;
       delete ctx.session.generatePhotoUploadDone;
@@ -636,6 +728,18 @@ export async function continueAfterImagePreference(ctx: BotContext): Promise<voi
   const mode = ctx.session?.generateMode as GenerateMode || 'basic';
   const action = ctx.session?.generateAction as GenerateAction || 'video';
 
+  // Image set: route to aspect ratio → resolution → confirm
+  if (action === 'image_set') {
+    if (!ctx.session?.generateAspectRatio) {
+      await showImageAspectRatio(ctx);
+    } else if (!ctx.session?.generateResolution) {
+      await showImageResolution(ctx);
+    } else {
+      await showConfirmScreen(ctx);
+    }
+    return;
+  }
+
   if (mode === 'basic') {
     await showConfirmScreen(ctx);
     return;
@@ -669,6 +773,7 @@ export async function showPromptSourceSelection(ctx: BotContext): Promise<void> 
 
     const markup = {
       inline_keyboard: [
+        [{ text: t('gen.btn_auto_prompt', lang), callback_data: 'prompt_source_auto' }],
         [{ text: t('gen.btn_prompt_library', lang), callback_data: 'prompt_source_library' }],
         [{ text: t('gen.btn_custom_prompt', lang), callback_data: 'prompt_source_custom' }],
         [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
@@ -680,6 +785,61 @@ export async function showPromptSourceSelection(ctx: BotContext): Promise<void> 
     } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
   } catch (err) {
     logger.error('showPromptSourceSelection error', err);
+  }
+}
+
+// ── Image Options: Aspect Ratio + Resolution ────────────────────────────────
+
+/** Show aspect ratio selection for image_set action */
+export async function showImageAspectRatio(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+    const lang = ctx.session?.userLang || 'id';
+
+    const text = t('gen.select_aspect_ratio', lang);
+    const markup = {
+      inline_keyboard: [
+        [
+          { text: '📱 9:16 (TikTok/Reels)', callback_data: 'img_ar_9:16' },
+          { text: '⬛ 1:1 (Feed)', callback_data: 'img_ar_1:1' },
+        ],
+        [
+          { text: '🖥️ 16:9 (Banner/YT)', callback_data: 'img_ar_16:9' },
+          { text: '📷 4:5 (IG Post)', callback_data: 'img_ar_4:5' },
+        ],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showImageAspectRatio error', err);
+  }
+}
+
+/** Show resolution selection for image_set action */
+export async function showImageResolution(ctx: BotContext): Promise<void> {
+  try {
+    if (ctx.callbackQuery) await ctx.answerCbQuery().catch(() => {});
+    const lang = ctx.session?.userLang || 'id';
+
+    const text = t('gen.select_resolution', lang);
+    const markup = {
+      inline_keyboard: [
+        [{ text: t('gen.res_standard', lang), callback_data: 'img_res_standard' }],
+        [{ text: t('gen.res_hd', lang), callback_data: 'img_res_hd' }],
+        [{ text: t('gen.res_ultra', lang), callback_data: 'img_res_ultra' }],
+        [{ text: t('btn.back', lang), callback_data: 'generate_start' }],
+      ],
+    };
+    try {
+      if (ctx.callbackQuery) await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: markup });
+      else await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup });
+    } catch { await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: markup }); }
+  } catch (err) {
+    logger.error('showImageResolution error', err);
   }
 }
 
@@ -982,7 +1142,9 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     let cost = 0;
     let actionLabel = '';
 
-    if (action === 'image_set') { cost = UNIT_COSTS.IMAGE_SET_7_SCENE; actionLabel = '📸 Image Set 7 Scene'; }
+    const resMultipliers: Record<string, number> = { standard: 1, hd: 2, ultra: 4 };
+    const resMult = resMultipliers[(session.generateResolution as string) || 'standard'] || 1;
+    if (action === 'image_set') { cost = UNIT_COSTS.IMAGE_SET_7_SCENE * resMult; actionLabel = '📸 Image Set 7 Scene'; }
     else if (action === 'video') { cost = presetConfig.creditCost; actionLabel = `🎥 Video ${presetConfig.totalSeconds}s`; }
     else if (action === 'clone_style') { cost = UNIT_COSTS.CLONE_STYLE; actionLabel = '🔄 Clone Style'; }
     else if (action === 'campaign') {
@@ -994,12 +1156,23 @@ export async function showConfirmScreen(ctx: BotContext): Promise<void> {
     const modeLabel = mode === 'basic' ? '⚡ Basic' : mode === 'smart' ? '🎯 Smart' : '👑 Pro';
     const platformLabel: Record<Platform, string> = { tiktok: '🎵 TikTok 9:16', instagram: '📸 Instagram 9:16', youtube: '▶️ YouTube 16:9', square: '⬛ Square 1:1' };
 
+    const resLabels: Record<string, string> = { standard: '📐 Standard (1024px)', hd: '🖼️ HD (2048px)', ultra: '✨ Ultra HD (4096px)' };
+    const selectedAR = (session.generateAspectRatio as string) || '';
+    const selectedRes = (session.generateResolution as string) || '';
+
     const lang = ctx.session?.userLang || 'id';
-    const text = t('gen.confirm_title', lang) + `\n\n` +
+    let text = t('gen.confirm_title', lang) + `\n\n` +
       `Mode: ${modeLabel}\n` +
-      `Aksi: ${actionLabel}\n` +
-      `Platform: ${platformLabel[platform]}\n` +
-      `Industri: ${industry}\n` +
+      `Aksi: ${actionLabel}\n`;
+
+    if (action === 'image_set' && selectedAR) {
+      text += `Rasio: ${selectedAR}\n`;
+      text += `Resolusi: ${resLabels[selectedRes] || selectedRes}\n`;
+    } else {
+      text += `Platform: ${platformLabel[platform]}\n`;
+    }
+
+    text += `Industri: ${industry}\n` +
       `Produk: ${productDesc.slice(0, 60)}${productDesc.length > 60 ? '...' : ''}\n\n` +
       t('gen.confirm_cost', lang, { cost: cost / 10 });
 
@@ -1033,6 +1206,8 @@ export async function showPostDelivery(ctx: BotContext): Promise<void> {
       delete ctx.session.generateMode;
       delete ctx.session.generateCampaignSize;
       delete ctx.session.customPresetConfig;
+      delete ctx.session.generateAspectRatio;
+      delete ctx.session.generateResolution;
       delete ctx.session.generatePhotos;
       delete ctx.session.generatePhotoCount;
       delete ctx.session.generatePhotoUploadDone;

@@ -57,6 +57,30 @@ export interface ImageGenerationParams {
   avatarImageUrl?: string;
   avatarImagePath?: string;
   mode?: ImageGenerationMode;
+  resolution?: 'standard' | 'hd' | 'ultra';
+}
+
+/** Get target width/height from params (set by generateImage) or fall back to aspect-ratio lookup */
+function getDims(params: ImageGenerationParams): { width: number; height: number } {
+  const p = params as any;
+  if (p._targetWidth && p._targetHeight) return { width: p._targetWidth, height: p._targetHeight };
+  return getImageDimensions(params.aspectRatio, params.resolution);
+}
+
+// Resolution multipliers — maps resolution tier to pixel dimension multiplier
+const RESOLUTION_MULTIPLIERS: Record<string, number> = { standard: 1, hd: 2, ultra: 4 };
+
+/** Get pixel dimensions for given aspect ratio and resolution tier */
+export function getImageDimensions(aspectRatio: string = '1:1', resolution: string = 'standard'): { width: number; height: number } {
+  const mult = RESOLUTION_MULTIPLIERS[resolution] || 1;
+  const base: Record<string, { width: number; height: number }> = {
+    '9:16': { width: 576, height: 1024 },
+    '16:9': { width: 1024, height: 576 },
+    '1:1': { width: 1024, height: 1024 },
+    '4:5': { width: 896, height: 1120 },
+  };
+  const dims = base[aspectRatio] || base['1:1'];
+  return { width: dims.width * mult, height: dims.height * mult };
 }
 
 // Category-specific demo images — last-resort fallback
@@ -235,9 +259,7 @@ async function generateViaSiliconFlow(prompt: string, params: ImageGenerationPar
     {
       model: 'black-forest-labs/FLUX.1-schnell',
       prompt,
-      image_size: params.aspectRatio === '16:9' ? '1024x576'
-        : params.aspectRatio === '9:16' ? '576x1024'
-        : '1024x1024',
+      image_size: `${getDims(params).width}x${getDims(params).height}`,
       num_inference_steps: 20,
     },
     {
@@ -264,8 +286,8 @@ async function generateViaNvidia(prompt: string, params: ImageGenerationParams):
     {
       text_prompts: [{ text: prompt, weight: 1 }],
       cfg_scale: 7,
-      height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
-      width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
+      height: getDims(params).height,
+      width: getDims(params).width,
       samples: 1,
       steps: 30,
     },
@@ -400,9 +422,8 @@ async function generateViaLaoZhangKontext(prompt: string, params: ImageGeneratio
 async function generateViaLaoZhangGptImage(prompt: string, params: ImageGenerationParams): Promise<ImageGenerationResult> {
   // Try models cheapest first: dall-e-3 ($0.04) → gpt-image-1-mini ($0.005 but lower quality) → gpt-image-1 ($0.05)
   const models = ['dall-e-3', 'gpt-image-1'];
-  const size = params.aspectRatio === '16:9' ? '1536x1024'
-    : params.aspectRatio === '9:16' ? '1024x1536'
-    : '1024x1024';
+  const d = getDims(params);
+  const size = `${d.width}x${d.height}`;
 
   for (const model of models) {
     try {
@@ -488,8 +509,8 @@ async function generateViaPiAPI(prompt: string, params: ImageGenerationParams): 
     task_type: 'txt2img',
     input: {
       prompt,
-      width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
-      height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
+      width: getDims(params).width,
+      height: getDims(params).height,
       guidance_scale: 3.5,
       num_inference_steps: 28,
     },
@@ -553,8 +574,8 @@ async function generateViaPiAPIImg2Img(prompt: string, params: ImageGenerationPa
       strength: 0.65,
       guidance_scale: 3.5,
       num_inference_steps: 28,
-      width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
-      height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
+      width: getDims(params).width,
+      height: getDims(params).height,
     },
   }, {
     headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '', 'Content-Type': 'application/json' },
@@ -606,9 +627,8 @@ async function generateViaTogether(prompt: string, params: ImageGenerationParams
     prompt,
     n: 1,
     steps: 4,
-    ...(params.aspectRatio === '16:9' ? { width: 1024, height: 576 }
-      : params.aspectRatio === '9:16' ? { width: 576, height: 1024 }
-      : { width: 1024, height: 1024 }),
+    width: getDims(params).width,
+    height: getDims(params).height,
   }, {
     headers: { Authorization: `Bearer ${getConfig().TOGETHER_API_KEY || ''}`, 'Content-Type': 'application/json' },
     timeout: 60000,
@@ -634,8 +654,8 @@ async function generateViaSegmindIPAdapter(prompt: string, params: ImageGenerati
     steps: 28,
     guidance_scale: 3.5,
     seed: Math.floor(Math.random() * 2147483647),
-    width: params.aspectRatio === '16:9' ? 1024 : params.aspectRatio === '9:16' ? 576 : 1024,
-    height: params.aspectRatio === '16:9' ? 576 : params.aspectRatio === '9:16' ? 1024 : 1024,
+    width: getDims(params).width,
+    height: getDims(params).height,
   }, {
     headers: { 'x-api-key': getConfig().SEGMIND_API_KEY || '', 'Content-Type': 'application/json' },
     timeout: 90000,
@@ -844,6 +864,10 @@ export class ImageGenerationService {
         (params as any)._visionAnalysisFailed = true;
       }
     }
+
+    // Resolve target dimensions from aspect ratio + resolution tier
+    const dims = getImageDimensions(params.aspectRatio, params.resolution);
+    params = { ...params, _targetWidth: dims.width, _targetHeight: dims.height } as any;
 
     const enrichedBase = PromptEngine.enrichForImage(visionEnrichedPrompt, params.category, {
       aspectRatio: params.aspectRatio,

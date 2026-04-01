@@ -87,6 +87,51 @@ export async function handleGenerationCallbacks(ctx: BotContext, data: string): 
     return true;
   }
 
+  // img_ar_* — aspect ratio selection for image_set
+  if (data.startsWith("img_ar_")) {
+    await ctx.answerCbQuery?.();
+    const ar = data.replace("img_ar_", "") as '9:16' | '1:1' | '16:9' | '4:5';
+    if (ctx.session) ctx.session.generateAspectRatio = ar;
+    const { showImageResolution } = await import("../../flows/generate.js");
+    await showImageResolution(ctx);
+    return true;
+  }
+
+  // img_res_* — resolution selection for image_set
+  if (data.startsWith("img_res_")) {
+    await ctx.answerCbQuery?.();
+    const res = data.replace("img_res_", "") as 'standard' | 'hd' | 'ultra';
+    if (ctx.session) ctx.session.generateResolution = res;
+    const { showConfirmScreen } = await import("../../flows/generate.js");
+    await showConfirmScreen(ctx);
+    return true;
+  }
+
+  // imgset_preview_* — show generated scene images as preview (video already processing)
+  if (data.startsWith("imgset_preview_")) {
+    await ctx.answerCbQuery?.();
+    const lang = ctx.session?.userLang || 'id';
+    const urls = (ctx.session?.stateData?.imgsetPreviewUrls as string[] | undefined) || [];
+    if (urls.length > 0) {
+      const mediaGroup = urls.map((url, i) => ({
+        type: 'photo' as const,
+        media: url,
+        ...(i === 0 ? { caption: t('gen.imgset_preview_caption', lang, { count: urls.length }), parse_mode: 'Markdown' as const } : {}),
+      }));
+      await ctx.replyWithMediaGroup(mediaGroup).catch(() => {});
+    }
+    await ctx.reply(t('gen.video_processing', lang), { parse_mode: 'Markdown' });
+    return true;
+  }
+
+  // imgset_skip — skip preview, video already processing
+  if (data === "imgset_skip") {
+    await ctx.answerCbQuery?.();
+    const lang = ctx.session?.userLang || 'id';
+    await ctx.editMessageText(t('gen.video_processing', lang), { parse_mode: 'Markdown' });
+    return true;
+  }
+
   // generate_start_* / generate_confirm
   if (data.startsWith("generate_start_") || data === "generate_confirm") {
     const { handleGenerateCallback } = await import("../../flows/generate.js");
@@ -200,6 +245,41 @@ export async function handleGenerationCallbacks(ctx: BotContext, data: string): 
     await ctx.answerCbQuery();
     await ctx.deleteMessage().catch(() => {});
     await promptsCommand(ctx);
+    return true;
+  }
+
+  if (data === "prompt_source_auto") {
+    await ctx.answerCbQuery();
+    const lang = ctx.session?.userLang || 'id';
+    const photoUrl = ctx.session?.generatePhotoUrl as string | undefined;
+    const existingDesc = ctx.session?.generateProductDesc as string | undefined;
+
+    if (!photoUrl && !existingDesc) {
+      await ctx.editMessageText(t('gen.auto_prompt_no_input', lang), { parse_mode: 'Markdown' });
+      return true;
+    }
+
+    await ctx.editMessageText(t('gen.auto_prompt_generating', lang), { parse_mode: 'Markdown' });
+
+    let autoPrompt = '';
+    if (photoUrl) {
+      const { ContentAnalysisService } = await import('../../services/content-analysis.service.js');
+      const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
+      autoPrompt = analysis.success && analysis.prompt ? analysis.prompt : '';
+    }
+    if (!autoPrompt && existingDesc) {
+      const { detectIndustry } = await import('../../config/hpas-engine.js');
+      const industry = detectIndustry(existingDesc);
+      autoPrompt = `${existingDesc} — produk ${industry}`;
+    }
+
+    if (ctx.session && autoPrompt) {
+      ctx.session.generateProductDesc = autoPrompt;
+      ctx.session.state = 'DASHBOARD';
+    }
+
+    const { showConfirmScreen } = await import('../../flows/generate.js');
+    await showConfirmScreen(ctx);
     return true;
   }
 

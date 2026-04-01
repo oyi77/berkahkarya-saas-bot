@@ -78,6 +78,9 @@ export interface SessionData {
   generatePhotos?: Array<{ sceneIndex: number; fileId: string; url: string }>;
   generatePhotoCount?: number;
   generatePhotoUploadDone?: boolean;
+  // Image generation options
+  generateAspectRatio?: '9:16' | '1:1' | '16:9' | '4:5';
+  generateResolution?: 'standard' | 'hd' | 'ultra';
   // Pro mode: storyboard auto/manual
   generateStoryboardMode?: 'auto' | 'manual';
   generateManualStoryboard?: Array<{ sceneId: string; description: string; durationSeconds: number }>;
