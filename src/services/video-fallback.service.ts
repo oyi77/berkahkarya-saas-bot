@@ -40,6 +40,7 @@ export interface VideoFallbackParams {
   style?: string;
   niche?: string;
   referenceImage?: string | null;
+  _forceProvider?: string;
 }
 
 export interface VideoFallbackResult {
@@ -1402,11 +1403,6 @@ export async function generateVideoWithFallback(
     }
   }
 
-  logger.info(
-    `${providers.length} video providers (smart-routed): ${providers.map((p) => p.name).join(", ")}`,
-  );
-
-  const providerErrors: Array<{ name: string; error: string }> = [];
   const FULL_PROMPT_PROVIDERS = [
     "geminigen",
     "siliconflow",
@@ -1415,7 +1411,20 @@ export async function generateVideoWithFallback(
     "hypereal",
   ];
 
-  for (const provider of providers) {
+  // Filter providers if forcing a specific one (playground/debug)
+  const providersToTry = params._forceProvider
+    ? allProviders.filter((p) => p.key === params._forceProvider)
+    : providers;
+
+  if (params._forceProvider && providersToTry.length === 0) {
+    return {
+      success: false,
+      error: `Forced provider ${params._forceProvider} not found or disabled`,
+    };
+  }
+
+  const providerErrors: Array<{ name: string; error: string }> = [];
+  for (const provider of providersToTry) {
     // Skip providers that don't support ref image if we have one
     if (params.referenceImage && !provider.supportsRefImage) {
       logger.info(`Skipping ${provider.name}: no ref image support`);

@@ -147,6 +147,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url === "/admin/settings" ||
       url === "/admin/users" ||
       url === "/admin/config" ||
+      url === "/admin/playground" ||
       url.startsWith("/api/stats") ||
       url.startsWith("/api/analytics") ||
       url.startsWith("/api/users") ||
@@ -658,6 +659,71 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // Admin config view page
   server.get("/admin/config", async (_request, reply) => {
     return reply.view("admin/config.ejs", trackingVars());
+  });
+
+  // Admin playground view page
+  server.get("/admin/playground", async (_request, reply) => {
+    const omni = getOmniRouteService();
+    const models = await omni.listModels().catch(() => []);
+    return reply.view("admin/playground.ejs", {
+      ...trackingVars(),
+      omniModels: models,
+      videoProviders: Object.keys(PROVIDER_CONFIG.video),
+      imageProviders: Object.keys(PROVIDER_CONFIG.image),
+    });
+  });
+
+  // API: Playground — Text/Chat
+  server.post("/api/admin/playground/text", async (request, reply) => {
+    const { prompt, model } = request.body as {
+      prompt: string;
+      model?: string;
+    };
+    if (!prompt) return reply.status(400).send({ error: "Prompt required" });
+    const omni = getOmniRouteService();
+    const result = await omni.chat("admin_playground", prompt, model);
+    return result;
+  });
+
+  // API: Playground — Image Generation
+  server.post("/api/admin/playground/image", async (request, reply) => {
+    const { prompt, provider, aspectRatio = "1:1" } = request.body as any;
+    if (!prompt) return reply.status(400).send({ error: "Prompt required" });
+
+    const { ImageGenerationService } = await import("@/services/image.service");
+    const result = await ImageGenerationService.generateImage({
+      prompt,
+      category: "product",
+      aspectRatio,
+      // We bypass routing and force a specific provider for playground
+      _forceProvider: provider,
+    } as any);
+
+    return result;
+  });
+
+  // API: Playground — Video Generation
+  server.post("/api/admin/playground/video", async (request, reply) => {
+    const {
+      prompt,
+      provider,
+      duration = 5,
+      niche = "fnb",
+    } = request.body as any;
+    if (!prompt) return reply.status(400).send({ error: "Prompt required" });
+
+    const { generateVideoWithFallback } =
+      await import("@/services/video-fallback.service");
+    const result = await generateVideoWithFallback({
+      prompt,
+      duration,
+      niche,
+      aspectRatio: "9:16",
+      // We bypass routing and force a specific provider for playground
+      _forceProvider: provider,
+    });
+
+    return result;
   });
 
   // API: Get Landing Page Config

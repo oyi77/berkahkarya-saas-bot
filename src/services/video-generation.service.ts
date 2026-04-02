@@ -119,6 +119,7 @@ export interface VideoGenerationParams {
   scenes?: number;
   userId?: bigint;
   jobId?: string;
+  _forceProvider?: string;
 }
 
 // ============================================================================
@@ -142,6 +143,24 @@ export async function generateVideo(
   let prompt = params.prompt;
   if (!prompt) {
     prompt = generatePromptFromNiche(niche, styles, duration);
+  }
+
+  // Handle playground/debug force provider
+  if (params._forceProvider) {
+    const providerKey = params._forceProvider;
+    logger.info(`🛠️ [Playground] Forcing provider: ${providerKey}`);
+    const optimizedPrompt = await PromptOptimizer.optimizeForProvider(
+      prompt,
+      providerKey,
+      niche,
+      styles,
+    );
+    const result = await dispatchToProvider(providerKey, {
+      ...params,
+      prompt: optimizedPrompt,
+      duration,
+    });
+    return { ...result, provider: providerKey };
   }
 
   if (getConfig().GEMINIGEN_API_KEY) {

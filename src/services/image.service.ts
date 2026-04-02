@@ -58,6 +58,7 @@ export interface ImageGenerationParams {
   avatarImagePath?: string;
   mode?: ImageGenerationMode;
   resolution?: "standard" | "hd" | "ultra";
+  _forceProvider?: string;
 }
 
 /** Get target width/height from params (set by generateImage) or fall back to aspect-ratio lookup */
@@ -1352,6 +1353,22 @@ export class ImageGenerationService {
     );
 
     let providers = getProviders();
+
+    // Handle playground/debug force provider
+    if (params._forceProvider) {
+      const target = providers.find((p) => p.key === params._forceProvider);
+      if (target) {
+        logger.info(`🛠️ [Playground] Forcing provider: ${target.name}`);
+        const promptForProvider = [
+          "geminigen",
+          "falai",
+          "siliconflow",
+        ].includes(target.key)
+          ? enriched.full
+          : enriched.provider_hint;
+        return target.generate(promptForProvider, params);
+      }
+    }
 
     // Apply admin dynamic overrides (disable/reorder providers via dashboard)
     try {

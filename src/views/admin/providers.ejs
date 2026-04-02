@@ -3,308 +3,666 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Provider Management — Admin</title>
+  <title>Provider Management — BerkahKarya Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box}
-    :root{--bg:#0d0d14;--card:#14141e;--border:#252535;--gold:#f0b90b;--text:#eaeaea;--muted:#71717a;--green:#4ade80;--red:#f87171;--blue:#3b82f6;--yellow:#facc15}
-    body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;min-height:100vh}
-    .sidebar{position:fixed;left:0;top:0;width:220px;height:100vh;background:var(--card);border-right:1px solid var(--border);padding:16px 0;overflow-y:auto;z-index:10}
-    .sidebar .logo{font-size:18px;font-weight:700;padding:8px 16px 20px;color:var(--gold)}
-    .nav-item{padding:8px 16px;cursor:pointer;font-size:13px;color:var(--muted);transition:.2s}
-    .nav-item:hover{color:var(--text);background:rgba(255,255,255,.04)}
-    .nav-item.active{color:var(--gold);background:rgba(240,185,11,.08)}
-    .main{margin-left:220px;padding:20px 24px}
-    .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-    .header h1{font-size:22px;font-weight:700}
-    .tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--card);border-radius:8px;padding:4px;border:1px solid var(--border);width:fit-content}
-    .tab{padding:8px 20px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);transition:.2s}
-    .tab:hover{color:var(--text)}
-    .tab.active{background:var(--gold);color:#000;font-weight:600}
-    .cards-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-    .stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;min-width:140px}
-    .stat-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-    .stat-card .value{font-size:24px;font-weight:700}
-    .stat-card .value.gold{color:var(--gold)}
-    .stat-card .value.green{color:var(--green)}
-    .stat-card .value.red{color:var(--red)}
-    .actions-bar{display:flex;gap:8px;margin-bottom:16px}
-    .btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;cursor:pointer;transition:.2s}
-    .btn:hover{border-color:var(--gold)}
-    .btn-gold{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
-    .btn-gold:hover{background:#d4a50a}
-    .btn-sm{padding:4px 10px;font-size:12px}
-    .provider-grid{display:flex;flex-direction:column;gap:8px}
-    .provider-row{display:grid;grid-template-columns:40px 2fr 100px 80px 140px 80px 60px 180px;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;font-size:13px;cursor:pointer;transition:.2s}
-    .provider-row:hover{border-color:var(--gold)}
-    .provider-row.disabled{opacity:.5}
-    .provider-name{font-weight:600;display:flex;align-items:center;gap:8px}
-    .provider-type{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600;text-transform:uppercase}
-    .type-video{background:rgba(59,130,246,.15);color:var(--blue)}
-    .type-image{background:rgba(168,85,247,.15);color:#a855f7}
-    .key-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-    .key-dot.green{background:var(--green)}
-    .key-dot.red{background:var(--red)}
-    .cb-badge{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
-    .cb-closed{background:rgba(74,222,128,.12);color:var(--green)}
-    .cb-open{background:rgba(248,113,113,.12);color:var(--red)}
-    .cb-half{background:rgba(250,204,21,.12);color:var(--yellow)}
-    input[type=number]{width:50px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 6px;color:var(--text);text-align:center;font-size:12px}
-    input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
-    .actions-cell{display:flex;gap:4px}
-    .balance-cell{font-family:monospace;font-size:12px}
-    .balance-loading{color:var(--muted)}
-    .balance-ok{color:var(--green)}
-    .balance-err{color:var(--red)}
-    .expand-panel{display:none;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:0 0 8px 8px;padding:12px 16px;margin:-8px 0 8px;font-size:12px;color:var(--muted);grid-column:1/-1}
-    .expand-panel.open{display:block}
-    .expand-panel .detail-row{display:flex;gap:20px;flex-wrap:wrap}
-    .expand-panel .detail-item{min-width:180px}
-    .expand-panel .detail-label{font-weight:600;color:var(--text);margin-bottom:2px}
-    .model-tag{display:inline-block;background:rgba(59,130,246,.12);color:var(--blue);padding:2px 8px;border-radius:4px;font-size:11px;margin:2px}
-    .toast{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;font-size:13px;z-index:999;animation:slideIn .3s}
-    .toast.success{border-color:var(--green)}
-    .toast.error{border-color:var(--red)}
-    @keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-    .loading{color:var(--muted);text-align:center;padding:40px}
-    .hidden{display:none!important}
+    :root {
+      --bg: #0d0d14;
+      --sidebar: #111118;
+      --card: #1a1a24;
+      --border: #2a2a3a;
+      --gold: #c4a35a;
+      --gold-dim: #8a6f3a;
+      --text: #e0e0f0;
+      --muted: #888899;
+      --green: #4ade80;
+      --red: #f87171;
+      --blue: #3b82f6;
+      --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; min-height: 100vh; }
+    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 50; display: flex; flex-direction: column; }
+    .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; color: var(--muted); font-size: 14px; }
+    .nav-item:hover { background: rgba(196,163,90,0.08); color: var(--text); }
+    .nav-item.active { border-left-color: var(--gold); color: var(--gold); background: rgba(196,163,90,0.1); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .kpi-card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .kpi-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+    .badge-video { background: #1a2a4a; color: #60a5fa; }
+    .badge-image { background: #2a1a4a; color: #a78bfa; }
+    .badge-active { background: #0f3020; color: #4ade80; }
+    .badge-inactive { background: #3a0f0f; color: #f87171; }
+    .badge-closed { background: #0f3020; color: #4ade80; }
+    .badge-open { background: #3a0f0f; color: #f87171; }
+    .badge-half { background: #3a2a0a; color: #fbbf24; }
+    .badge-configured { background: #0f3020; color: #4ade80; }
+    .badge-missing { background: #3a0f0f; color: #f87171; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-gold { background: var(--gold); color: #0d0d14; }
+    .btn-gold:hover { background: #d4b36a; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .btn-danger { background: #3a0f0f; color: #f87171; border: 1px solid #5a1f1f; }
+    .btn-danger:hover { background: #5a1f1f; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-xs { padding: 3px 8px; font-size: 11px; }
+    .input { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+    .input:focus { border-color: var(--gold); }
+    .input-sm { width: 60px; text-align: center; padding: 4px 6px; }
+    .toggle { position: relative; width: 40px; height: 22px; background: var(--border); border-radius: 11px; cursor: pointer; transition: background 0.2s; }
+    .toggle.on { background: var(--green); }
+    .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; }
+    .toggle.on::after { transform: translateX(18px); }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab { padding: 8px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid transparent; transition: all 0.15s; }
+    .tab.active { background: rgba(196,163,90,0.15); color: var(--gold); border-color: var(--gold-dim); }
+    .tab:hover:not(.active) { background: rgba(255,255,255,0.05); color: var(--text); }
+    .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
+    .provider-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
+    .provider-card:hover { border-color: var(--gold-dim); }
+    .provider-card.erroring { border-color: #5a1f1f; }
+    .provider-header { padding: 16px; cursor: pointer; }
+    .provider-header:hover { background: rgba(255,255,255,0.02); }
+    .provider-row { display: flex; align-items: center; gap: 12px; }
+    .provider-details { display: none; padding: 0 16px 16px; border-top: 1px solid var(--border); }
+    .provider-details.open { display: block; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .status-dot.green { background: var(--green); box-shadow: 0 0 8px rgba(74,222,128,0.4); }
+    .status-dot.yellow { background: var(--yellow); box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+    .status-dot.red { background: var(--red); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+    .status-dot.gray { background: var(--muted); }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    /* Toast */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; max-width: 320px; animation: slideIn 0.2s ease; border: 1px solid; }
+    .toast-success { background: #0f3020; border-color: #1a5030; color: #4ade80; }
+    .toast-error { background: #3a0f0f; border-color: #5a1f1f; color: #f87171; }
+    .toast-info { background: #0f2040; border-color: #1a3060; color: #60a5fa; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 18px; font-weight: 700; margin: 0 0 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    /* Mobile */
+    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; padding: 12px !important; }
+      .hamburger { display: block; }
+      .provider-grid { grid-template-columns: 1fr; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
   </style>
 </head>
 <body>
-<div class="sidebar">
-  <div class="logo">📊 BerkahKarya</div>
-  <div class="nav-item" onclick="window.location='/admin/dashboard'">📈 Dashboard</div>
-  <div class="nav-item" onclick="window.location='/admin/dashboard#users'">👥 Users</div>
-  <div class="nav-item" onclick="window.location='/admin/dashboard#pricing'">💰 Pricing</div>
-  <div class="nav-item" onclick="window.location='/admin/prompts'">✍️ Prompts</div>
-  <div class="nav-item" onclick="window.location='/admin/dashboard#broadcast'">📢 Broadcast</div>
-  <div class="nav-item" onclick="window.location='/admin/dashboard#settings'">⚙️ Settings</div>
-  <div class="nav-item active" onclick="window.location='/admin/providers'">🔌 Providers</div>
-  <div class="nav-item" onclick="window.location='/admin/dashboard#ai-assistant'" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">🤖 AI Assistant</div>
-  <div style="padding:16px;border-top:1px solid var(--border);margin-top:auto">
-    <button class="btn btn-sm" style="width:100%;justify-content:center" onclick="location.href='/admin/logout'">🚪 Logout</button>
+
+<!-- Sidebar -->
+<button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
+<div class="sidebar" id="sidebar">
+  <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+    <div style="font-size: 16px; font-weight: 700; color: var(--gold);">⚡ BerkahKarya</div>
+    <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
+  </div>
+  <nav style="flex: 1; padding: 12px 0;">
+    <div class="nav-item" onclick="window.location='/admin/dashboard'">📊 Dashboard</div>
+    <div class="nav-item" onclick="window.location='/admin/playground'">🧪 Playground</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#users'">👥 Users</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#pricing'">💰 Pricing</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#prompts'">✍️ Prompts</div>
+    <div class="nav-item active">🔌 Providers</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#ai-assistant'">🤖 AI Assistant</div>
+  </nav>
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+    <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="logout()">🚪 Logout</button>
   </div>
 </div>
 
+<!-- Main Content -->
 <div class="main">
-  <div class="header">
-    <h1>🔌 Provider Management</h1>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span id="clock" style="font-size:12px;color:var(--muted);font-family:monospace"></span>
+  <div class="section-title">🔌 Provider Management</div>
+  <div class="section-sub">Configure AI providers, monitor circuit breakers, and manage API balances</div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab active" data-tab="video" onclick="switchTab('video')">🎬 Video Providers</div>
+    <div class="tab" data-tab="image" onclick="switchTab('image')">🖼️ Image Providers</div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+    <div class="kpi-card">
+      <div class="label">Total Providers</div>
+      <div class="value" id="summary-total">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Active</div>
+      <div class="value" style="color: var(--green);" id="summary-active">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Configured</div>
+      <div class="value" style="color: var(--blue);" id="summary-configured">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Erroring</div>
+      <div class="value" style="color: var(--red);" id="summary-erroring">—</div>
     </div>
   </div>
 
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('video')" id="tab-video">Video Providers</div>
-    <div class="tab" onclick="switchTab('image')" id="tab-image">Image Providers</div>
+  <!-- Bulk Actions -->
+  <div class="card" style="margin-bottom: 24px;">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <span style="font-size: 13px; color: var(--muted); margin-right: 8px;">Bulk Actions:</span>
+      <button class="btn btn-ghost btn-sm" onclick="refreshAllBalances()">🔄 Refresh Balances</button>
+      <button class="btn btn-danger btn-sm" onclick="resetAllCB()">⚠️ Reset All Circuit Breakers</button>
+      <button class="btn btn-gold btn-sm" style="margin-left: auto;" onclick="loadProviders()">🔃 Reload</button>
+    </div>
   </div>
 
-  <div class="cards-row">
-    <div class="stat-card"><div class="label">Total</div><div class="value" id="st-total">—</div></div>
-    <div class="stat-card"><div class="label">Active</div><div class="value green" id="st-active">—</div></div>
-    <div class="stat-card"><div class="label">Has API Key</div><div class="value gold" id="st-configured">—</div></div>
-    <div class="stat-card"><div class="label">CB Open</div><div class="value red" id="st-cb-open">—</div></div>
-    <div class="stat-card"><div class="label">Total Balance</div><div class="value" id="st-balance" style="font-size:16px">—</div></div>
+  <!-- Provider Grid -->
+  <div id="provider-grid" class="provider-grid">
+    <div class="loading">Loading providers...</div>
   </div>
-
-  <div class="actions-bar">
-    <button class="btn" onclick="loadBalances()">🔄 Refresh Balances</button>
-    <button class="btn" onclick="resetAllCB()">🔓 Reset All CB</button>
-    <button class="btn btn-gold" onclick="saveAll()">💾 Save All</button>
-  </div>
-
-  <div id="video-container" class="provider-grid"></div>
-  <div id="image-container" class="provider-grid hidden"></div>
 </div>
 
+<!-- Models Modal -->
+<div class="modal-overlay" id="modal-models">
+  <div class="modal" style="max-width: 700px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin:0;" id="modal-models-title">Available Models</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-models')">✕</button>
+    </div>
+    <div id="modal-models-content"><div class="loading">Loading...</div></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
 <script>
+// ===================== AUTH =====================
+const getToken = () => localStorage.getItem('admin_password') || new URLSearchParams(location.search).get('token') || '';
+
+function logout() {
+  localStorage.removeItem('admin_password');
+  document.cookie = 'admin_token=; Max-Age=0; Path=/;';
+  location.href = '/admin/login';
+}
+
+// ===================== API =====================
+async function api(path, opts = {}) {
+  const token = getToken();
+  const headers = {
+    'Authorization': 'Basic ' + btoa(':' + token),
+    ...(opts.headers || {}),
+  };
+  if (opts.body && typeof opts.body !== 'string' && !(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  try {
+    const res = await fetch(path, { ...opts, headers, credentials: 'include' });
+    if (res.status === 401) { location.href = '/admin/login'; return null; }
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    if (!res.ok) throw new Error(typeof data === 'string' ? data : (data?.error || 'Request failed'));
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}
+
+// ===================== TOAST =====================
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ===================== HELPERS =====================
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function reltime(s) {
+  if (!s) return '—';
+  const diff = Date.now() - new Date(s).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function dt(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+// ===================== CLOCK =====================
+function updateClock() {
+  document.getElementById('live-clock').textContent = new Date().toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===================== SIDEBAR =====================
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ===================== STATE =====================
+let currentTab = 'video';
 let providersData = { video: [], image: [] };
 let balancesData = {};
-let activeTab = 'video';
+let expandedCards = new Set();
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
-
-function toast(msg, type = 'success') {
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
-}
-
-async function api(url, opts = {}) {
-  try {
-    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opts });
-    if (!res.ok) { toast(`Error: ${res.status}`, 'error'); return null; }
-    return await res.json();
-  } catch (e) { toast(e.message, 'error'); return null; }
-}
-
+// ===================== TAB SWITCHING =====================
 function switchTab(tab) {
-  activeTab = tab;
+  currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(`tab-${tab}`).classList.add('active');
-  document.getElementById('video-container').classList.toggle('hidden', tab !== 'video');
-  document.getElementById('image-container').classList.toggle('hidden', tab !== 'image');
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  renderCards();
+  updateSummary();
 }
 
-function renderProviders() {
-  const providers = providersData[activeTab] || [];
-  const container = document.getElementById(`${activeTab}-container`);
-  if (!providers.length) { container.innerHTML = '<div class="loading">No providers configured</div>'; return; }
-  const sorted = [...providers].sort((a, b) => a.priority - b.priority);
-  container.innerHTML = sorted.map(p => {
-    const typeClass = p.type === 'video' ? 'type-video' : 'type-image';
-    const keyClass = p.hasApiKey ? 'green' : 'red';
-    const cbClass = p.cbState === 'open' ? 'cb-open' : p.cbState === 'half-open' ? 'cb-half' : 'cb-closed';
-    const cbLabel = p.cbState === 'open' ? 'Open' : p.cbState === 'half-open' ? 'Half' : 'Closed';
-    const balance = balancesData[p.key];
-    let balanceText = '<span class="balance-loading">—</span>';
-    if (balance) {
-      if (balance.status === 'ok' && balance.balance !== null) {
-        const display = balance.currency === 'key_valid' ? '✓ Key OK' : `${balance.balance.toFixed(2)} ${balance.currency}`;
-        balanceText = `<span class="balance-ok">${esc(display)}</span>`;
-      } else if (balance.status === 'not_configured') {
-        balanceText = '<span class="balance-err">No Key</span>';
-      } else if (balance.status === 'not_supported') {
-        balanceText = '<span style="color:var(--muted)">N/A</span>';
-      } else {
-        balanceText = `<span class="balance-err">${esc(balance.error || 'Error')}</span>`;
-      }
-    }
-    return `
-      <div class="provider-row ${p.enabled ? '' : 'disabled'}" id="row-${p.key}" onclick="toggleExpand('${p.key}')">
-        <div><span class="key-dot ${keyClass}"></span></div>
-        <div class="provider-name">
-          <span class="provider-type ${typeClass}">${p.type}</span>
-          ${esc(p.name)}
-        </div>
-        <div><span class="cb-badge ${cbClass}">${cbLabel}</span></div>
-        <div class="balance-cell" id="bal-${p.key}">${balanceText}</div>
-        <div><input type="number" value="${p.priority}" min="1" max="999" onclick="event.stopPropagation()" onchange="updatePriority('${p.key}', this.value)"></div>
-        <div><input type="checkbox" ${p.enabled ? 'checked' : ''} onclick="event.stopPropagation()" onchange="toggleEnabled('${p.key}', this.checked)"></div>
-        <div class="actions-cell">
-          <button class="btn btn-sm" onclick="event.stopPropagation();testProvider('${p.key}')" title="Test">🧪</button>
-          <button class="btn btn-sm" onclick="event.stopPropagation();resetCB('${p.key}')" title="Reset CB">🔄</button>
-        </div>
-        <div class="actions-cell">
-          <button class="btn btn-sm" onclick="event.stopPropagation();showModels('${p.key}')" title="Models">📋</button>
-        </div>
-      </div>
-      <div class="expand-panel" id="expand-${p.key}">
-        <div class="detail-row">
-          <div class="detail-item"><div class="detail-label">Strengths</div><div>${(p.strengths || []).map(s => esc(s)).join(', ') || '—'}</div></div>
-          <div class="detail-item"><div class="detail-label">Quirks</div><div>${esc(p.quirks || '—')}</div></div>
-          <div class="detail-item"><div class="detail-label">Max Duration</div><div>${p.maxDuration || '—'}s</div></div>
-          <div class="detail-item"><div class="detail-label">API Configured</div><div>${p.hasApiKey ? '✅ Yes' : '❌ No'}</div></div>
-        </div>
-        <div style="margin-top:8px"><div class="detail-label">Models</div><div id="models-${p.key}"><span style="color:var(--muted)">Click "Models" to fetch</span></div></div>
-      </div>
-    `;
-  }).join('');
-}
-
-function toggleExpand(key) {
-  document.querySelectorAll('.expand-panel').forEach(p => {
-    if (p.id === `expand-${key}`) p.classList.toggle('open');
-    else p.classList.remove('open');
-  });
-}
-
-function updatePriority(key, val) {
-  const all = [...(providersData.video || []), ...(providersData.image || [])];
-  const p = all.find(x => x.key === key);
-  if (p) p.priority = parseInt(val) || 999;
-}
-
-function toggleEnabled(key, val) {
-  const all = [...(providersData.video || []), ...(providersData.image || [])];
-  const p = all.find(x => x.key === key);
-  if (p) p.enabled = val;
-  renderProviders();
-}
-
+// ===================== LOAD PROVIDERS =====================
 async function loadProviders() {
-  const data = await api('/api/admin/providers/all');
-  if (!data) return;
-  providersData.video = data.video || [];
-  providersData.image = data.image || [];
-  updateStats();
-  renderProviders();
+  const grid = document.getElementById('provider-grid');
+  grid.innerHTML = '<div class="loading">Loading providers...</div>';
+  
+  try {
+    const data = await api('/api/admin/providers/all');
+    if (!data) return;
+    
+    providersData = data;
+    renderCards();
+    updateSummary();
+    
+    // Load balances after providers
+    loadBalances();
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state">Failed to load providers: ${esc(e.message)}</div>`;
+    toast('Failed to load providers: ' + e.message, 'error');
+  }
 }
 
+// ===================== LOAD BALANCES =====================
 async function loadBalances() {
-  toast('Fetching balances...');
-  const data = await api('/api/admin/providers/balances');
-  if (!data) return;
-  balancesData = {};
-  (data.balances || []).forEach(b => { balancesData[b.provider] = b; });
-  updateStats();
-  renderProviders();
-  toast(`Balances loaded for ${data.balances?.length || 0} providers`);
+  try {
+    const data = await api('/api/admin/providers/balances');
+    if (!data || !data.balances) return;
+    
+    balancesData = {};
+    data.balances.forEach(b => {
+      balancesData[b.key] = b.balance;
+    });
+    
+    // Update balance displays
+    Object.entries(balancesData).forEach(([key, balance]) => {
+      const el = document.getElementById(`balance-${key}`);
+      if (el) {
+        el.innerHTML = balance !== null && balance !== undefined
+          ? `<span style="color: var(--green);">${esc(String(balance))}</span>`
+          : `<span style="color: var(--muted);">N/A</span>`;
+      }
+    });
+  } catch (e) {
+    console.error('Failed to load balances:', e);
+  }
 }
 
-async function showModels(key) {
-  const data = await api(`/api/admin/providers/models`);
-  if (!data) return;
-  const modelData = (data.models || []).find(m => m.provider === key);
-  const el = document.getElementById(`models-${key}`);
-  if (!el) return;
-  if (!modelData || !modelData.models?.length) {
-    el.innerHTML = '<span style="color:var(--muted)">No models found or endpoint not supported</span>';
+// ===================== UPDATE SUMMARY =====================
+function updateSummary() {
+  const providers = providersData[currentTab] || [];
+  const total = providers.length;
+  const active = providers.filter(p => p.enabled !== false).length;
+  const configured = providers.filter(p => p.hasApiKey).length;
+  const erroring = providers.filter(p => p.circuitBreaker?.state === 'open').length;
+  
+  document.getElementById('summary-total').textContent = total;
+  document.getElementById('summary-active').textContent = active;
+  document.getElementById('summary-configured').textContent = configured;
+  document.getElementById('summary-erroring').textContent = erroring;
+}
+
+// ===================== RENDER CARDS =====================
+function renderCards() {
+  const grid = document.getElementById('provider-grid');
+  const providers = providersData[currentTab] || [];
+  
+  if (!providers.length) {
+    grid.innerHTML = `<div class="empty-state">No ${currentTab} providers configured</div>`;
     return;
   }
-  el.innerHTML = modelData.models.slice(0, 50).map(m => `<span class="model-tag">${esc(m)}</span>`).join('');
-  if (modelData.models.length > 50) el.innerHTML += ` <span style="color:var(--muted)">+${modelData.models.length - 50} more</span>`;
+  
+  grid.innerHTML = providers.map(p => renderProviderCard(p)).join('');
 }
 
-async function testProvider(key) {
-  toast(`Testing ${key}...`);
-  const data = await api(`/api/admin/providers/${key}/test`, { method: 'POST' });
-  if (!data) return;
-  toast(data.success ? `✅ ${key}: OK (${data.latencyMs}ms)` : `❌ ${key}: ${data.error}`, data.success ? 'success' : 'error');
+function renderProviderCard(p) {
+  const key = p.key || p.name;
+  const type = currentTab;
+  const isExpanded = expandedCards.has(key);
+  const hasError = p.circuitBreaker?.state === 'open';
+  
+  // API Key status
+  const apiKeyStatus = p.hasApiKey
+    ? '<span class="status-dot green" title="API key configured"></span>'
+    : '<span class="status-dot red" title="API key missing"></span>';
+  
+  // Circuit breaker status
+  let cbBadge = 'badge-closed';
+  let cbDot = 'green';
+  let cbLabel = 'Closed';
+  if (p.circuitBreaker?.state === 'open') {
+    cbBadge = 'badge-open';
+    cbDot = 'red';
+    cbLabel = 'Open';
+  } else if (p.circuitBreaker?.state === 'half_open') {
+    cbBadge = 'badge-half';
+    cbDot = 'yellow';
+    cbLabel = 'Half-Open';
+  }
+  
+  const balanceDisplay = balancesData[key] !== undefined
+    ? `<span style="color: var(--green);">${esc(String(balancesData[key]))}</span>`
+    : `<span id="balance-${key}"><span class="spinner"></span></span>`;
+  
+  return `
+    <div class="provider-card ${hasError ? 'erroring' : ''}" data-key="${esc(key)}">
+      <div class="provider-header" onclick="toggleCard('${esc(key)}')">
+        <div class="provider-row">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+              <span style="font-size: 15px; font-weight: 600;">${esc(p.name || key)}</span>
+              <span class="badge badge-${type}">${type}</span>
+              ${hasError ? '<span class="badge badge-open">⚠️ Erroring</span>' : ''}
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px; font-size: 12px; color: var(--muted);">
+              <span style="display: flex; align-items: center; gap: 4px;" title="API Key Status">
+                ${apiKeyStatus} Key
+              </span>
+              <span style="display: flex; align-items: center; gap: 4px;" title="Circuit Breaker">
+                <span class="status-dot ${cbDot}"></span>
+                <span class="badge ${cbBadge}">${cbLabel}</span>
+              </span>
+              <span title="Balance">💰 ${balanceDisplay}</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <input type="number" class="input input-sm" id="prio-${esc(key)}" value="${p.priority ?? 99}" min="1" max="999" onclick="event.stopPropagation()" onchange="markChanged('${esc(key)}')">
+            </div>
+            <div class="toggle ${p.enabled !== false ? 'on' : ''}" id="toggle-${esc(key)}" onclick="event.stopPropagation(); toggleProvider('${esc(key)}')" title="Enable/Disable"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="provider-details ${isExpanded ? 'open' : ''}" id="details-${esc(key)}">
+        <div style="padding-top: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <div>
+              <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Timeout</div>
+              <div style="font-size: 13px;">${p.timeout ? p.timeout + 'ms' : '—'}</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Failures</div>
+              <div style="font-size: 13px;">${p.circuitBreaker?.failureCount ?? 0}</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Last Success</div>
+              <div style="font-size: 12px;">${reltime(p.circuitBreaker?.lastSuccess)}</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px;">Last Failure</div>
+              <div style="font-size: 12px;">${reltime(p.circuitBreaker?.lastFailure)}</div>
+            </div>
+          </div>
+          
+          ${p.strengths?.length ? `
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Strengths</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                ${p.strengths.map(s => `<span style="background: rgba(74,222,128,0.1); color: var(--green); padding: 2px 8px; border-radius: 4px; font-size: 11px;">${esc(s)}</span>`).join('')}
+              </div>
+            </div>
+          ` : ''}
+          
+          ${p.quirks?.length ? `
+            <div style="margin-bottom: 16px;">
+              <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Quirks / Notes</div>
+              <div style="font-size: 12px; color: var(--yellow); line-height: 1.5;">
+                ${p.quirks.map(q => `• ${esc(q)}`).join('<br>')}
+              </div>
+            </div>
+          ` : ''}
+          
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 16px;">
+            <button class="btn btn-ghost btn-xs" onclick="testProvider('${esc(key)}')">🧪 Test</button>
+            <button class="btn btn-ghost btn-xs" onclick="resetCB('${esc(key)}')">🔄 Reset CB</button>
+            <button class="btn btn-ghost btn-xs" onclick="showModels('${esc(key)}')">📋 Models</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
-async function resetCB(key) {
-  const data = await api(`/api/admin/providers/${key}/reset-cb`, { method: 'POST' });
-  if (data?.success) { toast(`CB reset for ${key}`); await loadProviders(); }
+// ===================== CARD INTERACTIONS =====================
+function toggleCard(key) {
+  if (expandedCards.has(key)) {
+    expandedCards.delete(key);
+  } else {
+    expandedCards.add(key);
+  }
+  const details = document.getElementById(`details-${key}`);
+  if (details) {
+    details.classList.toggle('open', expandedCards.has(key));
+  }
+}
+
+function toggleProvider(key) {
+  const toggle = document.getElementById(`toggle-${key}`);
+  const isOn = toggle.classList.toggle('on');
+  markChanged(key);
+}
+
+function markChanged(key) {
+  // Visual indicator for unsaved changes
+  const card = document.querySelector(`.provider-card[data-key="${key}"]`);
+  if (card) {
+    card.style.borderColor = 'var(--gold-dim)';
+  }
+}
+
+// ===================== BULK ACTIONS =====================
+async function refreshAllBalances() {
+  toast('Refreshing all balances...', 'info');
+  await loadBalances();
+  toast('Balances refreshed', 'success');
 }
 
 async function resetAllCB() {
-  if (!confirm('Reset all circuit breakers?')) return;
-  const data = await api('/api/admin/providers/reset-all-cb', { method: 'POST' });
-  if (data?.success) { toast('All circuit breakers reset'); await loadProviders(); }
+  if (!confirm('Reset all circuit breakers? This will allow requests to all providers again.')) return;
+  
+  try {
+    await api('/api/admin/providers/reset-all-cb', { method: 'POST' });
+    toast('All circuit breakers reset', 'success');
+    loadProviders();
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
 }
 
-async function saveAll() {
-  const video = {};
-  providersData.video.forEach(p => { video[p.key] = { priority: p.priority, enabled: p.enabled }; });
-  const image = {};
-  providersData.image.forEach(p => { image[p.key] = { priority: p.priority, enabled: p.enabled }; });
-  const data = await api('/api/admin/settings/providers', { method: 'POST', body: JSON.stringify({ video, image }) });
-  if (data?.success) toast('Settings saved!'); else toast('Save failed', 'error');
+// ===================== PROVIDER ACTIONS =====================
+async function saveProviders() {
+  const providers = providersData[currentTab] || [];
+  const settings = {};
+  
+  providers.forEach(p => {
+    const key = p.key || p.name;
+    const prioEl = document.getElementById(`prio-${key}`);
+    const toggleEl = document.getElementById(`toggle-${key}`);
+    
+    if (prioEl && toggleEl) {
+      settings[key] = {
+        priority: parseInt(prioEl.value) || 99,
+        enabled: toggleEl.classList.contains('on')
+      };
+    }
+  });
+  
+  try {
+    await api('/api/admin/providers/settings', {
+      method: 'POST',
+      body: { type: currentTab, settings }
+    });
+    toast('Provider settings saved', 'success');
+    
+    // Clear visual indicators
+    document.querySelectorAll('.provider-card').forEach(card => {
+      card.style.borderColor = '';
+    });
+    
+    loadProviders();
+  } catch (e) {
+    toast('Failed to save: ' + e.message, 'error');
+  }
 }
 
-function updateStats() {
-  const all = [...(providersData.video || []), ...(providersData.image || [])];
-  document.getElementById('st-total').textContent = all.length;
-  document.getElementById('st-active').textContent = all.filter(p => p.enabled).length;
-  document.getElementById('st-configured').textContent = all.filter(p => p.hasApiKey).length;
-  const openCount = all.filter(p => p.cbState === 'open').length;
-  document.getElementById('st-cb-open').textContent = openCount;
-  const balances = Object.values(balancesData).filter(b => b.status === 'ok' && b.balance !== null && b.currency !== 'key_valid');
-  const totalBal = balances.reduce((s, b) => s + (b.balance || 0), 0);
-  document.getElementById('st-balance').textContent = balances.length ? `$${totalBal.toFixed(2)}` : '—';
+async function resetCB(key) {
+  try {
+    await api(`/api/admin/providers/${encodeURIComponent(key)}/reset-cb`, { method: 'POST' });
+    toast(`Circuit breaker reset for ${key}`, 'success');
+    loadProviders();
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
 }
 
-function updateClock() {
-  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+async function testProvider(key) {
+  toast(`Testing ${key}...`, 'info');
+  
+  try {
+    const result = await api(`/api/admin/providers/${encodeURIComponent(key)}/test`, { method: 'POST' });
+    
+    if (result?.success) {
+      toast(`✅ ${key} test passed`, 'success');
+    } else {
+      toast(`❌ ${key} test failed: ${result?.error || 'Unknown error'}`, 'error');
+    }
+  } catch (e) {
+    toast(`❌ Test failed: ${e.message}`, 'error');
+  }
 }
 
-// Init
+async function showModels(key) {
+  const modal = document.getElementById('modal-models');
+  const content = document.getElementById('modal-models-content');
+  const title = document.getElementById('modal-models-title');
+  
+  title.textContent = `Models — ${key}`;
+  content.innerHTML = '<div class="loading">Loading models...</div>';
+  modal.classList.add('open');
+  
+  try {
+    const provider = [...providersData.video, ...providersData.image].find(p => (p.key || p.name) === key);
+    const models = provider?.models || [];
+    
+    if (!models.length) {
+      content.innerHTML = '<div class="empty-state">No models configured for this provider</div>';
+      return;
+    }
+    
+    content.innerHTML = `
+      <table style="width: 100%; font-size: 13px;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 8px; color: var(--muted); border-bottom: 1px solid var(--border);">Model ID</th>
+            <th style="text-align: left; padding: 8px; color: var(--muted); border-bottom: 1px solid var(--border);">Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${models.map(m => `
+            <tr>
+              <td style="padding: 8px; font-family: monospace; font-size: 12px;">${esc(typeof m === 'string' ? m : m.id || m.name)}</td>
+              <td style="padding: 8px;"><span class="badge badge-${currentTab}">${currentTab}</span></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="empty-state">Failed to load models: ${esc(e.message)}</div>`;
+  }
+}
+
+// ===================== MODAL HELPERS =====================
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+// ===================== SAVE BUTTON (add to page) =====================
+document.addEventListener('DOMContentLoaded', () => {
+  // Add floating save button
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-gold';
+  saveBtn.style.cssText = 'position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; box-shadow: 0 4px 20px rgba(196,163,90,0.3);';
+  saveBtn.innerHTML = '💾 Save Changes';
+  saveBtn.onclick = saveProviders;
+  document.body.appendChild(saveBtn);
+});
+
+// ===================== INIT =====================
+const urlToken = new URLSearchParams(location.search).get('token');
+if (urlToken) {
+  localStorage.setItem('admin_password', urlToken);
+}
+
 loadProviders();
-loadBalances();
-setInterval(updateClock, 1000);
-updateClock();
+
+// Auto-refresh every 60s
+setInterval(() => {
+  loadBalances();
+  updateSummary();
+}, 60000);
 </script>
 </body>
 </html>
