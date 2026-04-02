@@ -82,9 +82,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       }
     }
 
-    reply.view("web/landing.ejs", {
+    return reply.view("web/landing.ejs", {
       landingConfig,
       testimonials,
+      packages,
       currentLang,
       botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
       fbPixelId: getConfig().FACEBOOK_PIXEL_ID || "",
