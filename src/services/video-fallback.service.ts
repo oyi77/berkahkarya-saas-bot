@@ -17,21 +17,21 @@
  * Reference images are passed where supported.
  */
 
-import { logger } from '@/utils/logger';
-import { sendAdminAlert } from '@/services/admin-alert.service';
-import { trackTokens } from '@/services/token-tracker.service';
-import { CircuitBreaker } from './circuit-breaker.service';
-import { ProviderRouter } from './provider-router.service';
-import { PromptEngine } from '@/config/prompt-engine';
-import { VideoPostProcessing } from './video-post-processing.service';
-import { AIPromptOptimizer } from './ai-prompt-optimizer.service';
-import { getConfig } from '@/config/env';
-import axios from 'axios';
-import FormData from 'form-data';
-import * as fs from 'fs';
-import * as path from 'path';
+import { logger } from "@/utils/logger";
+import { sendAdminAlert } from "@/services/admin-alert.service";
+import { trackTokens } from "@/services/token-tracker.service";
+import { CircuitBreaker } from "./circuit-breaker.service";
+import { ProviderRouter } from "./provider-router.service";
+import { PromptEngine } from "@/config/prompt-engine";
+import { VideoPostProcessing } from "./video-post-processing.service";
+import { AIPromptOptimizer } from "./ai-prompt-optimizer.service";
+import { getConfig } from "@/config/env";
+import axios from "axios";
+import FormData from "form-data";
+import * as fs from "fs";
+import * as path from "path";
 
-const GEMINIGEN_API_BASE = 'https://api.geminigen.ai/uapi/v1';
+const GEMINIGEN_API_BASE = "https://api.geminigen.ai/uapi/v1";
 
 export interface VideoFallbackParams {
   prompt: string;
@@ -57,7 +57,7 @@ interface VideoProvider {
   name: string;
   enabled: boolean;
   supportsRefImage: boolean;
-  maxDuration: number;  // Max seconds this provider can generate in one call
+  maxDuration: number; // Max seconds this provider can generate in one call
   generate: (params: VideoFallbackParams) => Promise<VideoFallbackResult>;
 }
 
@@ -67,33 +67,39 @@ const POLL_INTERVAL = 5000;
 const POLL_MAX_ATTEMPTS = 60;
 
 function mapAspectRatio(ratio: string): string {
-  const map: Record<string, string> = { '9:16': 'portrait', '16:9': 'landscape', '1:1': 'square' };
-  return map[ratio] || 'portrait';
+  const map: Record<string, string> = {
+    "9:16": "portrait",
+    "16:9": "landscape",
+    "1:1": "square",
+  };
+  return map[ratio] || "portrait";
 }
 
-function getVideoDir(): string { return getConfig().VIDEO_DIR; }
+function getVideoDir(): string {
+  return getConfig().VIDEO_DIR;
+}
 
 async function downloadToFile(url: string, outputPath: string): Promise<void> {
-  const { execFile: execFileCb } = await import('child_process');
-  const { promisify } = await import('util');
-  await promisify(execFileCb)('wget', ['-q', '-O', outputPath, url]);
+  const { execFile: execFileCb } = await import("child_process");
+  const { promisify } = await import("util");
+  await promisify(execFileCb)("wget", ["-q", "-O", outputPath, url]);
 }
 
 function mapAspectRatioSimple(ratio: string): string {
-  if (ratio === '9:16') return '9:16';
-  if (ratio === '1:1') return '1:1';
-  return '16:9';
+  if (ratio === "9:16") return "9:16";
+  if (ratio === "1:1") return "1:1";
+  return "16:9";
 }
 
 function readRefImageBase64(refPath: string): string | null {
   if (refPath && fs.existsSync(refPath) && fs.statSync(refPath).size > 0) {
-    return `data:image/jpeg;base64,${fs.readFileSync(refPath).toString('base64')}`;
+    return `data:image/jpeg;base64,${fs.readFileSync(refPath).toString("base64")}`;
   }
   return null;
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 /**
@@ -108,73 +114,104 @@ function sleep(ms: number): Promise<void> {
 async function pollUntilComplete(
   providerName: string,
   taskId: string,
-  pollFn: (id: string) => Promise<{ status: 'pending' | 'completed' | 'failed'; videoUrl?: string }>,
-  config: { maxAttempts: number; intervalMs: number } = { maxAttempts: POLL_MAX_ATTEMPTS, intervalMs: POLL_INTERVAL },
+  pollFn: (id: string) => Promise<{
+    status: "pending" | "completed" | "failed";
+    videoUrl?: string;
+  }>,
+  config: { maxAttempts: number; intervalMs: number } = {
+    maxAttempts: POLL_MAX_ATTEMPTS,
+    intervalMs: POLL_INTERVAL,
+  },
 ): Promise<string> {
   for (let i = 0; i < config.maxAttempts; i++) {
     await sleep(config.intervalMs);
     const result = await pollFn(taskId);
-    if (result.status === 'completed') {
-      if (!result.videoUrl) throw new Error(`${providerName}: completed but no video URL`);
+    if (result.status === "completed") {
+      if (!result.videoUrl)
+        throw new Error(`${providerName}: completed but no video URL`);
       return result.videoUrl;
     }
-    if (result.status === 'failed') throw new Error(`${providerName} generation failed`);
+    if (result.status === "failed")
+      throw new Error(`${providerName} generation failed`);
   }
-  throw new Error(`${providerName} poll timeout after ${config.maxAttempts} attempts`);
+  throw new Error(
+    `${providerName} poll timeout after ${config.maxAttempts} attempts`,
+  );
 }
 
 // ── Provider implementations ──
 
 /** Tier 1: GeminiGen — grok-3 model */
-async function generateViaGeminiGen(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaGeminiGen(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   const formData = new FormData();
-  formData.append('prompt', params.prompt);
-  formData.append('model', 'grok-3');
+  formData.append("prompt", params.prompt);
+  formData.append("model", "grok-3");
 
-  formData.append('duration', String(Math.min(5, params.duration)));
+  formData.append("duration", String(Math.min(5, params.duration)));
 
-  formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
+  formData.append("aspect_ratio", mapAspectRatio(params.aspectRatio));
 
-  if (params.referenceImage && fs.existsSync(params.referenceImage) && fs.statSync(params.referenceImage).size > 0) {
-    formData.append('ref_image', fs.readFileSync(params.referenceImage), {
+  if (
+    params.referenceImage &&
+    fs.existsSync(params.referenceImage) &&
+    fs.statSync(params.referenceImage).size > 0
+  ) {
+    formData.append("ref_image", fs.readFileSync(params.referenceImage), {
       filename: path.basename(params.referenceImage),
-      contentType: 'image/jpeg',
+      contentType: "image/jpeg",
     });
   }
 
-  const response = await axios.post(`${GEMINIGEN_API_BASE}/video-gen/grok`, formData, {
-    headers: { 'x-api-key': getConfig().GEMINIGEN_API_KEY || '', ...formData.getHeaders() },
-    timeout: 30000,
-  });
+  const response = await axios.post(
+    `${GEMINIGEN_API_BASE}/video-gen/grok`,
+    formData,
+    {
+      headers: {
+        "x-api-key": getConfig().GEMINIGEN_API_KEY || "",
+        ...formData.getHeaders(),
+      },
+      timeout: 30000,
+    },
+  );
 
   const { uuid } = response.data;
   logger.info(`GeminiGen video started: ${uuid}`);
 
-  const videoUrl = await pollUntilComplete('GeminiGen', uuid, async (id) => {
+  const videoUrl = await pollUntilComplete("GeminiGen", uuid, async (id) => {
     const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${id}`, {
-      headers: { 'x-api-key': getConfig().GEMINIGEN_API_KEY || '' },
+      headers: { "x-api-key": getConfig().GEMINIGEN_API_KEY || "" },
       timeout: 10000,
     });
     const { status: s, generated_video, error_message } = poll.data;
-    if (s === 3) throw new Error(error_message || 'GeminiGen generation failed');
+    if (s === 3)
+      throw new Error(error_message || "GeminiGen generation failed");
     if (s === 2 && generated_video?.length > 0) {
-      return { status: 'completed', videoUrl: generated_video[0].video_url || generated_video[0].video_uri };
+      return {
+        status: "completed",
+        videoUrl: generated_video[0].video_url || generated_video[0].video_uri,
+      };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, jobId: uuid, provider: 'geminigen' };
+  return { success: true, videoUrl, jobId: uuid, provider: "geminigen" };
 }
 
 /** Tier 2: Fal.ai — kling-video v1.6 with async queue polling */
-async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallbackResult> {
-  const hasRefImage = !!(params.referenceImage && fs.existsSync(params.referenceImage));
+async function generateViaFalai(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const hasRefImage = !!(
+    params.referenceImage && fs.existsSync(params.referenceImage)
+  );
   const model = hasRefImage
-    ? 'fal-ai/kling-video/v1.6/standard/image-to-video'
-    : 'fal-ai/kling-video/v1.6/standard/text-to-video';
+    ? "fal-ai/kling-video/v1.6/standard/image-to-video"
+    : "fal-ai/kling-video/v1.6/standard/text-to-video";
 
   const payload: any = {
     prompt: params.prompt,
-    duration: Math.min(5, params.duration) >= 5 ? '5' : '5', // kling only supports "5" or "10"
+    duration: Math.min(5, params.duration) >= 5 ? "5" : "5", // kling only supports "5" or "10"
     aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
   };
 
@@ -188,9 +225,12 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
     `https://queue.fal.run/${model}`,
     payload,
     {
-      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Key ${getConfig().FALAI_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
       timeout: 30000,
-    }
+    },
   );
 
   const requestId = submitRes.data?.request_id;
@@ -199,25 +239,33 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
   const statusUrl: string = submitRes.data?.status_url;
   const responseUrl: string = submitRes.data?.response_url;
   if (!requestId || !statusUrl || !responseUrl) {
-    throw new Error(`Fal.ai: incomplete queue response — ${JSON.stringify(submitRes.data)}`);
+    throw new Error(
+      `Fal.ai: incomplete queue response — ${JSON.stringify(submitRes.data)}`,
+    );
   }
   logger.info(`Fal.ai video queued: ${requestId} (model: ${model})`);
 
   // Poll status using the canonical URL from the submit response
   let pollCount = 0;
-  const videoUrl = await pollUntilComplete('Fal.ai', requestId, async (_id) => {
+  const videoUrl = await pollUntilComplete("Fal.ai", requestId, async (_id) => {
     const statusRes = await axios.get(statusUrl, {
-      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}` },
+      headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ""}` },
       timeout: 15000,
     });
     const status = statusRes.data?.status;
-    if (pollCount % 6 === 0) logger.info(`Fal.ai poll ${pollCount + 1}/${POLL_MAX_ATTEMPTS}: ${status}`);
+    if (pollCount % 6 === 0)
+      logger.info(
+        `Fal.ai poll ${pollCount + 1}/${POLL_MAX_ATTEMPTS}: ${status}`,
+      );
     pollCount++;
-    if (status === 'FAILED') throw new Error(`Fal.ai: ${statusRes.data?.error || 'generation failed'}`);
-    if (status === 'COMPLETED') {
+    if (status === "FAILED")
+      throw new Error(
+        `Fal.ai: ${statusRes.data?.error || "generation failed"}`,
+      );
+    if (status === "COMPLETED") {
       // Fetch result using the canonical response URL
       const resultRes = await axios.get(responseUrl, {
-        headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ''}` },
+        headers: { Authorization: `Key ${getConfig().FALAI_API_KEY || ""}` },
         timeout: 15000,
       });
       const url =
@@ -225,123 +273,169 @@ async function generateViaFalai(params: VideoFallbackParams): Promise<VideoFallb
         resultRes.data?.video_url ||
         resultRes.data?.output?.video?.url ||
         resultRes.data?.output?.video_url;
-      if (!url) throw new Error('Fal.ai: COMPLETED but no video URL in result');
-      return { status: 'completed', videoUrl: url };
+      if (!url) throw new Error("Fal.ai: COMPLETED but no video URL in result");
+      return { status: "completed", videoUrl: url };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, provider: 'falai', jobId: requestId };
+  return { success: true, videoUrl, provider: "falai", jobId: requestId };
 }
 
 /** Tier 3: SiliconFlow — Wan-AI video */
-async function generateViaSiliconFlow(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaSiliconFlow(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   const payload: any = {
-    model: 'Wan-AI/Wan2.1-T2V-14B',
+    model: "Wan-AI/Wan2.1-T2V-14B",
     prompt: params.prompt,
-    image_size: params.aspectRatio === '9:16' ? '480x832' : params.aspectRatio === '1:1' ? '640x640' : '832x480',
+    image_size:
+      params.aspectRatio === "9:16"
+        ? "480x832"
+        : params.aspectRatio === "1:1"
+          ? "640x640"
+          : "832x480",
     num_frames: Math.round(params.duration * 16), // ~16fps, controls output duration
   };
 
   if (params.referenceImage && fs.existsSync(params.referenceImage)) {
-    payload.model = 'Wan-AI/Wan2.1-I2V-14B-720P';
+    payload.model = "Wan-AI/Wan2.1-I2V-14B-720P";
     const imgBase64 = readRefImageBase64(params.referenceImage);
     if (imgBase64) payload.image = imgBase64;
   }
 
-  const response = await axios.post('https://api.siliconflow.cn/v1/video/submit', payload, {
-    headers: { Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ''}`, 'Content-Type': 'application/json' },
-    timeout: 30000,
-  });
+  const response = await axios.post(
+    "https://api.siliconflow.cn/v1/video/submit",
+    payload,
+    {
+      headers: {
+        Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
+    },
+  );
 
   const requestId = response.data?.requestId;
-  if (!requestId) throw new Error('SiliconFlow: no requestId');
+  if (!requestId) throw new Error("SiliconFlow: no requestId");
 
-  const videoUrl = await pollUntilComplete('SiliconFlow', requestId, async (id) => {
-    const poll = await axios.post('https://api.siliconflow.cn/v1/video/status', { requestId: id }, {
-      headers: { Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ''}`, 'Content-Type': 'application/json' },
-      timeout: 10000,
-    });
-    const status = poll.data?.status;
-    if (status === 'Failed') throw new Error(`SiliconFlow: ${poll.data?.reason || 'generation failed'}`);
-    if (status === 'Succeed' && poll.data?.results?.videos?.[0]?.url) {
-      return { status: 'completed', videoUrl: poll.data.results.videos[0].url };
-    }
-    return { status: 'pending' };
-  });
-  return { success: true, videoUrl, provider: 'siliconflow' };
+  const videoUrl = await pollUntilComplete(
+    "SiliconFlow",
+    requestId,
+    async (id) => {
+      const poll = await axios.post(
+        "https://api.siliconflow.cn/v1/video/status",
+        { requestId: id },
+        {
+          headers: {
+            Authorization: `Bearer ${getConfig().SILICONFLOW_API_KEY || ""}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        },
+      );
+      const status = poll.data?.status;
+      if (status === "Failed")
+        throw new Error(
+          `SiliconFlow: ${poll.data?.reason || "generation failed"}`,
+        );
+      if (status === "Succeed" && poll.data?.results?.videos?.[0]?.url) {
+        return {
+          status: "completed",
+          videoUrl: poll.data.results.videos[0].url,
+        };
+      }
+      return { status: "pending" };
+    },
+  );
+  return { success: true, videoUrl, provider: "siliconflow" };
 }
 
 /** Tier 4: XAI — via GeminiGen proxy endpoint (same base, different model path) */
-async function generateViaXAI(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaXAI(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   // XAI uses the GeminiGen proxy at api.geminigen.ai/uapi/v1/video-gen/grok
   // with xAI-specific model. Falls back to direct xAI API if XAI_API_KEY is set.
   const formData = new FormData();
-  formData.append('prompt', params.prompt);
-  formData.append('model', 'grok-2-1212');
+  formData.append("prompt", params.prompt);
+  formData.append("model", "grok-2-1212");
 
-  formData.append('duration', String(Math.min(5, params.duration)));
-  formData.append('aspect_ratio', mapAspectRatio(params.aspectRatio));
+  formData.append("duration", String(Math.min(5, params.duration)));
+  formData.append("aspect_ratio", mapAspectRatio(params.aspectRatio));
 
-  if (params.referenceImage && fs.existsSync(params.referenceImage) && fs.statSync(params.referenceImage).size > 0) {
-    formData.append('ref_image', fs.readFileSync(params.referenceImage), {
+  if (
+    params.referenceImage &&
+    fs.existsSync(params.referenceImage) &&
+    fs.statSync(params.referenceImage).size > 0
+  ) {
+    formData.append("ref_image", fs.readFileSync(params.referenceImage), {
       filename: path.basename(params.referenceImage),
-      contentType: 'image/jpeg',
+      contentType: "image/jpeg",
     });
   }
 
   // Try via GeminiGen proxy first (uses GEMINIGEN_API_KEY)
-  const apiKey = getConfig().GEMINIGEN_API_KEY || getConfig().XAI_API_KEY || '';
-  if (!apiKey) throw new Error('XAI: no API key available');
+  const apiKey = getConfig().GEMINIGEN_API_KEY || getConfig().XAI_API_KEY || "";
+  if (!apiKey) throw new Error("XAI: no API key available");
 
-  const response = await axios.post(`${GEMINIGEN_API_BASE}/video-gen/grok`, formData, {
-    headers: { 'x-api-key': apiKey, ...formData.getHeaders() },
-    timeout: 30000,
-  });
+  const response = await axios.post(
+    `${GEMINIGEN_API_BASE}/video-gen/grok`,
+    formData,
+    {
+      headers: { "x-api-key": apiKey, ...formData.getHeaders() },
+      timeout: 30000,
+    },
+  );
 
   const { uuid } = response.data;
   logger.info(`XAI video started via proxy: ${uuid}`);
 
-  const videoUrl = await pollUntilComplete('XAI', uuid, async (id) => {
+  const videoUrl = await pollUntilComplete("XAI", uuid, async (id) => {
     const poll = await axios.get(`${GEMINIGEN_API_BASE}/history/${id}`, {
-      headers: { 'x-api-key': apiKey },
+      headers: { "x-api-key": apiKey },
       timeout: 10000,
     });
     const { status: s, generated_video, error_message } = poll.data;
-    if (s === 3) throw new Error(error_message || 'XAI generation failed');
+    if (s === 3) throw new Error(error_message || "XAI generation failed");
     if (s === 2 && generated_video?.length > 0) {
-      return { status: 'completed', videoUrl: generated_video[0].video_url || generated_video[0].video_uri };
+      return {
+        status: "completed",
+        videoUrl: generated_video[0].video_url || generated_video[0].video_uri,
+      };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, jobId: uuid, provider: 'xai' };
+  return { success: true, videoUrl, jobId: uuid, provider: "xai" };
 }
 
 /** Tier 5: LaoZhang — OpenAI-compatible chat completions, model sora_video2 */
-async function generateViaLaoZhang(params: VideoFallbackParams): Promise<VideoFallbackResult> {
-  const content: any[] = [{ type: 'text', text: params.prompt }];
+async function generateViaLaoZhang(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const content: any[] = [{ type: "text", text: params.prompt }];
 
   // LaoZhang supports image_url in content array for image-to-video
   if (params.referenceImage && fs.existsSync(params.referenceImage)) {
     const imgBase64 = readRefImageBase64(params.referenceImage);
     if (imgBase64) {
       content.push({
-        type: 'image_url',
+        type: "image_url",
         image_url: { url: imgBase64 },
       });
     }
   }
 
   // Choose model variant based on aspect ratio (5s per scene standard)
-  let model = 'sora_video2';
-  if (params.aspectRatio === '16:9' || params.aspectRatio === 'landscape') {
-    model = 'sora_video2-landscape';
+  let model = "sora_video2";
+  if (params.aspectRatio === "16:9" || params.aspectRatio === "landscape") {
+    model = "sora_video2-landscape";
   }
 
   const body = {
     model,
     messages: [
       {
-        role: 'user',
+        role: "user",
         content,
       },
     ],
@@ -349,35 +443,44 @@ async function generateViaLaoZhang(params: VideoFallbackParams): Promise<VideoFa
     max_tokens: params.duration * 30,
   };
 
-  const response = await axios.post('https://api.laozhang.ai/v1/chat/completions', body, {
-    headers: {
-      Authorization: `Bearer ${getConfig().LAOZHANG_API_KEY || ''}`,
-      'Content-Type': 'application/json',
+  const response = await axios.post(
+    "https://api.laozhang.ai/v1/chat/completions",
+    body,
+    {
+      headers: {
+        Authorization: `Bearer ${getConfig().LAOZHANG_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 120000,
     },
-    timeout: 120000,
-  });
+  );
 
   const choices = response.data?.choices;
-  if (!choices?.length) throw new Error('LaoZhang: no choices in response');
+  if (!choices?.length) throw new Error("LaoZhang: no choices in response");
 
-  const messageContent = choices[0]?.message?.content || '';
+  const messageContent = choices[0]?.message?.content || "";
 
   // Extract video URL from response text
-  const urlMatch = typeof messageContent === 'string'
-    ? messageContent.match(/https?:\/\/[^\s"'<>]+/)
-    : null;
+  const urlMatch =
+    typeof messageContent === "string"
+      ? messageContent.match(/https?:\/\/[^\s"'<>]+/)
+      : null;
 
   if (!urlMatch) {
-    throw new Error(`LaoZhang: no video URL found in response: ${String(messageContent).substring(0, 200)}`);
+    throw new Error(
+      `LaoZhang: no video URL found in response: ${String(messageContent).substring(0, 200)}`,
+    );
   }
 
-  return { success: true, videoUrl: urlMatch[0], provider: 'laozhang' };
+  return { success: true, videoUrl: urlMatch[0], provider: "laozhang" };
 }
 
 /** Tier 6: EvoLink — wan2.5-text-to-video, poll at /v1/tasks/{task_id} */
-async function generateViaEvoLink(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaEvoLink(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   const body: any = {
-    model: 'wan2.5-text-to-video',
+    model: "wan2.5-text-to-video",
     prompt: params.prompt,
     duration: params.duration,
   };
@@ -391,55 +494,69 @@ async function generateViaEvoLink(params: VideoFallbackParams): Promise<VideoFal
     body.aspect_ratio = mapAspectRatioSimple(params.aspectRatio);
   }
 
-  const response = await axios.post('https://api.evolink.ai/v1/videos/generations', body, {
-    headers: {
-      Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ''}`,
-      'Content-Type': 'application/json',
+  const response = await axios.post(
+    "https://api.evolink.ai/v1/videos/generations",
+    body,
+    {
+      headers: {
+        Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
     },
-    timeout: 30000,
-  });
+  );
 
   const taskId = response.data?.id;
   if (!taskId) {
-    const errMsg = response.data?.error?.message || JSON.stringify(response.data);
+    const errMsg =
+      response.data?.error?.message || JSON.stringify(response.data);
     throw new Error(`EvoLink: no task ID: ${errMsg}`);
   }
 
   // Check for credits/access errors
-  const errorMsg = response.data?.error?.message || '';
-  if (errorMsg.toLowerCase().includes('insufficient') || errorMsg.toLowerCase().includes('permanently rejected')) {
+  const errorMsg = response.data?.error?.message || "";
+  if (
+    errorMsg.toLowerCase().includes("insufficient") ||
+    errorMsg.toLowerCase().includes("permanently rejected")
+  ) {
     throw new Error(`EvoLink: credits/access denied: ${errorMsg}`);
   }
 
-  const videoUrl = await pollUntilComplete('EvoLink', taskId, async (id) => {
+  const videoUrl = await pollUntilComplete("EvoLink", taskId, async (id) => {
     const poll = await axios.get(`https://api.evolink.ai/v1/tasks/${id}`, {
-      headers: { Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ''}` },
+      headers: { Authorization: `Bearer ${getConfig().EVOLINK_API_KEY || ""}` },
       timeout: 10000,
     });
     const status = poll.data?.status;
-    if (status === 'failed' || status === 'error') {
-      throw new Error(`EvoLink: task failed: ${poll.data?.error || 'Unknown error'}`);
+    if (status === "failed" || status === "error") {
+      throw new Error(
+        `EvoLink: task failed: ${poll.data?.error || "Unknown error"}`,
+      );
     }
-    if (status === 'completed') {
-      let url = '';
+    if (status === "completed") {
+      let url = "";
       const results = poll.data?.results;
       if (Array.isArray(results) && results.length > 0) {
         const first = results[0];
-        url = typeof first === 'object' ? (first.url || '') : String(first);
+        url = typeof first === "object" ? first.url || "" : String(first);
       }
-      if (!url) url = poll.data?.output?.url || poll.data?.video_url || '';
-      if (!url) throw new Error('EvoLink: completed but no video URL');
-      return { status: 'completed', videoUrl: url };
+      if (!url) url = poll.data?.output?.url || poll.data?.video_url || "";
+      if (!url) throw new Error("EvoLink: completed but no video URL");
+      return { status: "completed", videoUrl: url };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, jobId: taskId, provider: 'evolink' };
+  return { success: true, videoUrl, jobId: taskId, provider: "evolink" };
 }
 
 /** Tier 7: Hypereal — kling-3-0-std-t2v, poll at /v1/jobs/{jobId}?model={model}&type=video */
-async function generateViaHypereal(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaHypereal(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   // Choose model based on whether we have a reference image
-  const model = params.referenceImage ? 'kling-3-0-std-i2v' : 'kling-3-0-std-t2v';
+  const model = params.referenceImage
+    ? "kling-3-0-std-i2v"
+    : "kling-3-0-std-t2v";
 
   const input: any = {
     prompt: params.prompt,
@@ -457,79 +574,111 @@ async function generateViaHypereal(params: VideoFallbackParams): Promise<VideoFa
     input,
   };
 
-  const response = await axios.post('https://api.hypereal.tech/v1/videos/generate', body, {
-    headers: {
-      Authorization: `Bearer ${getConfig().HYPEREAL_API_KEY || ''}`,
-      'Content-Type': 'application/json',
+  const response = await axios.post(
+    "https://api.hypereal.tech/v1/videos/generate",
+    body,
+    {
+      headers: {
+        Authorization: `Bearer ${getConfig().HYPEREAL_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
     },
-    timeout: 30000,
-  });
+  );
 
   const jobId = response.data?.jobId;
-  if (!jobId) throw new Error(`Hypereal: no jobId in response: ${JSON.stringify(response.data)}`);
+  if (!jobId)
+    throw new Error(
+      `Hypereal: no jobId in response: ${JSON.stringify(response.data)}`,
+    );
 
   logger.info(`Hypereal video started: ${jobId}`);
 
-  const videoUrl = await pollUntilComplete('Hypereal', jobId, async (id) => {
+  const videoUrl = await pollUntilComplete("Hypereal", jobId, async (id) => {
     const poll = await axios.get(
       `https://api.hypereal.tech/v1/jobs/${id}?model=${encodeURIComponent(model)}&type=video`,
       {
-        headers: { Authorization: `Bearer ${getConfig().HYPEREAL_API_KEY || ''}` },
+        headers: {
+          Authorization: `Bearer ${getConfig().HYPEREAL_API_KEY || ""}`,
+        },
         timeout: 10000,
-      }
+      },
     );
     const status = poll.data?.status;
-    if (status === 'failed') throw new Error(`Hypereal: job failed: ${poll.data?.error || 'Unknown error'}`);
-    if (status === 'completed') {
-      const url = poll.data?.outputUrl || poll.data?.output_url || '';
-      if (!url) throw new Error('Hypereal: completed but no video URL');
-      return { status: 'completed', videoUrl: url };
+    if (status === "failed")
+      throw new Error(
+        `Hypereal: job failed: ${poll.data?.error || "Unknown error"}`,
+      );
+    if (status === "completed") {
+      const url = poll.data?.outputUrl || poll.data?.output_url || "";
+      if (!url) throw new Error("Hypereal: completed but no video URL");
+      return { status: "completed", videoUrl: url };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, jobId, provider: 'hypereal' };
+  return { success: true, videoUrl, jobId, provider: "hypereal" };
 }
 
 /** Tier 8: BytePlus Seedance via AIML API */
-async function generateViaByteplus(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaByteplus(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   const payload = {
-    model: 'bytedance/seedance-1-0-lite-t2v',
+    model: "bytedance/seedance-1-0-lite-t2v",
     prompt: params.prompt,
-    resolution: '480p',
+    resolution: "480p",
     duration: Math.min(5, params.duration),
     aspect_ratio: mapAspectRatio(params.aspectRatio),
     watermark: false,
   };
 
-  const response = await axios.post('https://api.aimlapi.com/v2/video/generations', payload, {
-    headers: { Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || ''}`, 'Content-Type': 'application/json' },
-    timeout: 30000,
-  });
+  const response = await axios.post(
+    "https://api.aimlapi.com/v2/video/generations",
+    payload,
+    {
+      headers: {
+        Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
+    },
+  );
 
   const id = response.data?.id;
-  if (!id) throw new Error('BytePlus: no job id');
+  if (!id) throw new Error("BytePlus: no job id");
 
-  const videoUrl = await pollUntilComplete('BytePlus', id, async (jobId) => {
-    const poll = await axios.get(`https://api.aimlapi.com/v2/video/generations/${jobId}`, {
-      headers: { Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || ''}` },
-      timeout: 10000,
-    });
-    if (poll.data?.status === 'failed') throw new Error(`BytePlus: ${poll.data?.error || 'failed'}`);
-    if (poll.data?.status === 'completed' && poll.data?.output?.video_url) {
-      return { status: 'completed', videoUrl: poll.data.output.video_url };
+  const videoUrl = await pollUntilComplete("BytePlus", id, async (jobId) => {
+    const poll = await axios.get(
+      `https://api.aimlapi.com/v2/video/generations/${jobId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${getConfig().BYTEPLUS_API_KEY || ""}`,
+        },
+        timeout: 10000,
+      },
+    );
+    if (poll.data?.status === "failed")
+      throw new Error(`BytePlus: ${poll.data?.error || "failed"}`);
+    if (poll.data?.status === "completed" && poll.data?.output?.video_url) {
+      return { status: "completed", videoUrl: poll.data.output.video_url };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, provider: 'byteplus' };
+  return { success: true, videoUrl, provider: "byteplus" };
 }
 
 /** Tier 9: Kie.ai — runway model, poll at /api/v1/runway/record-detail?taskId={taskId} */
-async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaKie(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  // Kie.ai only accepts duration 5, 8, or 10 — clamp to valid values
+  const kieDuration =
+    params.duration >= 8 ? (params.duration >= 10 ? 10 : 8) : 5;
   const body: any = {
     prompt: params.prompt,
-    duration: Math.min(5, params.duration),
-    quality: '720p',
-    waterMark: 'kie.ai',
+    duration: kieDuration,
+    quality: "720p",
+    waterMark: "kie.ai",
   };
 
   if (params.referenceImage && fs.existsSync(params.referenceImage)) {
@@ -542,128 +691,229 @@ async function generateViaKie(params: VideoFallbackParams): Promise<VideoFallbac
     body.aspectRatio = mapAspectRatioSimple(params.aspectRatio);
   }
 
-  const response = await axios.post('https://api.kie.ai/api/v1/runway/generate', body, {
-    headers: {
-      Authorization: `Bearer ${getConfig().KIE_API_KEY || ''}`,
-      'Content-Type': 'application/json',
+  const response = await axios.post(
+    "https://api.kie.ai/api/v1/runway/generate",
+    body,
+    {
+      headers: {
+        Authorization: `Bearer ${getConfig().KIE_API_KEY || ""}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
     },
-    timeout: 30000,
-  });
+  );
 
   if (response.data?.code !== 200) {
-    throw new Error(`Kie.ai API error: ${response.data?.msg || 'Unknown error'}`);
+    throw new Error(
+      `Kie.ai API error: ${response.data?.msg || "Unknown error"}`,
+    );
   }
 
   // Check for credits/balance error even with code 200
-  const msg = response.data?.msg || '';
-  if (msg.toLowerCase().includes('insufficient') || msg.toLowerCase().includes('balance')) {
+  const msg = response.data?.msg || "";
+  if (
+    msg.toLowerCase().includes("insufficient") ||
+    msg.toLowerCase().includes("balance")
+  ) {
     throw new Error(`Kie.ai credits insufficient: ${msg}`);
   }
 
   const taskId = response.data?.data?.taskId;
-  if (!taskId) throw new Error(`Kie.ai: no taskId in response: ${JSON.stringify(response.data)}`);
+  if (!taskId)
+    throw new Error(
+      `Kie.ai: no taskId in response: ${JSON.stringify(response.data)}`,
+    );
 
   logger.info(`Kie.ai video started: ${taskId}`);
 
-  const videoUrl = await pollUntilComplete('Kie.ai', taskId, async (id) => {
-    const poll = await axios.get(`https://api.kie.ai/api/v1/runway/record-detail?taskId=${id}`, {
-      headers: { Authorization: `Bearer ${getConfig().KIE_API_KEY || ''}` },
-      timeout: 10000,
-    });
+  const videoUrl = await pollUntilComplete("Kie.ai", taskId, async (id) => {
+    const poll = await axios.get(
+      `https://api.kie.ai/api/v1/runway/record-detail?taskId=${id}`,
+      {
+        headers: { Authorization: `Bearer ${getConfig().KIE_API_KEY || ""}` },
+        timeout: 10000,
+      },
+    );
     // Non-200 API code means the record isn't ready yet — treat as pending
-    if (poll.data?.code !== 200) return { status: 'pending' };
+    if (poll.data?.code !== 200) return { status: "pending" };
     const data = poll.data?.data || {};
     const status = data.state || data.status;
-    if (status === 'failed' || status === 'error' || status === 'fail') {
-      throw new Error(`Kie.ai task failed: ${data.msg || 'Unknown error'}`);
+    if (status === "failed" || status === "error" || status === "fail") {
+      throw new Error(`Kie.ai task failed: ${data.msg || "Unknown error"}`);
     }
-    if (status === 'success' || status === 'completed') {
-      const url = data.videoInfo?.videoUrl || data.videoUrl || '';
-      if (!url) throw new Error('Kie.ai: completed but no video URL');
-      return { status: 'completed', videoUrl: url };
+    if (status === "success" || status === "completed") {
+      const url = data.videoInfo?.videoUrl || data.videoUrl || "";
+      if (!url) throw new Error("Kie.ai: completed but no video URL");
+      return { status: "completed", videoUrl: url };
     }
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, jobId: taskId, provider: 'kie' };
+  return { success: true, videoUrl, jobId: taskId, provider: "kie" };
 }
 
 /** Tier 10: PiAPI — Kling video generation (text-to-video + image-to-video) */
-async function generateViaPiAPI(params: VideoFallbackParams): Promise<VideoFallbackResult> {
+async function generateViaPiAPI(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
   const input: any = {
     prompt: params.prompt,
     duration: Math.min(5, params.duration),
     aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
   };
 
-  let taskType = 'txt2video';
+  let taskType = "txt2video";
   if (params.referenceImage && fs.existsSync(params.referenceImage)) {
     const imgBase64 = readRefImageBase64(params.referenceImage);
     if (imgBase64) {
       input.image_url = imgBase64;
-      taskType = 'img2video';
+      taskType = "img2video";
     }
   }
 
-  const response = await axios.post('https://api.piapi.ai/api/v1/task', {
-    model: 'Qubico/kling1.6-standard',
-    task_type: taskType,
-    input,
-  }, {
-    headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '', 'Content-Type': 'application/json' },
-    timeout: 30000,
-  });
+  const response = await axios.post(
+    "https://api.piapi.ai/api/v1/task",
+    {
+      model: "Qubico/kling1.6-standard",
+      task_type: taskType,
+      input,
+    },
+    {
+      headers: {
+        "x-api-key": getConfig().PIAPI_API_KEY || "",
+        "Content-Type": "application/json",
+      },
+      timeout: 30000,
+    },
+  );
 
   const taskId = response.data?.data?.task_id;
-  if (!taskId) throw new Error(`PiAPI video: no task_id: ${JSON.stringify(response.data).slice(0, 200)}`);
+  if (!taskId)
+    throw new Error(
+      `PiAPI video: no task_id: ${JSON.stringify(response.data).slice(0, 200)}`,
+    );
 
   logger.info(`PiAPI video started: ${taskId}`);
 
-  const videoUrl = await pollUntilComplete('PiAPI', taskId, async (id) => {
+  const videoUrl = await pollUntilComplete("PiAPI", taskId, async (id) => {
     const poll = await axios.get(`https://api.piapi.ai/api/v1/task/${id}`, {
-      headers: { 'x-api-key': getConfig().PIAPI_API_KEY || '' },
+      headers: { "x-api-key": getConfig().PIAPI_API_KEY || "" },
       timeout: 10000,
     });
     // Handle rate limit responses with an extended back-off
     if (poll.status === 429) {
-      logger.warn('PiAPI video: rate limited, backing off');
+      logger.warn("PiAPI video: rate limited, backing off");
       await sleep(10000);
-      return { status: 'pending' };
+      return { status: "pending" };
     }
     const pollData = poll.data?.data;
     const status = pollData?.status;
-    if (status === 'failed') throw new Error(`PiAPI video: ${pollData?.error || 'task failed'}`);
-    if (status === 'completed') {
+    if (status === "failed")
+      throw new Error(`PiAPI video: ${pollData?.error || "task failed"}`);
+    if (status === "completed") {
       const output = pollData?.output;
-      logger.info('PiAPI video response: ' + JSON.stringify(pollData).slice(0, 500));
-      const url = output?.video_url
-        || (Array.isArray(output?.videos) ? output.videos[0] : null)
-        || (Array.isArray(output?.video_urls) ? output.video_urls[0] : null)
-        || output?.result?.video_url
-        || output?.url
-        || output?.works?.[0]?.video?.url;
-      if (!url) throw new Error('PiAPI video: completed but no video URL');
-      return { status: 'completed', videoUrl: url };
+      logger.info(
+        "PiAPI video response: " + JSON.stringify(pollData).slice(0, 500),
+      );
+      const url =
+        output?.video_url ||
+        (Array.isArray(output?.videos) ? output.videos[0] : null) ||
+        (Array.isArray(output?.video_urls) ? output.video_urls[0] : null) ||
+        output?.result?.video_url ||
+        output?.url ||
+        output?.works?.[0]?.video?.url;
+      if (!url) throw new Error("PiAPI video: completed but no video URL");
+      return { status: "completed", videoUrl: url };
     }
     // processing or any other transient status — keep polling
-    return { status: 'pending' };
+    return { status: "pending" };
   });
-  return { success: true, videoUrl, jobId: taskId, provider: 'piapi' };
+  return { success: true, videoUrl, jobId: taskId, provider: "piapi" };
 }
 
 // ── Provider chain ──
 
 function getProviders(): VideoProvider[] {
   return [
-    { key: 'geminigen', name: 'GeminiGen', enabled: !!getConfig().GEMINIGEN_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaGeminiGen },
-    { key: 'falai', name: 'Fal.ai Video', enabled: !!getConfig().FALAI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaFalai },
-    { key: 'siliconflow', name: 'SiliconFlow Video', enabled: !!getConfig().SILICONFLOW_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaSiliconFlow },
-    { key: 'xai', name: 'XAI Grok', enabled: !!(getConfig().GEMINIGEN_API_KEY || getConfig().XAI_API_KEY), supportsRefImage: true, maxDuration: 5, generate: generateViaXAI },
-    { key: 'laozhang', name: 'LaoZhang Sora', enabled: !!getConfig().LAOZHANG_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaLaoZhang },
-    { key: 'evolink', name: 'EvoLink Video', enabled: !!getConfig().EVOLINK_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaEvoLink },
-    { key: 'hypereal', name: 'Hypereal AI', enabled: !!getConfig().HYPEREAL_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaHypereal },
-    { key: 'byteplus', name: 'BytePlus Seedance', enabled: !!getConfig().BYTEPLUS_API_KEY, supportsRefImage: false, maxDuration: 5, generate: generateViaByteplus },
-    { key: 'kie', name: 'Kie.ai', enabled: !!getConfig().KIE_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaKie },
-    { key: 'piapi', name: 'PiAPI (Kling)', enabled: !!getConfig().PIAPI_API_KEY, supportsRefImage: true, maxDuration: 5, generate: generateViaPiAPI },
+    {
+      key: "geminigen",
+      name: "GeminiGen",
+      enabled: !!getConfig().GEMINIGEN_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaGeminiGen,
+    },
+    {
+      key: "falai",
+      name: "Fal.ai Video",
+      enabled: !!getConfig().FALAI_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaFalai,
+    },
+    {
+      key: "siliconflow",
+      name: "SiliconFlow Video",
+      enabled: !!getConfig().SILICONFLOW_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaSiliconFlow,
+    },
+    {
+      key: "xai",
+      name: "XAI Grok",
+      enabled: !!(getConfig().GEMINIGEN_API_KEY || getConfig().XAI_API_KEY),
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaXAI,
+    },
+    {
+      key: "laozhang",
+      name: "LaoZhang Sora",
+      enabled: !!getConfig().LAOZHANG_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaLaoZhang,
+    },
+    {
+      key: "evolink",
+      name: "EvoLink Video",
+      enabled: !!getConfig().EVOLINK_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaEvoLink,
+    },
+    {
+      key: "hypereal",
+      name: "Hypereal AI",
+      enabled: !!getConfig().HYPEREAL_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaHypereal,
+    },
+    {
+      key: "byteplus",
+      name: "BytePlus Seedance",
+      enabled: !!getConfig().BYTEPLUS_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 5,
+      generate: generateViaByteplus,
+    },
+    {
+      key: "kie",
+      name: "Kie.ai",
+      enabled: !!getConfig().KIE_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaKie,
+    },
+    {
+      key: "piapi",
+      name: "PiAPI (Kling)",
+      enabled: !!getConfig().PIAPI_API_KEY,
+      supportsRefImage: true,
+      maxDuration: 5,
+      generate: generateViaPiAPI,
+    },
   ];
 }
 
@@ -673,11 +923,16 @@ function getProviders(): VideoProvider[] {
  * Generate a video using multi-provider fallback chain.
  * Tries each provider in priority order with circuit breaker.
  */
-export async function generateVideoWithFallback(params: VideoFallbackParams): Promise<VideoFallbackResult> {
-  const allProviders = getProviders().filter(p => p.enabled);
+export async function generateVideoWithFallback(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  // All video providers require minimum 5s duration
+  params.duration = Math.max(5, params.duration);
+
+  const allProviders = getProviders().filter((p) => p.enabled);
 
   if (allProviders.length === 0) {
-    return { success: false, error: 'No video providers configured' };
+    return { success: false, error: "No video providers configured" };
   }
 
   // ── Vision-based prompt enrichment (NEW Mar 25) ──
@@ -685,39 +940,47 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
   let visionEnrichedPrompt = params.prompt;
   if (params.referenceImage) {
     try {
-      const { ContentAnalysisService } = await import('./content-analysis.service.js');
+      const { ContentAnalysisService } =
+        await import("./content-analysis.service.js");
       // Detect if it's a URL or local file path
-      const refUrl = params.referenceImage.startsWith('http') 
-        ? params.referenceImage 
+      const refUrl = params.referenceImage.startsWith("http")
+        ? params.referenceImage
         : `file://${params.referenceImage}`;
-      
-      const analysis = await ContentAnalysisService.extractPrompt(refUrl, 'image');
+
+      const analysis = await ContentAnalysisService.extractPrompt(
+        refUrl,
+        "image",
+      );
       if (analysis.success && analysis.prompt) {
-        visionEnrichedPrompt = 
+        visionEnrichedPrompt =
           `Visual subject: ${analysis.prompt}. ` +
           `Animation/Style instructions: ${params.prompt}`;
-        logger.info(`🎬 Vision enrichment added to video prompt (${analysis.prompt.length} chars)`);
+        logger.info(
+          `🎬 Vision enrichment added to video prompt (${analysis.prompt.length} chars)`,
+        );
       }
     } catch (err) {
-      logger.warn('🎬 Vision analysis for video failed, continuing with original prompt');
+      logger.warn(
+        "🎬 Vision analysis for video failed, continuing with original prompt",
+      );
     }
   }
 
   // Enrich prompt with V3 engine (using enriched prompt if vision analysis succeeded)
   const enrichedBase = PromptEngine.enrichForVideo(
     visionEnrichedPrompt,
-    params.niche || 'tech',
-    params.style || 'professional',
+    params.niche || "tech",
+    params.style || "professional",
     params.duration,
     undefined,
     undefined,
-    !!params.referenceImage
+    !!params.referenceImage,
   );
 
   // AI-optimise the enriched prompt (LLM rotation with fallback)
   const optimizedFull = await AIPromptOptimizer.optimize(enrichedBase.full, {
-    niche: params.niche || 'tech',
-    style: params.style || 'professional',
+    niche: params.niche || "tech",
+    style: params.style || "professional",
     hasReferenceImage: !!params.referenceImage,
   }).catch(() => enrichedBase.full);
 
@@ -730,17 +993,17 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
   let orderedKeys: string[];
   try {
     orderedKeys = await ProviderRouter.getOrderedProviderKeys(
-      params.niche || 'tech',
-      params.style ? [params.style] : []
+      params.niche || "tech",
+      params.style ? [params.style] : [],
     );
   } catch (routerErr) {
     // If router fails, fall back to static priority ordering
-    logger.warn('Provider router failed, using static ordering:', routerErr);
-    orderedKeys = allProviders.map(p => p.key);
+    logger.warn("Provider router failed, using static ordering:", routerErr);
+    orderedKeys = allProviders.map((p) => p.key);
   }
 
   // Build ordered provider list from scored keys
-  const providerMap = new Map(allProviders.map(p => [p.key, p]));
+  const providerMap = new Map(allProviders.map((p) => [p.key, p]));
   const providers: VideoProvider[] = [];
   for (const key of orderedKeys) {
     const p = providerMap.get(key);
@@ -748,15 +1011,23 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
   }
   // Add any enabled providers not in the router output (safety net)
   for (const p of allProviders) {
-    if (!providers.find(x => x.key === p.key)) {
+    if (!providers.find((x) => x.key === p.key)) {
       providers.push(p);
     }
   }
 
-  logger.info(`${providers.length} video providers (smart-routed): ${providers.map(p => p.name).join(', ')}`);
+  logger.info(
+    `${providers.length} video providers (smart-routed): ${providers.map((p) => p.name).join(", ")}`,
+  );
 
   const providerErrors: Array<{ name: string; error: string }> = [];
-  const FULL_PROMPT_PROVIDERS = ['geminigen', 'siliconflow', 'laozhang', 'evolink', 'hypereal'];
+  const FULL_PROMPT_PROVIDERS = [
+    "geminigen",
+    "siliconflow",
+    "laozhang",
+    "evolink",
+    "hypereal",
+  ];
 
   for (const provider of providers) {
     // Skip providers that don't support ref image if we have one
@@ -765,32 +1036,60 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
       continue;
     }
 
-    const canExecute = await CircuitBreaker.canExecute(provider.key).catch(() => true);
+    const canExecute = await CircuitBreaker.canExecute(provider.key).catch(
+      () => true,
+    );
     if (!canExecute) {
       logger.info(`Circuit breaker OPEN for ${provider.name} -- skipping`);
       continue;
     }
 
     const promptForProvider = FULL_PROMPT_PROVIDERS.includes(provider.key)
-      ? enriched.full : enriched.provider_hint;
+      ? enriched.full
+      : enriched.provider_hint;
 
     // If provider can handle the full duration → single call
     if (params.duration <= provider.maxDuration) {
       try {
-        logger.info(`Trying ${provider.name} (${params.duration}s, single call)...`);
+        logger.info(
+          `Trying ${provider.name} (${params.duration}s, single call)...`,
+        );
         const enrichedParams = { ...params, prompt: promptForProvider };
         const result = await provider.generate(enrichedParams);
         if (result.success) {
-          await CircuitBreaker.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-          await ProviderRouter.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
+          await CircuitBreaker.recordSuccess(provider.key).catch((err) =>
+            logger.warn("Circuit breaker update failed", {
+              error: err.message,
+            }),
+          );
+          await ProviderRouter.recordSuccess(provider.key).catch((err) =>
+            logger.warn("Circuit breaker update failed", {
+              error: err.message,
+            }),
+          );
           logger.info(`${provider.name} succeeded!`);
-          trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen', promptTokens: 0, completionTokens: 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
+          trackTokens({
+            provider: provider.key,
+            model: provider.key,
+            service: "video_gen",
+            promptTokens: 0,
+            completionTokens: 0,
+          }).catch((err) =>
+            logger.warn("Token tracking failed", { error: err.message }),
+          );
           return result;
         }
       } catch (error: any) {
-        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-        await ProviderRouter.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-        providerErrors.push({ name: provider.name, error: error.message?.slice(0, 80) || 'unknown' });
+        await CircuitBreaker.recordFailure(provider.key).catch((err) =>
+          logger.warn("Circuit breaker update failed", { error: err.message }),
+        );
+        await ProviderRouter.recordFailure(provider.key).catch((err) =>
+          logger.warn("Circuit breaker update failed", { error: err.message }),
+        );
+        providerErrors.push({
+          name: provider.name,
+          error: error.message?.slice(0, 80) || "unknown",
+        });
         logger.warn(`${provider.name} failed: ${error.message}`);
       }
     } else {
@@ -799,14 +1098,20 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
       try {
         const scenesNeeded = Math.ceil(params.duration / provider.maxDuration);
         const sceneDuration = provider.maxDuration;
-        logger.info(`Trying ${provider.name} (${params.duration}s as ${scenesNeeded}×${sceneDuration}s multi-scene)...`);
+        logger.info(
+          `Trying ${provider.name} (${params.duration}s as ${scenesNeeded}×${sceneDuration}s multi-scene)...`,
+        );
 
         const sceneVideos: string[] = [];
         let allScenesOk = true;
 
         for (let si = 0; si < scenesNeeded; si++) {
           const scenePrompt = `[Scene ${si + 1}/${scenesNeeded}] ${promptForProvider}`;
-          const sceneParams = { ...params, prompt: scenePrompt, duration: sceneDuration };
+          const sceneParams = {
+            ...params,
+            prompt: scenePrompt,
+            duration: sceneDuration,
+          };
 
           // Only pass reference image to first scene
           if (si > 0) {
@@ -815,64 +1120,127 @@ export async function generateVideoWithFallback(params: VideoFallbackParams): Pr
 
           const sceneResult = await provider.generate(sceneParams);
           if (!sceneResult.success || !sceneResult.videoUrl) {
-            logger.warn(`${provider.name} scene ${si + 1}/${scenesNeeded} failed: ${sceneResult.error}`);
+            logger.warn(
+              `${provider.name} scene ${si + 1}/${scenesNeeded} failed: ${sceneResult.error}`,
+            );
             allScenesOk = false;
             break;
           }
 
           // Download scene to temp file
-          const scenePath = path.join(getVideoDir(), `fallback_${Date.now()}_scene_${si + 1}.mp4`);
+          const scenePath = path.join(
+            getVideoDir(),
+            `fallback_${Date.now()}_scene_${si + 1}.mp4`,
+          );
           await downloadToFile(sceneResult.videoUrl, scenePath);
           sceneVideos.push(scenePath);
         }
 
         if (allScenesOk && sceneVideos.length === scenesNeeded) {
           // Concatenate scenes with transitions
-          const outputPath = path.join(getVideoDir(), `fallback_${Date.now()}_final.mp4`);
-          await VideoPostProcessing.concatenateWithTransitions(sceneVideos, outputPath, {
-            transitionType: 'fade',
-            transitionDuration: 0.3,
-            niche: params.niche,
-          });
+          const outputPath = path.join(
+            getVideoDir(),
+            `fallback_${Date.now()}_final.mp4`,
+          );
+          await VideoPostProcessing.concatenateWithTransitions(
+            sceneVideos,
+            outputPath,
+            {
+              transitionType: "fade",
+              transitionDuration: 0.3,
+              niche: params.niche,
+            },
+          );
 
           // Cleanup scene files
           for (const sp of sceneVideos) {
-            try { fs.unlinkSync(sp); } catch { /* ignore */ }
+            try {
+              fs.unlinkSync(sp);
+            } catch {
+              /* ignore */
+            }
           }
 
           if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
-            await CircuitBreaker.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-            await ProviderRouter.recordSuccess(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-            logger.info(`${provider.name} succeeded via multi-scene: ${scenesNeeded}×${sceneDuration}s = ~${params.duration}s`);
-            trackTokens({ provider: provider.key, model: provider.key, service: 'video_gen_multiscene', promptTokens: 0, completionTokens: 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
-            return { success: true, videoUrl: outputPath, provider: provider.key };
+            await CircuitBreaker.recordSuccess(provider.key).catch((err) =>
+              logger.warn("Circuit breaker update failed", {
+                error: err.message,
+              }),
+            );
+            await ProviderRouter.recordSuccess(provider.key).catch((err) =>
+              logger.warn("Circuit breaker update failed", {
+                error: err.message,
+              }),
+            );
+            logger.info(
+              `${provider.name} succeeded via multi-scene: ${scenesNeeded}×${sceneDuration}s = ~${params.duration}s`,
+            );
+            trackTokens({
+              provider: provider.key,
+              model: provider.key,
+              service: "video_gen_multiscene",
+              promptTokens: 0,
+              completionTokens: 0,
+            }).catch((err) =>
+              logger.warn("Token tracking failed", { error: err.message }),
+            );
+            return {
+              success: true,
+              videoUrl: outputPath,
+              provider: provider.key,
+            };
           }
         }
 
         // Cleanup on failure
         for (const sp of sceneVideos) {
-          try { fs.unlinkSync(sp); } catch { /* ignore */ }
+          try {
+            fs.unlinkSync(sp);
+          } catch {
+            /* ignore */
+          }
         }
-        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-        await ProviderRouter.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-        providerErrors.push({ name: provider.name, error: 'multi-scene concatenation failed' });
+        await CircuitBreaker.recordFailure(provider.key).catch((err) =>
+          logger.warn("Circuit breaker update failed", { error: err.message }),
+        );
+        await ProviderRouter.recordFailure(provider.key).catch((err) =>
+          logger.warn("Circuit breaker update failed", { error: err.message }),
+        );
+        providerErrors.push({
+          name: provider.name,
+          error: "multi-scene concatenation failed",
+        });
         logger.warn(`${provider.name} multi-scene failed`);
       } catch (error: any) {
-        await CircuitBreaker.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-        await ProviderRouter.recordFailure(provider.key).catch(err => logger.warn('Circuit breaker update failed', { error: err.message }));
-        providerErrors.push({ name: provider.name, error: error.message?.slice(0, 80) || 'unknown' });
+        await CircuitBreaker.recordFailure(provider.key).catch((err) =>
+          logger.warn("Circuit breaker update failed", { error: err.message }),
+        );
+        await ProviderRouter.recordFailure(provider.key).catch((err) =>
+          logger.warn("Circuit breaker update failed", { error: err.message }),
+        );
+        providerErrors.push({
+          name: provider.name,
+          error: error.message?.slice(0, 80) || "unknown",
+        });
         logger.warn(`${provider.name} multi-scene error: ${error.message}`);
       }
     }
   }
 
-  const errorSummary = providerErrors.map(e => `${e.name}: ${e.error}`).join('; ');
-  logger.error(`All ${providers.length} video providers failed: [${errorSummary}]`);
-  sendAdminAlert('critical', 'All Video Providers Failed', {
+  const errorSummary = providerErrors
+    .map((e) => `${e.name}: ${e.error}`)
+    .join("; ");
+  logger.error(
+    `All ${providers.length} video providers failed: [${errorSummary}]`,
+  );
+  sendAdminAlert("critical", "All Video Providers Failed", {
     providers: providers.length,
     errors: errorSummary.slice(0, 500),
     niche: params.niche,
     duration: params.duration,
   });
-  return { success: false, error: `All ${providers.length} providers failed: ${errorSummary}` };
+  return {
+    success: false,
+    error: `All ${providers.length} providers failed: ${errorSummary}`,
+  };
 }

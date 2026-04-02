@@ -51,6 +51,7 @@ jest.mock("@/config/packages", () => ({
   COMMISSIONS: {
     DIRECT_REFERRAL: 0.15,
     INDIRECT_REFERRAL: 0.05,
+    THIRD_TIER_REFERRAL: 0.02,
     RESELLER_DISCOUNT: 0.3,
     ACTIVITY_WINDOW_DAYS: 30,
   },
@@ -704,14 +705,29 @@ describe("ReferralService", () => {
     });
 
     it("should process tier 3 commission when third-level referrer exists", async () => {
-      const buyer = makeUser({ referredBy: "uuid-tier1-referrer" });
-      const tier1Referrer = makeDirectReferrer({
-        referredBy: "uuid-tier2-referrer",
-      });
-      const tier2Referrer = makeIndirectReferrer({
-        referredBy: "uuid-tier3-referrer",
-      });
-      const tier3Referrer = makeIndirectReferrer();
+      isEligibleSpy.mockResolvedValue(true);
+      const buyer = makeUser({ referredBy: "uuid-tier1" });
+      const tier1Referrer = {
+        ...makeDirectReferrer(),
+        uuid: "uuid-tier1",
+        telegramId: BigInt(111222333),
+        referredBy: "uuid-tier2",
+      };
+      const tier2Referrer = {
+        ...makeIndirectReferrer(),
+        uuid: "uuid-tier2",
+        telegramId: BigInt(444555666),
+        referredBy: "uuid-tier3",
+      };
+      const tier3Referrer = {
+        telegramId: BigInt(999888777),
+        uuid: "uuid-tier3",
+        username: "tier3ref",
+        firstName: "Tier3",
+        lastName: "Referrer",
+        referredBy: null,
+        createdAt: new Date("2024-01-01"),
+      };
 
       mockPrismaUser.findUnique
         .mockResolvedValueOnce(buyer)
@@ -725,9 +741,11 @@ describe("ReferralService", () => {
         BUYER_TELEGRAM_ID,
       );
 
+      expect(mockPrismaCommission.create).toHaveBeenCalledTimes(3);
+
       expect(mockPrismaCommission.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          referrerId: BigInt(555666777),
+          referrerId: BigInt(999888777),
           referredId: BUYER_TELEGRAM_ID,
           amount: TRANSACTION_AMOUNT * 0.02,
           tier: 3,
