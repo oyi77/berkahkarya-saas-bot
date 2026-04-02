@@ -388,23 +388,72 @@
 
   <!-- ====== LANDING PAGE CONFIG ====== -->
   <div id="section-landing-page" class="section">
-    <div class="section-title">Landing Page Config</div>
-    <div class="section-sub">Configure dynamic elements on the main landing page</div>
-    <div class="card" style="max-width: 800px;">
-      <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--bg); padding: 4px; border-radius: 8px; width: fit-content;">
-        <button class="btn btn-sm btn-ghost lang-tab active" data-lang="id" onclick="setLandingLang('id')">Indonesian</button>
-        <button class="btn btn-sm btn-ghost lang-tab" data-lang="en" onclick="setLandingLang('en')">English</button>
+    <div class="section-title">Landing Page</div>
+    <div class="section-sub">Configure the public landing page content, testimonials, and visual elements</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+      <!-- Landing Page Content Editor -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">Page Content</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-gold btn-sm" onclick="saveLanding()">Save</button>
+            <a href="/" target="_blank" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);padding:4px 12px;border-radius:6px;color:var(--text);font-size:12px;text-decoration:none;">👁️ Preview</a>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Main Headline</div>
+            <input type="text" id="st-lpHeadline" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Bring Your AI Ideas to Life">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Sub-Headline</div>
+            <textarea id="st-lpSub" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);height:80px;resize:vertical;" placeholder="Generate cinematic AI videos directly from Telegram..."></textarea>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Call To Action Button</div>
+            <input type="text" id="st-lpCta" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Start Creating Now">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Image URL</div>
+            <input type="text" id="st-lpHeroImage" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.png">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Video URL</div>
+            <input type="text" id="st-lpHeroVideo" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.mp4">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Pricing Note</div>
+            <input type="text" id="st-lpPricingNote" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Special offer ends soon!">
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Footer Text</div>
+            <input type="text" id="st-lpFooterText" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="© 2026 BK Vilona AI — All rights reserved.">
+          </div>
+        </div>
       </div>
 
-      <div id="testimonials-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
-        <!-- Filled dynamically -->
+      <!-- Testimonials -->
+      <div class="card" style="padding:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;">Testimonials</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-sm btn-ghost lang-tab active" data-lang="id" onclick="setLandingLang('id')">Indonesian</button>
+            <button class="btn btn-sm btn-ghost lang-tab" data-lang="en" onclick="setLandingLang('en')">English</button>
+          </div>
+        </div>
+
+        <div id="testimonials-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+          <!-- Filled dynamically -->
+        </div>
+        
+        <button class="btn btn-outline btn-sm" onclick="addTestimonialRow()">+ Add Testimonial</button>
+        
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); text-align: right;">
+          <button class="btn btn-primary" onclick="saveLandingConfig()">Save Testimonials</button>
+        </div>
       </div>
-      
-      <button class="btn btn-outline btn-sm" onclick="addTestimonialRow()">+ Add Testimonial</button>
-      
-      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); text-align: right;">
-        <button class="btn btn-primary" onclick="saveLandingConfig()">Save Landing Config</button>
-      </div>
+
     </div>
   </div>
 
@@ -558,47 +607,6 @@
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Lower number = higher priority in fallback chain</div>
         <div id="st-videoProviders" style="display:flex;flex-direction:column;gap:8px;">
           <div class="loading">Loading...</div>
-        </div>
-      </div>
-
-      <!-- Landing Page Editor -->
-      <div class="card" style="padding:20px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-          <div style="font-size:14px;font-weight:600;">Landing Page Editor</div>
-          <button class="btn btn-gold btn-sm" onclick="saveLanding()">Save</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Main Headline</div>
-            <input type="text" id="st-lpHeadline" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Bring Your AI Ideas to Life">
-          </div>
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Sub-Headline</div>
-            <textarea id="st-lpSub" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);height:80px;resize:vertical;" placeholder="Generate cinematic AI videos directly from Telegram..."></textarea>
-          </div>
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Call To Action Button</div>
-            <input type="text" id="st-lpCta" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Start Creating Now">
-          </div>
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Image URL</div>
-            <input type="text" id="st-lpHeroImage" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.png">
-          </div>
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Hero Video URL</div>
-            <input type="text" id="st-lpHeroVideo" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="https://example.com/hero.mp4">
-          </div>
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Pricing Note</div>
-            <input type="text" id="st-lpPricingNote" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="Special offer ends soon!">
-          </div>
-          <div>
-            <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Footer Text</div>
-            <input type="text" id="st-lpFooterText" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);" placeholder="© 2026 BK Vilona AI — All rights reserved.">
-          </div>
-          <div style="margin-top:8px;">
-            <a href="/" target="_blank" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);padding:4px 12px;border-radius:6px;color:var(--text);font-size:12px;text-decoration:none;">👁️ Preview Landing Page</a>
-          </div>
         </div>
       </div>
 
@@ -933,7 +941,7 @@ function toast(msg, type = 'info') {
 }
 
 // ===================== HELPERS =====================
-const rp = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+const rp = n => 'Rp ' + Math.round(Number(n)).toLocaleString('id-ID');
 const dt = s => s ? new Date(s).toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
 function reltime(s) {
   if (!s) return '—';
