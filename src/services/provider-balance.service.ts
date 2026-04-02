@@ -21,6 +21,7 @@ const BALANCE_CACHE_TTL = 300;
 const MODELS_CACHE_TTL = 3600;
 
 const ALL_PROVIDER_KEYS = [
+  "omniroute",
   "byteplus",
   "xai",
   "laozhang",
@@ -46,6 +47,7 @@ const ALL_PROVIDER_KEYS = [
 ];
 
 const API_KEY_MAP: Record<string, string> = {
+  omniroute: "OMNIROUTE_API_KEY",
   byteplus: "BYTEPLUS_API_KEY",
   xai: "XAI_API_KEY",
   laozhang: "LAOZHANG_API_KEY",
@@ -98,7 +100,10 @@ export class ProviderBalanceService {
       if (cached) return JSON.parse(cached);
     } catch {}
 
+    const omnirouteUrl = config.OMNIROUTE_URL || "http://localhost:20128";
+
     const urlMap: Record<string, string> = {
+      omniroute: `${omnirouteUrl}/v1/models`,
       groq: "https://api.groq.com/openai/v1/models",
       lingyaai: "https://api.lingyaai.cn/dashboard/billing/usage",
       getgoapi: "https://api.getgoapi.com/api/user/balance",
@@ -145,6 +150,7 @@ export class ProviderBalanceService {
 
       if (
         [
+          "omniroute",
           "groq",
           "runware",
           "wavespeed",
@@ -230,7 +236,10 @@ export class ProviderBalanceService {
         };
     } catch {}
 
+    const omnirouteUrl = config.OMNIROUTE_URL || "http://localhost:20128";
+
     const urlMap: Record<string, string> = {
+      omniroute: `${omnirouteUrl}/v1/models`,
       groq: "https://api.groq.com/openai/v1/models",
       lingyaai: "https://api.lingyaai.cn/v1/models",
       getgoapi: "https://api.getgoapi.com/v1/models",

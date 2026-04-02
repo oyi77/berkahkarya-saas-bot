@@ -1102,10 +1102,76 @@ async function generateViaZAI(
   return { success: true, videoUrl, provider: "zai_video" };
 }
 
+/** Tier 0: OmniRoute — OpenAI-compatible video generation (smart routing) */
+async function generateViaOmniRouteVideo(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const config = getConfig();
+  const OMNIROUTE_URL = config.OMNIROUTE_URL || "http://localhost:20128";
+  const OMNIROUTE_API_KEY = config.OMNIROUTE_API_KEY || "";
+  if (!OMNIROUTE_API_KEY)
+    return {
+      success: false,
+      error: "OMNIROUTE_API_KEY not configured",
+      provider: "omniroute",
+    };
+
+  // OmniRoute uses OpenAI-compatible video generation
+  const resp = await axios.post(
+    `${OMNIROUTE_URL}/v1/videos/generations`,
+    {
+      model: "wan-video",
+      prompt: params.prompt,
+      duration: Math.min(10, params.duration),
+      aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${OMNIROUTE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 120000,
+    },
+  );
+
+  const taskId = resp.data?.id || resp.data?.task_id;
+  if (!taskId) throw new Error("OmniRoute: no task id");
+
+  const videoUrl = await pollUntilComplete("OmniRoute", taskId, async (id) => {
+    const poll = await axios.get(
+      `${OMNIROUTE_URL}/v1/videos/generations/${id}`,
+      {
+        headers: { Authorization: `Bearer ${OMNIROUTE_API_KEY}` },
+        timeout: 10000,
+      },
+    );
+    const status = poll.data?.status;
+    if (status === "completed" || status === "succeeded")
+      return {
+        status: "completed",
+        videoUrl:
+          poll.data?.video_url || poll.data?.url || poll.data?.output?.url,
+      };
+    if (status === "failed") throw new Error("OmniRoute generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "omniroute" };
+}
+
 // ── Provider chain ──
 
 function getProviders(): VideoProvider[] {
   return [
+    // Tier 0: OmniRoute (routes to cheapest/free video providers)
+    {
+      key: "omniroute",
+      name: "OmniRoute (Smart Routing)",
+      enabled: !!getConfig().OMNIROUTE_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 10,
+      generate: generateViaOmniRouteVideo,
+    },
+    // Tier 1-16: Direct providers (in order of cost/quality)
     {
       key: "geminigen",
       name: "GeminiGen",

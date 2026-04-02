@@ -1060,10 +1060,61 @@ async function generateViaZAIImg(
   throw new Error("Z.ai image: no URL returned");
 }
 
+/** OmniRoute — OpenAI-compatible image generation (routes to cheapest provider) */
+async function generateViaOmniRoute(
+  prompt: string,
+  params: ImageGenerationParams,
+): Promise<ImageGenerationResult> {
+  const config = getConfig();
+  const OMNIROUTE_URL = config.OMNIROUTE_URL || "http://localhost:20128/v1";
+  const OMNIROUTE_API_KEY = config.OMNIROUTE_API_KEY || "";
+  if (!OMNIROUTE_API_KEY)
+    return { success: false, error: "OMNIROUTE_API_KEY not configured" };
+
+  const dims = getDims(params);
+  const response = await axios.post(
+    `${OMNIROUTE_URL}/images/generations`,
+    {
+      model: "dall-e-3", // OmniRoute routes to cheapest image provider
+      prompt,
+      n: 1,
+      size: `${dims.width}x${dims.height}`,
+      response_format: "url",
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${OMNIROUTE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000,
+    },
+  );
+
+  const data = response.data?.data;
+  if (data?.length > 0 && data[0].url) {
+    return {
+      success: true,
+      imageUrl: data[0].url,
+      provider: "omniroute",
+      mode: "text2img",
+    };
+  }
+  throw new Error("OmniRoute: no image returned");
+}
+
 // ── Provider chain (priority order) ──
 
 function getProviders(): ImageProvider[] {
   return [
+    // Tier 0: OmniRoute (routes to cheapest/free providers)
+    {
+      key: "omniroute",
+      name: "OmniRoute (Smart Routing)",
+      enabled: !!getConfig().OMNIROUTE_API_KEY,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      generate: generateViaOmniRoute,
+    },
     // Tier 1: Cheapest text2img ($0.003/img)
     {
       key: "together",
