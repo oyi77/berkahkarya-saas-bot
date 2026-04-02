@@ -5,7 +5,6 @@
  */
 
 import { prisma } from "@/config/database";
-import { database } from "@/config/database";
 import { logger } from "@/utils/logger";
 
 export class PaymentSettingsService {

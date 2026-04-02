@@ -65,7 +65,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     }
 
     const packages = await getPackagesAsync();
-    
+
     // Determine language (priority: ?lang=, then Accept-Language header, then 'id' default)
     const langParam = (request.query as any).lang;
     const acceptLang = request.headers["accept-language"] || "";
@@ -77,8 +77,11 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     if (landingConfig.testimonials) {
       if (Array.isArray(landingConfig.testimonials)) {
         testimonials = landingConfig.testimonials;
-      } else if (typeof landingConfig.testimonials === 'object') {
-        testimonials = landingConfig.testimonials[currentLang] || landingConfig.testimonials['id'] || [];
+      } else if (typeof landingConfig.testimonials === "object") {
+        testimonials =
+          landingConfig.testimonials[currentLang] ||
+          landingConfig.testimonials["id"] ||
+          [];
       }
     }
 
@@ -474,7 +477,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
                 noWatermark: noWatermark === true,
                 subtitles: subtitles !== false,
                 voiceover: enableVO !== false || voiceover !== false,
-              }
+              },
             },
           });
 
@@ -806,34 +809,59 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
     try {
       const { recipientUsername, amount } = request.body as any;
       if (!recipientUsername || !amount || isNaN(amount) || amount < 50) {
-        return reply.status(400).send({ error: "Invalid parameters. Minimum transfer is 50 credits." });
+        return reply
+          .status(400)
+          .send({
+            error: "Invalid parameters. Minimum transfer is 50 credits.",
+          });
       }
 
       // Find recipient by username (case insensitive)
       const recipient = await prisma.user.findFirst({
         where: {
-          username: { equals: recipientUsername, mode: "insensitive" }
-        }
+          username: { equals: recipientUsername, mode: "insensitive" },
+        },
       });
 
       if (!recipient) {
-        return reply.status(404).send({ error: "Penerima tidak ditemukan. Pastikan username benar." });
+        return reply
+          .status(404)
+          .send({
+            error: "Penerima tidak ditemukan. Pastikan username benar.",
+          });
       }
 
       if (recipient.telegramId === user.telegramId) {
-        return reply.status(400).send({ error: "Tidak dapat mentransfer ke diri sendiri." });
+        return reply
+          .status(400)
+          .send({ error: "Tidak dapat mentransfer ke diri sendiri." });
       }
 
       const P2pService = require("@/services/p2p.service").P2pService;
-      const { totalDeduction } = await P2pService.validateTransfer(user.telegramId, recipient.telegramId, amount);
-      
-      // Execute the transfer exactly like the bot
-      await P2pService.executeTransfer(user.telegramId, recipient.telegramId, amount);
+      const { totalDeduction } = await P2pService.validateTransfer(
+        user.telegramId,
+        recipient.telegramId,
+        amount,
+      );
 
-      return { success: true, amountSent: amount, recipient: recipient.username, totalDeduction };
+      // Execute the transfer exactly like the bot
+      await P2pService.executeTransfer(
+        user.telegramId,
+        recipient.telegramId,
+        amount,
+      );
+
+      return {
+        success: true,
+        amountSent: amount,
+        recipient: recipient.username,
+        totalDeduction,
+      };
     } catch (error: any) {
       server.log.error(error);
-      return reply.status(400).send({ error: error.message || "Transfer failed" });
+      return reply
+        .status(400)
+        .send({ error: error.message || "Transfer failed" });
     }
   });
 
@@ -1270,16 +1298,16 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
   // ── API v1 aliases (forward to unversioned /api/* for backward compat) ──
   server.get("/api/v1/*", async (request, reply) => {
     const sub = (request.params as Record<string, string>)["*"];
-    return reply.redirect(301, `/api/${sub}`);
+    return reply.status(301).redirect(`/api/${sub}`);
   });
 
   server.post("/api/v1/*", async (request, reply) => {
     const sub = (request.params as Record<string, string>)["*"];
-    return reply.redirect(307, `/api/${sub}`);
+    return reply.status(307).redirect(`/api/${sub}`);
   });
 
   server.delete("/api/v1/*", async (request, reply) => {
     const sub = (request.params as Record<string, string>)["*"];
-    return reply.redirect(307, `/api/${sub}`);
+    return reply.status(307).redirect(`/api/${sub}`);
   });
 }
