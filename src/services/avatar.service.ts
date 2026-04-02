@@ -152,6 +152,47 @@ export class AvatarService {
     ]);
   }
 
+  /** Generate a talking video from a photo URL and text script via D-ID */
+  static async generateTalkingVideo(imageUrl: string, text: string): Promise<string> {
+    const apiKey = process.env.D_ID_API_KEY;
+    if (!apiKey) throw new Error('D_ID_API_KEY not configured');
+
+    const authHeader = `Basic ${Buffer.from(`${apiKey}:`).toString('base64')}`;
+
+    const createRes = await fetch('https://api.d-id.com/talks', {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        source_url: imageUrl,
+        script: {
+          type: 'text',
+          input: text,
+          provider: { type: 'microsoft', voice_id: 'en-US-JennyNeural' },
+        },
+      }),
+    });
+    if (!createRes.ok) {
+      const err = await createRes.text();
+      throw new Error(`D-ID create failed: ${createRes.status} ${err}`);
+    }
+    const { id } = await createRes.json() as { id: string };
+
+    // Poll for result (max 30 × 3s = 90s)
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      const pollRes = await fetch(`https://api.d-id.com/talks/${id}`, {
+        headers: { Authorization: authHeader },
+      });
+      const data = await pollRes.json() as { status: string; result_url?: string; error?: { description: string } };
+      if (data.status === 'done' && data.result_url) return data.result_url;
+      if (data.status === 'error') throw new Error(`D-ID error: ${data.error?.description}`);
+    }
+    throw new Error('D-ID timeout after 90s');
+  }
+
   /** Delete an avatar */
   static async deleteAvatar(telegramId: bigint, avatarId: number): Promise<boolean> {
     const avatar = await prisma.userAvatar.findFirst({

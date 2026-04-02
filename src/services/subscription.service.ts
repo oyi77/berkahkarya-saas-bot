@@ -1,6 +1,6 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
-import { Subscription } from '@prisma/client';
+import { Subscription, Prisma } from '@prisma/client';
 import { getSubscriptionPlansAsync, PlanKey, BillingCycle } from '@/config/pricing';
 import { Telegraf } from 'telegraf';
 import { t } from '@/i18n/translations';
@@ -108,24 +108,59 @@ export class SubscriptionService {
       ? (planConfig.monthlyCredits || 0) * 12
       : (planConfig.monthlyCredits || 0);
 
-    await prisma.subscription.update({
-      where: { id: subscriptionId },
-      data: {
-        currentPeriodStart: newStart,
-        currentPeriodEnd: newEnd,
-      },
+    await prisma.$transaction(async (tx) => {
+      // Read current balance for rollover calculation
+      const currentUser = await tx.user.findUnique({
+        where: { telegramId: sub.userId },
+        select: { creditBalance: true, subscriptionCredits: true },
+      });
+
+      // Rollover: integer math on UNUSED subscription credits
+      const subCredits = currentUser?.subscriptionCredits ?? 0;
+      const balance = Number(currentUser?.creditBalance ?? 0);
+      const unusedSub = Math.min(subCredits, balance);
+      const rollover = Math.floor(Math.min(unusedSub, planConfig.monthlyCredits || 0) * 0.2);
+
+      // Update subscription period and status
+      await tx.subscription.update({
+        where: { id: sub.id },
+        data: {
+          status: 'active',
+          currentPeriodStart: newStart,
+          currentPeriodEnd: newEnd,
+          cancelAtPeriodEnd: false,
+        },
+      });
+
+      // Grant new credits + rollover
+      await tx.user.update({
+        where: { telegramId: sub.userId },
+        data: {
+          creditBalance: { increment: new Prisma.Decimal(creditsToGrant + rollover) },
+          subscriptionCredits: creditsToGrant,
+          creditExpiresAt: newEnd,
+        },
+      });
+
+      // Log rollover as Transaction audit trail
+      if (rollover > 0) {
+        await tx.transaction.create({
+          data: {
+            orderId: `ROLLOVER-${sub.userId}-${newEnd.getTime()}`,
+            userId: sub.userId,
+            type: 'credit_rollover',
+            packageName: `rollover_${rollover}cr`,
+            amountIdr: new Prisma.Decimal(0),
+            creditsAmount: rollover,
+            gateway: 'system',
+            status: 'success',
+            paidAt: new Date(),
+          },
+        });
+      }
     });
 
-    await prisma.user.update({
-      where: { telegramId: sub.userId },
-      data: {
-        creditBalance: { increment: creditsToGrant },
-        creditExpiresAt: newEnd,
-      },
-    });
-    await prisma.$executeRaw`UPDATE "users" SET "subscription_credits" = "subscription_credits" + ${creditsToGrant} WHERE "telegramId" = ${sub.userId}`;
-
-    logger.info(`Subscription renewed: ${plan}/${sub.billingCycle} for user ${sub.userId} (+${creditsToGrant} credits)`);
+    logger.info(`Subscription renewed: ${plan}/${sub.billingCycle} for user ${sub.userId} (+${creditsToGrant} credits, rollover calculated)`);
   }
 
   static async getActiveSubscription(telegramId: bigint): Promise<Subscription | null> {

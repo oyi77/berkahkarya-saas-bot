@@ -484,6 +484,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         if (menuMatch('trending')) { await trendingCommand(ctx); return; }
         if (menuMatch('daily')) { await dailyCommand(ctx); return; }
         if (menuMatch('fingerprint')) { await fingerprintCommand(ctx); return; }
+        if (menuMatch('talk')) {
+          const { handleAvatarTalkCallbacks } = await import('./callbacks/avatar-talk.js');
+          await handleAvatarTalkCallbacks(ctx, 'avatar_talk_start');
+          return;
+        }
         if (menuMatch('help')) { await helpCommand(ctx); return; }
 
         // No menu match → try AI chat or show main menu
@@ -645,6 +650,24 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       }
 
       ctx.session.state = "DASHBOARD";
+      return;
+    }
+
+    // Handle talking photo — photo upload step
+    if (ctx.session.state === "avatar_talk_photo" && "photo" in message) {
+      const photos = message.photo;
+      const largestPhoto = photos[photos.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
+      const photoUrl = fileLink.toString();
+      const { handleAvatarTalkPhoto } = await import('./callbacks/avatar-talk.js');
+      await handleAvatarTalkPhoto(ctx, photoUrl);
+      return;
+    }
+
+    // Handle talking photo — text script step
+    if (ctx.session.state === "avatar_talk_text" && "text" in message) {
+      const { handleAvatarTalkText } = await import('./callbacks/avatar-talk.js');
+      await handleAvatarTalkText(ctx, message.text);
       return;
     }
 

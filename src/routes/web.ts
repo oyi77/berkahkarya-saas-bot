@@ -43,6 +43,7 @@ import {
   generationLimiter,
   readLimiter,
 } from "@/middleware/rateLimit";
+import { tryApiKeyAuth } from "@/middleware/api-auth";
 
 const getJwtSecret = (): string => getConfig().JWT_SECRET!;
 function getBotToken(): string {
@@ -296,6 +297,19 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   // ── MIDDLEWARE HELPER ──
   const getUser = async (request: any, reply: any) => {
+    // If a valid API key was already resolved by tryApiKeyAuth, look up the full user
+    if (request.apiUser) {
+      const user = await UserService.findByTelegramId(request.apiUser.telegramId);
+      if (!user) {
+        reply.status(404).send({ error: "User not found" });
+        return null;
+      }
+      if (user.isBanned) {
+        reply.status(403).send({ error: "Account suspended" });
+        return null;
+      }
+      return user;
+    }
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       reply.status(401).send({ error: "Unauthorized" });
@@ -757,6 +771,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   // ── TRANSACTIONS ──
   server.get("/api/my/transactions", async (request, reply) => {
+    if ((request.headers as any)['x-api-key']) { if (!await tryApiKeyAuth(request, reply)) return; }
     const user = await getUser(request, reply);
     if (!user) return;
     try {
@@ -867,6 +882,7 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
 
   // ── USER VIDEOS ──
   server.get("/api/user/videos", async (request, reply) => {
+    if ((request.headers as any)['x-api-key']) { if (!await tryApiKeyAuth(request, reply)) return; }
     const user = await getUser(request, reply);
     if (!user) return;
     try {
@@ -925,6 +941,7 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
 
   // ── REFERRAL INFO & STATS ──
   server.get("/api/referral", async (request, reply) => {
+    if ((request.headers as any)['x-api-key']) { if (!await tryApiKeyAuth(request, reply)) return; }
     const user = await getUser(request, reply);
     if (!user) return;
     try {

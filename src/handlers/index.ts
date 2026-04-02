@@ -26,9 +26,15 @@ export function setupHandlers(bot: Telegraf<BotContext>): void {
   // Telegram Stars: answer pre-checkout query
   bot.on('pre_checkout_query', async (ctx) => {
     try {
-      await ctx.answerPreCheckoutQuery(true);
+      const query = ctx.preCheckoutQuery;
+      const payload = query.invoice_payload;
+      // Validate: must match "stars_{credits}_{userId}" pattern and credits must be a known package
+      const match = /^stars_(\d+)_(\d+)$/.exec(payload);
+      const valid = !!match && STARS_PACKAGES.some(p => p.credits === parseInt(match[1], 10));
+      await ctx.answerPreCheckoutQuery(valid, valid ? undefined : 'Invalid payment payload');
     } catch (error) {
       logger.error('Error answering pre_checkout_query:', error);
+      try { await ctx.answerPreCheckoutQuery(false, 'Internal error'); } catch {}
     }
   });
 
@@ -39,11 +45,11 @@ export function setupHandlers(bot: Telegraf<BotContext>): void {
       if (!payment) return;
 
       const payload = payment.invoice_payload as string;
-      if (!payload.startsWith('stars_')) return;
+      const payloadMatch = /^stars_(\d+)_(\d+)$/.exec(payload);
+      if (!payloadMatch) return;
 
-      const parts = payload.split('_');
-      const credits = parseInt(parts[1], 10);
-      const userId = BigInt(parts[2]);
+      const credits = parseInt(payloadMatch[1], 10);
+      const userId = BigInt(payloadMatch[2]);
 
       const pkg = STARS_PACKAGES.find(p => p.credits === credits);
       if (!pkg) {
@@ -52,23 +58,33 @@ export function setupHandlers(bot: Telegraf<BotContext>): void {
       }
 
       // Record transaction
-      const orderId = `STARS-${Date.now()}-${userId}`;
-      await prisma.transaction.create({
-        data: {
-          orderId,
-          userId,
-          type: 'topup',
-          packageName: `stars_${credits}`,
-          amountIdr: 0,
-          creditsAmount: credits,
-          gateway: 'stars',
-          status: 'success',
-          gatewayTransactionId: payment.telegram_payment_charge_id || null,
-          paidAt: new Date(),
-        },
-      });
-
-      // Add credits
+      const orderId = `STARS-${payment.telegram_payment_charge_id}`;
+      try {
+        await prisma.transaction.create({
+          data: {
+            orderId,
+            userId,
+            type: 'topup',
+            packageName: `stars_${credits}`,
+            amountIdr: 0,
+            creditsAmount: credits,
+            gateway: 'stars',
+            status: 'success',
+            gatewayTransactionId: payment.telegram_payment_charge_id || null,
+            paidAt: new Date(),
+          },
+        });
+      } catch (e: any) {
+        if (e?.code === 'P2002') {
+          const target: string[] = e?.meta?.target ?? [];
+          const isDuplicate = target.includes('order_id') || target.includes('gateway_transaction_id');
+          if (!isDuplicate) throw e;
+          logger.warn(`Stars duplicate payment ignored: ${payment.telegram_payment_charge_id}`);
+          return; // Already processed — do NOT re-grant credits
+        }
+        throw e;
+      }
+      // Only grant credits AFTER successful transaction write:
       await UserService.addCredits(userId, credits);
 
       logger.info(`Stars payment success: ${credits} credits for user ${userId}`);

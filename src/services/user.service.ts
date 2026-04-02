@@ -134,6 +134,42 @@ export class UserService {
     return this.addCredits(userId, amount);
   }
 
+  /**
+   * Grant welcome bonus (1 credit) to a new user.
+   * Idempotent — returns false if the bonus was already granted (P2025).
+   */
+  static async grantWelcomeBonus(telegramId: bigint): Promise<boolean> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Atomic CAS: only succeeds if welcomeBonusUsed is currently false
+        await tx.user.update({
+          where: { telegramId, welcomeBonusUsed: false },
+          data: {
+            welcomeBonusUsed: true,
+            creditBalance: { increment: new Prisma.Decimal(1) },
+          },
+        });
+        await tx.transaction.create({
+          data: {
+            orderId: `WELCOME-${telegramId}-${Date.now()}`,
+            userId: telegramId,
+            type: 'welcome_bonus',
+            packageName: 'welcome_bonus_1cr',
+            amountIdr: new Prisma.Decimal(0),
+            creditsAmount: 1,
+            gateway: 'system',
+            status: 'success',
+            paidAt: new Date(),
+          },
+        });
+      });
+      return true;
+    } catch (e: any) {
+      if (e?.code === 'P2025') return false; // Already granted — silent no-op
+      throw e;
+    }
+  }
+
   /** Optional reference to the running Telegraf bot instance for sending DMs. */
   private static botInstance: Telegraf | null = null;
 
@@ -481,18 +517,22 @@ export class UserService {
         creditExpiresAt: { lt: now },
         creditBalance: { gt: 0 },
       },
-      select: { telegramId: true, creditBalance: true },
+      select: { id: true, telegramId: true, creditBalance: true, subscriptionCredits: true },
     });
 
     if (expired.length === 0) return 0;
 
-    await prisma.user.updateMany({
-      where: {
-        creditExpiresAt: { lt: now },
-        creditBalance: { gt: 0 },
-      },
-      data: { creditBalance: 0 },
-    });
+    // Preserve purchased credits (creditBalance - subscriptionCredits); zero out only sub credits
+    for (const user of expired) {
+      const purchased = Math.max(0, Number(user.creditBalance) - (user.subscriptionCredits ?? 0));
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          creditBalance: new Prisma.Decimal(purchased),
+          subscriptionCredits: 0,
+        },
+      });
+    }
 
     // Notify affected users via Telegram (best-effort, non-blocking)
     if (telegram) {

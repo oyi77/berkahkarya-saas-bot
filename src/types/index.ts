@@ -125,7 +125,9 @@ export type BotState =
   | "AWAITING_MULTI_IMAGE_UPLOAD"
   | "AWAITING_STORYBOARD_EDIT"
   | "AWAITING_TRANSCRIPT_INPUT"
-  | "DELETE_ACCOUNT_CONFIRMATION";
+  | "DELETE_ACCOUNT_CONFIRMATION"
+  | "avatar_talk_photo"
+  | "avatar_talk_text";
 
 // =============================================================================
 // USER TYPES
@@ -203,14 +205,18 @@ export type TransactionType =
   | "subscription"
   | "refund"
   | "bonus"
-  | "adjustment";
+  | "adjustment"
+  | "welcome_bonus"
+  | "credit_rollover";
 export type PaymentGateway =
   | "midtrans"
   | "tripay"
   | "duitku"
   | "nowpayments"
   | "internal"
-  | "admin_transfer";
+  | "admin_transfer"
+  | "system"
+  | "stars";
 
 export interface TopupPackage {
   id: string;

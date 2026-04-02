@@ -11,6 +11,8 @@ export interface VideoProviderConfig {
   supportsImg2Video: boolean;
   maxDuration: number;
   local?: boolean;
+  capabilities?: string[];
+  env?: string;
 }
 
 export interface ImageProviderConfig {
@@ -255,6 +257,21 @@ export const PROVIDER_CONFIG: {
       tokenLimit: 500,
       supportsImg2Video: true,
       maxDuration: 10,
+    },
+    did: {
+      name: "D-ID Talking Head",
+      priority: 16,
+      timeout: 95000,
+      failureThreshold: 3,
+      recoveryTimeout: 120000,
+      strengths: ["talking_head", "lip_sync", "portrait_animation"],
+      quirks: "D-ID API for talking photo/avatar generation with lip sync. Polls up to 90s.",
+      avoid: [],
+      tokenLimit: 500,
+      supportsImg2Video: true,
+      maxDuration: 60,
+      capabilities: ["talking_head"],
+      env: "D_ID_API_KEY",
     },
   },
 

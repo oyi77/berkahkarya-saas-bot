@@ -21,6 +21,7 @@ import { handleOnboardingCallbacks } from "./callbacks/onboarding";
 import { handlePromptLibraryCallbacks } from "./callbacks/promptLibrary";
 import { handlePromptsCallback } from "./callbacks/prompts";
 import { handleAccountCallback } from "./callbacks/account";
+import { handleAvatarTalkCallbacks } from "./callbacks/avatar-talk";
 
 /**
  * Handle callback queries
@@ -59,6 +60,9 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Image generation (img_*, avatar_*, imgref_*, generate_image_v3_*, image_*)
     if (await handleImageCallbacks(ctx, data)) return;
+
+    // Talking photo (avatar_talk_*)
+    if (await handleAvatarTalkCallbacks(ctx, data)) return;
 
     // Video management (video_*, videos_*, copy_caption_*, create_similar_*, feedback_*)
     if (await handleVideoCallbacks(ctx, data)) return;

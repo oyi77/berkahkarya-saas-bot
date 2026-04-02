@@ -152,6 +152,14 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
 
     logger.info(`Upserted user with niche: ${telegramId}, niche: ${niche}`);
 
+    // Grant welcome bonus (no-op if already used)
+    const granted = await UserService.grantWelcomeBonus(telegramId);
+    if (granted) {
+      await ctx.reply(
+        '🎁 Welcome bonus: 1 free credit added to your account!\nUse it to generate your first video with /create'
+      );
+    }
+
     const nicheLabels: Record<string, string> = {
       fnb: "🍔 F&B",
       fashion: "👗 Fashion",

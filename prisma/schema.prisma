@@ -79,12 +79,31 @@ model User {
   subscriptions     Subscription[]
   socialAccounts    SocialAccount[]
   avatars           UserAvatar[]
-  
+  apiKeys           ApiKey[]
+
   @@index([telegramId])
   @@index([referralCode])
   @@index([tier])
   @@index([lastActivityAt])
   @@map("users")
+}
+
+// =============================================================================
+// API KEY MODEL (Agency tier — per-user revocable keys)
+// =============================================================================
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     BigInt    @map("user_id")
+  keyHash    String    @unique @map("key_hash")
+  keySuffix  String    @default("") @map("key_suffix") @db.VarChar(8)
+  name       String    @default("Default")
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  revokedAt  DateTime? @map("revoked_at")
+  user       User      @relation(fields: [userId], references: [telegramId], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
 }
 
 // =============================================================================
@@ -103,7 +122,7 @@ model Transaction {
   
   // Payment details
   gateway               String    @db.VarChar(16)
-  gatewayTransactionId  String?   @map("gateway_transaction_id") @db.VarChar(128)
+  gatewayTransactionId  String?   @unique @map("gateway_transaction_id") @db.VarChar(128)
   paymentMethod         String?   @map("payment_method") @db.VarChar(32)
   paymentChannel        String?   @map("payment_channel") @db.VarChar(32)
   

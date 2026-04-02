@@ -24,12 +24,14 @@ import { healthCheckRoutes } from "@/routes/health";
 import { webhookRoutes } from "@/routes/webhook";
 import { adminRoutes } from "@/routes/admin";
 import { webRoutes } from "@/routes/web";
+import { agencyRoutes } from "@/routes/agency";
 import { PaymentService } from "@/services/payment.service";
 import { initializeDatabase } from "@/config/database";
 import { initializeRedis } from "@/config/redis";
 import { initializeQueue } from "@/config/queue";
 import { runSeeder } from "@/scripts/seed";
 import { startVideoWorker } from "@/workers/video-generation.worker";
+import { startAvatarTalkWorker } from "@/workers/avatar-talk.worker";
 import {
   cleanupStuckVideos,
   setCleanupTelegram,
@@ -99,6 +101,14 @@ async function main() {
         "⚠️ Video worker failed to start, falling back to direct async:",
         workerErr,
       );
+    }
+
+    // Start avatar talk worker
+    try {
+      startAvatarTalkWorker(bot);
+      logger.info("✅ Avatar talk worker started");
+    } catch (avatarWorkerErr) {
+      logger.warn("⚠️ Avatar talk worker failed to start:", avatarWorkerErr);
     }
 
     // Start daily report worker (sends activity report at 00:00 WIB)
@@ -243,6 +253,7 @@ async function main() {
     await server.register(webhookRoutes, { bot });
     await server.register(adminRoutes);
     await server.register(webRoutes);
+    await server.register(agencyRoutes, { prefix: '/api' });
     logger.info("✅ Routes registered");
 
     // 404 handler
