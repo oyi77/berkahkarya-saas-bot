@@ -1,12 +1,14 @@
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
+import { PaymentSettingsService } from './payment-settings.service';
 
 export class P2pService {
     /**
-     * Calculate 0.5% fee with a minimum of 0.01
+     * Calculate network fee based on dynamic percentage
      */
-    static calculateFee(amount: number): number {
-        const fee = amount * 0.005;
+    static async calculateFee(amount: number): Promise<number> {
+        const percent = await PaymentSettingsService.getTransferFeePercent();
+        const fee = amount * (percent / 100);
         const rounded = Math.round(fee * 100) / 100;
         return rounded < 0.01 ? 0.01 : rounded;
     }
@@ -31,7 +33,7 @@ export class P2pService {
             throw new Error('Maximum transfer amount is 10000 credits');
         }
 
-        const fee = this.calculateFee(amount);
+        const fee = await this.calculateFee(amount);
         const totalDeduction = amount + fee;
 
         const sender = await prisma.user.findUnique({ where: { telegramId: senderId } });

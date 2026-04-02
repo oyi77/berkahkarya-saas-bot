@@ -219,6 +219,12 @@ export class PaymentSettingsService {
     return (config as any)?.value ?? 30;
   }
 
+  static async getTransferFeePercent(): Promise<number> {
+    const config = await this.getPricingConfig('global', 'p2p_fee_percent');
+    if (typeof config === 'number') return config;
+    return (config as any)?.value ?? 0.5;
+  }
+
   static async getProviderCostUsd(providerKey: string): Promise<number> {
     const config = await this.getPricingConfig('provider_cost', providerKey);
     return (config as any)?.costUsd ?? 0;
@@ -289,6 +295,9 @@ export class PaymentSettingsService {
 
     // Global margin
     await upsert('global', 'margin_percent', 30);
+
+    // P2P Transfer Fee (0.5% default)
+    await upsert('global', 'p2p_fee_percent', 0.5);
 
     // Image credit default
     await upsert('image_credit', 'default', { credits: 0.2 });

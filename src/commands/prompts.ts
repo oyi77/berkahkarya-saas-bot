@@ -35,40 +35,41 @@ export const PROMPT_LIBRARY: Record<
         id: "fnb_1",
         title: "Steam & Zoom Drama",
         prompt:
-          "Cinematic food shot dengan steam rising effect, slow zoom in dari medium ke close-up, warm golden hour lighting, background blur untuk fokus tekstur makanan",
-        suitable: "Bakso, soto, mie ayam, makanan hangat",
+          "Cinematic food shot dengan steam rising effect dramatis, slow zoom in dari medium shot ke close-up revealing tekstur dan detail makanan, warm golden hour lighting dengan soft shadows, shallow depth of field untuk fokus pada hidangan utama, background blur bokeh lembut, color grading warm appetizing tones, professional food photography aesthetic dengan visible steam dan condensation",
+        suitable: "Bakso, soto, mie ayam, makanan hangat, comfort food",
         successRate: 94,
       },
       {
         id: "fnb_2",
         title: "Fresh Splash Impact",
         prompt:
-          "High-speed capture minuman dengan splash effect, bright colorful lighting, ice cubes floating dan spinning, condensation droplets on glass",
-        suitable: "Kopi susu, bubble tea, jus, smoothie",
+          "High-speed capture minuman dengan dramatic splash effect dan water droplets frozen in motion, bright colorful lighting dengan rim light pada gelas, ice cubes floating dan spinning dalam slow motion, condensation droplets visible pada permukaan glass, vibrant color palette, commercial beverage photography dengan clean background, refreshing dan thirst-quenching visual",
+        suitable: "Kopi susu, bubble tea, jus, smoothie, minuman segar",
         successRate: 92,
       },
       {
         id: "fnb_3",
         title: "Cooking Assembly Story",
         prompt:
-          "Step-by-step cooking montage, hands adding ingredients in sequence, pan sizzle close-up, final dish reveal dengan dramatic lighting",
-        suitable: "Recipe content, cooking tutorial",
+          "Step-by-step cooking montage dengan hands adding ingredients in artistic sequence, pan sizzle close-up showing oil bubbles dan steam, ingredients falling into pan dalam slow motion, final dish reveal dengan dramatic lighting change, overhead angle untuk plating shot, warm kitchen atmosphere, ASMR-style visual treatment dengan satisfying food preparation moments",
+        suitable:
+          "Recipe content, cooking tutorial, restaurant behind-the-scenes",
         successRate: 89,
       },
       {
         id: "fnb_4",
         title: "Bite Satisfaction",
         prompt:
-          "Close-up shot first bite, cross-section reveal showing layers, crunch visual effect, satisfied expression, ASMR-style treatment",
-        suitable: "Burger, sandwich, pastry",
+          "Extreme close-up first bite moment dengan cross-section reveal showing layers dan textures, cheese pull atau sauce drip effect, crunch visual dengan crumbs falling, satisfied expression reaction shot, macro lens detail pada makanan, appetizing color grading, mouth-watering food photography yang trigger craving, social media optimized composition",
+        suitable: "Burger, sandwich, pastry, pizza, comfort food",
         successRate: 91,
       },
       {
         id: "fnb_5",
         title: "Ambient Cafe Vibe",
         prompt:
-          "Cozy cafe atmosphere, latte art being poured, blurred customers background, natural window lighting, morning lifestyle aesthetic",
-        suitable: "Cafe promo, coffee shop branding",
+          "Cozy cafe atmosphere dengan latte art being poured dalam slow motion, blurred customers background menciptakan depth, natural window lighting dengan golden hour warmth, morning lifestyle aesthetic, coffee beans scattered sebagai props, steam rising dari cup, warm dan inviting mood, lifestyle photography untuk coffee shop branding",
+        suitable: "Cafe promo, coffee shop branding, brunch spot",
         successRate: 88,
       },
     ],
@@ -81,40 +82,40 @@ export const PROMPT_LIBRARY: Record<
         id: "fashion_1",
         title: "Outfit Transition Reveal",
         prompt:
-          "Model snap transition effect, outfit changes casual to glam, seamless morph, editorial lighting",
-        suitable: "Clothing line, outfit of the day",
+          "Model snap transition effect dengan outfit changes dari casual ke glam dalam satu gerakan, seamless morph transition antara looks, editorial lighting dengan dramatic shadows, confident pose dan expression, fashion show atmosphere, high-end aesthetic dengan clean background, movement dalam fabric captured beautifully, aspirational lifestyle mood",
+        suitable: "Clothing line, outfit of the day, fashion brand launch",
         successRate: 92,
       },
       {
         id: "fashion_2",
         title: "Detail Showcase Flow",
         prompt:
-          "Macro shot fabric texture, smooth tracking across clothing, button and stitching details, luxury aesthetic",
-        suitable: "Premium fashion, fabric showcase",
+          "Macro shot fabric texture dengan smooth tracking across clothing surface, button dan stitching details dalam extreme close-up, luxury aesthetic dengan soft lighting, craftsmanship visible dalam setiap detail, premium material showcase, professional product photography untuk e-commerce, elegant composition dengan minimal styling",
+        suitable: "Premium fashion, fabric showcase, luxury brand",
         successRate: 88,
       },
       {
         id: "fashion_3",
         title: "Runway Walk Energy",
         prompt:
-          "Model confident walk toward camera, dramatic lighting changes, slow-mo moments, fashion show atmosphere",
-        suitable: "Fashion brand, new collection launch",
+          "Model confident walk toward camera dengan dramatic lighting changes, slow-mo moments pada fabric movement, fashion show atmosphere dengan spotlights, powerful stride dan pose, editorial fashion video aesthetic, dynamic camera movement mengikuti model, high-energy dengan sophisticated mood",
+        suitable: "Fashion brand, new collection launch, runway show",
         successRate: 90,
       },
       {
         id: "fashion_4",
         title: "Hijab Styling Story",
         prompt:
-          "Elegant hijab styling sequence, hands adjusting fabric, modest fashion aesthetic, empowering energy",
-        suitable: "Hijab brand, modest fashion",
+          "Elegant hijab styling sequence dengan hands adjusting fabric gracefully, modest fashion aesthetic yang empowering, soft natural lighting, graceful movements, empowering energy dan confidence, beautiful fabric draping, modern muslimah lifestyle, aspirational dan inclusive representation",
+        suitable: "Hijab brand, modest fashion, muslimah lifestyle",
         successRate: 93,
       },
       {
         id: "fashion_5",
         title: "Accessory Sparkle",
         prompt:
-          "Close-up jewelry, light reflection sparkle, 360 rotation, luxury box opening, premium feel",
-        suitable: "Accessories, jewelry, bags",
+          "Close-up jewelry dengan light reflection sparkle dan rainbow prisms, 360 rotation showing all angles, luxury box opening moment dengan anticipation, premium feel dengan velvet background, macro detail pada craftsmanship, elegant hand gestures, aspirational luxury lifestyle, Instagram-worthy composition",
+        suitable: "Accessories, jewelry, bags, watches",
         successRate: 91,
       },
     ],
@@ -127,40 +128,40 @@ export const PROMPT_LIBRARY: Record<
         id: "tech_1",
         title: "Unboxing Premium",
         prompt:
-          "Sleek unboxing sequence, hands lifting lid slowly, product reveal dramatic lighting, tech reviewer aesthetic",
-        suitable: "Gadget, smartphone, electronics",
+          "Sleek unboxing sequence dengan hands lifting lid slowly revealing product, dramatic lighting change saat product terlihat, tech reviewer aesthetic dengan clean workspace, premium packaging details visible, product reveal moment dengan anticipation, modern minimalist background, cinematic slow motion pada opening moment",
+        suitable: "Gadget, smartphone, electronics, premium tech",
         successRate: 91,
       },
       {
         id: "tech_2",
         title: "Feature Highlight Demo",
         prompt:
-          "Product in action, screen display changing, feature demonstration cuts, UI animation close-ups",
-        suitable: "App, software, device demo",
+          "Product in action dengan screen display changing menunjukkan features, feature demonstration cuts yang smooth, UI animation close-ups pada interface, hands interacting dengan device, professional product demo aesthetic, clean lighting, tech-focused composition, modern dan sleek presentation",
+        suitable: "App, software, device demo, SaaS product",
         successRate: 89,
       },
       {
         id: "tech_3",
         title: "Gaming Setup Vibe",
         prompt:
-          "RGB lighting ambient glow, gaming gear lineup, keyboard typing visual, esports energy, neon accents",
-        suitable: "Gaming peripherals, PC setup",
+          "RGB lighting ambient glow menciptakan mood, gaming gear lineup dengan dramatic angles, keyboard typing visual dengan satisfying clicks, esports energy dan excitement, neon accents dan cyberpunk aesthetic, setup tour dengan smooth camera movement, immersive gaming atmosphere",
+        suitable: "Gaming peripherals, PC setup, esports brand",
         successRate: 90,
       },
       {
         id: "tech_4",
         title: "Minimal Showcase",
         prompt:
-          "Clean white/black background, product floating subtle rotation, Apple-style minimalist aesthetic",
-        suitable: "Premium gadget, earphones, wearables",
+          "Clean white/black background dengan product floating dalam subtle rotation, Apple-style minimalist aesthetic, perfect lighting menciptakan depth dan dimension, premium product photography, elegant shadows, sophisticated composition, luxury tech brand visual, studio-quality presentation",
+        suitable: "Premium gadget, earphones, wearables, luxury tech",
         successRate: 92,
       },
       {
         id: "tech_5",
         title: "Comparison Split",
         prompt:
-          "Two products side by side, split screen comparison, before-after upgrade effect, feature callouts",
-        suitable: "Upgrade promo, comparison content",
+          "Two products side by side dengan split screen comparison, before-after upgrade effect yang dramatic, feature callouts dan highlights, visual proof of improvement, comparison content yang engaging, clear differentiation antara products, persuasive visual storytelling",
+        suitable: "Upgrade promo, comparison content, product launch",
         successRate: 87,
       },
     ],
@@ -173,40 +174,40 @@ export const PROMPT_LIBRARY: Record<
         id: "health_1",
         title: "Before-After Transformation",
         prompt:
-          "Split screen transformation, left side before, right side after results, smooth morph transition",
-        suitable: "Skincare, fitness, supplement",
+          "Split screen transformation dengan left side before dan right side after results, smooth morph transition showing progress, inspiring journey visual, dramatic improvement visible, motivational energy, clean aesthetic dengan professional lighting, credibility-building visual proof, transformation story yang compelling",
+        suitable: "Skincare, fitness, supplement, weight loss",
         successRate: 93,
       },
       {
         id: "health_2",
         title: "Product Routine Story",
         prompt:
-          "Morning/evening routine sequence, product application demonstration, self-care pampering vibe",
-        suitable: "Skincare routine, wellness products",
+          "Morning/evening routine sequence dengan product application demonstration step-by-step, self-care pampering vibe yang relaxing, aesthetic bathroom/skincare setup, gentle hands applying product, glowing skin result, wellness lifestyle aesthetic, calming music visual feel, Instagram-worthy routine content",
+        suitable: "Skincare routine, wellness products, self-care",
         successRate: 90,
       },
       {
         id: "health_3",
         title: "Ingredient Spotlight",
         prompt:
-          "Natural ingredient close-ups, fresh botanical elements, lab-to-nature visual connection",
-        suitable: "Natural supplement, herbal product",
+          "Natural ingredient close-ups dengan fresh botanical elements, lab-to-nature visual connection showing science meets nature, ingredient sourcing story, clean dan pure aesthetic, macro shots pada natural textures, trust-building visual untuk natural products, educational yet beautiful composition",
+        suitable: "Natural supplement, herbal product, organic skincare",
         successRate: 88,
       },
       {
         id: "health_4",
         title: "Active Lifestyle",
         prompt:
-          "Dynamic workout moments, sweat drip close-up, athletic movement freeze-frames",
-        suitable: "Fitness product, gym supplement",
+          "Dynamic workout moments dengan sweat drip close-up, athletic movement freeze-frames dalam slow motion, gym/fitness environment, powerful dan energetic mood, motivational visual, sports photography aesthetic, achievement dan progress visual, inspiring active lifestyle content",
+        suitable: "Fitness product, gym supplement, sportswear",
         successRate: 89,
       },
       {
         id: "health_5",
         title: "Testimonial Authentic",
         prompt:
-          "Real customer sharing experience, conversational to camera, authentic emotion, trust-building",
-        suitable: "Any health/beauty product with results",
+          "Real customer sharing experience dengan conversational to camera style, authentic emotion dan genuine reaction, trust-building visual, before-after context, relatable story, professional yet personal presentation, social proof content, credibility dan authenticity focus",
+        suitable: "Any health/beauty product with visible results",
         successRate: 91,
       },
     ],
@@ -219,40 +220,40 @@ export const PROMPT_LIBRARY: Record<
         id: "travel_1",
         title: "Destination Discovery",
         prompt:
-          "Aerial drone shot revealing landscape, golden hour lighting, wanderlust atmosphere, cinematic travel film",
-        suitable: "Tour package, destination promo",
+          "Aerial drone shot revealing landscape secara dramatic, golden hour lighting menciptakan magic, wanderlust atmosphere yang kuat, cinematic travel film aesthetic, breathtaking vista reveal, smooth camera movement over scenery, adventure dan exploration mood, bucket-list destination visual",
+        suitable: "Tour package, destination promo, travel agency",
         successRate: 89,
       },
       {
         id: "travel_2",
         title: "Hotel Villa Showcase",
         prompt:
-          "Room reveal sequence, door opening to luxury space, pool and view shots, premium accommodation",
-        suitable: "Hotel, villa, resort",
+          "Room reveal sequence dengan door opening to luxury space dramatis, pool dan view shots yang stunning, premium accommodation details, elegant interior design, relaxing atmosphere, hospitality photography aesthetic, aspirational travel lifestyle, five-star experience visual",
+        suitable: "Hotel, villa, resort, accommodation",
         successRate: 88,
       },
       {
         id: "travel_3",
         title: "Experience Moment",
         prompt:
-          "Traveler experiencing activity, snorkeling underwater, hiking viewpoint, authentic adventure",
-        suitable: "Activity tour, adventure travel",
+          "Traveler experiencing activity dengan genuine excitement, snorkeling underwater dengan colorful marine life, hiking viewpoint dengan rewarding vista, authentic adventure moments, action camera perspective, immersive travel experience, memory-making content, adventure travel aesthetic",
+        suitable: "Activity tour, adventure travel, experience booking",
         successRate: 87,
       },
       {
         id: "travel_4",
         title: "Journey Story",
         prompt:
-          "Travel montage sequence, airport to destination, key moments compilation, memory-making narrative",
-        suitable: "Travel vlog, full trip recap",
+          "Travel montage sequence dari airport to destination, key moments compilation yang emotional, memory-making narrative dengan nostalgic feel, journey progression visual, travel diary aesthetic, personal dan relatable content, wanderlust-inducing storytelling",
+        suitable: "Travel vlog, full trip recap, travel diary",
         successRate: 86,
       },
       {
         id: "travel_5",
         title: "Local Hidden Gem",
         prompt:
-          "Undiscovered spot reveal, secret beach/waterfall, off-the-beaten-path vibe, exclusive discovery",
-        suitable: "Local tourism, unique destination",
+          "Undiscovered spot reveal dengan dramatic entrance, secret beach/waterfall yang pristine, off-the-beaten-path vibe yang exclusive, local tourism discovery, authentic dan untouched destination, explorer aesthetic, exclusive discovery feeling, hidden paradise visual",
+        suitable: "Local tourism, unique destination, eco-tourism",
         successRate: 90,
       },
     ],
@@ -265,40 +266,40 @@ export const PROMPT_LIBRARY: Record<
         id: "edu_1",
         title: "Learning Transformation",
         prompt:
-          "Student journey confused to confident, study montage progression, aha moment visual",
-        suitable: "Online course, tutoring",
+          "Student journey dari confused to confident, study montage progression showing growth, aha moment visual dengan lightbulb effect, before-after learning outcome, inspiring educational content, professional academic aesthetic, achievement dan progress visual, success story narrative",
+        suitable: "Online course, tutoring, educational platform",
         successRate: 88,
       },
       {
         id: "edu_2",
         title: "Expert Credibility",
         prompt:
-          "Expert instructor professional setting, teaching moment, engaging presentation, authority building",
-        suitable: "Course launch, training promo",
+          "Expert instructor dalam professional setting, teaching moment yang engaging, authority building visual, credentials dan experience showcase, trustworthy presentation, professional education aesthetic, knowledge sharing atmosphere, thought leadership content",
+        suitable: "Course launch, training promo, masterclass",
         successRate: 90,
       },
       {
         id: "edu_3",
         title: "Course Content Preview",
         prompt:
-          "Curriculum overview visual, module-by-module reveal, learning path journey, value proposition",
-        suitable: "Course promo, curriculum showcase",
+          "Curriculum overview visual dengan module-by-module reveal, learning path journey yang clear, value proposition showcase, course structure explanation, engaging content preview, professional course marketing, educational content strategy visual",
+        suitable: "Course promo, curriculum showcase, bootcamp",
         successRate: 87,
       },
       {
         id: "edu_4",
         title: "Student Success Story",
         prompt:
-          "Alumni testimonial, career progression timeline, achievement showcase, inspiring proof",
-        suitable: "Bootcamp, certification course",
+          "Alumni testimonial dengan career progression timeline, achievement showcase yang inspiring, graduation/success moment, real results visual, social proof content, inspiring proof of value, transformation story dari student to professional",
+        suitable: "Bootcamp, certification course, career training",
         successRate: 89,
       },
       {
         id: "edu_5",
         title: "Interactive Learning Demo",
         prompt:
-          "Platform UI demonstration, interactive features, learning in action, modern ed-tech",
-        suitable: "EdTech platform, e-learning app",
+          "Platform UI demonstration dengan interactive features, learning in action showing user engagement, modern ed-tech aesthetic, product demo untuk education, feature highlights, user experience focus, technology-enabled learning visual",
+        suitable: "EdTech platform, e-learning app, educational software",
         successRate: 86,
       },
     ],
@@ -311,40 +312,40 @@ export const PROMPT_LIBRARY: Record<
         id: "fin_1",
         title: "Financial Growth Visual",
         prompt:
-          "Chart animation showing growth, upward trend visualization, professional financial aesthetic",
-        suitable: "Investment, fintech, trading",
+          "Chart animation showing growth dengan upward trend visualization, professional financial aesthetic, data visualization yang compelling, success metrics highlight, investment growth story, clean corporate visual, trustworthy financial presentation, modern fintech aesthetic",
+        suitable: "Investment, fintech, trading, wealth management",
         successRate: 87,
       },
       {
         id: "fin_2",
         title: "Security & Trust",
         prompt:
-          "Security features demonstration, lock and shield imagery, protected assets visualization",
-        suitable: "Insurance, banking, crypto wallet",
+          "Security features demonstration dengan lock dan shield imagery, protected assets visualization, trust-building visual elements, professional security aesthetic, banking-grade protection visual, customer confidence content, reliable financial institution image",
+        suitable: "Insurance, banking, crypto wallet, security",
         successRate: 88,
       },
       {
         id: "fin_3",
         title: "Easy Financial Solution",
         prompt:
-          "Simple app interface, one-click process demonstration, modern fintech UI",
-        suitable: "Payment app, e-wallet, lending",
+          "Simple app interface demonstration, one-click process yang seamless, modern fintech UI showcase, user-friendly financial solution, convenience-focused visual, mobile banking aesthetic, accessible finance untuk everyone, technology-enabled finance",
+        suitable: "Payment app, e-wallet, lending, digital banking",
         successRate: 86,
       },
       {
         id: "fin_4",
         title: "Future Planning Dreams",
         prompt:
-          "Life goal visualization, dream home/car/travel, retirement scene, financial freedom lifestyle",
-        suitable: "Investment, insurance, savings",
+          "Life goal visualization dengan dream home/car/travel aspirations, retirement scene yang peaceful, financial freedom lifestyle visual, aspirational future content, planning dan preparation visual, long-term wealth building story, inspiring financial goals",
+        suitable: "Investment, insurance, savings, retirement planning",
         successRate: 89,
       },
       {
         id: "fin_5",
         title: "Expert Advisor",
         prompt:
-          "Professional advisor consultation, trustworthy expert presentation, personalized advice",
-        suitable: "Financial advisory, wealth management",
+          "Professional advisor consultation scene, trustworthy expert presentation, personalized advice moment, financial planning session, credibility dan expertise visual, client-advisor relationship, professional services aesthetic, wealth management consultation",
+        suitable: "Financial advisory, wealth management, consulting",
         successRate: 85,
       },
     ],
@@ -357,40 +358,40 @@ export const PROMPT_LIBRARY: Record<
         id: "ent_1",
         title: "Event Hype Trailer",
         prompt:
-          "Event highlights compilation, crowd energy moments, performer on stage, FOMO-inducing atmosphere",
-        suitable: "Concert, festival, event promo",
+          "Event highlights compilation dengan crowd energy moments yang electric, performer on stage dengan dramatic lighting, FOMO-inducing atmosphere yang kuat, concert/festival vibes, exciting event promo, high-energy content, shareable social media moment, event marketing visual",
+        suitable: "Concert, festival, event promo, nightlife",
         successRate: 92,
       },
       {
         id: "ent_2",
         title: "Behind The Scenes",
         prompt:
-          "Exclusive BTS moments, preparation sequence, candid artist moments, insider access",
-        suitable: "Artist content, production BTS",
+          "Exclusive BTS moments dengan preparation sequence, candid artist moments yang authentic, insider access visual, backstage atmosphere, real dan unfiltered content, fan engagement material, exclusive content untuk followers, authentic artist personality",
+        suitable: "Artist content, production BTS, creator content",
         successRate: 90,
       },
       {
         id: "ent_3",
         title: "Content Teaser Hook",
         prompt:
-          "Exciting moment preview, cliff-hanger ending, curiosity-inducing cut, watch-more motivation",
-        suitable: "YouTube/TikTok content teaser",
+          "Exciting moment preview dengan cliff-hanger ending, curiosity-inducing cut yang compelling, watch-more motivation visual, teaser content strategy, hook dalam 3 detik pertama, scroll-stopping content, viral potential visual, engaging preview material",
+        suitable: "YouTube/TikTok content teaser, series promo",
         successRate: 91,
       },
       {
         id: "ent_4",
         title: "Community Vibes",
         prompt:
-          "Community gathering moments, shared excitement, fandom energy, belonging feeling",
-        suitable: "Fan content, community building",
+          "Community gathering moments dengan shared excitement, fandom energy yang contagious, belonging feeling visual, group celebration, community building content, inclusive atmosphere, fan culture showcase, social connection visual",
+        suitable: "Fan content, community building, brand community",
         successRate: 88,
       },
       {
         id: "ent_5",
         title: "Gaming Reaction",
         prompt:
-          "Streamer reaction moment, gameplay highlight, winning celebration, shareable content",
-        suitable: "Gaming content, esports highlight",
+          "Streamer reaction moment yang genuine, gameplay highlight dengan exciting moments, winning celebration yang epic, shareable content creation, gaming culture visual, esports energy, entertainment value focus, viral gaming content",
+        suitable: "Gaming content, esports highlight, streaming",
         successRate: 89,
       },
     ],
@@ -422,20 +423,32 @@ export async function findAnyPrompt(promptId: string): Promise<{
   title: string;
   prompt: string;
   niche: string;
-  type: 'library' | 'professional' | 'db';
+  type: "library" | "professional" | "db";
 } | null> {
   // 1. Trace in PROMPT_LIBRARY (Standard)
   for (const nicheKey of Object.keys(PROMPT_LIBRARY)) {
-    const found = PROMPT_LIBRARY[nicheKey].prompts.find((p) => p.id === promptId);
-    if (found) return { ...found, niche: nicheKey, type: 'library' };
+    const found = PROMPT_LIBRARY[nicheKey].prompts.find(
+      (p) => p.id === promptId,
+    );
+    if (found) return { ...found, niche: nicheKey, type: "library" };
   }
 
   // 2. Trace in PROFESSIONAL_PROMPT_LIBRARY (Professional)
   try {
-    const { PROFESSIONAL_PROMPT_LIBRARY } = await import('../config/professional-prompts.js');
+    const { PROFESSIONAL_PROMPT_LIBRARY } =
+      await import("../config/professional-prompts.js");
     for (const nicheKey of Object.keys(PROFESSIONAL_PROMPT_LIBRARY)) {
-      const found = PROFESSIONAL_PROMPT_LIBRARY[nicheKey].find((p) => p.id === promptId);
-      if (found) return { id: found.id, title: found.name, prompt: found.prompt, niche: nicheKey, type: 'professional' };
+      const found = PROFESSIONAL_PROMPT_LIBRARY[nicheKey].find(
+        (p) => p.id === promptId,
+      );
+      if (found)
+        return {
+          id: found.id,
+          title: found.name,
+          prompt: found.prompt,
+          niche: nicheKey,
+          type: "professional",
+        };
     }
   } catch (err) {
     logger.error("findAnyPrompt professional lookup error:", err);
@@ -445,15 +458,15 @@ export async function findAnyPrompt(promptId: string): Promise<{
   if (!isNaN(Number(promptId))) {
     try {
       const dbPrompt = await prisma.savedPrompt.findUnique({
-        where: { id: parseInt(promptId) }
+        where: { id: parseInt(promptId) },
       });
       if (dbPrompt) {
         return {
           id: String(dbPrompt.id),
           title: dbPrompt.title,
           prompt: dbPrompt.prompt,
-          niche: dbPrompt.niche || 'fnb',
-          type: 'db'
+          niche: dbPrompt.niche || "fnb",
+          type: "db",
         };
       }
     } catch (err) {
@@ -484,45 +497,44 @@ export async function promptsCommand(ctx: BotContext): Promise<void> {
       return;
     }
 
-    const lang = ctx.session?.userLang || ctx.from?.language_code || 'id';
-    await ctx.reply(
-      t('prompts.library_menu', lang),
-      {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "🍔 F&B", callback_data: "prompts_fnb" },
-              { text: "👗 Fashion", callback_data: "prompts_fashion" },
-            ],
-            [
-              { text: "📱 Tech", callback_data: "prompts_tech" },
-              { text: "💪 Health", callback_data: "prompts_health" },
-            ],
-            [
-              { text: "✈️ Travel", callback_data: "prompts_travel" },
-              { text: "📚 Education", callback_data: "prompts_education" },
-            ],
-            [
-              { text: "💰 Finance", callback_data: "prompts_finance" },
-              {
-                text: "🎭 Entertainment",
-                callback_data: "prompts_entertainment",
-              },
-            ],
-            [
-              { text: "🔥 Trending", callback_data: "prompts_trending" },
-              { text: "✨ Custom AI", callback_data: "prompts_custom" },
-            ],
+    const lang = ctx.session?.userLang || ctx.from?.language_code || "id";
+    await ctx.reply(t("prompts.library_menu", lang), {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "🍔 F&B", callback_data: "prompts_fnb" },
+            { text: "👗 Fashion", callback_data: "prompts_fashion" },
           ],
-        },
+          [
+            { text: "📱 Tech", callback_data: "prompts_tech" },
+            { text: "💪 Health", callback_data: "prompts_health" },
+          ],
+          [
+            { text: "✈️ Travel", callback_data: "prompts_travel" },
+            { text: "📚 Education", callback_data: "prompts_education" },
+          ],
+          [
+            { text: "💰 Finance", callback_data: "prompts_finance" },
+            {
+              text: "🎭 Entertainment",
+              callback_data: "prompts_entertainment",
+            },
+          ],
+          [
+            { text: "🔥 Trending", callback_data: "prompts_trending" },
+            { text: "✨ Custom AI", callback_data: "prompts_custom" },
+          ],
+        ],
       },
-    );
+    });
   } catch (err) {
     logger.error("promptsCommand error:", err);
-    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
-    const lang = dbUser?.language || 'id';
-    await ctx.reply(t('prompt.library_load_failed', lang));
+    const dbUser = ctx.from
+      ? await UserService.findByTelegramId(BigInt(ctx.from.id))
+      : null;
+    const lang = dbUser?.language || "id";
+    await ctx.reply(t("prompt.library_load_failed", lang));
   }
 }
 
@@ -535,9 +547,11 @@ export async function showNichePrompts(
 ): Promise<void> {
   const niche = PROMPT_LIBRARY[nicheKey];
   if (!niche) {
-    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
-    const lang = dbUser?.language || 'id';
-    await ctx.reply(t('prompt.niche_not_found', lang));
+    const dbUser = ctx.from
+      ? await UserService.findByTelegramId(BigInt(ctx.from.id))
+      : null;
+    const lang = dbUser?.language || "id";
+    await ctx.reply(t("prompt.niche_not_found", lang));
     return;
   }
 
@@ -660,9 +674,11 @@ export async function showPromptDetail(
 ): Promise<void> {
   const p = await findAnyPrompt(promptId);
   if (!p) {
-    const dbUser = ctx.from ? await UserService.findByTelegramId(BigInt(ctx.from.id)) : null;
-    const lang = dbUser?.language || 'id';
-    await ctx.reply(t('cb.prompt_not_found', lang));
+    const dbUser = ctx.from
+      ? await UserService.findByTelegramId(BigInt(ctx.from.id))
+      : null;
+    const lang = dbUser?.language || "id";
+    await ctx.reply(t("cb.prompt_not_found", lang));
     return;
   }
 
@@ -705,7 +721,12 @@ export async function showPromptDetail(
     inline_keyboard: [
       // Primary CTA -> Redirect to V3 Flow
       [{ text: "🚀 Buat Video Sekarang!", callback_data: "create_video_new" }],
-      [{ text: "🖼️ Buat Gambar Saja", callback_data: `generate_image_v3_${promptId}` }],
+      [
+        {
+          text: "🖼️ Buat Gambar Saja",
+          callback_data: `generate_image_v3_${promptId}`,
+        },
+      ],
       [
         { text: "🔧 Customize", callback_data: `customize_prompt_${promptId}` },
         { text: "💾 Simpan", callback_data: `save_prompt_${promptId}` },
@@ -738,7 +759,7 @@ export async function showPromptDetail(
     ctx.session.stateData = {
       ...(ctx.session.stateData || {}),
       selectedPrompt: p.prompt, // Legacy support
-      selectedPromptId: p.id
+      selectedPromptId: p.id,
     };
   }
 }
@@ -750,8 +771,8 @@ export async function showCustomizePrompt(
   promptId: string,
   edit = false,
 ): Promise<void> {
-    const p = await getPromptById(promptId);
-    const base = p ? p.prompt : "Prompt kustom";
+  const p = await getPromptById(promptId);
+  const base = p ? p.prompt : "Prompt kustom";
 
   const msg =
     `🔧 **PROMPT CUSTOMIZER**\n` +
@@ -874,27 +895,29 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) {
-      await ctx.reply(t('social.unable_identify_user', 'id'));
+      await ctx.reply(t("social.unable_identify_user", "id"));
       return;
     }
 
     const dbUser = await UserService.findByTelegramId(BigInt(userId));
     if (!dbUser) {
-      await ctx.reply(t('error.user_not_found', 'id'));
+      await ctx.reply(t("error.user_not_found", "id"));
       return;
     }
 
     // Check if daily free is available
     if (!canUseDailyFree(dbUser)) {
       const resetAt = dbUser.dailyFreeResetAt || getNextDailyFreeReset();
-      const hoursLeft = Math.ceil((resetAt.getTime() - Date.now()) / (1000 * 60 * 60));
-      
+      const hoursLeft = Math.ceil(
+        (resetAt.getTime() - Date.now()) / (1000 * 60 * 60),
+      );
+
       await ctx.reply(
         `🎁 **MYSTERY PROMPT BOX**\n\n` +
-        `⏰ **Daily reward sudah diklaim!**\n\n` +
-        `Prompt baru akan tersedia dalam: *${hoursLeft} jam*.\n\n` +
-        `_Ingin lebih banyak prompt? Jelajahi Library atau upgrade ke PRO!_`,
-        { parse_mode: "Markdown" }
+          `⏰ **Daily reward sudah diklaim!**\n\n` +
+          `Prompt baru akan tersedia dalam: *${hoursLeft} jam*.\n\n` +
+          `_Ingin lebih banyak prompt? Jelajahi Library atau upgrade ke PRO!_`,
+        { parse_mode: "Markdown" },
       );
       return;
     }
@@ -942,8 +965,15 @@ export async function dailyCommand(ctx: BotContext): Promise<void> {
     });
   } catch (err) {
     logger.error("dailyCommand error:", err);
-    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
-    await ctx.reply(t('prompt.daily_load_failed', errLang));
+    const errLang =
+      (ctx.from
+        ? (
+            await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(
+              () => null,
+            )
+          )?.language
+        : null) || "id";
+    await ctx.reply(t("prompt.daily_load_failed", errLang));
   }
 }
 
@@ -969,7 +999,10 @@ export async function trendingCommand(ctx: BotContext): Promise<void> {
       msg += `─────────────────────────────────────\n\n`;
 
       buttons.push([
-        { text: `🔥 Use #${i + 1} ${p.title}`, callback_data: `use_prompt_${p.id}` },
+        {
+          text: `🔥 Use #${i + 1} ${p.title}`,
+          callback_data: `use_prompt_${p.id}`,
+        },
       ]);
     });
 
@@ -986,17 +1019,28 @@ export async function trendingCommand(ctx: BotContext): Promise<void> {
     });
   } catch (err) {
     logger.error("trendingCommand error:", err);
-    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
-    await ctx.reply(t('prompt.trending_load_failed', errLang));
+    const errLang =
+      (ctx.from
+        ? (
+            await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(
+              () => null,
+            )
+          )?.language
+        : null) || "id";
+    await ctx.reply(t("prompt.trending_load_failed", errLang));
   }
 }
 
 // ─── /fingerprint ────────────────────────────────────────────────────────────
 
 export async function fingerprintCommand(ctx: BotContext): Promise<void> {
-  const lang = ctx.session?.userLang || 'id';
-  await ctx.reply(t('fingerprint.coming_soon', lang), {
-    reply_markup: { inline_keyboard: [[{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }]] },
+  const lang = ctx.session?.userLang || "id";
+  await ctx.reply(t("fingerprint.coming_soon", lang), {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: t("btn.main_menu", lang), callback_data: "main_menu" }],
+      ],
+    },
   });
 }
 
@@ -1009,19 +1053,19 @@ export async function saveLibraryPrompt(
   try {
     const p = await getPromptById(promptId);
     if (!p) {
-      await ctx.answerCbQuery(t('cb.prompt_not_found', 'id'));
+      await ctx.answerCbQuery(t("cb.prompt_not_found", "id"));
       return;
     }
 
     const telegramId = ctx.from?.id;
     if (!telegramId) {
-      await ctx.answerCbQuery(t('error.user_not_found', 'id'));
+      await ctx.answerCbQuery(t("error.user_not_found", "id"));
       return;
     }
 
     const dbUser = await UserService.findByTelegramId(BigInt(telegramId));
     if (!dbUser) {
-      await ctx.answerCbQuery(t('error.user_not_found', 'id'));
+      await ctx.answerCbQuery(t("error.user_not_found", "id"));
       return;
     }
 
@@ -1046,7 +1090,7 @@ export async function saveLibraryPrompt(
     await ctx.answerCbQuery(`✅ "${p.title}" tersimpan!`);
   } catch (err) {
     logger.error("saveLibraryPrompt error:", err);
-    await ctx.answerCbQuery(t('prompt.save_failed', 'id'));
+    await ctx.answerCbQuery(t("prompt.save_failed", "id"));
   }
 }
 
@@ -1131,8 +1175,15 @@ export async function showMyPrompts(
     else await ctx.reply(msg, { parse_mode: "Markdown", reply_markup: markup });
   } catch (err) {
     logger.error("showMyPrompts error:", err);
-    const errLang = (ctx.from ? (await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(() => null))?.language : null) || 'id';
-    await ctx.reply(t('prompt.saved_load_failed', errLang));
+    const errLang =
+      (ctx.from
+        ? (
+            await UserService.findByTelegramId(BigInt(ctx.from.id)).catch(
+              () => null,
+            )
+          )?.language
+        : null) || "id";
+    await ctx.reply(t("prompt.saved_load_failed", errLang));
   }
 }
 

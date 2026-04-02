@@ -37,18 +37,26 @@ import { logger } from "@/utils/logger";
 import { getConfig } from "@/config/env";
 import crypto from "crypto";
 import { validateUrl } from "@/utils/url-validator";
+import {
+  paymentLimiter,
+  withdrawalLimiter,
+  generationLimiter,
+  readLimiter,
+} from "@/middleware/rateLimit";
 
 const getJwtSecret = (): string => getConfig().JWT_SECRET!;
-function getBotToken(): string { return getConfig().BOT_TOKEN; }
+function getBotToken(): string {
+  return getConfig().BOT_TOKEN;
+}
 
 // ─── Landing Page ───────────────────────────────────────────────────────────
 
 // ─── Backend Routes ──────────────────────────────────────────────────────────
 
 export async function webRoutes(server: FastifyInstance): Promise<void> {
-  server.get("/", async (_request, reply) => {
+  server.get("/", async (request, reply) => {
     const { redis } = require("../config/redis");
-    let landingConfig = {};
+    let landingConfig: any = {};
     try {
       const data = await redis.get("admin:landing_config");
       if (data) landingConfig = JSON.parse(data);
@@ -57,14 +65,45 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     }
 
     const packages = await getPackagesAsync();
+    
+    // Determine language (priority: ?lang=, then Accept-Language header, then 'id' default)
+    const langParam = (request.query as any).lang;
+    const acceptLang = request.headers["accept-language"] || "";
+    let currentLang = langParam || (acceptLang.startsWith("en") ? "en" : "id");
+    if (!["id", "en"].includes(currentLang)) currentLang = "id";
+
+    // Handle multi-language testimonials from config
+    let testimonials = [];
+    if (landingConfig.testimonials) {
+      if (Array.isArray(landingConfig.testimonials)) {
+        testimonials = landingConfig.testimonials;
+      } else if (typeof landingConfig.testimonials === 'object') {
+        testimonials = landingConfig.testimonials[currentLang] || landingConfig.testimonials['id'] || [];
+      }
+    }
 
     reply.view("web/landing.ejs", {
       landingConfig,
-      packages,
-      botUsername: getConfig().BOT_USERNAME || 'berkahkarya_saas_bot',
+      testimonials,
+      currentLang,
+      botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
       fbPixelId: getConfig().FACEBOOK_PIXEL_ID || "",
       ga4Id: getConfig().GA4_TRACKING_ID || "",
       ttPixelId: getConfig().TIKTOK_PIXEL_ID || "",
+    });
+  });
+
+  // ─── Terms of Service ────────────────────────────────────────────────────────
+  server.get("/terms", async (_request, reply) => {
+    return reply.view("web/tos.ejs", {
+      botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
+    });
+  });
+
+  // ─── Privacy Policy ──────────────────────────────────────────────────────────
+  server.get("/privacy", async (_request, reply) => {
+    return reply.view("web/privacy.ejs", {
+      botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
     });
   });
 
@@ -75,7 +114,6 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       reply.type("text/html").send("go7u73s641jq2jtd8gfh2ecbl94kmy");
     },
   );
-
 
   // Static files (images, etc)
   // Favicon routes
@@ -88,7 +126,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   server.get("/favicon.svg", async (_request, reply) => {
     const fs = require("fs");
-    const svg = fs.readFileSync(`${process.cwd()}/src/public/favicon.svg`, "utf8");
+    const svg = fs.readFileSync(
+      `${process.cwd()}/src/public/favicon.svg`,
+      "utf8",
+    );
     return reply.type("image/svg+xml").send(svg);
   });
 
@@ -106,20 +147,20 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       reply.code(404).send("File not found");
       return;
     }
-    
-    const ext = filename.split('.').pop()?.toLowerCase();
+
+    const ext = filename.split(".").pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
-      'png': 'image/png',
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'gif': 'image/gif',
-      'svg': 'image/svg+xml',
-      'webp': 'image/webp'
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      gif: "image/gif",
+      svg: "image/svg+xml",
+      webp: "image/webp",
     };
-    
-    const mimeType = mimeTypes[ext || ''] || 'application/octet-stream';
+
+    const mimeType = mimeTypes[ext || ""] || "application/octet-stream";
     const stream = fs.createReadStream(filePath);
-    
+
     reply.type(mimeType);
     return reply.send(stream);
   });
@@ -127,18 +168,32 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   // Payment finish — redirect target after gateway payment
   server.get("/payment/finish", async (request, reply) => {
     const { order_id } = request.query as any;
-    let statusMessage = 'Payment is being processed';
-    let statusIcon = '⏳';
-    let statusClass = 'pending';
+    let statusMessage = "Payment is being processed";
+    let statusIcon = "⏳";
+    let statusClass = "pending";
     if (order_id) {
       try {
-        const tx = await prisma.transaction.findFirst({ where: { orderId: String(order_id) }, select: { status: true } });
-        if (tx?.status === 'success') { statusMessage = 'Payment successful! Credits added to your account.'; statusIcon = '✅'; statusClass = 'success'; }
-        else if (tx?.status === 'failed') { statusMessage = 'Payment failed. Please try again or contact support.'; statusIcon = '❌'; statusClass = 'failed'; }
-      } catch { /* ignore lookup errors */ }
+        const tx = await prisma.transaction.findFirst({
+          where: { orderId: String(order_id) },
+          select: { status: true },
+        });
+        if (tx?.status === "success") {
+          statusMessage = "Payment successful! Credits added to your account.";
+          statusIcon = "✅";
+          statusClass = "success";
+        } else if (tx?.status === "failed") {
+          statusMessage =
+            "Payment failed. Please try again or contact support.";
+          statusIcon = "❌";
+          statusClass = "failed";
+        }
+      } catch {
+        /* ignore lookup errors */
+      }
     }
-    const botUsername = getConfig().BOT_USERNAME || 'BKVilonaBot';
-    return reply.type('text/html').send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Status</title>
+    const botUsername = getConfig().BOT_USERNAME || "BKVilonaBot";
+    return reply.type("text/html")
+      .send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Status</title>
 <style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}.card{background:white;border-radius:16px;padding:40px;text-align:center;max-width:400px;box-shadow:0 4px 24px rgba(0,0,0,.1)}.icon{font-size:48px;margin-bottom:16px}.success{color:#16a34a}.pending{color:#d97706}.failed{color:#dc2626}.btn{display:inline-block;padding:12px 24px;border-radius:8px;text-decoration:none;margin:8px;font-weight:600}.btn-primary{background:#2563eb;color:white}.btn-secondary{background:#e5e7eb;color:#374151}</style></head>
 <body><div class="card"><div class="icon">${statusIcon}</div><h2 class="${statusClass}">${statusMessage}</h2><p><a class="btn btn-primary" href="https://t.me/${botUsername}">Return to Bot</a></p><p><a class="btn btn-secondary" href="/app">Open Web App</a></p></div></body></html>`);
   });
@@ -146,7 +201,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   // Web app
   server.get("/app", async (_request, reply) => {
     reply.view("web/app.ejs", {
-      botUsername: getConfig().BOT_USERNAME || 'berkahkarya_saas_bot'
+      botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
     });
   });
 
@@ -157,14 +212,18 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
       // Support Telegram Web App (Mini App) initData format
       if (userData?.initData) {
-        const isValidTWA = checkTWAHash(userData.initData as string, getBotToken());
+        const isValidTWA = checkTWAHash(
+          userData.initData as string,
+          getBotToken(),
+        );
         if (!isValidTWA) {
-          return reply.status(401).send({ error: 'Invalid TWA initData' });
+          return reply.status(401).send({ error: "Invalid TWA initData" });
         }
         // Parse user from initData
         const params = new URLSearchParams(userData.initData as string);
-        const userJson = params.get('user');
-        if (!userJson) return reply.status(400).send({ error: 'No user in initData' });
+        const userJson = params.get("user");
+        if (!userJson)
+          return reply.status(400).send({ error: "No user in initData" });
         const twaUser = JSON.parse(userJson);
         userData = {
           id: twaUser.id,
@@ -178,7 +237,9 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         }
         const isValid = checkTelegramHash(userData, getBotToken());
         if (!isValid) {
-          return reply.status(401).send({ error: 'Auth hash verification failed' });
+          return reply
+            .status(401)
+            .send({ error: "Auth hash verification failed" });
         }
       }
 
@@ -192,7 +253,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
             lastName: userData.last_name,
           });
         } catch (err: any) {
-          if (err?.code === 'P2002') {
+          if (err?.code === "P2002") {
             // Created concurrently — fetch the existing record
             user = await UserService.findByTelegramId(BigInt(userData.id));
           } else {
@@ -202,7 +263,12 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       }
 
       if (!user) {
-        return reply.status(500).send({ error: 'User creation failed' });
+        return reply.status(500).send({ error: "User creation failed" });
+      }
+
+      // Check if user is banned
+      if (user.isBanned) {
+        return reply.status(403).send({ error: "Account suspended" });
       }
 
       const token = jwt.sign(
@@ -241,6 +307,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         reply.status(404).send({ error: "User not found" });
         return null;
       }
+      if (user.isBanned) {
+        reply.status(403).send({ error: "Account suspended" });
+        return null;
+      }
       return user;
     } catch {
       reply.status(401).send({ error: "Invalid token" });
@@ -249,22 +319,47 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   };
 
   // ── USER ──
-  server.get("/api/user", async (request, reply) => {
+  server.get(
+    "/api/user",
+    { preHandler: [readLimiter] },
+    async (request, reply) => {
+      const user = await getUser(request, reply);
+      if (!user) return;
+      return {
+        id: user.uuid,
+        telegramId: user.telegramId.toString(),
+        username: user.username,
+        firstName: user.firstName,
+        credits: user.creditBalance,
+        tier: user.tier,
+        referralCode: user.referralCode,
+        welcomeBonusUsed: user.welcomeBonusUsed,
+        dailyFreeUsed: user.dailyFreeUsed,
+        dailyFreeResetAt: user.dailyFreeResetAt,
+        createdAt: user.createdAt,
+      };
+    },
+  );
+
+  // ── ACCOUNT DELETION ──
+  server.delete("/api/user", async (request, reply) => {
     const user = await getUser(request, reply);
     if (!user) return;
-    return {
-      id: user.uuid,
-      telegramId: user.telegramId.toString(),
-      username: user.username,
-      firstName: user.firstName,
-      credits: user.creditBalance,
-      tier: user.tier,
-      referralCode: user.referralCode,
-      welcomeBonusUsed: user.welcomeBonusUsed,
-      dailyFreeUsed: user.dailyFreeUsed,
-      dailyFreeResetAt: user.dailyFreeResetAt,
-      createdAt: user.createdAt,
-    };
+    try {
+      await prisma.user.update({
+        where: { uuid: user.uuid },
+        data: {
+          firstName: "Deleted User",
+          username: null,
+          phoneNumber: null,
+          referralCode: null,
+        },
+      });
+      return { message: "Account deleted successfully" };
+    } catch (error) {
+      logger.error("Account deletion error:", error);
+      return reply.status(500).send({ error: "Deletion failed" });
+    }
   });
 
   // ── STORYBOARD PREVIEW ──
@@ -296,107 +391,128 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       };
     } catch (error: any) {
       server.log.error({ error }, "Storyboard error");
-      return reply
-        .status(500)
-        .send({ error: "Failed to generate storyboard" });
+      return reply.status(500).send({ error: "Failed to generate storyboard" });
     }
   });
 
   // ── VIDEO CREATE ──
-  server.post("/api/video/create", async (request, reply) => {
-    const user = await getUser(request, reply);
-    if (!user) return;
-    try {
-      const {
-        niche, style, duration, customPrompt, storyboard,
-        platform = "tiktok",
-        enableVO = true,
-        enableSubtitles = true,
-        language = "id",
-        referenceImageUrl,
-      } = request.body as any;
-      if (!niche || !duration)
-        return reply.status(400).send({ error: "niche and duration required" });
-
-      // Validate user-supplied URL to prevent SSRF
-      if (referenceImageUrl) {
-        try {
-          validateUrl(referenceImageUrl);
-        } catch (urlErr: any) {
-          return reply.status(400).send({ error: urlErr.message });
-        }
-      }
-
-      const creditCost = await getVideoCreditCostAsync(duration);
-      if (Number(user.creditBalance) < creditCost) {
-        return reply.status(402).send({
-          error: `Insufficient credits. Need ${creditCost}, have ${user.creditBalance}`,
-        });
-      }
-
-      // Deduct credits — refund below if job creation or enqueue fails.
-      await UserService.deductCredits(user.telegramId, creditCost);
-
-      const jobId = `WEB-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
-      const scenes = storyboard?.scenes || [];
-      const sceneData =
-        scenes.length > 0
-          ? scenes
-          : [
-              {
-                scene: 1,
-                duration,
-                description: customPrompt || `${niche} marketing video`,
-              },
-            ];
-
+  server.post(
+    "/api/video/create",
+    { preHandler: [generationLimiter] },
+    async (request, reply) => {
+      const user = await getUser(request, reply);
+      if (!user) return;
       try {
-        // Create DB record
-        await prisma.video.create({
-          data: {
-            userId: user.telegramId,
+        const {
+          niche,
+          style,
+          duration,
+          customPrompt,
+          storyboard,
+          platform = "tiktok",
+          enableVO = true,
+          enableSubtitles = true,
+          language = "id",
+          referenceImageUrl,
+          noWatermark,
+          subtitles,
+          voiceover,
+        } = request.body as any;
+        if (!niche || !duration)
+          return reply
+            .status(400)
+            .send({ error: "niche and duration required" });
+
+        // Validate user-supplied URL to prevent SSRF
+        if (referenceImageUrl) {
+          try {
+            validateUrl(referenceImageUrl);
+          } catch (urlErr: any) {
+            return reply.status(400).send({ error: urlErr.message });
+          }
+        }
+
+        const creditCost = await getVideoCreditCostAsync(duration);
+        if (Number(user.creditBalance) < creditCost) {
+          return reply.status(402).send({
+            error: `Insufficient credits. Need ${creditCost}, have ${user.creditBalance}`,
+          });
+        }
+
+        // Deduct credits — refund below if job creation or enqueue fails.
+        await UserService.deductCredits(user.telegramId, creditCost);
+
+        const jobId = `WEB-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+        const scenes = storyboard?.scenes || [];
+        const sceneData =
+          scenes.length > 0
+            ? scenes
+            : [
+                {
+                  scene: 1,
+                  duration,
+                  description: customPrompt || `${niche} marketing video`,
+                },
+              ];
+
+        try {
+          // Create DB record
+          await prisma.video.create({
+            data: {
+              userId: user.telegramId,
+              jobId,
+              niche,
+              platform,
+              duration,
+              scenes: sceneData.length,
+              status: "processing",
+              creditsUsed: creditCost,
+              storyboard: sceneData,
+              styles: style ? [style] : [],
+              generationMetadata: {
+                noWatermark: noWatermark === true,
+                subtitles: subtitles !== false,
+                voiceover: enableVO !== false || voiceover !== false,
+              }
+            },
+          });
+
+          // Enqueue
+          await enqueueVideoGeneration({
             jobId,
             niche,
             platform,
             duration,
             scenes: sceneData.length,
-            status: "processing",
-            creditsUsed: creditCost,
             storyboard: sceneData,
-            styles: style ? [style] : [],
-          },
-        });
+            customPrompt: customPrompt || undefined,
+            referenceImage: referenceImageUrl || undefined,
+            userId: user.telegramId.toString(),
+            chatId: Number(user.telegramId),
+            enableVO,
+            enableSubtitles,
+            language,
+          });
+        } catch (jobError: any) {
+          // Refund credits — job was never actually created/queued
+          await UserService.refundCredits(
+            user.telegramId,
+            creditCost,
+            jobId,
+            jobError?.message || "job creation failed",
+          ).catch((err) =>
+            logger.error("Refund failed", { error: err.message }),
+          );
+          throw jobError;
+        }
 
-        // Enqueue
-        await enqueueVideoGeneration({
-          jobId,
-          niche,
-          platform,
-          duration,
-          scenes: sceneData.length,
-          storyboard: sceneData,
-          customPrompt: customPrompt || undefined,
-          referenceImage: referenceImageUrl || undefined,
-          userId: user.telegramId.toString(),
-          chatId: Number(user.telegramId),
-          enableVO,
-          enableSubtitles,
-          language,
-        });
-      } catch (jobError: any) {
-        // Refund credits — job was never actually created/queued
-        await UserService.refundCredits(user.telegramId, creditCost, jobId, jobError?.message || 'job creation failed').catch(err => logger.error('Refund failed', { error: err.message }));
-        throw jobError;
+        return { ok: true, jobId, message: "Video generation started" };
+      } catch (error: any) {
+        server.log.error({ error }, "Video create error");
+        return reply.status(500).send({ error: "Failed to create video" });
       }
-
-      return { ok: true, jobId, message: "Video generation started" };
-    } catch (error: any) {
-      server.log.error({ error }, "Video create error");
-      return reply
-        .status(500)
-        .send({ error: "Failed to create video" });
-    }
-  });
+    },
+  );
 
   // ── VIDEO ANALYZE (for repurposing) ──
   server.post("/api/video/analyze", async (request, reply) => {
@@ -404,7 +520,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     if (!user) return;
     try {
       const { videoUrl } = request.body as any;
-      if (!videoUrl) return reply.status(400).send({ error: "videoUrl is required" });
+      if (!videoUrl)
+        return reply.status(400).send({ error: "videoUrl is required" });
 
       try {
         validateUrl(videoUrl);
@@ -412,11 +529,14 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: urlErr.message });
       }
 
-      const { VideoAnalysisService } = await import("@/services/video-analysis.service.js");
+      const { VideoAnalysisService } =
+        await import("@/services/video-analysis.service.js");
       const result = await VideoAnalysisService.analyze(videoUrl);
 
       if (!result.success) {
-        return reply.status(422).send({ error: result.error || "Analysis failed" });
+        return reply
+          .status(422)
+          .send({ error: result.error || "Analysis failed" });
       }
 
       // Don't return keyFramePaths (local file paths) to web clients
@@ -436,69 +556,91 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // ── IMAGE GENERATE ──
-  server.post("/api/image/generate", async (request, reply) => {
-    const user = await getUser(request, reply);
-    if (!user) return;
-    try {
-      const {
-        prompt, category = "general", style, aspectRatio = "1:1",
-        referenceImageUrl, avatarImageUrl,
-      } = request.body as any;
-      if (!prompt)
-        return reply.status(400).send({ error: "prompt is required" });
-
-      // Validate user-supplied URLs to prevent SSRF
-      for (const url of [referenceImageUrl, avatarImageUrl]) {
-        if (url) {
-          try {
-            validateUrl(url);
-          } catch (urlErr: any) {
-            return reply.status(400).send({ error: urlErr.message });
-          }
-        }
-      }
-
-      const IMAGE_CREDIT_COST = await getImageCreditCostAsync();
-      if (Number(user.creditBalance) < IMAGE_CREDIT_COST) {
-        return reply.status(402).send({
-          error: `Insufficient credits. Need ${IMAGE_CREDIT_COST}, have ${user.creditBalance}`,
-        });
-      }
-
-      await UserService.deductCredits(user.telegramId, IMAGE_CREDIT_COST);
-
-      let result;
+  server.post(
+    "/api/image/generate",
+    { preHandler: [generationLimiter] },
+    async (request, reply) => {
+      const user = await getUser(request, reply);
+      if (!user) return;
       try {
-        result = await ImageGenerationService.generateImage({
+        const {
           prompt,
-          category,
+          category = "general",
           style,
-          aspectRatio,
+          aspectRatio = "1:1",
           referenceImageUrl,
           avatarImageUrl,
-        });
-      } catch (genError: any) {
-        // Refund on exception (service crash)
-        await UserService.refundCredits(user.telegramId, IMAGE_CREDIT_COST, `IMG-REFUND-${Date.now()}`, genError?.message || 'exception').catch(err => logger.error('Refund failed', { error: err.message }));
-        throw genError;
-      }
+        } = request.body as any;
+        if (!prompt)
+          return reply.status(400).send({ error: "prompt is required" });
 
-      if (!result.success) {
-        // Refund on generation failure
-        await UserService.refundCredits(user.telegramId, IMAGE_CREDIT_COST, `IMG-REFUND-${Date.now()}`, result.error || 'Generation failed');
-        return reply.status(500).send({ error: result.error || "Image generation failed" });
-      }
+        // Validate user-supplied URLs to prevent SSRF
+        for (const url of [referenceImageUrl, avatarImageUrl]) {
+          if (url) {
+            try {
+              validateUrl(url);
+            } catch (urlErr: any) {
+              return reply.status(400).send({ error: urlErr.message });
+            }
+          }
+        }
 
-      return {
-        ok: true,
-        imageUrl: result.imageUrl,
-        provider: result.provider,
-      };
-    } catch (error: any) {
-      server.log.error({ error }, "Image generate error");
-      return reply.status(500).send({ error: "Failed to generate image" });
-    }
-  });
+        const IMAGE_CREDIT_COST = await getImageCreditCostAsync();
+        if (Number(user.creditBalance) < IMAGE_CREDIT_COST) {
+          return reply.status(402).send({
+            error: `Insufficient credits. Need ${IMAGE_CREDIT_COST}, have ${user.creditBalance}`,
+          });
+        }
+
+        await UserService.deductCredits(user.telegramId, IMAGE_CREDIT_COST);
+
+        let result;
+        try {
+          result = await ImageGenerationService.generateImage({
+            prompt,
+            category,
+            style,
+            aspectRatio,
+            referenceImageUrl,
+            avatarImageUrl,
+          });
+        } catch (genError: any) {
+          // Refund on exception (service crash)
+          await UserService.refundCredits(
+            user.telegramId,
+            IMAGE_CREDIT_COST,
+            `IMG-REFUND-${Date.now()}`,
+            genError?.message || "exception",
+          ).catch((err) =>
+            logger.error("Refund failed", { error: err.message }),
+          );
+          throw genError;
+        }
+
+        if (!result.success) {
+          // Refund on generation failure
+          await UserService.refundCredits(
+            user.telegramId,
+            IMAGE_CREDIT_COST,
+            `IMG-REFUND-${Date.now()}`,
+            result.error || "Generation failed",
+          );
+          return reply
+            .status(500)
+            .send({ error: result.error || "Image generation failed" });
+        }
+
+        return {
+          ok: true,
+          imageUrl: result.imageUrl,
+          provider: result.provider,
+        };
+      } catch (error: any) {
+        server.log.error({ error }, "Image generate error");
+        return reply.status(500).send({ error: "Failed to generate image" });
+      }
+    },
+  );
 
   // ── IMAGE DESCRIBE (i2t) ──
   server.post("/api/image/describe", async (request, reply) => {
@@ -506,7 +648,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     if (!user) return;
     try {
       const { imageUrl } = request.body as any;
-      if (!imageUrl) return reply.status(400).send({ error: "imageUrl is required" });
+      if (!imageUrl)
+        return reply.status(400).send({ error: "imageUrl is required" });
 
       try {
         validateUrl(imageUrl);
@@ -514,11 +657,17 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: urlErr.message });
       }
 
-      const { ContentAnalysisService } = await import("@/services/content-analysis.service.js");
-      const result = await ContentAnalysisService.extractPrompt(imageUrl, "image");
+      const { ContentAnalysisService } =
+        await import("@/services/content-analysis.service.js");
+      const result = await ContentAnalysisService.extractPrompt(
+        imageUrl,
+        "image",
+      );
 
       if (!result.success) {
-        return reply.status(422).send({ error: result.error || "Could not analyze image" });
+        return reply
+          .status(422)
+          .send({ error: result.error || "Could not analyze image" });
       }
 
       return {
@@ -540,11 +689,11 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         getPackagesAsync(),
         PaymentSettingsService.getEnabledGateways(),
         Promise.all([
-          getUnitCostAsync('VIDEO_15S'),
-          getUnitCostAsync('VIDEO_30S'),
-          getUnitCostAsync('VIDEO_60S'),
-          getUnitCostAsync('VIDEO_120S'),
-          getUnitCostAsync('IMAGE_UNIT'),
+          getUnitCostAsync("VIDEO_15S"),
+          getUnitCostAsync("VIDEO_30S"),
+          getUnitCostAsync("VIDEO_60S"),
+          getUnitCostAsync("VIDEO_120S"),
+          getUnitCostAsync("IMAGE_UNIT"),
         ]),
       ]);
       const unitCosts = {
@@ -562,41 +711,45 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // ── PAYMENT CREATE ──
-  server.post("/api/payment/create", async (request, reply) => {
-    const user = await getUser(request, reply);
-    if (!user) return;
-    try {
-      const { packageId, gateway } = request.body as any;
-      if (!packageId || !gateway)
-        return reply
-          .status(400)
-          .send({ error: "packageId and gateway required" });
-      let result: any;
-      if (gateway === "duitku") {
-        result = await DuitkuService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName,
-        });
-      } else if (gateway === "tripay") {
-        result = await TripayService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName,
-        });
-      } else {
-        result = await PaymentService.createTransaction({
-          userId: user.telegramId,
-          packageId,
-          username: user.username || user.firstName,
-        });
+  server.post(
+    "/api/payment/create",
+    { preHandler: [paymentLimiter] },
+    async (request, reply) => {
+      const user = await getUser(request, reply);
+      if (!user) return;
+      try {
+        const { packageId, gateway } = request.body as any;
+        if (!packageId || !gateway)
+          return reply
+            .status(400)
+            .send({ error: "packageId and gateway required" });
+        let result: any;
+        if (gateway === "duitku") {
+          result = await DuitkuService.createTransaction({
+            userId: user.telegramId,
+            packageId,
+            username: user.username || user.firstName,
+          });
+        } else if (gateway === "tripay") {
+          result = await TripayService.createTransaction({
+            userId: user.telegramId,
+            packageId,
+            username: user.username || user.firstName,
+          });
+        } else {
+          result = await PaymentService.createTransaction({
+            userId: user.telegramId,
+            packageId,
+            username: user.username || user.firstName,
+          });
+        }
+        return result;
+      } catch (error: any) {
+        server.log.error({ error }, "Payment create error");
+        return reply.status(500).send({ error: "Failed to create payment" });
       }
-      return result;
-    } catch (error: any) {
-      server.log.error({ error }, "Payment create error");
-      return reply.status(500).send({ error: "Failed to create payment" });
-    }
-  });
+    },
+  );
 
   // ── TRANSACTIONS ──
   server.get("/api/my/transactions", async (request, reply) => {
@@ -611,6 +764,75 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       return transactions;
     } catch {
       return reply.status(500).send({ error: "Failed to fetch transactions" });
+    }
+  });
+
+  // ── TRANSACTION RECEIPT ──
+  server.get("/api/my/transactions/:id/receipt", async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    const { id } = request.params as { id: string };
+    try {
+      const tx = await prisma.transaction.findFirst({
+        where: { id: BigInt(id), userId: user.telegramId },
+      });
+      if (!tx)
+        return reply.status(404).send({ error: "Transaction not found" });
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt #${tx.id}</title>
+<style>body{font-family:Inter,sans-serif;max-width:600px;margin:40px auto;padding:20px;color:#333}
+h1{color:#00d9ff}table{width:100%;border-collapse:collapse;margin:20px 0}
+td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bold;color:#00d9ff}
+@media print{body{margin:0}}</style></head><body>
+<h1>BerkahKarya Receipt</h1>
+<p><strong>Transaction ID:</strong> ${tx.id}</p>
+<p><strong>Date:</strong> ${new Date(tx.createdAt).toLocaleDateString("id-ID")}</p>
+<table><tr><td>Type</td><td>${tx.type}</td></tr>
+<tr><td>Amount</td><td class="total">IDR ${Number(tx.amountIdr).toLocaleString("id-ID")}</td></tr>
+<tr><td>Status</td><td>${tx.status}</td></tr>
+<tr><td>Gateway</td><td>${tx.gateway}</td></tr></table>
+<p style="color:#888;font-size:12px;margin-top:40px">Generated by BerkahKarya AI Video Studio</p>
+</body></html>`;
+      return reply.type("text/html").send(html);
+    } catch (error) {
+      return reply.status(500).send({ error: "Receipt generation failed" });
+    }
+  });
+
+  // ── P2P TRANSFER ──
+  server.post("/api/user/p2p-transfer", async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const { recipientUsername, amount } = request.body as any;
+      if (!recipientUsername || !amount || isNaN(amount) || amount < 50) {
+        return reply.status(400).send({ error: "Invalid parameters. Minimum transfer is 50 credits." });
+      }
+
+      // Find recipient by username (case insensitive)
+      const recipient = await prisma.user.findFirst({
+        where: {
+          username: { equals: recipientUsername, mode: "insensitive" }
+        }
+      });
+
+      if (!recipient) {
+        return reply.status(404).send({ error: "Penerima tidak ditemukan. Pastikan username benar." });
+      }
+
+      if (recipient.telegramId === user.telegramId) {
+        return reply.status(400).send({ error: "Tidak dapat mentransfer ke diri sendiri." });
+      }
+
+      const P2pService = require("@/services/p2p.service").P2pService;
+      const { totalDeduction } = await P2pService.validateTransfer(user.telegramId, recipient.telegramId, amount);
+      
+      // Execute the transfer exactly like the bot
+      await P2pService.executeTransfer(user.telegramId, recipient.telegramId, amount);
+
+      return { success: true, amountSent: amount, recipient: recipient.username, totalDeduction };
+    } catch (error: any) {
+      server.log.error(error);
+      return reply.status(400).send({ error: error.message || "Transfer failed" });
     }
   });
 
@@ -684,7 +906,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       });
       const availableCommission = Number(commissionAgg._sum.amount || 0);
 
-      const sellRateStr = await PaymentSettingsService.get("referral_sell_rate");
+      const sellRateStr =
+        await PaymentSettingsService.get("referral_sell_rate");
       const sellRate = sellRateStr ? parseInt(sellRateStr) : 3000;
       const creditsIfConverted = Math.floor(availableCommission / sellRate);
 
@@ -707,85 +930,112 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // ── REFERRAL WITHDRAW ──
-  server.post("/api/referral/withdraw", async (request, reply) => {
-    const user = await getUser(request, reply);
-    if (!user) return;
-    try {
-      const { action } = request.body as { action: "convert_credits" | "sell_admin" };
-      if (action !== "convert_credits" && action !== "sell_admin") {
-        return reply.status(400).send({ error: "action must be convert_credits or sell_admin" });
-      }
-
-      const availableAgg = await prisma.commission.aggregate({
-        where: { referrerId: user.telegramId, status: "available" },
-        _sum: { amount: true },
-      });
-      const available = Number(availableAgg._sum.amount || 0);
-
-      if (available <= 0) {
-        return reply.status(400).send({ error: "No commission available to withdraw" });
-      }
-
-      const sellRateStr = await PaymentSettingsService.get("referral_sell_rate");
-      const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
-
-      if (action === "convert_credits") {
-        const creditsToAdd = Math.floor(available / SELL_RATE);
-        if (creditsToAdd <= 0) {
-          return reply.status(400).send({ error: "Commission too low to convert to credits" });
+  server.post(
+    "/api/referral/withdraw",
+    { preHandler: [withdrawalLimiter] },
+    async (request, reply) => {
+      const user = await getUser(request, reply);
+      if (!user) return;
+      try {
+        const { action } = request.body as {
+          action: "convert_credits" | "sell_admin";
+        };
+        if (action !== "convert_credits" && action !== "sell_admin") {
+          return reply
+            .status(400)
+            .send({ error: "action must be convert_credits or sell_admin" });
         }
-        await prisma.$transaction(async (tx) => {
-          await tx.commission.updateMany({
-            where: { referrerId: user.telegramId, status: "available" },
-            data: { status: "withdrawn" },
-          });
-          await tx.user.update({
-            where: { telegramId: user.telegramId },
-            data: { creditBalance: { increment: creditsToAdd } },
-          });
-          await tx.transaction.create({
-            data: {
-              orderId: `REF-CONV-${Date.now()}`,
-              userId: user.telegramId,
-              type: "referral_conversion",
-              amountIdr: available,
-              creditsAmount: creditsToAdd,
-              gateway: "internal",
-              status: "success",
-              paymentMethod: "referral_commission",
-            },
-          });
-        });
-        return { ok: true, action: "convert_credits", creditsAdded: creditsToAdd, commissionUsed: available };
-      }
 
-      // sell_admin: request cashout at 50% rate
-      const cashoutAmount = Math.floor(available / 2);
-      if (cashoutAmount <= 0) {
-        return reply.status(400).send({ error: "Commission too low for cashout" });
+        const availableAgg = await prisma.commission.aggregate({
+          where: { referrerId: user.telegramId, status: "available" },
+          _sum: { amount: true },
+        });
+        const available = Number(availableAgg._sum.amount || 0);
+
+        if (available <= 0) {
+          return reply
+            .status(400)
+            .send({ error: "No commission available to withdraw" });
+        }
+
+        const sellRateStr =
+          await PaymentSettingsService.get("referral_sell_rate");
+        const SELL_RATE = sellRateStr ? parseInt(sellRateStr) : 3000;
+
+        if (action === "convert_credits") {
+          const creditsToAdd = Math.floor(available / SELL_RATE);
+          if (creditsToAdd <= 0) {
+            return reply
+              .status(400)
+              .send({ error: "Commission too low to convert to credits" });
+          }
+          await prisma.$transaction(async (tx) => {
+            await tx.commission.updateMany({
+              where: { referrerId: user.telegramId, status: "available" },
+              data: { status: "withdrawn" },
+            });
+            await tx.user.update({
+              where: { telegramId: user.telegramId },
+              data: { creditBalance: { increment: creditsToAdd } },
+            });
+            await tx.transaction.create({
+              data: {
+                orderId: `REF-CONV-${Date.now()}`,
+                userId: user.telegramId,
+                type: "referral_conversion",
+                amountIdr: available,
+                creditsAmount: creditsToAdd,
+                gateway: "internal",
+                status: "success",
+                paymentMethod: "referral_commission",
+              },
+            });
+          });
+          return {
+            ok: true,
+            action: "convert_credits",
+            creditsAdded: creditsToAdd,
+            commissionUsed: available,
+          };
+        }
+
+        // sell_admin: request cashout at 50% rate
+        const cashoutAmount = Math.floor(available / 2);
+        if (cashoutAmount <= 0) {
+          return reply
+            .status(400)
+            .send({ error: "Commission too low for cashout" });
+        }
+        await prisma.commission.updateMany({
+          where: { referrerId: user.telegramId, status: "available" },
+          data: { status: "pending_cashout" },
+        });
+        await prisma.transaction.create({
+          data: {
+            orderId: `REF-CASH-${Date.now()}`,
+            userId: user.telegramId,
+            type: "referral_cashout",
+            amountIdr: cashoutAmount,
+            creditsAmount: 0,
+            gateway: "admin_transfer",
+            status: "pending",
+            paymentMethod: "admin_transfer",
+          },
+        });
+        return {
+          ok: true,
+          action: "sell_admin",
+          cashoutAmount,
+          commissionUsed: available,
+        };
+      } catch (error: any) {
+        server.log.error({ error }, "Referral withdraw error");
+        return reply
+          .status(500)
+          .send({ error: "Failed to process withdrawal" });
       }
-      await prisma.commission.updateMany({
-        where: { referrerId: user.telegramId, status: "available" },
-        data: { status: "pending_cashout" },
-      });
-      await prisma.transaction.create({
-        data: {
-          orderId: `REF-CASH-${Date.now()}`,
-          userId: user.telegramId,
-          type: "referral_cashout",
-          amountIdr: cashoutAmount,
-          creditsAmount: 0,
-          gateway: "admin_transfer",
-          status: "pending",
-          paymentMethod: "admin_transfer",
-        },
-      });
-      return { ok: true, action: "sell_admin", cashoutAmount, commissionUsed: available };
-    } catch (error: any) {
-      server.log.error({ error }, "Referral withdraw error");
-      return reply.status(500).send({ error: "Failed to process withdrawal" });
-    }
-  });
+    },
+  );
 
   // ── SUBSCRIPTION PLANS ──
   server.get("/api/subscriptions", async () => {
@@ -797,14 +1047,23 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     const user = await getUser(request, reply);
     if (!user) return;
     try {
-      const { plan, cycle, gateway = "duitku" } = request.body as {
+      const { plan, cycle, gateway } = request.body as {
         plan: string;
         cycle: string;
         gateway?: string;
       };
 
-      if (!(plan in SUBSCRIPTION_PLANS) || !["monthly", "annual"].includes(cycle)) {
+      if (
+        !(plan in SUBSCRIPTION_PLANS) ||
+        !["monthly", "annual"].includes(cycle)
+      ) {
         return reply.status(400).send({ error: "Invalid plan or cycle" });
+      }
+
+      if (!gateway) {
+        return reply
+          .status(400)
+          .send({ error: "No payment methods available" });
       }
 
       const planKey = plan as PlanKey;
@@ -845,13 +1104,23 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
       // If gateway doesn't natively know sub_ packages, return error instead of unpayable record
       if (!result?.paymentUrl && !result?.payment_url) {
-        return reply.status(502).send({ error: 'Payment gateway unavailable. Please try again.' });
+        return reply
+          .status(502)
+          .send({ error: "Payment gateway unavailable. Please try again." });
       }
 
-      return { ok: true, ...result, plan: planKey, cycle: billingCycle, amountIdr: price };
+      return {
+        ok: true,
+        ...result,
+        plan: planKey,
+        cycle: billingCycle,
+        amountIdr: price,
+      };
     } catch (error: any) {
       server.log.error({ error }, "Subscription buy error");
-      return reply.status(500).send({ error: "Failed to create subscription payment" });
+      return reply
+        .status(500)
+        .send({ error: "Failed to create subscription payment" });
     }
   });
 
@@ -860,7 +1129,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     const user = await getUser(request, reply);
     if (!user) return;
     try {
-      const { SubscriptionService } = await import("@/services/subscription.service.js");
+      const { SubscriptionService } =
+        await import("@/services/subscription.service.js");
       await SubscriptionService.cancelSubscription(user.telegramId);
       return { ok: true };
     } catch (error: any) {
@@ -899,7 +1169,10 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
         const stream = fs.createReadStream(localPath);
         const stat = fs.statSync(localPath);
         reply.header("Content-Type", "video/mp4");
-        reply.header("Content-Disposition", `attachment; filename="${filename}"`);
+        reply.header(
+          "Content-Disposition",
+          `attachment; filename="${filename}"`,
+        );
         reply.header("Content-Length", stat.size);
         return reply.send(stream);
       }
@@ -908,12 +1181,16 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       if (video.videoUrl) {
         try {
           const providerRes = await fetch(video.videoUrl);
-          if (!providerRes.ok) throw new Error(`Upstream fetch failed: ${providerRes.status}`);
+          if (!providerRes.ok)
+            throw new Error(`Upstream fetch failed: ${providerRes.status}`);
           const filename = `berkahkarya-${jobId}.mp4`;
-          reply.header('Content-Type', 'video/mp4');
-          reply.header('Content-Disposition', `attachment; filename="${filename}"`);
-          const contentLength = providerRes.headers.get('content-length');
-          if (contentLength) reply.header('Content-Length', contentLength);
+          reply.header("Content-Type", "video/mp4");
+          reply.header(
+            "Content-Disposition",
+            `attachment; filename="${filename}"`,
+          );
+          const contentLength = providerRes.headers.get("content-length");
+          if (contentLength) reply.header("Content-Length", contentLength);
           return reply.send(providerRes.body);
         } catch {
           // Provider unavailable — fall through to 404
@@ -921,7 +1198,8 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       }
 
       return reply.status(404).send({
-        error: "Video file is no longer available. Please regenerate the video.",
+        error:
+          "Video file is no longer available. Please regenerate the video.",
       });
     } catch (error) {
       server.log.error({ error }, "Video download error");
@@ -941,19 +1219,30 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
     const limit = chatRateMap.get(ip);
     if (limit && limit.resetAt > now) {
       if (limit.count >= 10) {
-        return reply.status(429).send({ error: "Too many messages. Please wait a moment." });
+        return reply
+          .status(429)
+          .send({ error: "Too many messages. Please wait a moment." });
       }
       limit.count++;
     } else {
       chatRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
     }
 
-    const { message, sessionId } = request.body as { message?: string; sessionId?: string };
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
+    const { message, sessionId } = request.body as {
+      message?: string;
+      sessionId?: string;
+    };
+    if (
+      !message ||
+      typeof message !== "string" ||
+      message.trim().length === 0
+    ) {
       return reply.status(400).send({ error: "Message is required" });
     }
     if (message.length > 1000) {
-      return reply.status(400).send({ error: "Message too long (max 1000 chars)" });
+      return reply
+        .status(400)
+        .send({ error: "Message too long (max 1000 chars)" });
     }
 
     const chatSessionId = sessionId || `landing_${ip}_${Date.now()}`;
@@ -961,7 +1250,9 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
     const result = await omni.chat(chatSessionId, message.trim());
     if (!result.success) {
-      return reply.status(500).send({ error: "AI is temporarily unavailable. Please try again." });
+      return reply
+        .status(500)
+        .send({ error: "AI is temporarily unavailable. Please try again." });
     }
 
     return { reply: result.content, sessionId: chatSessionId };

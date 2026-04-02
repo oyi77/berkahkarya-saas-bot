@@ -28,6 +28,7 @@ import { PaymentService } from "@/services/payment.service";
 import { initializeDatabase } from "@/config/database";
 import { initializeRedis } from "@/config/redis";
 import { initializeQueue } from "@/config/queue";
+import { runSeeder } from "@/scripts/seed";
 import { startVideoWorker } from "@/workers/video-generation.worker";
 import {
   cleanupStuckVideos,
@@ -80,6 +81,9 @@ async function main() {
     logger.info("💾 Initializing Redis...");
     await initializeRedis();
     logger.info("✅ Redis connected");
+    
+    // Run Seeder
+    await runSeeder();
 
     // Initialize queue
     logger.info("📋 Initializing queue...");

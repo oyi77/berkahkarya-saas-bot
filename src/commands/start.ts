@@ -11,11 +11,9 @@ import { logger } from "@/utils/logger";
 import { UserService } from "@/services/user.service";
 import { t } from "@/i18n/translations";
 import { sendVilonaWelcomeAnimation } from "@/services/vilona-animation.service";
+import { PaymentSettingsService } from "@/services/payment-settings.service";
 
-import {
-  MAIN_MENU_KEYBOARD,
-  getMainMenuKeyboard,
-} from "@/config/pricing";
+import { MAIN_MENU_KEYBOARD, getMainMenuKeyboard } from "@/config/pricing";
 
 /**
  * Map Telegram language_code to our 4 supported UI languages.
@@ -25,8 +23,8 @@ const TELEGRAM_LANG_MAP: Record<string, string> = {
   id: "id",
   en: "en",
   ru: "ru",
-  uk: "ru",   // Ukrainian → Russian fallback
-  be: "ru",   // Belarusian → Russian fallback
+  uk: "ru", // Ukrainian → Russian fallback
+  be: "ru", // Belarusian → Russian fallback
   "zh-hans": "zh",
   "zh-hant": "zh",
   zh: "zh",
@@ -58,7 +56,7 @@ export async function startCommand(ctx: BotContext): Promise<void> {
     const user = ctx.from;
 
     if (!user) {
-      await ctx.reply(t('social.unable_identify_user', 'id'));
+      await ctx.reply(t("social.unable_identify_user", "id"));
       return;
     }
 
@@ -103,18 +101,20 @@ export async function startCommand(ctx: BotContext): Promise<void> {
       }
 
       // Send reply keyboard (persistent bottom bar)
-      await ctx.reply(
-        `${t("menu.hello", lang, { name: user.first_name })}\n\n` +
-          `${credEmoji} ${t("menu.credits_label", lang)}: *${credBal}*\n\n` +
-          `${t("menu.today_question", lang)}`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: {
-            keyboard: getMainMenuKeyboard(lang),
-            resize_keyboard: true,
-          },
-        },
+      const customWelcome = await PaymentSettingsService.getPricingConfig(
+        "system",
+        "welcome_message",
       );
+      const welcomeText =
+        customWelcome ||
+        `${t("menu.hello", lang, { name: user.first_name })}\n\n${credEmoji} ${t("menu.credits_label", lang)}: *${credBal}*\n\n${t("menu.today_question", lang)}`;
+      await ctx.reply(welcomeText, {
+        parse_mode: "Markdown",
+        reply_markup: {
+          keyboard: getMainMenuKeyboard(lang),
+          resize_keyboard: true,
+        },
+      });
 
       // Also send inline menu buttons (quick actions)
       await ctx.reply(t("cb.main_menu_quick_actions", lang), {
@@ -122,16 +122,28 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: t('btn.create_video', lang), callback_data: "create_video_new" },
-              { text: t('btn.create_image', lang), callback_data: "image_from_prompt" },
+              {
+                text: t("btn.create_video", lang),
+                callback_data: "create_video_new",
+              },
+              {
+                text: t("btn.create_image", lang),
+                callback_data: "image_from_prompt",
+              },
             ],
             [
-              { text: t('btn.browse_prompts', lang), callback_data: "back_prompts" },
-              { text: t('btn.trending', lang), callback_data: "prompts_trending" },
+              {
+                text: t("btn.browse_prompts", lang),
+                callback_data: "back_prompts",
+              },
+              {
+                text: t("btn.trending", lang),
+                callback_data: "prompts_trending",
+              },
             ],
             [
-              { text: t('btn.topup', lang), callback_data: "topup" },
-              { text: t('btn.my_videos', lang), callback_data: "videos_list" },
+              { text: t("btn.topup", lang), callback_data: "topup" },
+              { text: t("btn.my_videos", lang), callback_data: "videos_list" },
             ],
           ],
         },
@@ -158,7 +170,9 @@ export async function startCommand(ctx: BotContext): Promise<void> {
         attributionParams.fbp = params.get("fbp") || undefined;
         attributionParams.ttclid = params.get("ttclid") || undefined;
       } catch (e) {
-        logger.warn(`Failed to parse UTM params from start payload: ${startPayload}`);
+        logger.warn(
+          `Failed to parse UTM params from start payload: ${startPayload}`,
+        );
       }
     }
 
@@ -180,9 +194,9 @@ export async function startCommand(ctx: BotContext): Promise<void> {
     // so every user can read it regardless of their language
     await ctx.reply(
       `🌐 *Pilih bahasa kamu*\n` +
-      `🌐 *Please select your language*\n` +
-      `🌐 *Выберите язык*\n` +
-      `🌐 *请选择您的语言*`,
+        `🌐 *Please select your language*\n` +
+        `🌐 *Выберите язык*\n` +
+        `🌐 *请选择您的语言*`,
       {
         parse_mode: "Markdown",
         reply_markup: {
@@ -198,6 +212,6 @@ export async function startCommand(ctx: BotContext): Promise<void> {
     );
   } catch (error) {
     logger.error("Error in start command:", error);
-    await ctx.reply(t('error.generic', 'id'));
+    await ctx.reply(t("error.generic", "id"));
   }
 }

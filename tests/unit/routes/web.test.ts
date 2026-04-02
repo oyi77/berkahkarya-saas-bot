@@ -13,7 +13,12 @@ const mockPrismaVideoFindMany = jest.fn();
 const mockPrismaTransactionFindMany = jest.fn();
 
 jest.mock("@/utils/logger", () => ({
-  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  },
 }));
 
 jest.mock("@/services/omniroute.service", () => ({
@@ -76,7 +81,9 @@ const mockPaymentSettingsGet = jest.fn();
 jest.mock("@/services/payment-settings.service", () => ({
   PaymentSettingsService: {
     get: mockPaymentSettingsGet,
-    getEnabledGateways: jest.fn().mockResolvedValue([{ id: 'duitku', gateway: 'duitku' }]),
+    getEnabledGateways: jest
+      .fn()
+      .mockResolvedValue([{ id: "duitku", gateway: "duitku" }]),
     getPricingConfig: jest.fn().mockResolvedValue(null),
   },
 }));
@@ -135,8 +142,20 @@ jest.mock("@/config/pricing", () => ({
   getSubscriptionPlansAsync: mockGetSubscriptionPlansAsync,
   getUnitCostAsync: jest.fn().mockResolvedValue(10),
   SUBSCRIPTION_PLANS: {
-    lite: { name: "Lite", tier: "basic", monthlyCredits: 30, monthlyPriceIdr: 49000, annualPriceIdr: 490000 },
-    pro: { name: "Pro", tier: "pro", monthlyCredits: 100, monthlyPriceIdr: 99000, annualPriceIdr: 990000 },
+    lite: {
+      name: "Lite",
+      tier: "basic",
+      monthlyCredits: 30,
+      monthlyPriceIdr: 49000,
+      annualPriceIdr: 490000,
+    },
+    pro: {
+      name: "Pro",
+      tier: "pro",
+      monthlyCredits: 100,
+      monthlyPriceIdr: 99000,
+      annualPriceIdr: 990000,
+    },
   },
   getPlanPrice: jest.fn().mockReturnValue(49000),
 }));
@@ -186,14 +205,17 @@ function createMockServer() {
     put: {},
   };
   const server = {
-    get: jest.fn((path: string, handler: Function) => {
-      routes.get[path] = handler;
+    get: jest.fn((path: string, optsOrHandler: any, handler?: Function) => {
+      const h = handler || optsOrHandler;
+      routes.get[path] = h;
     }),
-    post: jest.fn((path: string, handler: Function) => {
-      routes.post[path] = handler;
+    post: jest.fn((path: string, optsOrHandler: any, handler?: Function) => {
+      const h = handler || optsOrHandler;
+      routes.post[path] = h;
     }),
-    delete: jest.fn((path: string, handler: Function) => {
-      routes.delete[path] = handler;
+    delete: jest.fn((path: string, optsOrHandler: any, handler?: Function) => {
+      const h = handler || optsOrHandler;
+      routes.delete[path] = h;
     }),
     patch: jest.fn((path: string, handler: Function) => {
       routes.patch[path] = handler;
@@ -247,7 +269,7 @@ describe("Web Routes", () => {
   });
 
   describe("Route Registration", () => {
-it("should register GET / route", () => {
+    it("should register GET / route", () => {
       expect(server.get).toHaveBeenCalledWith("/", expect.any(Function));
     });
 
@@ -265,6 +287,7 @@ it("should register GET / route", () => {
     it("should register GET /api/user route", () => {
       expect(server.get).toHaveBeenCalledWith(
         "/api/user",
+        expect.any(Object),
         expect.any(Function),
       );
     });
@@ -279,6 +302,7 @@ it("should register GET / route", () => {
     it("should register POST /api/video/create route", () => {
       expect(server.post).toHaveBeenCalledWith(
         "/api/video/create",
+        expect.any(Object),
         expect.any(Function),
       );
     });
@@ -293,6 +317,7 @@ it("should register GET / route", () => {
     it("should register POST /api/payment/create route", () => {
       expect(server.post).toHaveBeenCalledWith(
         "/api/payment/create",
+        expect.any(Object),
         expect.any(Function),
       );
     });
@@ -327,11 +352,14 @@ it("should register GET / route", () => {
       const request = createMockRequest();
       const reply = createMockReply();
       await handler(request, reply);
-      expect(reply.view).toHaveBeenCalledWith("web/landing.ejs", expect.objectContaining({
-        landingConfig: expect.any(Object),
-        packages: expect.any(Array),
-        botUsername: expect.any(String),
-      }));
+      expect(reply.view).toHaveBeenCalledWith(
+        "web/landing.ejs",
+        expect.objectContaining({
+          landingConfig: expect.any(Object),
+          packages: expect.any(Array),
+          botUsername: expect.any(String),
+        }),
+      );
     });
   });
 
@@ -341,7 +369,10 @@ it("should register GET / route", () => {
       const request = createMockRequest();
       const reply = createMockReply();
       await handler(request, reply);
-      expect(reply.view).toHaveBeenCalledWith("web/app.ejs", expect.any(Object));
+      expect(reply.view).toHaveBeenCalledWith(
+        "web/app.ejs",
+        expect.any(Object),
+      );
     });
   });
 
@@ -639,7 +670,9 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Failed to generate storyboard" });
+      expect(reply.send).toHaveBeenCalledWith({
+        error: "Failed to generate storyboard",
+      });
     });
   });
 
@@ -792,7 +825,9 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Failed to create video" });
+      expect(reply.send).toHaveBeenCalledWith({
+        error: "Failed to create video",
+      });
     });
   });
 
@@ -810,7 +845,7 @@ it("should register GET / route", () => {
       const result = await handler()(request, reply);
       expect(mockGetPackagesAsync).toHaveBeenCalled();
       // Packages endpoint now returns { packages, gateways, unitCosts }
-      expect(result).toHaveProperty('packages');
+      expect(result).toHaveProperty("packages");
       expect(result.packages).toEqual(mockPackages);
     });
   });
@@ -934,7 +969,9 @@ it("should register GET / route", () => {
       const reply = createMockReply();
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({ error: "Failed to create payment" });
+      expect(reply.send).toHaveBeenCalledWith({
+        error: "Failed to create payment",
+      });
     });
   });
 
@@ -1140,7 +1177,8 @@ it("should register GET / route", () => {
       await handler()(request, reply);
       expect(reply.status).toHaveBeenCalledWith(404);
       expect(reply.send).toHaveBeenCalledWith({
-        error: "Video file is no longer available. Please regenerate the video.",
+        error:
+          "Video file is no longer available. Please regenerate the video.",
       });
     });
 

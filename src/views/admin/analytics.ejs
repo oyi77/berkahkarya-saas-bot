@@ -158,14 +158,23 @@
       #section-profit > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
       .kpi-row, .kpi-grid { grid-template-columns: 1fr !important; }
       .main { padding: 8px !important; }
+      .nav-item { padding: 8px 12px; font-size: 13px; }
+      .tab-bar { flex-wrap: wrap; }
+      .btn { padding: 6px 10px; font-size: 12px; }
     }
   </style>
+  <script>
+    function toggleSidebar() {
+      const sb = document.getElementById('sidebar');
+      if (sb) sb.classList.toggle('open');
+    }
+  </script>
 </head>
 <body>
 
 <!-- Sidebar -->
 <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
   <div style="padding: 20px; border-bottom: 1px solid var(--border);">
     <div style="font-size: 16px; font-weight: 700; color: var(--gold);">⚡ BerkahKarya</div>
     <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
@@ -177,6 +186,7 @@
     <div class="nav-item" data-section="videos">🎬 Videos</div>
     <div class="nav-item" data-section="analytics">📈 Analytics</div>
     <div class="nav-item" data-section="pricing">💰 Pricing</div>
+    <div class="nav-item" data-section="landing-page">🌐 Landing Page</div>
     <div class="nav-item" data-section="prompts">✍️ Prompts</div>
     <div class="nav-item" data-section="broadcast">📢 Broadcast</div>
     <div class="nav-item" data-section="system">⚙️ System</div>
@@ -263,8 +273,8 @@
         <button class="btn btn-gold btn-sm" onclick="loadUsers(true)">Refresh</button>
       </div>
     </div>
-    <div class="card">
-      <div id="users-table-wrap"><div class="loading">Loading users...</div></div>
+    <div class="card" style="overflow-x: auto;">
+      <div id="users-table-wrap" style="min-width: 800px;"><div class="loading">Loading users...</div></div>
       <div style="text-align: center; margin-top: 16px;">
         <button class="btn btn-ghost" id="users-load-more" style="display:none;" onclick="loadMoreUsers()">Load More</button>
       </div>
@@ -281,8 +291,8 @@
       <div class="tab" data-tx-filter="success" onclick="setTxFilter(this, 'success')">Success</div>
       <div class="tab" data-tx-filter="failed" onclick="setTxFilter(this, 'failed')">Failed</div>
     </div>
-    <div class="card">
-      <div id="tx-table-wrap"><div class="loading">Loading transactions...</div></div>
+    <div class="card" style="overflow-x: auto;">
+      <div id="tx-table-wrap" style="min-width: 900px;"><div class="loading">Loading transactions...</div></div>
     </div>
   </div>
 
@@ -297,8 +307,8 @@
       <div class="tab" data-vid-filter="completed" onclick="setVidFilter(this, 'completed')">Completed</div>
       <div class="tab" data-vid-filter="failed" onclick="setVidFilter(this, 'failed')">Failed</div>
     </div>
-    <div class="card">
-      <div id="vid-table-wrap"><div class="loading">Loading videos...</div></div>
+    <div class="card" style="overflow-x: auto;">
+      <div id="vid-table-wrap" style="min-width: 900px;"><div class="loading">Loading videos...</div></div>
     </div>
   </div>
 
@@ -354,7 +364,7 @@
         <span id="pricing-category-label" style="font-size: 13px; color: var(--muted);">Credit Packages</span>
         <button class="btn btn-gold btn-sm" onclick="openPricingModal()">+ Add</button>
       </div>
-      <div id="pricing-table-wrap"><div class="loading">Loading...</div></div>
+      <div id="pricing-table-wrap" style="overflow-x: auto; min-width: 600px;"><div class="loading">Loading...</div></div>
     </div>
   </div>
 
@@ -371,8 +381,30 @@
         <button class="btn btn-ghost btn-sm" onclick="loadPrompts()">Refresh</button>
       </div>
     </div>
-    <div class="card">
-      <div id="prompts-table-wrap"><div class="loading">Loading prompts...</div></div>
+    <div class="card" style="overflow-x: auto;">
+      <div id="prompts-table-wrap" style="min-width: 700px;"><div class="loading">Loading prompts...</div></div>
+    </div>
+  </div>
+
+  <!-- ====== LANDING PAGE CONFIG ====== -->
+  <div id="section-landing-page" class="section">
+    <div class="section-title">Landing Page Config</div>
+    <div class="section-sub">Configure dynamic elements on the main landing page</div>
+    <div class="card" style="max-width: 800px;">
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; background: var(--bg); padding: 4px; border-radius: 8px; width: fit-content;">
+        <button class="btn btn-sm btn-ghost lang-tab active" data-lang="id" onclick="setLandingLang('id')">Indonesian</button>
+        <button class="btn btn-sm btn-ghost lang-tab" data-lang="en" onclick="setLandingLang('en')">English</button>
+      </div>
+
+      <div id="testimonials-list" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+        <!-- Filled dynamically -->
+      </div>
+      
+      <button class="btn btn-outline btn-sm" onclick="addTestimonialRow()">+ Add Testimonial</button>
+      
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); text-align: right;">
+        <button class="btn btn-primary" onclick="saveLandingConfig()">Save Landing Config</button>
+      </div>
     </div>
   </div>
 
@@ -1426,10 +1458,98 @@ async function editPricing(cat, key) {
     const valueStr = current !== undefined ? (typeof current === 'object' ? JSON.stringify(current) : String(current)) : '';
     openPricingModal(cat, key, valueStr);
   } catch(e) {
-    toast('Failed to load value: ' + e.message, 'error');
+    console.error(e);
+    toast('Gagal memuat setting payment', 'err');
   }
 }
 
+// ── LANDING CONFIG ──
+let currentLandingConfig = {};
+let currentLandingLang = 'id';
+
+function setLandingLang(lang) {
+  currentLandingLang = lang;
+  // Update UI tabs
+  document.querySelectorAll('.lang-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+  });
+  renderTestimonials();
+}
+
+async function loadLandingConfig() {
+  try {
+    const res = await apiFetch('/api/landing-config');
+    if (res) {
+      currentLandingConfig = res;
+      renderTestimonials();
+    }
+  } catch(e) { console.error('Failed to load landing config', e); }
+}
+
+function renderTestimonials() {
+  const container = document.getElementById('testimonials-list');
+  
+  // Ensure structure is object-based for multi-lang
+  if (Array.isArray(currentLandingConfig.testimonials)) {
+    const oldTs = currentLandingConfig.testimonials;
+    currentLandingConfig.testimonials = { id: oldTs, en: [] };
+  }
+  if (!currentLandingConfig.testimonials) currentLandingConfig.testimonials = { id: [], en: [] };
+  
+  const ts = currentLandingConfig.testimonials[currentLandingLang] || [];
+  
+  if (ts.length === 0) {
+    container.innerHTML = '<div style="color:var(--dim);font-size:13px;padding:20px;text-align:center;background:var(--bg);border-radius:8px;border:1px dashed var(--border);">No testimonials for this language. Click "+ Add Testimonial" to start.</div>';
+    return;
+  }
+  container.innerHTML = ts.map((t, i) => `
+    <div style="background:var(--bg2); padding:16px; border-radius:8px; display:grid; gap:8px;">
+      <input class="input" type="text" placeholder="Avatar URL" value="${escHtml(t.avatar || '')}" onchange="updateTestimonial(${i}, 'avatar', this.value)">
+      <div style="display:flex; gap:8px;">
+        <input class="input" type="text" placeholder="Name" value="${escHtml(t.name || '')}" style="flex:1" onchange="updateTestimonial(${i}, 'name', this.value)">
+        <input class="input" type="text" placeholder="Role/Badge" value="${escHtml(t.role || '')}" style="flex:1" onchange="updateTestimonial(${i}, 'role', this.value)">
+      </div>
+      <textarea class="input" placeholder="User review text..." onchange="updateTestimonial(${i}, 'text', this.value)">${escHtml(t.text || '')}</textarea>
+      <div style="text-align:right;"><button class="btn btn-danger btn-sm" onclick="removeTestimonial(${i})">Remove</button></div>
+    </div>
+  `).join('');
+}
+
+function updateTestimonial(index, field, value) {
+  const ts = currentLandingConfig.testimonials[currentLandingLang];
+  if (!ts) return;
+  ts[index][field] = value;
+}
+
+function addTestimonialRow() {
+  if (!currentLandingConfig.testimonials) currentLandingConfig.testimonials = { id: [], en: [] };
+  if (!currentLandingConfig.testimonials[currentLandingLang]) currentLandingConfig.testimonials[currentLandingLang] = [];
+  
+  currentLandingConfig.testimonials[currentLandingLang].push({ name: '', role: '', avatar: '/public/avatar.png', text: '', bg: '#333', initial: '' });
+  renderTestimonials();
+}
+
+function removeTestimonial(index) {
+  const ts = currentLandingConfig.testimonials[currentLandingLang];
+  if (!ts) return;
+  ts.splice(index, 1);
+  renderTestimonials();
+}
+
+async function saveLandingConfig() {
+  const btn = event.target; btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res = await apiFetch('/api/landing-config', { method: 'POST', body: JSON.stringify(currentLandingConfig) });
+    if (res && res.success) {
+      toast('✅ Landing Config saved', 'ok');
+    } else {
+      toast('❌ Failed to save config', 'err');
+    }
+  } catch(e) { toast('Error saving config', 'err'); }
+  btn.disabled = false; btn.textContent = 'Save Landing Config';
+}
+
+// ── MAIN INIT ──
 async function deletePricing(cat, key) {
   if (!confirm('Delete pricing config: ' + key + '?')) return;
   try {

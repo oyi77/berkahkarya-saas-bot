@@ -6,6 +6,7 @@
   <title>BerkahKarya — Dashboard</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
   <style>
     :root{
       --bg:#0a0a1a;--bg2:#111127;--sidebar-w:240px;
@@ -20,7 +21,7 @@
     /* LAYOUT */
     .app{display:flex;flex:1;min-height:100vh}
     .sidebar{width:var(--sidebar-w);background:rgba(0,0,0,0.25);border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;overflow-y:auto;z-index:50}
-    .sidebar-logo{padding:0 20px 24px;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;border-bottom:1px solid var(--border);margin-bottom:12px}
+    .sidebar-logo{padding:0 20px 24px;font-size:18px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;border-bottom:1px solid var(--border);margin-bottom:12px}
     .nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--dim);cursor:pointer;transition:all .2s;font-size:14px;font-weight:500;border-left:3px solid transparent}
     .nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03)}
     .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(0,217,255,0.05)}
@@ -39,14 +40,26 @@
 
     /* CARDS */
     .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px}
-    .grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
-    .grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px}
-    .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px}
+    .grid-2, .grid-3, .grid-4 { display: grid; gap: 16px; }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+    @media(max-width: 1024px) {
+      .grid-4 { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media(max-width: 768px) {
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media(max-width: 480px) {
+      .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+    }
 
     /* STATS CARDS */
     .stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px}
     .stat-card .label{font-size:12px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
-    .stat-card .value{font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat-card .value{font-size:28px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
     .stat-card .sub{font-size:12px;color:var(--dim);margin-top:4px}
 
     /* ACTION CARDS */
@@ -173,8 +186,11 @@
     /* MOBILE */
     @media(max-width:768px){
       .sidebar{display:none}
-      .main{margin-left:0;padding:16px;padding-bottom:80px}
+      .main{margin-left:0;padding:16px;padding-bottom:100px}
       .mobile-nav{display:flex!important}
+      .page-header{margin-bottom:20px}
+      .page-title{font-size:20px}
+      .stat-card .value{font-size:22px}
     }
     .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#111127;border-top:1px solid var(--border);z-index:100;padding:8px 0}
     .mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--dim);font-size:12px;font-weight:500;padding:12px 4px;transition:color .2s}
@@ -192,8 +208,13 @@
     <div class="sidebar-logo">🎬 BerkahKarya</div>
     <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard">🏠 Dashboard</div>
     <div class="nav-item" onclick="nav('create')" id="nav-create">🎬 Buat Video</div>
+    <div class="nav-item" onclick="nav('image')" id="nav-image">🖼️ Buat Gambar</div>
     <div class="nav-item" onclick="nav('videos')" id="nav-videos">📁 Video Saya</div>
     <div class="nav-item" onclick="nav('billing')" id="nav-billing">💳 Billing</div>
+    <div class="nav-item" onclick="nav('referral')" id="nav-referral">👥 Referral</div>
+    <div class="nav-item" onclick="nav('send')" id="nav-send">💸 Kirim Saldo</div>
+    <div class="nav-item" onclick="nav('profile')" id="nav-profile">👤 Profil</div>
+    <div class="nav-item" onclick="nav('settings')" id="nav-settings">⚙️ Pengaturan</div>
     <div class="sidebar-bottom">
       <div id="sidebar-credits" class="credits-pill" onclick="nav('billing')">⏳ Credits</div>
       <div style="margin-top:12px">
@@ -247,7 +268,7 @@
     <div id="view-billing" class="view">
       <div class="card" style="margin-bottom:20px;text-align:center;padding:32px">
         <div style="font-size:13px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Credit Balance</div>
-        <div style="font-size:52px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent" id="billing-credits">—</div>
+        <div style="font-size:52px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent" id="billing-credits">—</div>
         <div style="font-size:13px;color:var(--dim);margin-top:4px">credits tersedia</div>
       </div>
       <h3 style="margin-bottom:16px;font-size:15px">Pilih Paket</h3>
@@ -263,6 +284,107 @@
           <thead><tr><th>Order ID</th><th>Paket</th><th>Jumlah</th><th>Credits</th><th>Status</th><th>Tanggal</th></tr></thead>
           <tbody id="txn-body"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- SUBSCRIPTION -->
+    <div id="view-subscription" class="view">
+      <div class="card" style="text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">⭐</div>
+        <h2 style="margin-bottom:8px">Langganan</h2>
+        <p style="color:var(--dim);margin-bottom:24px">Kelola paket langganan Anda</p>
+        <div id="subscription-plans" class="grid-3"></div>
+      </div>
+    </div>
+
+    <!-- REFERRAL -->
+    <div id="view-referral" class="view">
+      <div class="card" style="text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">👥</div>
+        <h2 style="margin-bottom:8px">Program Referral</h2>
+        <p style="color:var(--dim);margin-bottom:24px">Ajak teman, dapatkan komisi!</p>
+        <div class="grid-3" style="margin-bottom:24px">
+          <div class="stat-card"><div class="label">Tier 1 (15%)</div><div class="value" id="ref-tier1">0</div></div>
+          <div class="stat-card"><div class="label">Tier 2 (5%)</div><div class="value" id="ref-tier2">0</div></div>
+          <div class="stat-card"><div class="label">Tier 3 (2%)</div><div class="value" id="ref-tier3">0</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="form-label">Link Referral Anda</div>
+          <div style="display:flex;gap:8px">
+            <input id="ref-link" readonly value="" style="flex:1">
+          </div>
+        </div>
+        <div style="font-size:24px;font-weight:800;background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent" id="ref-balance">IDR 0</div>
+        <div style="font-size:12px;color:var(--dim);margin-top:4px">Komisi tersedia</div>
+        <button class="btn btn-primary" style="margin-top:16px; width:100%; max-width:300px;" onclick="withdrawReferral()">Tarik Komisi (Cairkan ke Admin)</button>
+        <p style="font-size:11px; color:var(--dim); margin-top:10px;">* Penarikan (Cashout) dikenakan biaya admin 50% sesuai kebijakan bot.</p>
+      </div>
+    </div>
+
+    <!-- SEND CREDITS -->
+    <div id="view-send" class="view">
+      <div class="card" style="text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">💸</div>
+        <h2 style="margin-bottom:8px">Kirim Saldo (P2P)</h2>
+        <p style="color:var(--dim);margin-bottom:24px">Kirim credits ke pengguna lain (biaya admin 0.5%)</p>
+        <div class="form-group" style="text-align:left; max-width:400px; margin:0 auto 16px;">
+          <label class="form-label">Username Penerima (tanpa @)</label>
+          <input type="text" id="send-username" placeholder="Contoh: agus_setiawan">
+        </div>
+        <div class="form-group" style="text-align:left; max-width:400px; margin:0 auto 24px;">
+          <label class="form-label">Jumlah Credits</label>
+          <input type="number" id="send-amount" placeholder="Minimal 50">
+        </div>
+        <button class="btn btn-primary" style="max-width:400px; width:100%" onclick="sendCredits()">Kirim Sekarang</button>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="view-profile" class="view">
+      <div class="card" style="text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">👤</div>
+        <h2 style="margin-bottom:8px">Profil Saya</h2>
+        <div id="profile-info" style="text-align:left;max-width:400px;margin:24px auto"></div>
+        <button class="btn btn-outline" onclick="toast('Fitur edit profil segera hadir!', 'info')">✏️ Edit Profil</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" class="view">
+      <div class="card" style="padding:40px">
+        <h2 style="margin-bottom:24px">⚙️ Pengaturan</h2>
+        <div class="form-group">
+          <label class="form-label">Bahasa</label>
+          <select id="settings-lang" onchange="changeLang(this.value)">
+            <option value="id">🇮🇩 Indonesia</option>
+            <option value="en">🇺🇸 English</option>
+            <option value="ru">🇷🇺 Русский</option>
+            <option value="zh">🇨🇳 中文</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notifikasi</label>
+          <select id="settings-notif">
+            <option value="1">Aktif</option>
+            <option value="0">Nonaktif</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="toast('Pengaturan berhasil disimpan!', 'ok')" style="margin-bottom:12px">Simpan Pengaturan</button>
+        <button class="btn btn-danger btn-full" onclick="deleteAccount()" style="margin-top:24px">Hapus Akun</button>
+      </div>
+    </div>
+
+    <!-- IMAGE GENERATION -->
+    <div id="view-image" class="view">
+      <div class="card" style="text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">🖼️</div>
+        <h2 style="margin-bottom:8px">Buat Gambar AI</h2>
+        <p style="color:var(--dim);margin-bottom:24px">Generate gambar dari prompt teks</p>
+        <div class="form-group">
+          <textarea id="image-prompt" placeholder="Deskripsikan gambar yang Anda inginkan..." rows="3"></textarea>
+        </div>
+        <button id="gen-image-btn" class="btn btn-primary btn-full" onclick="generateImage()">Generate Gambar</button>
+        <div id="image-result" style="margin-top:24px"></div>
       </div>
     </div>
   </main>
@@ -400,12 +522,15 @@ function nav(page) {
   const mnavEl = document.getElementById('mnav-' + page);
   if (navEl) navEl.classList.add('active');
   if (mnavEl) mnavEl.classList.add('active');
-  const titles = { dashboard: 'Dashboard', create: 'Buat Video', videos: 'Video Saya', billing: 'Billing & Top Up' };
+  const titles = { dashboard: 'Dashboard', create: 'Buat Video', videos: 'Video Saya', billing: 'Billing & Top Up', subscription: 'Langganan', referral: 'Referral', profile: 'Profil', settings: 'Pengaturan', image: 'Buat Gambar' };
   document.getElementById('page-title').textContent = titles[page] || page;
 
   if (page === 'videos') loadVideos();
   if (page === 'billing') loadBilling();
   if (page === 'create') initCreate();
+  if (page === 'subscription') loadSubscription();
+  if (page === 'referral') loadReferral();
+  if (page === 'profile') loadProfile();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────
@@ -428,14 +553,31 @@ function videoCard(v) {
   const s = v.status || 'pending';
   const safeStatus = statusMap[s] || 'pending';
   const dl = v.downloadUrl || v.videoUrl;
-  const videoSrc = v.videoUrl ? esc(v.videoUrl) : '';
+  const videoSrc = v.videoUrl ? esc(v.videoUrl) : (v.downloadUrl ? esc(v.downloadUrl) : '');
+  const posterSrc = v.thumbnailUrl ? ` poster="${esc(v.thumbnailUrl)}"` : '';
+  
+  let thumbHtml = '<span>🎬</span>';
+  if (s === 'processing' || s === 'pending') {
+    thumbHtml = '<div class="spinner" style="border-width:2px;width:24px;height:24px;"></div>';
+  } else if (s === 'failed') {
+    thumbHtml = '<span style="color:var(--danger)">❌ Failed</span>';
+  } else if (videoSrc) {
+    thumbHtml = `<video src="${videoSrc}" controls autoplay muted loop preload="auto"${posterSrc} playsinline style="width:100%; height:100%; object-fit:cover; border-radius:12px;"></video>`;
+  } else if (dl && !videoSrc) {
+    // If we only have a download link, show a poster or generic 
+    thumbHtml = v.thumbnailUrl ? `<img src="${esc(v.thumbnailUrl)}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">` : '<span>🔗</span>';
+  }
+
   return `<div class="video-card">
-    <div class="video-thumb">${videoSrc ? '<video src="' + videoSrc + '" muted playsinline></video>' : '<span>🎬</span>'}</div>
+    <div class="video-thumb">${thumbHtml}</div>
     <div class="video-info">
       <div class="video-title">${esc(v.niche?.toUpperCase()) || 'VIDEO'} · ${esc(String(v.duration || ''))}s</div>
       <div class="video-meta">${esc(new Date(v.createdAt).toLocaleDateString('id-ID'))}</div>
       <span class="status-badge status-${safeStatus}">${statusLabel[s] || esc(s)}</span>
-      ${dl && s === 'completed' ? '<br><a href="' + esc(dl) + '" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="margin-top:8px">⬇ Download</a>' : ''}
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+        ${dl && s === 'completed' ? `<a href="${esc(dl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">⬇ Download</a>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="deleteVideo('${esc(v.jobId || v.id)}')">🗑️ Hapus</button>
+      </div>
     </div>
   </div>`;
 }
@@ -502,15 +644,30 @@ function renderCreateStep() {
     `;
   } else if (createState.step === 4) {
     c.innerHTML = `
-      <div class="step-header">Custom Prompt (Opsional)</div>
-      <div class="step-sub">Deskripsikan produkmu, atau skip untuk AI auto-generate</div>
+      <div class="step-header">Advanced Setup (Opsional)</div>
+      <div class="step-sub">Deskripsikan produkmu dan atur parameter video</div>
       <div class="form-group">
-        <textarea id="custom-prompt" placeholder="Contoh: Kopi arabika single origin dari Aceh, rasa fruity dan bright, cocok untuk coffee lover..." rows="4">${createState.customPrompt}</textarea>
+        <label class="form-label">Custom Prompt / Promo</label>
+        <textarea id="custom-prompt" placeholder="Contoh: Kopi arabika single origin dari Aceh..." rows="3">${createState.customPrompt}</textarea>
       </div>
-      <div style="display:flex;gap:12px">
+      <div class="form-group" style="background:var(--card); padding:16px; border-radius:12px; border:1px solid var(--border);">
+        <label class="form-label" style="margin-bottom:12px; font-weight:700;">Pengaturan Video (AI Bot Parity)</label>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="adv-no-watermark" style="width:auto;" ${createState.noWatermark ? 'checked' : ''}> Hapus Watermark 
+            <span style="font-size:11px;color:var(--warn);background:rgba(255,165,2,0.15);padding:2px 6px;border-radius:4px;">-10 Credits</span>
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="adv-subtitles" style="width:auto;" ${createState.subtitles !== false ? 'checked' : ''}> Auto Subtitle
+          </label>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="adv-voiceover" style="width:auto;" ${createState.voiceover !== false ? 'checked' : ''}> Voice Over AI
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:24px;">
         <button class="btn btn-outline" onclick="prevStep()">← Kembali</button>
-        <button class="btn btn-outline" onclick="createState.customPrompt='';nextStep()">⚡ Skip</button>
-        <button class="btn btn-primary" onclick="createState.customPrompt=document.getElementById('custom-prompt').value;nextStep()">Preview Storyboard →</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveAdvAndNext()">Preview Storyboard →</button>
       </div>
     `;
   } else if (createState.step === 5) {
@@ -551,6 +708,13 @@ function selectStyle(s) { createState.style = s; renderCreateStep(); }
 function selectDur(d) { createState.duration = d; renderCreateStep(); }
 function nextStep() { createState.step++; renderCreateStep(); }
 function prevStep() { createState.step--; renderCreateStep(); }
+function saveAdvAndNext() {
+  createState.customPrompt = document.getElementById('custom-prompt').value;
+  createState.noWatermark = document.getElementById('adv-no-watermark').checked;
+  createState.subtitles = document.getElementById('adv-subtitles').checked;
+  createState.voiceover = document.getElementById('adv-voiceover').checked;
+  nextStep();
+}
 
 async function generateStoryboardPreview() {
   try {
@@ -575,8 +739,12 @@ async function startGeneration() {
         niche: createState.niche,
         style: createState.style,
         duration: createState.duration,
+        platform: 'tiktok',
         customPrompt: createState.customPrompt || undefined,
-        storyboard: createState.storyboard
+        customScenes: createState.storyboard?.scenes || undefined,
+        noWatermark: createState.noWatermark,
+        subtitles: createState.subtitles,
+        voiceover: createState.voiceover
       })
     });
     if (!data || data.error) { toast('Gagal: ' + (data?.error || 'Server error'), 'err'); if (btn) { btn.disabled = false; btn.innerHTML = '🎬 Generate Video'; } return; }
@@ -741,7 +909,173 @@ window.onTgAuth = function(user) {
   }).catch(()=>alert('Login gagal, coba lagi.'));
 }
 
+// ── SUBSCRIPTION ─────────────────────────────────────────
+async function loadSubscription() {
+  const plans = await apiFetch('/api/subscriptions');
+  const container = document.getElementById('subscription-plans');
+  if (!plans || !container) return;
+  container.innerHTML = Object.entries(plans).map(([key, p]) => `
+    <div class="card" style="text-align:center">
+      <h3>${p.name}</h3>
+      <div style="font-size:24px;font-weight:800;margin:12px 0">IDR ${Number(p.monthlyPriceIdr || 0).toLocaleString('id-ID')}</div>
+      <div style="font-size:12px;color:var(--dim);margin-bottom:16px">${p.credits || 0} credits/bulan</div>
+      <button class="btn btn-primary btn-full" onclick="buySubscription('${key}')">Pilih</button>
+    </div>
+  `).join('');
+}
+
+async function buySubscription(plan) {
+  const result = await apiFetch('/api/subscription/buy', 'POST', { plan, cycle: 'monthly' });
+  if (result?.paymentUrl) window.open(result.paymentUrl, '_blank');
+}
+
+// ── REFERRAL ─────────────────────────────────────────────
+async function loadReferral() {
+  const data = await apiFetch('/api/referral');
+  if (!data) return;
+  document.getElementById('ref-tier1').textContent = data.tier1Count || 0;
+  document.getElementById('ref-tier2').textContent = data.tier2Count || 0;
+  document.getElementById('ref-tier3').textContent = data.tier3Count || 0;
+  document.getElementById('ref-balance').textContent = 'IDR ' + Number(data.availableCommission || 0).toLocaleString('id-ID');
+  document.getElementById('ref-link').value = data.referralLink || '';
+}
+
+function copyRefLink() {
+  const input = document.getElementById('ref-link');
+  input.select();
+  document.execCommand('copy');
+  toast('✅ Link referral disalin!', 'ok');
+}
+
+async function withdrawReferral() {
+  if (!confirm('Tarik komisi Anda sekarang?\n\nAnda akan mendapatkan 50% dari total komisi tersedia dalam bentuk saldo IDR (Admin Transfer).\n\nLanjutkan?')) return;
+  
+  toast('⏳ Memproses penarikan...', 'info');
+  try {
+    const res = await apiFetch('/api/referral/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'sell_admin' })
+    });
+    
+    if (res && res.ok) {
+      toast('✅ Penarikan diajukan! Tunggu konfirmasi admin.', 'ok');
+      loadReferral();
+    } else {
+      toast(res?.error || 'Gagal menarik komisi', 'err');
+    }
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+// ── PROFILE ──────────────────────────────────────────────
+async function loadProfile() {
+  const user = await apiFetch('/api/user');
+  if (!user) return;
+  document.getElementById('profile-info').innerHTML = `
+    <div class="stat-card" style="margin-bottom:12px"><div class="label">Nama</div><div class="value" style="font-size:18px">${esc(user.firstName || '-')}</div></div>
+    <div class="stat-card" style="margin-bottom:12px"><div class="label">Username</div><div class="value" style="font-size:18px">@${esc(user.username || '-')}</div></div>
+    <div class="stat-card" style="margin-bottom:12px"><div class="label">Credits</div><div class="value" style="font-size:18px">${user.credits || 0}</div></div>
+    <div class="stat-card" style="margin-bottom:12px"><div class="label">Tier</div><div class="value" style="font-size:18px">${esc(user.tier || 'free')}</div></div>
+    <div class="stat-card"><div class="label">Bergabung</div><div class="value" style="font-size:18px">${new Date(user.createdAt).toLocaleDateString('id-ID')}</div></div>
+  `;
+}
+
+// ── IMAGE GENERATION ─────────────────────────────────────
+async function generateImage() {
+  const prompt = document.getElementById('image-prompt').value;
+  if (!prompt) { toast('Masukkan prompt!', 'warn'); return; }
+  const btn = document.getElementById('gen-image-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Generating...';
+  document.getElementById('image-result').innerHTML = '';
+  try {
+    const result = await apiFetch('/api/image/generate', 'POST', { prompt });
+    if (result?.imageUrl) {
+      document.getElementById('image-result').innerHTML = `<img src="${esc(result.imageUrl)}" style="max-width:100%;border-radius:12px;margin-top:16px;box-shadow: 0 10px 30px rgba(0,217,255,0.2);">`;
+      toast('Gambar berhasil dibuat!', 'ok');
+    } else {
+      toast('Gagal memproses gambar.', 'err');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Gambar';
+  }
+}
+
+// ── SETTINGS ─────────────────────────────────────────────
+function changeLang(lang) {
+  localStorage.setItem('lang', lang);
+  location.reload();
+}
+
+async function deleteAccount() {
+  if (!confirm('Yakin ingin menghapus akun? Tindakan ini tidak dapat dibatalkan.')) return;
+  const result = await apiFetch('/api/user', 'DELETE');
+  if (result?.message) {
+    alert(result.message);
+    localStorage.removeItem('token');
+    location.reload();
+  }
+}
+
+async function deleteVideo(id) {
+  if (!confirm('Yakin ingin menghapus video ini?')) return;
+  const result = await apiFetch('/api/video/' + id, {method: 'DELETE'});
+  if (result?.ok) {
+    loadVideos();
+  }
+}
+
+// ── P2P TRANSFER ─────────────────────────────────────────
+async function sendCredits() {
+  const username = document.getElementById('send-username').value.replace('@','').trim();
+  const amount = parseInt(document.getElementById('send-amount').value);
+  
+  if (!username) { toast('Username penerima wajib diisi', 'warn'); return; }
+  if (!amount || amount < 50) { toast('Minimal pengiriman 50 credits', 'warn'); return; }
+  if (!confirm(`Kirim ${amount} credits ke @${username}?\n\n(Akan dikenakan biaya admin 0.5%)`)) return;
+
+  const btn = event.target;
+  const oldText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Diproses...';
+
+  try {
+    const res = await apiFetch('/api/user/p2p-transfer', {
+      method: 'POST',
+      body: JSON.stringify({ recipientUsername: username, amount })
+    });
+    if (res && res.success) {
+      toast(`✅ Berhasil mengirim ${res.amountSent} credits ke @${res.recipient}`, 'ok');
+      document.getElementById('send-username').value = '';
+      document.getElementById('send-amount').value = '';
+      loadDashboard();
+    } else {
+      toast(res?.error || 'Transfer gagal', 'err');
+    }
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = oldText;
+  }
+}
+
 init();
+
+// Initialize Telegram WebApp natively
+if (window.Telegram && window.Telegram.WebApp) {
+  const twa = window.Telegram.WebApp;
+  twa.ready();
+  twa.expand();
+  // Attempt to match Telegram theme colors dynamically if supported
+  if (twa.themeParams && twa.themeParams.bg_color) {
+    document.documentElement.style.setProperty('--bg', twa.themeParams.bg_color);
+  }
+}
 </script>
 </body>
 </html>

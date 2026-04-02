@@ -1,57 +1,86 @@
 /**
  * Referral & MLM Service
- * 
+ *
  * Handles multi-tier commissions and activity-based eligibility
  */
 
-import { prisma } from '@/config/database';
-import { COMMISSIONS } from '@/config/packages';
-import { logger } from '@/utils/logger';
-import { addDays, isAfter } from 'date-fns';
+import { prisma } from "@/config/database";
+import { COMMISSIONS } from "@/config/packages";
+import { logger } from "@/utils/logger";
+import { addDays, isAfter } from "date-fns";
 
 export class ReferralService {
   /**
    * Process MLM commissions for a new transaction
    */
-  static async processCommissions(transactionId: string, amount: number, buyerTelegramId: bigint) {
+  static async processCommissions(
+    transactionId: string,
+    amount: number,
+    buyerTelegramId: bigint,
+  ) {
     try {
       const buyer = await prisma.user.findUnique({
-        where: { telegramId: buyerTelegramId }
+        where: { telegramId: buyerTelegramId },
       });
 
       if (!buyer || !buyer.referredBy) return;
 
       // Tier 1: Direct Referrer
       const directReferrer = await prisma.user.findUnique({
-        where: { uuid: buyer.referredBy }
+        where: { uuid: buyer.referredBy },
       });
 
-      if (directReferrer && await this.isEligible(directReferrer.telegramId)) {
+      if (
+        directReferrer &&
+        (await this.isEligible(directReferrer.telegramId))
+      ) {
         await this.createCommission(
           directReferrer.telegramId,
           buyer.telegramId,
           amount * COMMISSIONS.DIRECT_REFERRAL,
-          1
+          1,
         );
 
         // Tier 2: Indirect Referrer (Referrer of the Referrer)
         if (directReferrer.referredBy) {
           const indirectReferrer = await prisma.user.findUnique({
-            where: { uuid: directReferrer.referredBy }
+            where: { uuid: directReferrer.referredBy },
           });
 
-          if (indirectReferrer && await this.isEligible(indirectReferrer.telegramId)) {
+          if (
+            indirectReferrer &&
+            (await this.isEligible(indirectReferrer.telegramId))
+          ) {
             await this.createCommission(
               indirectReferrer.telegramId,
               buyer.telegramId,
               amount * COMMISSIONS.INDIRECT_REFERRAL,
-              2
+              2,
             );
+
+            // Tier 3: Third-level Referrer (Referrer of the Indirect Referrer)
+            if (indirectReferrer.referredBy) {
+              const thirdTierReferrer = await prisma.user.findUnique({
+                where: { uuid: indirectReferrer.referredBy },
+              });
+
+              if (
+                thirdTierReferrer &&
+                (await this.isEligible(thirdTierReferrer.telegramId))
+              ) {
+                await this.createCommission(
+                  thirdTierReferrer.telegramId,
+                  buyer.telegramId,
+                  amount * COMMISSIONS.THIRD_TIER_REFERRAL,
+                  3,
+                );
+              }
+            }
           }
         }
       }
     } catch (error) {
-      logger.error('Error processing MLM commissions:', error);
+      logger.error("Error processing MLM commissions:", error);
     }
   }
 
@@ -61,13 +90,16 @@ export class ReferralService {
    */
   static async isEligible(telegramId: bigint): Promise<boolean> {
     const user = await prisma.user.findUnique({
-      where: { telegramId }
+      where: { telegramId },
     });
 
     if (!user) return false;
 
     // Grace period: users are eligible for X days after registration even without transactions
-    const accountExpiry = addDays(new Date(user.createdAt), COMMISSIONS.ACTIVITY_WINDOW_DAYS);
+    const accountExpiry = addDays(
+      new Date(user.createdAt),
+      COMMISSIONS.ACTIVITY_WINDOW_DAYS,
+    );
     if (isAfter(accountExpiry, new Date())) {
       return true;
     }
@@ -75,32 +107,42 @@ export class ReferralService {
     const lastTransaction = await prisma.transaction.findFirst({
       where: {
         userId: telegramId,
-        status: 'success'
+        status: "success",
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: "desc" },
     });
 
     if (!lastTransaction) return false;
 
-    const expiryDate = addDays(new Date(lastTransaction.createdAt), COMMISSIONS.ACTIVITY_WINDOW_DAYS);
+    const expiryDate = addDays(
+      new Date(lastTransaction.createdAt),
+      COMMISSIONS.ACTIVITY_WINDOW_DAYS,
+    );
     return isAfter(expiryDate, new Date());
   }
 
   /**
    * Record commission in DB
    */
-  private static async createCommission(referrerId: bigint, referredId: bigint, amount: number, tier: number) {
+  private static async createCommission(
+    referrerId: bigint,
+    referredId: bigint,
+    amount: number,
+    tier: number,
+  ) {
     await prisma.commission.create({
       data: {
         referrerId,
         referredId,
         amount,
         tier,
-        status: 'available',
+        status: "available",
         availableAt: new Date(),
-      }
+      },
     });
 
-    logger.info(`Commission issued: IDR ${amount} to ${referrerId} (Tier ${tier})`);
+    logger.info(
+      `Commission issued: IDR ${amount} to ${referrerId} (Tier ${tier})`,
+    );
   }
 }
