@@ -1245,7 +1245,7 @@
     <div class="featured-showcase">
       <div class="featured-badge">🏆 MOST VIRAL</div>
       <div class="tiktok-embed-wrapper">
-        <iframe src="https://www.tiktok.com/embed/v2/7622693153870449928?lang=en-US&referrer=https://saas.aitradepulse.com" style="width:100%;height:600px;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
+        <iframe src="https://www.tiktok.com/embed/v2/7622693153870449928?lang=en-US&referrer=https://saas.aitradepulse.com" style="width:100%;height:100%;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
       </div>
       <div class="featured-stats-bar">
         <div class="stat-row">
@@ -1270,22 +1270,22 @@
       
       <div class="carousel-container">
         <div class="carousel-video">
-          <iframe src="https://www.tiktok.com/embed/v2/7618874468072475925?lang=en-US" style="width:100%;height:600px;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
+          <iframe src="https://www.tiktok.com/embed/v2/7618874468072475925?lang=en-US" style="width:100%;height:100%;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
           <div class="video-badge-small">AI Video 🎬</div>
         </div>
         
         <div class="carousel-video">
-          <iframe src="https://www.tiktok.com/embed/v2/7618816985907957012?lang=en-US" style="width:100%;height:600px;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
+          <iframe src="https://www.tiktok.com/embed/v2/7618816985907957012?lang=en-US" style="width:100%;height:100%;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
           <div class="video-badge-small">AI Story 📖</div>
         </div>
         
         <div class="carousel-video">
-          <iframe src="https://www.tiktok.com/embed/v2/7609293836942200071?lang=id-ID" style="width:100%;height:600px;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
+          <iframe src="https://www.tiktok.com/embed/v2/7609293836942200071?lang=id-ID" style="width:100%;height:100%;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
           <div class="video-badge-small">Skincare ✨</div>
         </div>
         
         <div class="carousel-video">
-          <iframe src="https://www.tiktok.com/embed/v2/7610004343936322833?lang=id-ID" style="width:100%;height:600px;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
+          <iframe src="https://www.tiktok.com/embed/v2/7610004343936322833?lang=id-ID" style="width:100%;height:100%;border:none;overflow:hidden" allow="fullscreen" allowfullscreen loading="lazy"></iframe>
           <div class="video-badge-small">Health 💚</div>
         </div>
       </div>
@@ -1399,6 +1399,8 @@
       overflow: hidden;
       box-shadow: 0 20px 60px rgba(0,217,255,0.2);
       animation: slideUp 0.8s ease-out 0.1s backwards;
+      background: var(--card);
+      padding-top: 30px;
     }
     
     @keyframes slideUp {
@@ -1427,13 +1429,34 @@
     }
     
     .tiktok-embed-wrapper {
-      width: 100%;
-      max-width: 500px;
+      width: 325px;
+      height: 580px;
       margin: 0 auto;
+      overflow: hidden;
+      border-radius: 24px 24px 0 0;
+      position: relative;
     }
     
-    .tiktok-embed {
-      max-width: 100% !important;
+    .tiktok-embed-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 325px;
+      height: 1200px;
+      border: none;
+      overflow: hidden;
+    }
+    
+    /* Hide scrollbar on embeds */
+    .tiktok-embed-wrapper,
+    .carousel-video {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    .tiktok-embed-wrapper::-webkit-scrollbar,
+    .carousel-video::-webkit-scrollbar {
+      display: none;
     }
     
     .featured-stats-bar {
@@ -1492,6 +1515,30 @@
       background: var(--card);
       border: 1px solid var(--border);
       transition: all 0.3s ease;
+      min-width: 300px;
+      max-width: 325px;
+      height: 580px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    
+    .carousel-video iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 1200px;
+      border: none;
+    }
+    
+    .carousel-video::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .carousel-video iframe {
+      width: 100% !important;
+      height: 100% !important;
+      border: none;
     }
     
     .carousel-video:hover {
