@@ -32,6 +32,20 @@ export const PROVIDER_CONFIG: {
   image: Record<string, ImageProviderConfig>;
 } = {
   video: {
+    omniroute: {
+      name: "OmniRoute (Smart Routing)",
+      priority: 0, // First — routes to cheapest/free providers automatically
+      timeout: 120000,
+      failureThreshold: 2,
+      recoveryTimeout: 30000,
+      strengths: ["smart_routing", "cheapest", "free_tier", "multi_provider"],
+      quirks:
+        "Routes to cheapest available video provider (free > cheap > paid). Supports 60+ backends.",
+      avoid: [],
+      tokenLimit: 1000,
+      supportsImg2Video: false,
+      maxDuration: 10,
+    },
     byteplus: {
       name: "BytePlus Seedance",
       priority: 1,
@@ -245,6 +259,20 @@ export const PROVIDER_CONFIG: {
   },
 
   image: {
+    omniroute: {
+      name: "OmniRoute (Smart Routing)",
+      priority: 0, // First — routes to cheapest/free providers automatically
+      timeout: 60000,
+      failureThreshold: 2,
+      recoveryTimeout: 30000,
+      strengths: ["smart_routing", "cheapest", "free_tier", "multi_provider"],
+      quirks:
+        "Routes to cheapest available image provider (free > cheap > paid). Supports 60+ backends.",
+      tokenLimit: 1000,
+      supportsImg2Img: false,
+      supportsIPAdapter: false,
+      costPerGenerationUsd: 0.0, // Variable — depends on routing
+    },
     together: {
       name: "Together.ai (FLUX Schnell)",
       priority: 1,
