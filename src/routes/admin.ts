@@ -1518,6 +1518,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
           runware: "RUNWARE_API_KEY",
           wavespeed: "WAVESPEED_API_KEY",
           zai_video: "ZAI_API_KEY",
+          omniroute: "OMNIROUTE_API_KEY",
         };
         const envKey = envVarMap[key] || "";
         const hasKey = envKey === "NONE" ? true : !!(config as any)[envKey];
@@ -1557,6 +1558,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
           runware: "RUNWARE_API_KEY",
           wavespeed: "WAVESPEED_API_KEY",
           zai: "ZAI_API_KEY",
+          omniroute: "OMNIROUTE_API_KEY",
         };
         const envKey = envVarMap[key] || "";
         const hasKey = envKey === "NONE" ? true : !!(config as any)[envKey];
