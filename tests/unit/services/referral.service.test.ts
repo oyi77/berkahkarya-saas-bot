@@ -703,6 +703,72 @@ describe("ReferralService", () => {
       );
     });
 
+    it("should process tier 3 commission when third-level referrer exists", async () => {
+      const buyer = makeUser({ referredBy: "uuid-tier1-referrer" });
+      const tier1Referrer = makeDirectReferrer({
+        referredBy: "uuid-tier2-referrer",
+      });
+      const tier2Referrer = makeIndirectReferrer({
+        referredBy: "uuid-tier3-referrer",
+      });
+      const tier3Referrer = makeIndirectReferrer();
+
+      mockPrismaUser.findUnique
+        .mockResolvedValueOnce(buyer)
+        .mockResolvedValueOnce(tier1Referrer)
+        .mockResolvedValueOnce(tier2Referrer)
+        .mockResolvedValueOnce(tier3Referrer);
+
+      await ReferralService.processCommissions(
+        TRANSACTION_ID,
+        TRANSACTION_AMOUNT,
+        BUYER_TELEGRAM_ID,
+      );
+
+      expect(mockPrismaCommission.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          referrerId: BigInt(555666777),
+          referredId: BUYER_TELEGRAM_ID,
+          amount: TRANSACTION_AMOUNT * 0.02,
+          tier: 3,
+        }),
+      });
+
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.stringContaining("Commission issued"),
+      );
+    });
+
+    it("should not process tier 3 commission when third-level referrer is ineligible", async () => {
+      isEligibleSpy.mockResolvedValueOnce(false);
+      const buyer = makeUser({ referredBy: "uuid-tier1-referrer" });
+      const tier1Referrer = makeDirectReferrer({
+        referredBy: "uuid-tier2-referrer",
+      });
+      const tier2Referrer = makeIndirectReferrer({
+        referredBy: "uuid-tier3-referrer",
+      });
+      const tier3Referrer = makeIndirectReferrer();
+
+      mockPrismaUser.findUnique
+        .mockResolvedValueOnce(buyer)
+        .mockResolvedValueOnce(tier1Referrer)
+        .mockResolvedValueOnce(tier2Referrer)
+        .mockResolvedValueOnce(tier3Referrer);
+
+      await ReferralService.processCommissions(
+        TRANSACTION_ID,
+        TRANSACTION_AMOUNT,
+        BUYER_TELEGRAM_ID,
+      );
+
+      expect(mockPrismaCommission.create).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          tier: 3,
+        }),
+      );
+    });
+
     it("should handle circular referral chain (A -> B -> A)", async () => {
       const buyerA = makeUser({
         telegramId: BigInt(111),

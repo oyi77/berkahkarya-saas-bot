@@ -839,7 +839,16 @@ async function loadBilling() {
         <td>IDR ${Number(t.amountIdr||0).toLocaleString('id-ID')}</td>
         <td>${Number(t.creditsAmount||0).toFixed(1)}</td>
         <td><span class="status-badge status-${safeStatus}">${esc(t.status)}</span></td>
-        <td>${esc(new Date(t.createdAt).toLocaleDateString('id-ID'))}</td>
+        <td>
+          <a href="/api/my/transactions/${t.id}/receipt" target="_blank" style="color:var(--accent);text-decoration:none;">
+            ${esc(new Date(t.createdAt).toLocaleDateString('id-ID'))}
+          </a>
+        </td>
+        <td>
+          <button onclick="window.open('/api/my/transactions/${t.id}/receipt', '_blank')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;">
+            📄 Receipt
+          </button>
+        </td>
       </tr>
     `}).join('');
   } else {

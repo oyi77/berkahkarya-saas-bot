@@ -124,7 +124,8 @@ export type BotState =
   | "AWAITING_GENERATE_IMAGE"
   | "AWAITING_MULTI_IMAGE_UPLOAD"
   | "AWAITING_STORYBOARD_EDIT"
-  | "AWAITING_TRANSCRIPT_INPUT";
+  | "AWAITING_TRANSCRIPT_INPUT"
+  | "DELETE_ACCOUNT_CONFIRMATION";
 
 // =============================================================================
 // USER TYPES

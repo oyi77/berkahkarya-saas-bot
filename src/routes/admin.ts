@@ -29,9 +29,48 @@ import { getOmniRouteService } from "@/services/omniroute.service";
 import { UserService } from "@/services/user.service";
 import { t } from "@/i18n/translations";
 import { getConfig, getConfigForAdmin } from "@/config/env";
+import { logger } from "@/utils/logger";
 
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
+
+/** Get authenticated admin user from request */
+async function getUser(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<{ username: string; telegramId: bigint } | null> {
+  const ADMIN_PASSWORD = getConfig().ADMIN_PASSWORD;
+  const authHeader = request.headers.authorization;
+  if (authHeader?.startsWith("Basic ")) {
+    const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
+    const [, password] = decoded.split(":");
+    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) {
+      return {
+        username: "admin",
+        telegramId: BigInt(0),
+      };
+    }
+  }
+
+  const cookie = (request.headers.cookie || "")
+    .split(";")
+    .find((c) => c.trim().startsWith("admin_token="));
+  if (cookie) {
+    const token = cookie.split("=")[1]?.trim();
+    if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD))) {
+      return {
+        username: "admin",
+        telegramId: BigInt(0),
+      };
+    }
+  }
+
+  reply
+    .status(401)
+    .header("WWW-Authenticate", 'Basic realm="Admin"')
+    .send({ error: "Unauthorized" });
+  return null;
+}
 
 /** Pixel/analytics IDs passed to all EJS views */
 function trackingVars() {
@@ -721,13 +760,6 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     await PaymentSettingsService.deletePricingConfig(category, key);
     PaymentSettingsService.clearPricingCache();
     return { success: true };
-  });
-
-  server.get("/api/provider-costs", async () => {
-    const costs =
-      await PaymentSettingsService.getAllPricingByCategory("provider_cost");
-    const margin = await PaymentSettingsService.getMarginPercent();
-    return { costs, marginPercent: margin };
   });
 
   server.get("/api/pricing-overview", async () => {

@@ -30,6 +30,7 @@ import {
 import { cancelCommand } from "./cancel";
 import { sendCommand } from "./send";
 import { pricingCommand } from "./pricing";
+import { deleteAccountCommand } from "./deleteAccount";
 
 // Feature-based flows
 export * from "@/flows/generate";
@@ -38,7 +39,10 @@ export * from "@/menus/main";
 // Admin commands
 import { adminBroadcastCommand } from "./admin/broadcast";
 import { adminSystemStatusCommand } from "./admin/systemStatus";
-import { adminGrantCreditsCommand, adminDeductCreditsCommand } from "./admin/grantCredits";
+import {
+  adminGrantCreditsCommand,
+  adminDeductCreditsCommand,
+} from "./admin/grantCredits";
 import { paymentSettingsCommand } from "./admin/paymentSettings";
 
 /**
@@ -51,7 +55,7 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("start", startCommand);
   bot.command("help", helpCommand);
   bot.command("create", async (ctx) => {
-    const { showGenerateMode } = await import('../flows/generate.js');
+    const { showGenerateMode } = await import("../flows/generate.js");
     await showGenerateMode(ctx);
   });
   bot.command("menu", startCommand); // Show main menu with all features
@@ -66,17 +70,20 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
   bot.command("cancel", cancelCommand);
   bot.command("send", sendCommand);
   bot.command("pricing", pricingCommand);
-  bot.command("image", (ctx) => (ctx as any).reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
-    parse_mode: "Markdown",
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
-        [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
-        [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
-        [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
-      ],
-    },
-  }));
+  bot.command("delete_account", deleteAccountCommand);
+  bot.command("image", (ctx) =>
+    (ctx as any).reply("🖼️ *Image Generation*\n\n" + "Select workflow:", {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🛍️ Product Photo", callback_data: "img_product" }],
+          [{ text: "🍔 F&B Food", callback_data: "img_fnb" }],
+          [{ text: "🏠 Real Estate", callback_data: "img_realestate" }],
+          [{ text: "🚗 Car/Automotive", callback_data: "img_car" }],
+        ],
+      },
+    }),
+  );
   // AI chat (OmniRoute — cheapest/free model)
   bot.command("chat", chatCommand);
   bot.command("ask", chatCommand); // Alias
