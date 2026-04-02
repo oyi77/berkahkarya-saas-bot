@@ -25,6 +25,7 @@ import {
 } from "@/config/pricing";
 import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 import { ProviderSettingsService } from "@/services/provider-settings.service";
+import { ProviderBalanceService } from "@/services/provider-balance.service";
 import { getOmniRouteService } from "@/services/omniroute.service";
 import { UserService } from "@/services/user.service";
 import { t } from "@/i18n/translations";
@@ -1476,6 +1477,158 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     );
 
     return { success: true };
+  });
+
+  // ── Provider Management ────────────────────────────────────────────────
+
+  /** GET /admin/providers — Render providers management page */
+  server.get("/admin/providers", async (_request, reply) => {
+    return reply.view("admin/providers.ejs", trackingVars());
+  });
+
+  /** GET /api/admin/providers/all — Full provider list with health + overrides + env status */
+  server.get("/api/admin/providers/all", async () => {
+    const overrides = await ProviderSettingsService.getDynamicSettings();
+    const getConfigModule = await import("@/config/env");
+    const config = getConfigModule.getConfig();
+    const cbPrefix = "cb:";
+
+    // Build video provider list
+    const videoProviders = Object.entries(PROVIDER_CONFIG.video).map(
+      ([key, cfg]) => {
+        const override = overrides.video?.[key];
+        const apiKeyVar = key.toUpperCase().replace(/ /g, "_") + "_API_KEY";
+        // Map provider key to env var name
+        const envVarMap: Record<string, string> = {
+          byteplus: "BYTEPLUS_API_KEY",
+          xai: "XAI_API_KEY",
+          laozhang: "LAOZHANG_API_KEY",
+          evolink: "EVOLINK_API_KEY",
+          hypereal: "HYPEREAL_API_KEY",
+          siliconflow: "SILICONFLOW_API_KEY",
+          falai_video: "FALAI_API_KEY",
+          falai: "FALAI_API_KEY",
+          kie: "KIE_API_KEY",
+          remotion: "NONE",
+          piapi: "PIAPI_API_KEY",
+          geminigen: "GEMINIGEN_API_KEY",
+          lingyaai: "LINGYAAI_API_KEY",
+          getgoapi: "GETGOAPI_API_KEY",
+          apiyi: "APIYI_API_KEY",
+          runware: "RUNWARE_API_KEY",
+          wavespeed: "WAVESPEED_API_KEY",
+          zai_video: "ZAI_API_KEY",
+        };
+        const envKey = envVarMap[key] || "";
+        const hasKey = envKey === "NONE" ? true : !!(config as any)[envKey];
+        return {
+          key,
+          type: "video",
+          name: cfg.name,
+          priority: override?.priority ?? cfg.priority,
+          enabled: override?.enabled ?? true,
+          hasApiKey: hasKey,
+          strengths: cfg.strengths,
+          quirks: cfg.quirks,
+          avoid: cfg.avoid,
+          maxDuration: cfg.maxDuration,
+          supportsRefImage: cfg.supportsImg2Video,
+        };
+      },
+    );
+
+    // Build image provider list
+    const imageProviders = Object.entries(PROVIDER_CONFIG.image).map(
+      ([key, cfg]) => {
+        const override = overrides.image?.[key];
+        const envVarMap: Record<string, string> = {
+          together: "TOGETHER_API_KEY",
+          piapi: "PIAPI_API_KEY",
+          segmind: "SEGMIND_API_KEY",
+          geminigen: "GEMINIGEN_API_KEY",
+          falai: "FALAI_API_KEY",
+          laozhang: "LAOZHANG_API_KEY",
+          siliconflow: "SILICONFLOW_API_KEY",
+          evolink: "EVOLINK_API_KEY",
+          nvidia: "NVIDIA_API_KEY",
+          gemini: "GEMINI_API_KEY",
+          replicate: "NONE",
+          huggingface: "NONE",
+          runware: "RUNWARE_API_KEY",
+          wavespeed: "WAVESPEED_API_KEY",
+          zai: "ZAI_API_KEY",
+        };
+        const envKey = envVarMap[key] || "";
+        const hasKey = envKey === "NONE" ? true : !!(config as any)[envKey];
+        return {
+          key,
+          type: "image",
+          name: cfg.name,
+          priority: override?.priority ?? cfg.priority,
+          enabled: override?.enabled ?? true,
+          hasApiKey: hasKey,
+          strengths: cfg.strengths,
+          quirks: cfg.quirks,
+          costPerGenerationUsd: cfg.costPerGenerationUsd,
+          supportsImg2Img: cfg.supportsImg2Img,
+          supportsIPAdapter: cfg.supportsIPAdapter,
+        };
+      },
+    );
+
+    return { video: videoProviders, image: imageProviders };
+  });
+
+  /** GET /api/admin/providers/balances — Fetch balances for all providers */
+  server.get("/api/admin/providers/balances", async () => {
+    try {
+      const balances = await ProviderBalanceService.fetchAllBalances();
+      return { balances };
+    } catch (err: any) {
+      return { balances: [], error: err.message };
+    }
+  });
+
+  /** GET /api/admin/providers/models — Fetch model lists for all providers */
+  server.get("/api/admin/providers/models", async () => {
+    try {
+      const models = await ProviderBalanceService.fetchAllModels();
+      return { models };
+    } catch (err: any) {
+      return { models: [], error: err.message };
+    }
+  });
+
+  /** POST /api/admin/providers/:key/reset-cb — Reset circuit breaker for a provider */
+  server.post("/api/admin/providers/:key/reset-cb", async (request, reply) => {
+    const { key } = request.params as { key: string };
+    try {
+      await redis.del(`cb:${key}`);
+      await redis.del(`provider:history:${key}:success`);
+      await redis.del(`provider:history:${key}:failure`);
+      return { success: true, message: `Circuit breaker for ${key} reset` };
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  /** POST /api/admin/providers/:key/test — Test provider connectivity */
+  server.post("/api/admin/providers/:key/test", async (request, reply) => {
+    const { key } = request.params as { key: string };
+    try {
+      const result = await ProviderBalanceService.testProvider(key);
+      return result;
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: err.message });
+    }
+  });
+
+  /** POST /api/admin/providers/reset-all-cb — Reset all circuit breakers */
+  server.post("/api/admin/providers/reset-all-cb", async () => {
+    const { CircuitBreaker } =
+      await import("@/services/circuit-breaker.service");
+    await CircuitBreaker.resetAll();
+    return { success: true, message: "All circuit breakers reset" };
   });
 
   // ── Admin AI Chat ──────────────────────────────────────────────────────────

@@ -830,6 +830,278 @@ async function generateViaPiAPI(
   return { success: true, videoUrl, jobId: taskId, provider: "piapi" };
 }
 
+/** Tier 11: LingyaAI — OpenAI-compatible video generations */
+async function generateViaLingyaAI(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const API_KEY = getConfig().LINGYAAI_API_KEY || "";
+  if (!API_KEY)
+    return {
+      success: false,
+      error: "LINGYAAI_API_KEY not configured",
+      provider: "lingyaai",
+    };
+  const resp = await axios.post(
+    "https://api.lingyaai.cn/v1/video/generations",
+    {
+      model: "sora-2",
+      prompt: params.prompt,
+      duration: params.duration,
+      aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000,
+    },
+  );
+  const taskId = resp.data?.id || resp.data?.taskId;
+  if (!taskId) throw new Error("LingyaAI: no task id");
+  const videoUrl = await pollUntilComplete("LingyaAI", taskId, async (id) => {
+    const poll = await axios.get(
+      `https://api.lingyaai.cn/v1/video/generations/${id}`,
+      { headers: { Authorization: `Bearer ${API_KEY}` }, timeout: 10000 },
+    );
+    if (poll.data?.status === "completed" || poll.data?.status === "succeeded")
+      return {
+        status: "completed",
+        videoUrl: poll.data.video_url || poll.data.url || poll.data.output?.url,
+      };
+    if (poll.data?.status === "failed")
+      throw new Error("LingyaAI generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "lingyaai" };
+}
+
+/** Tier 12: GetGoAPI — API aggregator video generation */
+async function generateViaGetGoAPI(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const API_KEY = getConfig().GETGOAPI_API_KEY || "";
+  if (!API_KEY)
+    return {
+      success: false,
+      error: "GETGOAPI_API_KEY not configured",
+      provider: "getgoapi",
+    };
+  const resp = await axios.post(
+    "https://api.getgoapi.com/v1/video/generations",
+    {
+      model: "video-gen",
+      prompt: params.prompt,
+      duration: params.duration,
+      aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000,
+    },
+  );
+  const taskId = resp.data?.id || resp.data?.taskId;
+  if (!taskId) throw new Error("GetGoAPI: no task id");
+  const videoUrl = await pollUntilComplete("GetGoAPI", taskId, async (id) => {
+    const poll = await axios.get(
+      `https://api.getgoapi.com/v1/video/generations/${id}`,
+      { headers: { Authorization: `Bearer ${API_KEY}` }, timeout: 10000 },
+    );
+    if (poll.data?.status === "completed" || poll.data?.status === "succeeded")
+      return {
+        status: "completed",
+        videoUrl: poll.data.video_url || poll.data.url || poll.data.output?.url,
+      };
+    if (poll.data?.status === "failed")
+      throw new Error("GetGoAPI generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "getgoapi" };
+}
+
+/** Tier 13: ApiYi — Sora 2 via OpenAI-compatible API */
+async function generateViaApiYi(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const API_KEY = getConfig().APIYI_API_KEY || "";
+  if (!API_KEY)
+    return {
+      success: false,
+      error: "APIYI_API_KEY not configured",
+      provider: "apiyi",
+    };
+  const resp = await axios.post(
+    "https://api.apiyi.com/v1/videos/generations",
+    {
+      model: "sora-2",
+      prompt: params.prompt,
+      duration: params.duration,
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 120000,
+    },
+  );
+  const taskId = resp.data?.id || resp.data?.taskId;
+  if (!taskId) throw new Error("ApiYi: no task id");
+  const videoUrl = await pollUntilComplete("ApiYi", taskId, async (id) => {
+    const poll = await axios.get(
+      `https://api.apiyi.com/v1/videos/generations/${id}`,
+      { headers: { Authorization: `Bearer ${API_KEY}` }, timeout: 10000 },
+    );
+    if (poll.data?.status === "completed" || poll.data?.status === "succeeded")
+      return {
+        status: "completed",
+        videoUrl: poll.data.video_url || poll.data.url,
+      };
+    if (poll.data?.status === "failed")
+      throw new Error("ApiYi generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "apiyi" };
+}
+
+/** Tier 14: Runware — Dedicated video generation */
+async function generateViaRunware(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const API_KEY = getConfig().RUNWARE_API_KEY || "";
+  if (!API_KEY)
+    return {
+      success: false,
+      error: "RUNWARE_API_KEY not configured",
+      provider: "runware",
+    };
+  const resp = await axios.post(
+    "https://api.runware.ai/v1/video",
+    {
+      prompt: params.prompt,
+      duration: Math.min(5, params.duration),
+      aspectRatio: mapAspectRatioSimple(params.aspectRatio),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000,
+    },
+  );
+  const taskId = resp.data?.data?.[0]?.uuid || resp.data?.uuid;
+  if (!taskId) throw new Error("Runware: no task id");
+  const videoUrl = await pollUntilComplete("Runware", taskId, async (id) => {
+    const poll = await axios.get(`https://api.runware.ai/v1/video/${id}`, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      timeout: 10000,
+    });
+    const status = poll.data?.data?.[0]?.status || poll.data?.status;
+    if (status === "completed" || status === "complete")
+      return {
+        status: "completed",
+        videoUrl: poll.data?.data?.[0]?.videoUrl || poll.data?.videoUrl,
+      };
+    if (status === "failed") throw new Error("Runware generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "runware" };
+}
+
+/** Tier 15: WaveSpeed — Accelerated AI media generation */
+async function generateViaWaveSpeed(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const API_KEY = getConfig().WAVESPEED_API_KEY || "";
+  if (!API_KEY)
+    return {
+      success: false,
+      error: "WAVESPEED_API_KEY not configured",
+      provider: "wavespeed",
+    };
+  const resp = await axios.post(
+    "https://api.wavespeed.ai/v1/video/generations",
+    {
+      model: "wavespeed-video",
+      prompt: params.prompt,
+      duration: Math.min(5, params.duration),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000,
+    },
+  );
+  const taskId = resp.data?.id || resp.data?.taskId;
+  if (!taskId) throw new Error("WaveSpeed: no task id");
+  const videoUrl = await pollUntilComplete("WaveSpeed", taskId, async (id) => {
+    const poll = await axios.get(
+      `https://api.wavespeed.ai/v1/video/generations/${id}`,
+      { headers: { Authorization: `Bearer ${API_KEY}` }, timeout: 10000 },
+    );
+    if (poll.data?.status === "completed" || poll.data?.status === "succeeded")
+      return {
+        status: "completed",
+        videoUrl: poll.data.video_url || poll.data.url || poll.data.output?.url,
+      };
+    if (poll.data?.status === "failed")
+      throw new Error("WaveSpeed generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "wavespeed" };
+}
+
+/** Tier 16: Z.ai — Video generation API */
+async function generateViaZAI(
+  params: VideoFallbackParams,
+): Promise<VideoFallbackResult> {
+  const API_KEY = getConfig().ZAI_API_KEY || "";
+  if (!API_KEY)
+    return {
+      success: false,
+      error: "ZAI_API_KEY not configured",
+      provider: "zai_video",
+    };
+  const resp = await axios.post(
+    "https://api.z.ai/v1/video/generate",
+    {
+      prompt: params.prompt,
+      duration: Math.min(5, params.duration),
+      aspect_ratio: mapAspectRatioSimple(params.aspectRatio),
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      timeout: 60000,
+    },
+  );
+  const taskId = resp.data?.id || resp.data?.taskId;
+  if (!taskId) throw new Error("Z.ai: no task id");
+  const videoUrl = await pollUntilComplete("ZAI", taskId, async (id) => {
+    const poll = await axios.get(`https://api.z.ai/v1/video/generate/${id}`, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      timeout: 10000,
+    });
+    if (poll.data?.status === "completed" || poll.data?.status === "succeeded")
+      return {
+        status: "completed",
+        videoUrl: poll.data.video_url || poll.data.url || poll.data.output?.url,
+      };
+    if (poll.data?.status === "failed")
+      throw new Error("Z.ai generation failed");
+    return { status: "pending" };
+  });
+  return { success: true, videoUrl, provider: "zai_video" };
+}
+
 // ── Provider chain ──
 
 function getProviders(): VideoProvider[] {
@@ -913,6 +1185,54 @@ function getProviders(): VideoProvider[] {
       supportsRefImage: true,
       maxDuration: 5,
       generate: generateViaPiAPI,
+    },
+    {
+      key: "lingyaai",
+      name: "LingyaAI",
+      enabled: !!getConfig().LINGYAAI_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 10,
+      generate: generateViaLingyaAI,
+    },
+    {
+      key: "getgoapi",
+      name: "GetGoAPI",
+      enabled: !!getConfig().GETGOAPI_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 10,
+      generate: generateViaGetGoAPI,
+    },
+    {
+      key: "apiyi",
+      name: "ApiYi (Sora 2)",
+      enabled: !!getConfig().APIYI_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 10,
+      generate: generateViaApiYi,
+    },
+    {
+      key: "runware",
+      name: "Runware",
+      enabled: !!getConfig().RUNWARE_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 5,
+      generate: generateViaRunware,
+    },
+    {
+      key: "wavespeed",
+      name: "WaveSpeed",
+      enabled: !!getConfig().WAVESPEED_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 5,
+      generate: generateViaWaveSpeed,
+    },
+    {
+      key: "zai_video",
+      name: "Z.ai Video",
+      enabled: !!getConfig().ZAI_API_KEY,
+      supportsRefImage: false,
+      maxDuration: 5,
+      generate: generateViaZAI,
     },
   ];
 }
