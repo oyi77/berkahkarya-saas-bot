@@ -682,13 +682,12 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     const models = await omni.listModels().catch(() => []);
     return reply.view("admin/playground.ejs", {
       ...trackingVars(),
-      layout: './layout.ejs',
       activePage: 'playground',
       title: 'Model Playground',
       omniModels: models,
       videoProviders: Object.keys(PROVIDER_CONFIG.video),
       imageProviders: Object.keys(PROVIDER_CONFIG.image),
-    });
+    }, { layout: 'admin/layout.ejs' });
   });
 
   // API: Playground — Text/Chat
@@ -1566,7 +1565,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   /** GET /admin/providers — Render providers management page */
   server.get("/admin/providers", async (_request, reply) => {
-    return reply.view("admin/providers.ejs", { ...trackingVars(), layout: './layout.ejs', activePage: 'providers', title: 'Provider Management' });
+    return reply.view("admin/providers.ejs", { ...trackingVars(), activePage: 'providers', title: 'Provider Management' }, { layout: 'admin/layout.ejs' });
   });
 
   /** GET /api/admin/providers/all — Full provider list with health + overrides + env status */
@@ -2456,7 +2455,7 @@ You are an expert system administrator and architect for this platform. Give spe
   // GET /admin/system — system config page
   server.get("/admin/system", async (request, reply) => {
     if (!await verifyAdmin(request, reply)) return;
-    return reply.view('admin/system.ejs', { ...trackingVars(), layout: './layout.ejs', activePage: 'system', title: 'System Config' });
+    return reply.view('admin/system.ejs', { ...trackingVars(), activePage: 'system', title: 'System Config' }, { layout: 'admin/layout.ejs' });
   });
 
   // ── WELCOME MESSAGE OVERRIDE ──
