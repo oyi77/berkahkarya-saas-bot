@@ -683,7 +683,7 @@ export function getCreditCost(duration: number): number {
 }
 
 /**
- * Process video job (stub for backwards compatibility)
+ * Process video job — called by video.service.ts for queued jobs
  */
 export async function processVideoJob(
   video: any,
@@ -694,6 +694,6 @@ export async function processVideoJob(
     duration: video.duration,
     niche: video.niche,
     styles: video.styles,
-    aspectRatio: "9:16",
+    aspectRatio: '9:16',
   });
 }
