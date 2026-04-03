@@ -2481,10 +2481,9 @@ You are an expert system administrator and architect for this platform. Give spe
     return { ok: true };
   });
 
-  // GET /admin/system — system config page
-  server.get("/admin/system", async (request, reply) => {
-    if (!await verifyAdmin(request, reply)) return;
-    return reply.view('admin/system.ejs', { ...trackingVars(), activePage: 'system', title: 'System Config' }, { layout: 'admin/layout.ejs' });
+  // GET /admin/system — redirect to consolidated settings page
+  server.get("/admin/system", async (_request, reply) => {
+    return reply.redirect('/admin/settings');
   });
 
   // ── WELCOME MESSAGE OVERRIDE ──
