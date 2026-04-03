@@ -179,25 +179,24 @@
     <div style="font-size: 16px; font-weight: 700; color: var(--gold);">⚡ BerkahKarya</div>
     <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
   </div>
-  <nav style="flex: 1; padding: 12px 0;" id="nav">
+  <nav style="flex: 1; padding: 12px 0; overflow-y: auto;" id="nav">
     <div class="nav-item active" data-section="overview">📊 Overview</div>
-    <div class="nav-item" onclick="window.location='/admin/playground'">🧪 Playground</div>
     <div class="nav-item" data-section="users">👥 Users</div>
     <div class="nav-item" data-section="transactions">💳 Transactions</div>
-    <div class="nav-item" data-section="videos">🎬 Videos</div>
     <div class="nav-item" data-section="analytics">📈 Analytics</div>
     <div class="nav-item" data-section="pricing">💰 Pricing</div>
-    <div class="nav-item" data-section="landing-page">🌐 Landing Page</div>
-    <div class="nav-item" data-section="prompts">✍️ Prompts</div>
-    <div class="nav-item" data-section="broadcast">📢 Broadcast</div>
-    <div class="nav-item" data-section="system">⚙️ System</div>
     <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
     <div class="nav-item" data-section="profit">💹 Revenue</div>
-    <div class="nav-item" data-section="settings">⚙️ Settings</div>
     <div class="nav-item" data-section="niches">🏷️ Niches</div>
-    <div class="nav-item" data-section="providers-page" onclick="window.location='/admin/providers'" style="cursor:pointer;">🔌 Providers</div>
-    <div class="nav-item" data-section="ai-assistant" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">🤖 AI Assistant</div>
-    <div class="nav-item" onclick="window.location='/admin/system'" style="cursor:pointer;">⚙️ System Config</div>
+    <div class="nav-item" data-section="landing-page">🌐 Landing Page</div>
+    <div style="margin: 8px 0; border-top: 1px solid var(--border);"></div>
+    <div class="nav-item" onclick="window.location='/admin/medias'" style="cursor:pointer;">🎬 Media Gallery</div>
+    <div class="nav-item" onclick="window.location='/admin/prompts'" style="cursor:pointer;">✍️ Prompts</div>
+    <div class="nav-item" onclick="window.location='/admin/providers'" style="cursor:pointer;">🔌 Providers</div>
+    <div class="nav-item" onclick="window.location='/admin/playground'" style="cursor:pointer;">🧪 Playground</div>
+    <div class="nav-item" onclick="window.location='/admin/settings'" style="cursor:pointer;">⚙️ Settings</div>
+    <div style="margin: 8px 0; border-top: 1px solid var(--border);"></div>
+    <div class="nav-item" data-section="ai-assistant">🤖 AI Assistant</div>
   </nav>
   <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
     <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
