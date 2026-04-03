@@ -26,7 +26,7 @@ import { adminRoutes } from "@/routes/admin";
 import { webRoutes } from "@/routes/web";
 import { agencyRoutes } from "@/routes/agency";
 import { PaymentService } from "@/services/payment.service";
-import { initializeDatabase } from "@/config/database";
+import { initializeDatabase, prisma } from "@/config/database";
 import { initializeRedis } from "@/config/redis";
 import { initializeQueue } from "@/config/queue";
 import { runSeeder } from "@/scripts/seed";
@@ -79,6 +79,15 @@ async function main() {
     // Seed pricing defaults (first run only)
     await PaymentSettingsService.initializePricingDefaults().catch(err => logger.error('Failed to initialize pricing defaults', { error: err.message }));
     await AdminConfigService.initializeDefaults().catch(err => logger.error('Failed to initialize admin config defaults', { error: err.message }));
+    // Load API key DB overrides into process.env
+    try {
+      const apiKeyOverrides = await prisma.pricingConfig.findMany({ where: { category: 'api_keys' } });
+      for (const row of apiKeyOverrides) {
+        const val = String(row.value ?? '');
+        if (val && val !== 'null') process.env[row.key] = val;
+      }
+      if (apiKeyOverrides.length) logger.info(`[API Keys] Loaded ${apiKeyOverrides.length} DB overrides into process.env`);
+    } catch (e: any) { logger.warn('[API Keys] Could not load DB overrides:', e.message); }
     logger.info("✅ Pricing config ready");
 
     // Initialize Redis
