@@ -1,13 +1,13 @@
 /**
  * Retention Worker
- * 
+ *
  * Automated trigger system for 5 user types:
  * - Type 1: Deposit but no use
  * - Type 2: Used free trial, no deposit
  * - Type 3: Used once, stopped
  * - Type 4: Active but no referral
  * - Type 5: Churned (30+ days inactive)
- * 
+ *
  * Anti-spam rules enforced per Master Doc v3.0 Part 8.6
  */
 
@@ -16,75 +16,10 @@ import { bullmqRedis } from '@/config/redis';
 import { prisma } from '@/config/database';
 import { logger } from '@/utils/logger';
 import { t } from '@/i18n/translations';
+import { AdminConfigService } from '@/services/admin-config.service';
 import type { Telegram } from 'telegraf';
 
 export const retentionQueue = new Queue('retention', { connection: bullmqRedis });
-
-// ── Anti-Spam Config ──────────────────────────────────────────────────────────
-
-const ANTI_SPAM = {
-  MAX_PER_CATEGORY_PER_3_DAYS: 1,
-  MAX_PER_DAY: 2,
-  SEND_HOUR_START: 8,  // 08:00 WIB
-  SEND_HOUR_END: 20,   // 20:00 WIB
-  STOP_AFTER_CHURN_DAYS: 60,
-};
-
-// ── Message Templates ─────────────────────────────────────────────────────────
-// TODO: convert remaining templates to t() calls for full i18n support
-// Currently button labels are localized; message bodies remain Indonesian-only
-
-const MESSAGES = {
-  // Type 1: Deposit no use
-  deposit_2h: (name: string) =>
-    `Hai ${name}! 👋\n\nCredit kamu sudah masuk. Yuk langsung generate konten pertama kamu!\n\nSatu foto produk → video iklan profesional dalam 60 detik. 🎬`,
-  deposit_24h: (name: string) =>
-    `${name}, sayang banget creditmu nganggur 😅\n\nTinggal kirim 1 foto produk, AI yang urus sisanya. Mau coba sekarang?`,
-  deposit_72h: (name: string) =>
-    `${name}, gue mau kasih mini-tutorial:\n\n*3 langkah generate konten:*\n1. Tap Generate Konten\n2. Upload foto produk\n3. Terima hasilnya!\n\nSepraktis itu 🚀`,
-  deposit_7d: (name: string) =>
-    `${name}, ini pesan terakhir dari gue 🙏\n\nCreditmu masih ada dan siap dipakai. Kalau ada yang kurang jelas, balas pesan ini ya!`,
-
-  // Type 2: Free trial, no deposit
-  free_1h: (name: string) =>
-    `${name}, tadi hasilnya gimana? 😊\n\nKalau mau generate lagi, paket paling terjangkau cuma Rp 25.000 (1 credit). Bisa untuk image set 7 scene + 1 video!\n\n👉 Tap /topup`,
-  free_24h: (name: string) =>
-    `${name}! Bergabunglah dengan komunitas kreator konten kami 📊\n\nBuat video iklan profesional dari satu foto produk. Mulai dari Rp 25.000 👉 /topup`,
-  free_3d: (name: string) =>
-    `${name}, masih tertarik generate konten? 🎁\n\nSatu foto produk bisa jadi video iklan profesional dalam 60 detik.\n\nTap /create untuk mulai generate lagi!`,
-  free_7d: (name: string) =>
-    `${name}, ini pesan terakhir dari gue.\n\nKalau berubah pikiran, kita selalu siap bantu. Sampai ketemu! 👋`,
-
-  // Type 3: Used once, stopped
-  used_3d: (name: string) =>
-    `${name}, video yang kemarin udah di-post belum? 📱\n\nYuk buat konten baru sekarang! Tap /create untuk mulai generate lagi.`,
-  used_7d: (name: string) =>
-    `${name}! Tips: buat 5 variasi video dengan hook berbeda, test mana yang paling banyak klik 📈\n\nFitur Campaign Builder di BK Vilona bisa bantu kamu. Mau coba?`,
-  used_14d: (name: string) =>
-    `${name}, ada fitur Campaign Builder nih — generate 5-10 video sekaligus dengan hook berbeda untuk A/B testing iklan! 📦\n\nCocok banget untuk kamu yang mau scale konten. /create`,
-  used_21d: (name: string) =>
-    `${name}, udah lama gak generate nih! 🎬\n\nYuk buat konten baru sekarang. Satu foto produk → video iklan profesional dalam 60 detik.\n\nTap /create untuk mulai generate lagi!`,
-
-  // Type 4: Active no affiliate
-  active_3rd_gen: (name: string) =>
-    `${name}, tau gak bisa dapat credit gratis? 💰\n\nDaftarkan teman-temanmu ke BK Vilona, setiap kali mereka isi saldo, kamu dapat 15% komisi otomatis!\n\n👉 /referral`,
-  active_5th_gen: (name: string) =>
-    `${name}, kamu aktif banget nih! 🔥\n\nShare BK Vilona ke teman-teman UMKM kamu. Mereka dapat tools powerful, kamu dapat passive income 15% dari setiap deposit mereka.\n\n👉 /referral`,
-  active_10th_gen: (name: string) =>
-    `${name}! Ajak teman-temanmu dan dapatkan komisi dari setiap deposit mereka 💎\n\nGratis, tinggal share link. /referral`,
-
-  // Type 5: Churned
-  churn_30d: (name: string) =>
-    `Hai ${name}! Lama gak jumpa 😊\n\nBK Vilona baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nTap /create untuk mulai generate lagi!`,
-  churn_60d: (name: string) =>
-    `${name}, ini pesan terakhir dari kami.\n\nSemoga bisnis kamu makin berkembang ya! Kalau mau balik, kami selalu di sini 🙏\n\nTap /start kapan saja.`,
-
-  // Type 6: Subscription expiring
-  sub_expiring_3d: (name: string) =>
-    `⭐ ${name}, langganan kamu akan berakhir dalam 3 hari!\n\nPerpanjang sekarang supaya kredit bulananmu tetap aktif dan tidak kehilangan akses fitur premium.\n\n👉 /topup`,
-  sub_expiring_1d: (name: string) =>
-    `⚠️ ${name}, langganan kamu berakhir besok!\n\nKredit langganan yang belum dipakai akan hangus setelah berakhir. Kredit yang dibeli tetap aman. Perpanjang sekarang!\n\n👉 /topup`,
-};
 
 // ── Scheduler ────────────────────────────────────────────────────────────────
 
@@ -98,8 +33,10 @@ export class RetentionScheduler {
     const now = new Date();
     const wibHour = (now.getUTCHours() + 7) % 24;
 
+    const retConfig = await AdminConfigService.getRetentionConfig();
+
     // Only send messages during allowed hours
-    if (wibHour < ANTI_SPAM.SEND_HOUR_START || wibHour >= ANTI_SPAM.SEND_HOUR_END) {
+    if (wibHour < retConfig.sendHourStart || wibHour >= retConfig.sendHourEnd) {
       logger.info('[retention] Outside send window, skipping');
       return;
     }
@@ -121,8 +58,8 @@ export class RetentionScheduler {
   static async checkType6SubscriptionExpiring(bot: { telegram: Telegram }): Promise<void> {
     const now = new Date();
     const triggers = [
-      { daysAhead: 3, msgKey: 'sub_expiring_3d' as const },
-      { daysAhead: 1, msgKey: 'sub_expiring_1d' as const },
+      { daysAhead: 3, msgKey: 'retention.sub_expiring_3d' as const },
+      { daysAhead: 1, msgKey: 'retention.sub_expiring_1d' as const },
     ];
 
     for (const trigger of triggers) {
@@ -144,7 +81,8 @@ export class RetentionScheduler {
       for (const sub of subs) {
         if (!sub.user?.notificationsEnabled) continue;
         if (await this.canSend(sub.user.id, 'subscription')) {
-          await this.sendMessage(bot, sub.user.telegramId, MESSAGES[trigger.msgKey](sub.user.firstName), sub.user.language || 'id');
+          const lang = sub.user.language || 'id';
+          await this.sendMessage(bot, sub.user.telegramId, t(trigger.msgKey, lang, { name: sub.user.firstName }), lang);
           await this.logSent(sub.user.id, 'subscription');
         }
       }
@@ -155,16 +93,18 @@ export class RetentionScheduler {
    * Type 1: Deposited but never generated
    */
   static async checkType1DepositNoUse(bot: { telegram: Telegram }): Promise<void> {
-    const triggers = [
-      { hoursAgo: 2, msgKey: 'deposit_2h' as const },
-      { hoursAgo: 24, msgKey: 'deposit_24h' as const },
-      { hoursAgo: 72, msgKey: 'deposit_72h' as const },
-      { hoursAgo: 168, msgKey: 'deposit_7d' as const }, // 7 days
-    ];
+    const type1Hours = await AdminConfigService.get<number[]>('retention', 'type1_trigger_hours', [2, 24, 72, 168]);
+    const msgKeys: Record<number, string> = {
+      2: 'retention.deposit_2h',
+      24: 'retention.deposit_24h',
+      72: 'retention.deposit_72h',
+      168: 'retention.deposit_7d',
+    };
 
-    for (const trigger of triggers) {
-      const cutoff = new Date(Date.now() - trigger.hoursAgo * 60 * 60 * 1000);
-      const cutoffPrev = new Date(Date.now() - (trigger.hoursAgo + 1) * 60 * 60 * 1000);
+    for (const hoursAgo of type1Hours) {
+      const msgKey = msgKeys[hoursAgo] ?? 'retention.deposit_24h';
+      const cutoff = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
+      const cutoffPrev = new Date(Date.now() - (hoursAgo + 1) * 60 * 60 * 1000);
 
       const users = await prisma.user.findMany({
         where: {
@@ -179,7 +119,8 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'deposit')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
+          const lang = user.language || 'id';
+          await this.sendMessage(bot, user.telegramId, t(msgKey, lang, { name: user.firstName }), lang);
           await this.logSent(user.id, 'deposit');
         }
       }
@@ -190,16 +131,18 @@ export class RetentionScheduler {
    * Type 2: Used free trial, no deposit
    */
   static async checkType2FreeNoDeposit(bot: { telegram: Telegram }): Promise<void> {
-    const triggers = [
-      { hoursAgo: 1, msgKey: 'free_1h' as const },
-      { hoursAgo: 24, msgKey: 'free_24h' as const },
-      { hoursAgo: 72, msgKey: 'free_3d' as const },
-      { hoursAgo: 168, msgKey: 'free_7d' as const },
-    ];
+    const type2Hours = await AdminConfigService.get<number[]>('retention', 'type2_trigger_hours', [1, 24, 72, 168]);
+    const msgKeys: Record<number, string> = {
+      1: 'retention.free_1h',
+      24: 'retention.free_24h',
+      72: 'retention.free_3d',
+      168: 'retention.free_7d',
+    };
 
-    for (const trigger of triggers) {
-      const cutoff = new Date(Date.now() - trigger.hoursAgo * 60 * 60 * 1000);
-      const cutoffPrev = new Date(Date.now() - (trigger.hoursAgo + 1) * 60 * 60 * 1000);
+    for (const hoursAgo of type2Hours) {
+      const msgKey = msgKeys[hoursAgo] ?? 'retention.free_24h';
+      const cutoff = new Date(Date.now() - hoursAgo * 60 * 60 * 1000);
+      const cutoffPrev = new Date(Date.now() - (hoursAgo + 1) * 60 * 60 * 1000);
 
       const users = await prisma.user.findMany({
         where: {
@@ -214,7 +157,8 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'free_trial')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
+          const lang = user.language || 'id';
+          await this.sendMessage(bot, user.telegramId, t(msgKey, lang, { name: user.firstName }), lang);
           await this.logSent(user.id, 'free_trial');
         }
       }
@@ -226,10 +170,10 @@ export class RetentionScheduler {
    */
   static async checkType3UsedOnce(bot: { telegram: Telegram }): Promise<void> {
     const triggers = [
-      { daysAgo: 3, msgKey: 'used_3d' as const },
-      { daysAgo: 7, msgKey: 'used_7d' as const },
-      { daysAgo: 14, msgKey: 'used_14d' as const },
-      { daysAgo: 21, msgKey: 'used_21d' as const },
+      { daysAgo: 3, msgKey: 'retention.used_3d' as const },
+      { daysAgo: 7, msgKey: 'retention.used_7d' as const },
+      { daysAgo: 14, msgKey: 'retention.used_14d' as const },
+      { daysAgo: 21, msgKey: 'retention.used_21d' as const },
     ];
 
     for (const trigger of triggers) {
@@ -248,7 +192,8 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'inactive')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
+          const lang = user.language || 'id';
+          await this.sendMessage(bot, user.telegramId, t(trigger.msgKey, lang, { name: user.firstName }), lang);
           await this.logSent(user.id, 'inactive');
         }
       }
@@ -261,6 +206,11 @@ export class RetentionScheduler {
    */
   static async checkType4ActiveNoAffiliate(bot: { telegram: Telegram }): Promise<void> {
     const checkPoints = [3, 5, 10];
+    const msgKeys: Record<number, string> = {
+      3: 'retention.active_3rd_gen',
+      5: 'retention.active_5th_gen',
+      10: 'retention.active_10th_gen',
+    };
 
     for (const count of checkPoints) {
       // Use Prisma ORM instead of raw SQL to avoid column name mismatch
@@ -275,11 +225,12 @@ export class RetentionScheduler {
       });
 
       const users = usersWithVideoCount.filter(u => u._count.videos === count).slice(0, 30);
-      const msgKey = count === 3 ? 'active_3rd_gen' : count === 5 ? 'active_5th_gen' : 'active_10th_gen';
+      const msgKey = msgKeys[count] ?? 'retention.active_3rd_gen';
 
       for (const user of users) {
         if (await this.canSend(user.id, 'affiliate')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[msgKey](user.firstName), user.language || 'id');
+          const lang = user.language || 'id';
+          await this.sendMessage(bot, user.telegramId, t(msgKey, lang, { name: user.firstName }), lang);
           await this.logSent(user.id, 'affiliate');
         }
       }
@@ -291,8 +242,8 @@ export class RetentionScheduler {
    */
   static async checkType5Churned(bot: { telegram: Telegram }): Promise<void> {
     const triggers = [
-      { daysAgo: 30, msgKey: 'churn_30d' as const },
-      { daysAgo: 60, msgKey: 'churn_60d' as const },
+      { daysAgo: 30, msgKey: 'retention.churn_30d' as const },
+      { daysAgo: 60, msgKey: 'retention.churn_60d' as const },
     ];
 
     for (const trigger of triggers) {
@@ -311,7 +262,8 @@ export class RetentionScheduler {
 
       for (const user of users) {
         if (await this.canSend(user.id, 'churn')) {
-          await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
+          const lang = user.language || 'id';
+          await this.sendMessage(bot, user.telegramId, t(trigger.msgKey, lang, { name: user.firstName }), lang);
           await this.logSent(user.id, 'churn');
         }
       }
@@ -382,6 +334,7 @@ export class RetentionScheduler {
       return false;
     }
 
+    const retConfig = await AdminConfigService.getRetentionConfig();
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
@@ -394,8 +347,8 @@ export class RetentionScheduler {
       }),
     ]);
 
-    return categoryCount < ANTI_SPAM.MAX_PER_CATEGORY_PER_3_DAYS &&
-           dayCount < ANTI_SPAM.MAX_PER_DAY;
+    return categoryCount < retConfig.maxPerCategoryPer3Days &&
+           dayCount < retConfig.maxPerDay;
   }
 
   private static async logSent(userId: bigint, triggerType: string): Promise<void> {

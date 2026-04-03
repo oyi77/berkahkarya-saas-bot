@@ -9,12 +9,12 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="<%= landingConfig.headline || 'BK Vilona AI — Ubah Foto Jadi Video Iklan Viral' %> (Durasi hingga <%= landingConfig.videoDuration || '60' %> Detik)">
   <meta property="og:description" content="<%= landingConfig.subheadline || 'Platform AI yang ubah foto produk jadi video iklan profesional. HPAS Framework. Langsung dari Telegram. Bayar VA/GoPay/OVO.' %>">
-  <meta property="og:image" content="/public/hero-tiktok-showcase.png">
+  <meta property="og:image" content="<%= ogImageUrl || '/public/hero-tiktok-showcase.png' %>">
   <meta property="og:url" content="<%= siteUrl %>">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="<%= landingConfig.headline || 'BK Vilona AI — Video Iklan Viral dengan AI' %>">
   <meta name="twitter:description" content="<%= landingConfig.subheadline || 'Ubah 1 foto jadi video viral (durasi hingga ' + (landingConfig.videoDuration || '60') + ' detik). Langsung dari Telegram.' %>">
-  <meta name="twitter:image" content="/public/hero-tiktok-showcase.png">
+  <meta name="twitter:image" content="<%= ogImageUrl || '/public/hero-tiktok-showcase.png' %>">
   <meta name="theme-color" content="#0d0d14">
   <link rel="canonical" href="<%= siteUrl %>">
   <link rel="preconnect" href="https://fonts.googleapis.com">

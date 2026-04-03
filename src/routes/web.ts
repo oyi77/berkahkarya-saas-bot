@@ -96,6 +96,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       fbPixelId: getConfig().FACEBOOK_PIXEL_ID || "",
       ga4Id: getConfig().GA4_TRACKING_ID || "",
       ttPixelId: getConfig().TIKTOK_PIXEL_ID || "",
+      ogImageUrl: landingConfig?.heroImageUrl || landingConfig?.ogImageUrl || null,
     });
   });
 
@@ -961,6 +962,54 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
     }
   });
 
+  // ── USER HISTORY ──
+  server.get("/api/user/history", async (request, reply) => {
+    if ((request.headers as any)['x-api-key']) { if (!await tryApiKeyAuth(request, reply)) return; }
+    const user = await getUser(request, reply);
+    if (!user) return;
+    try {
+      const query = request.query as { limit?: string; cursor?: string };
+      const limit = Math.min(Math.max(1, parseInt(query.limit || '20') || 20), 50);
+      const cursor = query.cursor as string | undefined;
+
+      const jobRows = await prisma.video.findMany({
+        where: { userId: user.telegramId },
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+        ...(cursor ? { cursor: { jobId: cursor }, skip: 1 } : {}),
+        select: {
+          jobId: true,
+          status: true,
+          videoUrl: true,
+          thumbnailUrl: true,
+          description: true,
+          duration: true,
+          createdAt: true,
+          creditsUsed: true,
+        },
+      });
+
+      const hasMore = jobRows.length > limit;
+      if (hasMore) jobRows.pop();
+
+      return {
+        jobs: jobRows.map((r) => ({
+          jobId: r.jobId,
+          status: r.status,
+          videoUrl: r.videoUrl,
+          thumbnailUrl: r.thumbnailUrl,
+          prompt: r.description,
+          duration: r.duration,
+          createdAt: r.createdAt,
+          creditsUsed: r.creditsUsed,
+        })),
+        nextCursor: hasMore ? jobRows[jobRows.length - 1]?.jobId ?? null : null,
+      };
+    } catch {
+      return reply.status(500).send({ error: "Failed to fetch history" });
+    }
+  });
+
   // ── VIDEO DELETE ──
   server.delete("/api/video/:jobId", async (request, reply) => {
     const user = await getUser(request, reply);
@@ -1179,8 +1228,6 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
       const planKey = plan as PlanKey;
       const billingCycle = cycle as BillingCycle;
       const price = getPlanPrice(planKey, billingCycle);
-      const planConfig = (SUBSCRIPTION_PLANS as any)[planKey];
-
       // Reuse the standard payment create flow with type=subscription
       const packageId = `sub_${planKey}_${billingCycle}`;
       let result: any;

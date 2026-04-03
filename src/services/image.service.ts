@@ -18,6 +18,7 @@
 import { logger } from "@/utils/logger";
 import { sendAdminAlert } from "@/services/admin-alert.service";
 import { trackTokens } from "@/services/token-tracker.service";
+import { AdminConfigService } from "@/services/admin-config.service";
 import { CircuitBreaker } from "./circuit-breaker.service";
 import { ContentAnalysisService } from "./content-analysis.service";
 import { WatermarkService } from "./watermark.service";
@@ -244,7 +245,7 @@ async function generateViaFalaiImg2Img(
     {
       prompt,
       image_url: imageUrl,
-      strength: 0.75,
+      strength: await AdminConfigService.getAiParam('falai_img2img_strength', 0.75),
       image_size:
         params.aspectRatio === "16:9"
           ? "landscape_16_9"
@@ -252,15 +253,15 @@ async function generateViaFalaiImg2Img(
             ? "portrait_16_9"
             : "square_hd",
       num_images: 1,
-      num_inference_steps: 28,
-      guidance_scale: 3.5,
+      num_inference_steps: await AdminConfigService.getAiParam('falai_inference_steps', 28),
+      guidance_scale: await AdminConfigService.getAiParam('falai_guidance_scale', 3.5),
     },
     {
       headers: {
         Authorization: `Key ${getConfig().FALAI_API_KEY || ""}`,
         "Content-Type": "application/json",
       },
-      timeout: 90000,
+      timeout: await AdminConfigService.getTimeout('falai_img2img_ms', 90000),
     },
   );
 
@@ -290,7 +291,7 @@ async function generateViaFalaiIPAdapter(
     {
       prompt,
       ip_adapter_image_url: avatarUrl,
-      ip_adapter_scale: 0.7,
+      ip_adapter_scale: await AdminConfigService.getAiParam('falai_ip_adapter_scale', 0.7),
       image_size:
         params.aspectRatio === "16:9"
           ? "landscape_16_9"
@@ -298,15 +299,15 @@ async function generateViaFalaiIPAdapter(
             ? "portrait_16_9"
             : "square_hd",
       num_images: 1,
-      num_inference_steps: 28,
-      guidance_scale: 3.5,
+      num_inference_steps: await AdminConfigService.getAiParam('falai_inference_steps', 28),
+      guidance_scale: await AdminConfigService.getAiParam('falai_guidance_scale', 3.5),
     },
     {
       headers: {
         Authorization: `Key ${getConfig().FALAI_API_KEY || ""}`,
         "Content-Type": "application/json",
       },
-      timeout: 90000,
+      timeout: await AdminConfigService.getTimeout('falai_ip_adapter_ms', 90000),
     },
   );
 
@@ -333,7 +334,7 @@ async function generateViaSiliconFlow(
       model: "black-forest-labs/FLUX.1-schnell",
       prompt,
       image_size: `${getDims(params).width}x${getDims(params).height}`,
-      num_inference_steps: 20,
+      num_inference_steps: await AdminConfigService.getAiParam('siliconflow_inference_steps', 20),
     },
     {
       headers: {

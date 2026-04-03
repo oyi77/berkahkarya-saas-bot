@@ -9,6 +9,7 @@
 import { redis } from '@/config/redis';
 import { logger } from '@/utils/logger';
 import { getConfig } from '@/config/env';
+import { AdminConfigService } from '@/services/admin-config.service';
 
 interface RateLimitConfig {
   /** Window in seconds */
@@ -26,6 +27,21 @@ const PRESETS: Record<string, RateLimitConfig> = {
   referral: { windowSec: 3600, max: 5, label: 'referral action' },
   support:  { windowSec: 300, max: 3, label: 'support request' },
 };
+
+/** Load a preset from AdminConfigService with fallback to static PRESETS */
+async function getPreset(operation: string): Promise<RateLimitConfig> {
+  const def = PRESETS[operation];
+  if (!def) return { windowSec: 60, max: 10, label: operation };
+  const override = await AdminConfigService.get<{ windowSec?: number; max?: number } | null>(
+    'rate_limit', `op_${operation}`, null
+  );
+  if (!override) return def;
+  return {
+    windowSec: override.windowSec ?? def.windowSec,
+    max: override.max ?? def.max,
+    label: def.label,
+  };
+}
 
 // In-memory fallback when Redis is down
 const memStore = new Map<string, { count: number; expiresAt: number }>();
@@ -53,7 +69,7 @@ export async function checkRateLimit(
   if (isAdmin) return null;
 
   const cfg: RateLimitConfig =
-    typeof operation === 'string' ? PRESETS[operation] : operation;
+    typeof operation === 'string' ? await getPreset(operation) : operation;
 
   const key = `oplimit:${operation}:${userId}`;
 

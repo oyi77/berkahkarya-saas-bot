@@ -198,12 +198,18 @@ export class AdminConfigService {
     }
 
     // Rate limits
-    const rateLimits: Record<string, number> = {
+    const rateLimits: Record<string, any> = {
       telegram_window_seconds: 60,
       telegram_max_messages: 30,
       api_payment_per_minute: 10,
       api_generation_per_minute: 30,
       api_read_per_minute: 60,
+      // Per-operation bot rate limits (windowSec + max)
+      op_generate: { windowSec: 60, max: 5 },
+      op_create:   { windowSec: 60, max: 10 },
+      op_topup:    { windowSec: 300, max: 3 },
+      op_referral: { windowSec: 3600, max: 5 },
+      op_support:  { windowSec: 300, max: 3 },
     };
     for (const [key, value] of Object.entries(rateLimits)) {
       defaults.push({ category: "rate_limit", key, value });

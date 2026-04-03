@@ -574,6 +574,132 @@ const translations: Record<string, Record<Lang, string>> = {
     zh: "⚠️ 您有 {count} 个视频将在3天内到期，请立即下载！",
   },
 
+  // Type 1: Deposit but no use
+  "retention.deposit_2h": {
+    id: "Hai {name}! 👋\n\nCredit kamu sudah masuk. Yuk langsung generate konten pertama kamu!\n\nSatu foto produk → video iklan profesional dalam 60 detik. 🎬",
+    en: "Hey {name}! 👋\n\nYour credits are ready. Go ahead and generate your first content!\n\nOne product photo → professional ad video in 60 seconds. 🎬",
+    ru: "Привет, {name}! 👋\n\nВаши кредиты зачислены. Создайте свой первый контент прямо сейчас!\n\nОдно фото продукта → профессиональное рекламное видео за 60 секунд. 🎬",
+    zh: "你好 {name}！👋\n\n您的积分已到账。马上生成您的第一个内容吧！\n\n一张产品图片 → 60秒内生成专业广告视频。🎬",
+  },
+  "retention.deposit_24h": {
+    id: "{name}, sayang banget creditmu nganggur 😅\n\nTinggal kirim 1 foto produk, AI yang urus sisanya. Mau coba sekarang?",
+    en: "{name}, your credits are just sitting there 😅\n\nJust send 1 product photo and the AI handles the rest. Want to try now?",
+    ru: "{name}, ваши кредиты простаивают 😅\n\nПросто отправьте 1 фото продукта, а ИИ сделает остальное. Попробуете сейчас?",
+    zh: "{name}，您的积分还没用呢 😅\n\n只需发送1张产品图片，AI会处理其余的。现在试试？",
+  },
+  "retention.deposit_72h": {
+    id: "{name}, gue mau kasih mini-tutorial:\n\n*3 langkah generate konten:*\n1. Tap Generate Konten\n2. Upload foto produk\n3. Terima hasilnya!\n\nSepraktis itu 🚀",
+    en: "{name}, here's a quick tutorial:\n\n*3 steps to generate content:*\n1. Tap Generate Content\n2. Upload your product photo\n3. Receive the result!\n\nThat's all it takes 🚀",
+    ru: "{name}, вот мини-туториал:\n\n*3 шага для создания контента:*\n1. Нажмите «Создать контент»\n2. Загрузите фото продукта\n3. Получите результат!\n\nВсё так просто 🚀",
+    zh: "{name}，这是一个简单教程：\n\n*3步生成内容：*\n1. 点击生成内容\n2. 上传产品图片\n3. 接收结果！\n\n就是这么简单 🚀",
+  },
+  "retention.deposit_7d": {
+    id: "{name}, ini pesan terakhir dari gue 🙏\n\nCreditmu masih ada dan siap dipakai. Kalau ada yang kurang jelas, balas pesan ini ya!",
+    en: "{name}, this is my last message 🙏\n\nYour credits are still there and ready to use. If anything is unclear, just reply to this message!",
+    ru: "{name}, это моё последнее сообщение 🙏\n\nВаши кредиты по-прежнему доступны. Если что-то непонятно — просто ответьте на это сообщение!",
+    zh: "{name}，这是我最后一条消息 🙏\n\n您的积分还在，随时可以使用。如有任何疑问，请回复此消息！",
+  },
+
+  // Type 2: Free trial, no deposit
+  "retention.free_1h": {
+    id: "{name}, tadi hasilnya gimana? 😊\n\nKalau mau generate lagi, paket paling terjangkau cuma Rp 25.000 (1 credit). Bisa untuk image set 7 scene + 1 video!\n\n👉 Tap /topup",
+    en: "{name}, how did the result look? 😊\n\nWant to generate more? The most affordable package is just Rp 25,000 (1 credit). Covers a 7-scene image set + 1 video!\n\n👉 Tap /topup",
+    ru: "{name}, как вам результат? 😊\n\nХотите создать ещё? Самый доступный пакет — всего Rp 25 000 (1 кредит). Включает набор из 7 изображений + 1 видео!\n\n👉 Нажмите /topup",
+    zh: "{name}，结果怎么样？😊\n\n想继续生成？最实惠的套餐只需 Rp 25,000（1积分），可生成7场景图片集 + 1个视频！\n\n👉 点击 /topup",
+  },
+  "retention.free_24h": {
+    id: "{name}! Bergabunglah dengan komunitas kreator konten kami 📊\n\nBuat video iklan profesional dari satu foto produk. Mulai dari Rp 25.000 👉 /topup",
+    en: "{name}! Join our content creator community 📊\n\nCreate professional ad videos from a single product photo. Starting from Rp 25,000 👉 /topup",
+    ru: "{name}! Присоединяйтесь к нашему сообществу контент-мейкеров 📊\n\nСоздавайте профессиональные рекламные видео из одного фото продукта. От Rp 25 000 👉 /topup",
+    zh: "{name}！加入我们的内容创作者社区 📊\n\n用一张产品图片制作专业广告视频。从 Rp 25,000 起 👉 /topup",
+  },
+  "retention.free_3d": {
+    id: "{name}, masih tertarik generate konten? 🎁\n\nSatu foto produk bisa jadi video iklan profesional dalam 60 detik.\n\nTap /create untuk mulai generate lagi!",
+    en: "{name}, still interested in generating content? 🎁\n\nOne product photo can become a professional ad video in 60 seconds.\n\nTap /create to start generating again!",
+    ru: "{name}, всё ещё интересуетесь созданием контента? 🎁\n\nОдно фото продукта → профессиональное рекламное видео за 60 секунд.\n\nНажмите /create, чтобы начать снова!",
+    zh: "{name}，还对生成内容感兴趣吗？🎁\n\n一张产品图片可在60秒内生成专业广告视频。\n\n点击 /create 重新开始！",
+  },
+  "retention.free_7d": {
+    id: "{name}, ini pesan terakhir dari gue.\n\nKalau berubah pikiran, kita selalu siap bantu. Sampai ketemu! 👋",
+    en: "{name}, this is my last message.\n\nIf you change your mind, we're always here to help. See you around! 👋",
+    ru: "{name}, это моё последнее сообщение.\n\nЕсли передумаете — мы всегда готовы помочь. До встречи! 👋",
+    zh: "{name}，这是我最后一条消息。\n\n如果您改变主意，我们随时准备帮助您。再见！👋",
+  },
+
+  // Type 3: Used once, stopped
+  "retention.used_3d": {
+    id: "{name}, video yang kemarin udah di-post belum? 📱\n\nYuk buat konten baru sekarang! Tap /create untuk mulai generate lagi.",
+    en: "{name}, have you posted yesterday's video yet? 📱\n\nLet's create new content now! Tap /create to generate again.",
+    ru: "{name}, вы уже опубликовали вчерашнее видео? 📱\n\nСоздайте новый контент прямо сейчас! Нажмите /create, чтобы снова запустить генерацию.",
+    zh: "{name}，昨天的视频发布了吗？📱\n\n现在来创建新内容吧！点击 /create 重新生成。",
+  },
+  "retention.used_7d": {
+    id: "{name}! Tips: buat 5 variasi video dengan hook berbeda, test mana yang paling banyak klik 📈\n\nFitur Campaign Builder di BK Vilona bisa bantu kamu. Mau coba?",
+    en: "{name}! Tip: create 5 video variations with different hooks, test which one gets the most clicks 📈\n\nThe Campaign Builder feature can help you with that. Want to try?",
+    ru: "{name}! Совет: создайте 5 вариантов видео с разными зацепками, протестируйте, какой получает больше кликов 📈\n\nФункция Campaign Builder поможет вам. Попробуете?",
+    zh: "{name}！提示：制作5个不同钩子的视频变体，测试哪个获得最多点击 📈\n\nCampaign Builder功能可以帮助您。要试试吗？",
+  },
+  "retention.used_14d": {
+    id: "{name}, ada fitur Campaign Builder nih — generate 5-10 video sekaligus dengan hook berbeda untuk A/B testing iklan! 📦\n\nCocok banget untuk kamu yang mau scale konten. /create",
+    en: "{name}, check out the Campaign Builder feature — generate 5-10 videos at once with different hooks for ad A/B testing! 📦\n\nPerfect for scaling your content. /create",
+    ru: "{name}, попробуйте Campaign Builder — создавайте 5-10 видео сразу с разными зацепками для A/B-тестирования рекламы! 📦\n\nИдеально для масштабирования контента. /create",
+    zh: "{name}，试试Campaign Builder功能——一次生成5-10个不同钩子的视频，用于广告A/B测试！📦\n\n非常适合扩展内容规模。/create",
+  },
+  "retention.used_21d": {
+    id: "{name}, udah lama gak generate nih! 🎬\n\nYuk buat konten baru sekarang. Satu foto produk → video iklan profesional dalam 60 detik.\n\nTap /create untuk mulai generate lagi!",
+    en: "{name}, it's been a while since you last generated! 🎬\n\nLet's create new content now. One product photo → professional ad video in 60 seconds.\n\nTap /create to start again!",
+    ru: "{name}, давно не создавали контент! 🎬\n\nСоздайте новый прямо сейчас. Одно фото продукта → профессиональное рекламное видео за 60 секунд.\n\nНажмите /create, чтобы начать снова!",
+    zh: "{name}，好久没生成了！🎬\n\n现在来创建新内容吧。一张产品图片 → 60秒内生成专业广告视频。\n\n点击 /create 重新开始！",
+  },
+
+  // Type 4: Active no affiliate
+  "retention.active_3rd_gen": {
+    id: "{name}, tau gak bisa dapat credit gratis? 💰\n\nDaftarkan teman-temanmu ke BK Vilona, setiap kali mereka isi saldo, kamu dapat 15% komisi otomatis!\n\n👉 /referral",
+    en: "{name}, did you know you can earn free credits? 💰\n\nRefer your friends to BK Vilona — every time they top up, you automatically get 15% commission!\n\n👉 /referral",
+    ru: "{name}, знаете, что можно получать бесплатные кредиты? 💰\n\nПригласите друзей в BK Vilona — каждый раз, когда они пополняют баланс, вы автоматически получаете 15% комиссии!\n\n👉 /referral",
+    zh: "{name}，您知道可以获得免费积分吗？💰\n\n将朋友推荐给BK Vilona，每次他们充值时，您自动获得15%佣金！\n\n👉 /referral",
+  },
+  "retention.active_5th_gen": {
+    id: "{name}, kamu aktif banget nih! 🔥\n\nShare BK Vilona ke teman-teman UMKM kamu. Mereka dapat tools powerful, kamu dapat passive income 15% dari setiap deposit mereka.\n\n👉 /referral",
+    en: "{name}, you're really active! 🔥\n\nShare BK Vilona with your business friends. They get powerful tools, you get 15% passive income from every deposit they make.\n\n👉 /referral",
+    ru: "{name}, вы очень активны! 🔥\n\nПоделитесь BK Vilona с коллегами по бизнесу. Они получат мощные инструменты, а вы — 15% пассивного дохода с каждого их пополнения.\n\n👉 /referral",
+    zh: "{name}，您非常活跃！🔥\n\n将BK Vilona分享给您的商业朋友。他们获得强大工具，您从他们的每次充值中获得15%被动收入。\n\n👉 /referral",
+  },
+  "retention.active_10th_gen": {
+    id: "{name}! Ajak teman-temanmu dan dapatkan komisi dari setiap deposit mereka 💎\n\nGratis, tinggal share link. /referral",
+    en: "{name}! Invite your friends and earn commission on every deposit they make 💎\n\nFree to join — just share your link. /referral",
+    ru: "{name}! Пригласите друзей и зарабатывайте комиссию с каждого их пополнения 💎\n\nБесплатно — просто поделитесь ссылкой. /referral",
+    zh: "{name}！邀请朋友并从他们的每次充值中赚取佣金 💎\n\n免费参与——只需分享您的链接。/referral",
+  },
+
+  // Type 5: Churned
+  "retention.churn_30d": {
+    id: "Hai {name}! Lama gak jumpa 😊\n\nBK Vilona baru rilis fitur Campaign Builder dan Clone Style! Generate 5-10 video sekaligus atau tiru gaya visual brand besar.\n\nTap /create untuk mulai generate lagi!",
+    en: "Hey {name}! Long time no see 😊\n\nBK Vilona just released Campaign Builder and Clone Style! Generate 5-10 videos at once or replicate the visual style of major brands.\n\nTap /create to start generating again!",
+    ru: "Привет, {name}! Давно не виделись 😊\n\nBK Vilona только что выпустил Campaign Builder и Clone Style! Создавайте 5-10 видео за раз или копируйте визуальный стиль крупных брендов.\n\nНажмите /create, чтобы начать снова!",
+    zh: "嗨 {name}！好久不见 😊\n\nBK Vilona刚刚发布了Campaign Builder和Clone Style！一次生成5-10个视频，或复制大品牌的视觉风格。\n\n点击 /create 重新开始！",
+  },
+  "retention.churn_60d": {
+    id: "{name}, ini pesan terakhir dari kami.\n\nSemoga bisnis kamu makin berkembang ya! Kalau mau balik, kami selalu di sini 🙏\n\nTap /start kapan saja.",
+    en: "{name}, this is our last message.\n\nWe hope your business continues to grow! If you ever want to come back, we'll always be here 🙏\n\nTap /start anytime.",
+    ru: "{name}, это наше последнее сообщение.\n\nЖелаем процветания вашему бизнесу! Если захотите вернуться — мы всегда здесь 🙏\n\nНажмите /start в любое время.",
+    zh: "{name}，这是我们最后一条消息。\n\n祝您的生意越来越好！如果您想回来，我们随时欢迎 🙏\n\n随时点击 /start。",
+  },
+
+  // Type 6: Subscription expiring
+  "retention.sub_expiring_3d": {
+    id: "⭐ {name}, langganan kamu akan berakhir dalam 3 hari!\n\nPerpanjang sekarang supaya kredit bulananmu tetap aktif dan tidak kehilangan akses fitur premium.\n\n👉 /topup",
+    en: "⭐ {name}, your subscription expires in 3 days!\n\nRenew now to keep your monthly credits active and retain access to premium features.\n\n👉 /topup",
+    ru: "⭐ {name}, ваша подписка истекает через 3 дня!\n\nПродлите сейчас, чтобы сохранить ежемесячные кредиты и доступ к премиум-функциям.\n\n👉 /topup",
+    zh: "⭐ {name}，您的订阅将在3天后到期！\n\n立即续订以保持您的月度积分有效并保留对高级功能的访问权限。\n\n👉 /topup",
+  },
+  "retention.sub_expiring_1d": {
+    id: "⚠️ {name}, langganan kamu berakhir besok!\n\nKredit langganan yang belum dipakai akan hangus setelah berakhir. Kredit yang dibeli tetap aman. Perpanjang sekarang!\n\n👉 /topup",
+    en: "⚠️ {name}, your subscription expires tomorrow!\n\nUnused subscription credits will expire when it ends. Purchased credits remain safe. Renew now!\n\n👉 /topup",
+    ru: "⚠️ {name}, ваша подписка истекает завтра!\n\nНеиспользованные кредиты подписки сгорят после её окончания. Купленные кредиты останутся. Продлите сейчас!\n\n👉 /topup",
+    zh: "⚠️ {name}，您的订阅明天到期！\n\n订阅到期后，未使用的订阅积分将过期。购买的积分保持安全。立即续订！\n\n👉 /topup",
+  },
+
   // ---------------------------------------------------------------------------
   // Profile / referral headings
   // ---------------------------------------------------------------------------
