@@ -994,7 +994,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // ── Prompt Management Dashboard ──
 
   server.get("/admin/prompts", async (_request, reply) => {
-    return reply.view("admin/prompts.ejs", trackingVars());
+    return reply.view("admin/prompts.ejs", { ...trackingVars(), activePage: 'prompts', title: 'Prompt Management' }, { layout: 'admin/layout.ejs' });
   });
 
   server.get("/admin/settings", async (_request, reply) => {
