@@ -636,7 +636,31 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       },
     });
 
-    return videos;
+    return videos.map((v: any) => ({
+      id: Number(v.id),
+      jobId: v.jobId,
+      title: v.title,
+      niche: v.niche,
+      platform: v.platform,
+      duration: v.duration,
+      status: v.status,
+      progress: v.progress,
+      errorMessage: v.errorMessage,
+      creditsUsed: v.creditsUsed ? Number(v.creditsUsed) : 0,
+      thumbnailUrl: v.thumbnailUrl || null,
+      videoUrl: v.videoUrl || null,
+      downloadUrl: v.downloadUrl || null,
+      finalProvider: v.finalProvider || null,
+      providerChain: v.providerChain || [],
+      storyboard: v.storyboard || null,
+      createdAt: v.createdAt,
+      completedAt: v.completedAt,
+      user: v.user ? {
+        telegramId: v.user.telegramId?.toString(),
+        username: v.user.username,
+        firstName: v.user.firstName,
+      } : null,
+    }));
   });
 
   // API: Broadcast message
@@ -1562,6 +1586,11 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   // ── Provider Management ────────────────────────────────────────────────
+
+  /** GET /admin/medias — Media Gallery page */
+  server.get("/admin/medias", async (_request, reply) => {
+    return reply.view("admin/medias.ejs", { ...trackingVars(), activePage: 'medias', title: 'Media Gallery' }, { layout: 'admin/layout.ejs' });
+  });
 
   /** GET /admin/providers — Render providers management page */
   server.get("/admin/providers", async (_request, reply) => {

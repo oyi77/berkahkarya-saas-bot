@@ -1,5 +1,5 @@
 <%
-  // activePage: 'dashboard' | 'playground' | 'providers' | 'system'
+  // activePage: 'dashboard' | 'playground' | 'providers' | 'system' | 'medias' | 'prompts'
   // For dashboard sections pass activePage='dashboard' — the section highlight is handled client-side
   const _ap = typeof activePage !== 'undefined' ? activePage : 'dashboard';
   function _nav(page) { return _ap === page ? 'nav-item active' : 'nav-item'; }
@@ -26,6 +26,7 @@
     <div class="nav-item" onclick="window.location='/admin/dashboard#profit'">💹 Revenue</div>
     <div class="nav-item" onclick="window.location='/admin/dashboard#settings'">⚙️ Settings</div>
     <div class="nav-item" onclick="window.location='/admin/dashboard#niches'">🏷️ Niches</div>
+    <div class="<%= _nav('medias') %>" onclick="window.location='/admin/medias'">🎬 Media Gallery</div>
     <div class="<%= _nav('providers') %>" onclick="window.location='/admin/providers'">🔌 Providers</div>
     <div class="nav-item" onclick="window.location='/admin/dashboard#ai-assistant'" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">🤖 AI Assistant</div>
     <div class="<%= _nav('system') %>" onclick="window.location='/admin/system'">⚙️ System Config</div>

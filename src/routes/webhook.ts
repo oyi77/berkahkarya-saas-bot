@@ -35,8 +35,13 @@ export async function webhookRoutes(server: FastifyInstance, options: WebhookOpt
           return reply.status(401).send({ error: 'Unauthorized' });
         }
       }
-      await bot.handleUpdate(request.body as any);
-      return { ok: true };
+      // Respond immediately so Telegram doesn't time out (prevents 502)
+      reply.status(200).send({ ok: true });
+      // Process update asynchronously
+      bot.handleUpdate(request.body as any).catch((err: any) => {
+        logger.error('Telegram webhook processing error:', err);
+      });
+      return;
     } catch (error) {
       logger.error('Telegram webhook error:', error);
       return reply.status(500).send({ error: 'Internal server error' });
