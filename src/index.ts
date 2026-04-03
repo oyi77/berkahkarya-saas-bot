@@ -43,6 +43,7 @@ import { UserService } from "@/services/user.service";
 import { SubscriptionService } from "@/services/subscription.service";
 import { setAlertTelegram, sendAdminAlert as sendGroupAlert } from "@/services/admin-alert.service";
 import { PaymentSettingsService } from "@/services/payment-settings.service";
+import { AdminConfigService } from "@/services/admin-config.service";
 import axios from "axios";
 
 // Set global axios defaults — all HTTP calls get 30s timeout by default
@@ -77,6 +78,7 @@ async function main() {
 
     // Seed pricing defaults (first run only)
     await PaymentSettingsService.initializePricingDefaults().catch(err => logger.error('Failed to initialize pricing defaults', { error: err.message }));
+    await AdminConfigService.initializeDefaults().catch(err => logger.error('Failed to initialize admin config defaults', { error: err.message }));
     logger.info("✅ Pricing config ready");
 
     // Initialize Redis

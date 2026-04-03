@@ -34,6 +34,7 @@ import { logger } from "@/utils/logger";
 import { ImageGenerationService } from "@/services/image.service";
 import { generateVideoWithFallback } from "@/services/video-fallback.service";
 import { CircuitBreaker } from "@/services/circuit-breaker.service";
+import { AdminConfigService } from "@/services/admin-config.service";
 
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
@@ -150,6 +151,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url === "/admin/settings" ||
       url === "/admin/users" ||
       url === "/admin/config" ||
+      url === "/admin/system" ||
       url === "/admin/playground" ||
       url.startsWith("/api/stats") ||
       url.startsWith("/api/analytics") ||
@@ -168,6 +170,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/settings/") ||
       url.startsWith("/api/niches") ||
       url.startsWith("/api/admin/") ||
+      url.startsWith("/api/admin-config") ||
       url.startsWith("/api/referral/") ||
       url.startsWith("/api/queue/") ||
       url.startsWith("/api/subscriptions") ||
@@ -2300,6 +2303,46 @@ You are an expert system administrator and architect for this platform. Give spe
       transactionId,
       amount: Number(transaction.amountIdr),
     };
+  });
+
+  // ── ADMIN CONFIG (runtime configurable values) ──
+
+  // GET /api/admin-config — get all runtime config by category
+  server.get("/api/admin-config", async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const categories = ['provider', 'ai_param', 'timeout', 'retry', 'queue', 'retention', 'rate_limit', 'hpas'];
+    const result: Record<string, Record<string, any>> = {};
+    for (const cat of categories) {
+      result[cat] = await AdminConfigService.getCategory(cat);
+    }
+    return result;
+  });
+
+  // PUT /api/admin-config/:category/:key
+  server.put("/api/admin-config/:category/:key", async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { category, key } = request.params as { category: string; key: string };
+    const { value } = request.body as { value: any };
+    const allowedCategories = ['provider', 'ai_param', 'timeout', 'retry', 'queue', 'retention', 'rate_limit', 'hpas'];
+    if (!allowedCategories.includes(category)) {
+      return reply.status(400).send({ error: 'Invalid category' });
+    }
+    await AdminConfigService.set(category, key, value);
+    return { ok: true };
+  });
+
+  // DELETE /api/admin-config/:category/:key — reset to default
+  server.delete("/api/admin-config/:category/:key", async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { category, key } = request.params as { category: string; key: string };
+    await AdminConfigService.reset(category, key);
+    return { ok: true };
+  });
+
+  // GET /admin/system — system config page
+  server.get("/admin/system", async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    return reply.view('admin/system.ejs', { ...trackingVars() });
   });
 
   // ── WELCOME MESSAGE OVERRIDE ──

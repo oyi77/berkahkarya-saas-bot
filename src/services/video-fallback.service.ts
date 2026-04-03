@@ -18,6 +18,7 @@
  */
 
 import { logger } from "@/utils/logger";
+import { AdminConfigService } from "@/services/admin-config.service";
 import { sendAdminAlert } from "@/services/admin-alert.service";
 import { trackTokens } from "@/services/token-tracker.service";
 import { CircuitBreaker } from "./circuit-breaker.service";
@@ -65,8 +66,8 @@ interface VideoProvider {
 
 // ── Helpers ──
 
-const POLL_INTERVAL = 5000;
-const POLL_MAX_ATTEMPTS = 60;
+const POLL_INTERVAL = 5000; // static fallback — runtime value from AdminConfigService
+const POLL_MAX_ATTEMPTS = 60; // static fallback — runtime value from AdminConfigService
 
 function mapAspectRatio(ratio: string): string {
   const map: Record<string, string> = {
@@ -1408,8 +1409,9 @@ export async function generateVideoWithFallback(
     full: optimizedFull || enrichedBase.full,
   };
 
-  if (enriched.full && enriched.full.length > 800) {
-    enriched.full = enriched.full.slice(0, 800);
+  const promptMaxChars = await AdminConfigService.getAiParam('prompt_max_chars', 800);
+  if (enriched.full && enriched.full.length > promptMaxChars) {
+    enriched.full = enriched.full.slice(0, promptMaxChars);
   }
 
   // Use smart router to order providers by score

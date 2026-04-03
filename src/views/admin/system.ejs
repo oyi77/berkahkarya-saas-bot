@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Config — BerkahKarya Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #0d0d14;
+      --sidebar: #111118;
+      --card: #1a1a24;
+      --border: #2a2a3a;
+      --gold: #c4a35a;
+      --gold-dim: #8a6f3a;
+      --text: #e0e0f0;
+      --muted: #888899;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; min-height: 100vh; }
+    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 50; display: flex; flex-direction: column; }
+    .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; color: var(--muted); font-size: 14px; text-decoration: none; }
+    .nav-item:hover { background: rgba(196,163,90,0.08); color: var(--text); }
+    .nav-item.active { border-left-color: var(--gold); color: var(--gold); background: rgba(196,163,90,0.1); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-gold { background: var(--gold); color: #0d0d14; }
+    .btn-gold:hover { background: #d4b36a; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .btn-danger { background: transparent; color: #f87171; border: 1px solid #f87171; }
+    .btn-danger:hover { background: rgba(248,113,113,0.1); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .input { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 12px; outline: none; }
+    .input:focus { border-color: var(--gold); }
+    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .group-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 12px 16px; background: #111118; border-radius: 8px 8px 0 0; border: 1px solid var(--border); user-select: none; margin-top: 16px; }
+    .group-header:hover { background: rgba(196,163,90,0.06); }
+    .group-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .group-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; overflow: hidden; margin-bottom: 4px; }
+    .config-row { display: grid; grid-template-columns: 220px 1fr 180px; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid rgba(42,42,58,0.5); font-size: 13px; }
+    .config-row:last-child { border-bottom: none; }
+    .config-row:hover { background: rgba(196,163,90,0.03); }
+    .config-key { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; color: #a0a0c0; word-break: break-all; }
+    .config-val { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text); }
+    .config-val.clickable { cursor: pointer; }
+    .config-val.clickable:hover { color: var(--gold); text-decoration: underline; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+    .badge-db { background: #0f3020; color: #4ade80; }
+    .badge-default { background: #3a2a0a; color: #fbbf24; }
+    .actions { display: flex; gap: 6px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .toast.success { border-color: #4ade80; color: #4ade80; }
+    .toast.error { border-color: #f87171; color: #f87171; }
+    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; }
+      .hamburger { display: block; }
+      .config-row { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+    <div style="font-size: 16px; font-weight: 700; color: var(--gold);">&#9889; BerkahKarya</div>
+    <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
+  </div>
+  <nav style="flex: 1; padding: 12px 0;">
+    <a href="/admin/dashboard" class="nav-item">&#128202; Overview</a>
+    <a href="/admin/pricing" class="nav-item">&#128176; Pricing</a>
+    <a href="/admin/prompts" class="nav-item">&#9997;&#65039; Prompts</a>
+    <a href="/admin/config" class="nav-item">&#9881;&#65039; Config</a>
+    <a href="/admin/providers" class="nav-item">&#128268; Providers</a>
+    <a href="/admin/playground" class="nav-item">&#129514; Playground</a>
+    <a href="/admin/system" class="nav-item active">&#9881; System</a>
+  </nav>
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+    <button class="btn btn-ghost btn-sm" style="width: 100%; justify-content: center;" onclick="logout()">&#128682; Logout</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Main Content -->
+<div class="main">
+  <div class="section-title">System Config</div>
+  <div class="section-sub">Runtime-configurable values stored in the database. Click a value to edit it inline. Reset removes the DB override and reverts to the compiled default.</div>
+
+  <!-- Toolbar -->
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+    <input class="input" id="search" placeholder="Filter by key..." style="max-width: 280px; padding: 8px 12px;" oninput="filterRows(this.value)" />
+    <button class="btn btn-ghost btn-sm" onclick="expandAll()">Expand All</button>
+    <button class="btn btn-ghost btn-sm" onclick="collapseAll()">Collapse All</button>
+    <button class="btn btn-gold btn-sm" onclick="loadConfig()">&#8635; Refresh</button>
+    <span id="summary" style="font-size: 12px; color: var(--muted);"></span>
+  </div>
+
+  <div id="config-container">
+    <div style="text-align: center; padding: 40px; color: var(--muted);">Loading configuration...</div>
+  </div>
+</div>
+
+<script>
+  let configData = {};
+
+  const CATEGORY_LABELS = {
+    provider:   '&#128268; Provider Config',
+    ai_param:   '&#129504; AI Parameters',
+    timeout:    '&#9201;&#65039; Timeouts',
+    retry:      '&#128260; Retry / Poll',
+    queue:      '&#128247; Queue',
+    retention:  '&#128231; Retention',
+    rate_limit: '&#9940; Rate Limits',
+    hpas:       '&#127916; HPAS',
+  };
+
+  const CATEGORY_ORDER = ['provider', 'ai_param', 'timeout', 'retry', 'queue', 'retention', 'rate_limit', 'hpas'];
+
+  async function loadConfig() {
+    document.getElementById('config-container').innerHTML =
+      '<div style="text-align: center; padding: 40px; color: var(--muted);">Loading...</div>';
+    try {
+      const res = await fetch('/api/admin-config');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      configData = await res.json();
+      renderConfig('');
+    } catch (e) {
+      document.getElementById('config-container').innerHTML =
+        '<div style="text-align: center; padding: 40px; color: #f87171;">Failed to load: ' + e.message + '</div>';
+    }
+  }
+
+  function renderConfig(filterText) {
+    const ft = (filterText || '').toLowerCase();
+    let html = '';
+    let totalDb = 0, totalDefault = 0;
+
+    for (const cat of CATEGORY_ORDER) {
+      const entries = configData[cat] || {};
+      const rows = Object.entries(entries)
+        .filter(([k]) => !ft || k.toLowerCase().includes(ft))
+        .sort(([a], [b]) => a.localeCompare(b));
+      if (rows.length === 0 && ft) continue;
+
+      const groupId = 'group-' + cat;
+      let rowsHtml = '';
+      for (const [key, value] of rows) {
+        const displayVal = JSON.stringify(value);
+        const isDb = true; // all values from DB endpoint are DB-stored
+        totalDb++;
+        rowsHtml += `
+          <div class="config-row" data-key="${escAttr(key)}" data-cat="${escAttr(cat)}">
+            <div class="config-key">${escHtml(key)}</div>
+            <div class="config-val">
+              <span class="clickable" onclick="startEdit('${escAttr(cat)}','${escAttr(key)}',this)" title="Click to edit">${escHtml(displayVal)}</span>
+            </div>
+            <div class="actions">
+              <span class="badge badge-db">db</span>
+              <button class="btn btn-danger btn-sm" onclick="resetKey('${escAttr(cat)}','${escAttr(key)}')">Reset</button>
+            </div>
+          </div>`;
+      }
+      if (!ft && rows.length === 0) {
+        rowsHtml = '<div style="padding:12px 16px; color: var(--muted); font-size:12px;">No values stored (all using defaults)</div>';
+        totalDefault++;
+      }
+
+      html += `
+        <div id="${groupId}-wrapper">
+          <div class="group-header" onclick="toggleGroup('${groupId}')">
+            <span class="group-title">${CATEGORY_LABELS[cat] || cat} <span style="color:var(--muted);font-weight:400;font-size:12px;">(${rows.length})</span></span>
+            <span id="${groupId}-arrow" style="color:var(--muted);font-size:12px;">&#9660;</span>
+          </div>
+          <div class="group-body" id="${groupId}-body">${rowsHtml}</div>
+        </div>`;
+    }
+
+    document.getElementById('config-container').innerHTML = html ||
+      '<div style="text-align:center;padding:40px;color:var(--muted);">No matching keys.</div>';
+    if (!ft) {
+      document.getElementById('summary').textContent = `${totalDb} stored in DB`;
+    } else {
+      document.getElementById('summary').textContent = '';
+    }
+  }
+
+  function startEdit(cat, key, spanEl) {
+    const current = spanEl.textContent;
+    const input = document.createElement('input');
+    input.className = 'input';
+    input.style.width = '100%';
+    input.value = current;
+    input.onblur = () => { spanEl.style.display = ''; input.replaceWith(spanEl); };
+    input.onkeydown = async (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        await saveKey(cat, key, input.value, spanEl);
+      } else if (e.key === 'Escape') {
+        input.blur();
+      }
+    };
+    spanEl.style.display = 'none';
+    spanEl.parentNode.insertBefore(input, spanEl);
+    input.focus();
+    input.select();
+  }
+
+  async function saveKey(cat, key, rawValue, spanEl) {
+    let parsed;
+    try {
+      parsed = JSON.parse(rawValue);
+    } catch {
+      showToast('Invalid JSON value', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin-config/${encodeURIComponent(cat)}/${encodeURIComponent(key)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: parsed }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      spanEl.textContent = JSON.stringify(parsed);
+      spanEl.style.display = '';
+      configData[cat][key] = parsed;
+      showToast('Saved: ' + key, 'success');
+    } catch (e) {
+      showToast('Save failed: ' + e.message, 'error');
+      spanEl.style.display = '';
+    }
+  }
+
+  async function resetKey(cat, key) {
+    if (!confirm(`Reset "${key}" to compiled default?`)) return;
+    try {
+      const res = await fetch(`/api/admin-config/${encodeURIComponent(cat)}/${encodeURIComponent(key)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      delete configData[cat][key];
+      showToast('Reset: ' + key, 'success');
+      renderConfig(document.getElementById('search').value);
+    } catch (e) {
+      showToast('Reset failed: ' + e.message, 'error');
+    }
+  }
+
+  function filterRows(text) {
+    renderConfig(text);
+  }
+
+  function toggleGroup(id) {
+    const body = document.getElementById(id + '-body');
+    const arrow = document.getElementById(id + '-arrow');
+    if (!body) return;
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? '' : 'none';
+    if (arrow) arrow.innerHTML = isHidden ? '&#9660;' : '&#9658;';
+  }
+
+  function expandAll() {
+    document.querySelectorAll('.group-body').forEach(el => { el.style.display = ''; });
+    document.querySelectorAll('[id$="-arrow"]').forEach(el => { el.innerHTML = '&#9660;'; });
+  }
+
+  function collapseAll() {
+    document.querySelectorAll('.group-body').forEach(el => { el.style.display = 'none'; });
+    document.querySelectorAll('[id$="-arrow"]').forEach(el => { el.innerHTML = '&#9658;'; });
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function escAttr(str) {
+    return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  }
+
+  let toastTimer;
+  function showToast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + (type || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2500);
+  }
+
+  function logout() {
+    document.cookie = 'admin_token=; Max-Age=0; Path=/';
+    window.location.href = '/admin/login';
+  }
+
+  loadConfig();
+</script>
+</body>
+</html>
