@@ -752,6 +752,19 @@
           Ask me anything about your system!
         </div>
       </div>
+      <div style="padding:8px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap;">Model:</span>
+        <select id="ai-chat-model" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:4px 8px;color:#fff;font-size:12px;outline:none;cursor:pointer;flex:1;max-width:280px;">
+          <option value="">Auto (OmniRoute)</option>
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash (Direct)</option>
+          <option value="gemini-1.5-pro">Gemini 1.5 Pro (Direct)</option>
+          <option value="gpt-4o">GPT-4o</option>
+          <option value="gpt-4o-mini">GPT-4o Mini</option>
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+          <option value="deepseek-chat">DeepSeek Chat</option>
+          <option value="qwen-plus">Qwen Plus</option>
+        </select>
+      </div>
       <div style="display:flex;gap:10px;padding:14px 16px;border-top:1px solid var(--border);background:rgba(0,0,0,0.2);">
         <textarea id="ai-chat-input" placeholder="Ask about system config, pricing, providers..." style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;font-family:inherit;outline:none;resize:none;min-height:42px;max-height:100px;" rows="1" maxlength="2000"></textarea>
         <button id="ai-chat-send" onclick="sendAdminChat()" class="btn btn-primary" style="padding:10px 20px;white-space:nowrap;">Send</button>
@@ -2153,13 +2166,20 @@ async function sendAdminChat() {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 
   try {
-    const data = await api('/api/admin/ai-chat', { method: 'POST', body: { message: msg } });
+    const model = document.getElementById('ai-chat-model')?.value || '';
+    const data = await api('/api/admin/ai-chat', { method: 'POST', body: { message: msg, model: model || undefined } });
     typing.remove();
     if (data && data.reply) {
       const botDiv = document.createElement('div');
       botDiv.className = 'ai-msg bot';
       botDiv.style.cssText = 'align-self:flex-start;max-width:80%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);padding:12px 16px;border-radius:14px;border-bottom-left-radius:4px;font-size:13px;line-height:1.6;white-space:pre-wrap;';
       botDiv.textContent = data.reply;
+      if (data.model) {
+        const modelTag = document.createElement('div');
+        modelTag.style.cssText = 'font-size:10px;color:var(--muted);margin-top:6px;opacity:0.6;';
+        modelTag.textContent = '— ' + data.model;
+        botDiv.appendChild(modelTag);
+      }
       messagesEl.appendChild(botDiv);
     } else {
       addAdminChatError(messagesEl, 'Failed to get response. Please try again.');

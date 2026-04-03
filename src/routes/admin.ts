@@ -106,7 +106,7 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (authHeader?.startsWith("Basic ")) {
     const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
     const [, password] = decoded.split(":");
-    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) return;
+    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) return true;
   }
 
   const cookie = (request.headers.cookie || "")
@@ -115,13 +115,14 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
   if (cookie) {
     const token = cookie.split("=")[1]?.trim();
     if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD)))
-      return;
+      return true;
   }
 
   reply
     .status(401)
     .header("WWW-Authenticate", 'Basic realm="Admin"')
     .send({ error: "Unauthorized" });
+  return false;
 }
 
 function getQueueByName(name: string) {
@@ -1731,7 +1732,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       adminChatRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
     }
 
-    const { message } = request.body as { message?: string };
+    const { message, model: requestedModel } = request.body as { message?: string; model?: string };
     if (
       !message ||
       typeof message !== "string" ||
@@ -1790,43 +1791,57 @@ You are an expert system administrator and architect for this platform. Give spe
       systemContext = "System context unavailable.";
     }
 
-    const omni = getOmniRouteService();
-    const sessionId = `admin_chat_${ip}`;
-
-    // Only inject system context on the first message of the session
-    const isFirstMessage = !(omni as any).conversationHistory?.has(sessionId);
-    const fullMessage = isFirstMessage
+    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+    const isDirectGemini = requestedModel && geminiModels.some(m => requestedModel.startsWith(m.split('-').slice(0,2).join('-')));
+    const fullMessage = systemContext
       ? systemContext + "\n\nADMIN QUESTION: " + message.trim()
       : message.trim();
-    const result = await omni.chat(sessionId, fullMessage);
+
+    // Direct Gemini call if user selected a Gemini model
+    if (isDirectGemini) {
+      try {
+        const geminiKey = getConfig().GEMINI_API_KEY;
+        if (!geminiKey) return reply.status(500).send({ error: "GEMINI_API_KEY not configured" });
+        const geminiModel = requestedModel || 'gemini-2.0-flash';
+        const geminiRes = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiKey}`,
+          { contents: [{ role: 'user', parts: [{ text: fullMessage }] }],
+            systemInstruction: { parts: [{ text: 'You are an expert system administrator for a Telegram bot SaaS platform.' }] },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } },
+          { timeout: 30000 }
+        );
+        const content = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!content) return reply.status(500).send({ error: "Gemini returned empty response" });
+        return { reply: content, model: geminiModel };
+      } catch (err: any) {
+        return reply.status(500).send({ error: `Gemini error: ${err.message}` });
+      }
+    }
+
+    const omni = getOmniRouteService();
+    const sessionId = `admin_chat_${ip}`;
+    const isFirstMessage = !(omni as any).conversationHistory?.has(sessionId);
+    const msgToSend = isFirstMessage ? fullMessage : message.trim();
+    const result = await omni.chat(sessionId, msgToSend, requestedModel || undefined);
 
     if (!result.success) {
-      // Fallback to Gemini direct API
+      // Auto-fallback to Gemini 2.0 Flash
       try {
         const geminiKey = getConfig().GEMINI_API_KEY;
         if (!geminiKey) throw new Error('No Gemini key');
         const geminiRes = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-          {
-            contents: [{
-              role: 'user',
-              parts: [{ text: fullMessage }]
-            }],
-            systemInstruction: {
-              parts: [{ text: 'You are an expert system administrator and architect for a Telegram bot SaaS platform. Give specific, actionable answers.' }]
-            },
-            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
-          },
+          { contents: [{ role: 'user', parts: [{ text: msgToSend }] }],
+            systemInstruction: { parts: [{ text: 'You are an expert system administrator for a Telegram bot SaaS platform.' }] },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 } },
           { timeout: 30000 }
         );
         const geminiContent = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        if (geminiContent) {
-          return { reply: geminiContent, model: 'gemini-2.0-flash (fallback)' };
-        }
+        if (geminiContent) return { reply: geminiContent, model: 'gemini-2.0-flash (fallback)' };
       } catch (fallbackErr: any) {
         logger.warn('Gemini fallback also failed:', fallbackErr.message);
       }
-      return reply.status(500).send({ error: "AI is temporarily unavailable. Please check OMNIROUTE_API_KEY or GEMINI_API_KEY configuration." });
+      return reply.status(500).send({ error: "AI is temporarily unavailable. Check OMNIROUTE_API_KEY or GEMINI_API_KEY." });
     }
 
     return { reply: result.content, model: result.model };
