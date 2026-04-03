@@ -18,7 +18,7 @@ import { BotContext } from '@/types';
 import { logger } from '@/utils/logger';
 import { UserService } from '@/services/user.service';
 import { UNIT_COSTS, creditsToUnits } from '@/config/pricing';
-import { detectIndustry, generateVideoScenePrompts, HPAS_SCENES, DURATION_PRESETS, buildCustomPresetConfig } from '@/config/hpas-engine';
+import { detectIndustry, generateVideoScenePrompts, generateScenePromptsWithAI, HPAS_SCENES, DURATION_PRESETS, buildCustomPresetConfig } from '@/config/hpas-engine';
 import { CampaignService } from '@/services/campaign.service';
 import { ContentAnalysisService } from '@/services/content-analysis.service';
 import { ImageGenerationService } from '@/services/image.service';
@@ -313,7 +313,12 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       await ctx.reply(t('gen.generating_trial', lang), { parse_mode: 'Markdown' });
 
       // Generate a 15s video, then cache it as template
-      const trialScenes = generateVideoScenePrompts(industry, productDesc || userNiche, 'quick', (lang === 'en' ? 'en' : 'id'));
+      let trialScenes;
+      try {
+        trialScenes = await generateScenePromptsWithAI(productDesc || userNiche, 'quick', lang === 'en' ? 'en' : 'id');
+      } catch {
+        trialScenes = generateVideoScenePrompts(industry, productDesc || userNiche, 'quick', (lang === 'en' ? 'en' : 'id'));
+      }
       const trialStoryboard = trialScenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }));
 
       try {
@@ -368,7 +373,12 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
 
     // Image Set → Video Pipeline (generate 7 scene images, then queue video)
     if (action === 'image_set') {
-      const scenes = generateVideoScenePrompts(industry, productDesc, 'standard', (lang === 'en' ? 'en' : 'id'));
+      let scenes;
+      try {
+        scenes = await generateScenePromptsWithAI(productDesc, 'standard', lang === 'en' ? 'en' : 'id');
+      } catch {
+        scenes = generateVideoScenePrompts(industry, productDesc, 'standard', (lang === 'en' ? 'en' : 'id'));
+      }
       const creditCost = cost / 10;
 
       // ── Phase A: Silent image generation with 3x retry per scene ──
@@ -488,9 +498,16 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
     if (action === 'video') {
       // Use manual storyboard if Pro mode provided it, otherwise auto-generate
       const useManualStoryboard = session.generateStoryboardMode === 'manual' && session.generateManualStoryboard?.length;
-      const scenes = useManualStoryboard
-        ? session.generateManualStoryboard!
-        : generateVideoScenePrompts(industry, productDesc, preset, (lang === 'en' ? 'en' : 'id'));
+      let scenes;
+      if (useManualStoryboard) {
+        scenes = session.generateManualStoryboard!;
+      } else {
+        try {
+          scenes = await generateScenePromptsWithAI(productDesc, preset, lang === 'en' ? 'en' : 'id');
+        } catch {
+          scenes = generateVideoScenePrompts(industry, productDesc, preset, (lang === 'en' ? 'en' : 'id'));
+        }
+      }
       const creditCost = cost / 10;
 
       const { VideoService: VS } = await import('../services/video.service.js');
@@ -558,7 +575,12 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
       }
 
       const combinedPrompt = `${productDesc}${styleHint}`;
-      const scenes = generateVideoScenePrompts(industry, combinedPrompt, 'standard', (lang === 'en' ? 'en' : 'id'));
+      let scenes;
+      try {
+        scenes = await generateScenePromptsWithAI(combinedPrompt, 'standard', lang === 'en' ? 'en' : 'id');
+      } catch {
+        scenes = generateVideoScenePrompts(industry, combinedPrompt, 'standard', (lang === 'en' ? 'en' : 'id'));
+      }
 
       const { VideoService: VS2 } = await import('../services/video.service.js');
       const video2 = await VS2.createJob({
@@ -1279,7 +1301,12 @@ export async function showProSceneReview(
   try {
     const lang = ctx.session?.userLang || 'id';
     const industry = detectIndustry(productDescription);
-    const scenes = generateVideoScenePrompts(industry, productDescription, 'standard', (lang === 'en' ? 'en' : 'id'));
+    let scenes;
+    try {
+      scenes = await generateScenePromptsWithAI(productDescription, 'standard', lang === 'en' ? 'en' : 'id');
+    } catch {
+      scenes = generateVideoScenePrompts(industry, productDescription, 'standard', (lang === 'en' ? 'en' : 'id'));
+    }
 
     if (ctx.session) {
       ctx.session.generateScenes = scenes;

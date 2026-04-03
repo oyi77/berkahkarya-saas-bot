@@ -16,6 +16,27 @@ import {
 } from "@/commands/prompts";
 
 export async function handleGenerationCallbacks(ctx: BotContext, data: string): Promise<boolean> {
+  // make_video_from_image: start video flow pre-populated with last generated image context
+  if (data === "make_video_from_image") {
+    await ctx.answerCbQuery?.();
+    const lastDesc = ctx.session?.generateProductDesc;
+    const lastImageUrl = ctx.session?.generateLastImageUrl;
+
+    if (lastDesc) {
+      if (ctx.session) {
+        ctx.session.generateAction = 'video';
+        if (lastImageUrl) ctx.session.generatePhotoUrl = lastImageUrl;
+      }
+      const { showGenerateMode } = await import("../../flows/generate.js");
+      await showGenerateMode(ctx);
+    } else {
+      // No context available — fall back to fresh start
+      const { showGenerateMode } = await import("../../flows/generate.js");
+      await showGenerateMode(ctx);
+    }
+    return true;
+  }
+
   // V3 Flow: generate_start / create_video_new
   if (data === "generate_start" || data === "create_video_new") {
     const { showGenerateMode } = await import("../../flows/generate.js");

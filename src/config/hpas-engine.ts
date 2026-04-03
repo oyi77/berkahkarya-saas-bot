@@ -1,10 +1,13 @@
 /**
  * HPAS Engine Configuration
  * Hook → Problem → Agitate → Solution (+ Discovery, Interaction, CTA)
- * 
+ *
  * 7-scene framework for high-converting video ads
  * Used by OpenClaw SaaS v3.0
  */
+
+import { getConfig } from '@/config/env';
+import axios from 'axios';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -514,6 +517,52 @@ export function detectIndustry(productDescription: string): IndustryId {
   return 'general';
 }
 
+/**
+ * AI-powered storyboard generator using Gemini.
+ * Falls back to static template generation if Gemini is unavailable.
+ */
+export async function generateScenePromptsWithAI(
+  productDescription: string,
+  preset: DurationPreset = 'standard',
+  language: 'en' | 'id' = 'id'
+): Promise<Array<{ sceneId: SceneId; scene: SceneConfig; prompt: string; durationSeconds: number }>> {
+  const presetConfig = DURATION_PRESETS[preset];
+  const scenes = presetConfig.scenesIncluded;
+  const apiKey = getConfig().GEMINI_API_KEY;
+  if (!apiKey) throw new Error('No Gemini API key for AI storyboard');
+
+  const sceneDescriptions = scenes.map(id => `${id}: ${HPAS_SCENES[id].description}`).join('\n');
+
+  const prompt = language === 'id'
+    ? `Kamu adalah sutradara iklan video viral. Buat storyboard untuk video iklan produk berikut:\n\nPRODUK: ${productDescription}\n\nBuat prompt visual yang spesifik dan menarik untuk setiap scene berikut:\n${sceneDescriptions}\n\nFormat output (JSON array, satu objek per scene):\n[{"sceneId":"hook","prompt":"<visual prompt dalam bahasa Indonesia>"},...]`
+    : `You are a viral video ad director. Create a storyboard for this product:\n\nPRODUCT: ${productDescription}\n\nCreate specific, compelling visual prompts for each scene:\n${sceneDescriptions}\n\nOutput format (JSON array):\n[{"sceneId":"hook","prompt":"<visual prompt>"},...]`;
+
+  const response = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.9, maxOutputTokens: 1500 },
+    },
+    { timeout: 30000 }
+  );
+
+  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error('Gemini storyboard: no JSON in response');
+
+  const aiScenes: Array<{ sceneId: SceneId; prompt: string }> = JSON.parse(jsonMatch[0]);
+
+  return scenes.map(sceneId => {
+    const aiScene = aiScenes.find(s => s.sceneId === sceneId);
+    return {
+      sceneId,
+      scene: HPAS_SCENES[sceneId],
+      prompt: aiScene?.prompt || buildScenePrompt(sceneId, detectIndustry(productDescription), productDescription, language),
+      durationSeconds: presetConfig.sceneDurations[sceneId] || 4,
+    };
+  });
+}
+
 // ── Exports Summary ───────────────────────────────────────────────────────────
 
 export default {
@@ -527,6 +576,7 @@ export default {
     getScenePrompt,
     buildScenePrompt,
     generateVideoScenePrompts,
+    generateScenePromptsWithAI,
     detectIndustry,
   },
 };

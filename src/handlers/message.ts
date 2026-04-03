@@ -805,6 +805,11 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
               photoSource = result.imageUrl!;
             }
 
+            // Store result for "make video from this image" flow
+            if (ctx.session) {
+              ctx.session.generateLastImageUrl = isBase64 ? undefined : result.imageUrl;
+            }
+
             await telegram.sendPhoto(chatId, photoSource as any, {
               caption,
               parse_mode: "Markdown",
@@ -815,7 +820,7 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
                     : [[{ text: "⬇️ Download", url: result.imageUrl! }]]),
                   [
                     { text: t('msg.btn_make_variation', imgLang2), callback_data: "image_generate" },
-                    { text: t('msg.btn_make_video', imgLang2), callback_data: "create_video_new" },
+                    { text: t('msg.btn_make_video', imgLang2), callback_data: "make_video_from_image" },
                   ],
                   [{ text: t('btn.main_menu', imgLang2), callback_data: "main_menu" }],
                 ],
