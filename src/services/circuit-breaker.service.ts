@@ -5,9 +5,9 @@
  * States: closed (normal) -> open (failing) -> half-open (testing recovery)
  */
 
-import { redis } from "@/config/redis.js";
-import { logger } from "@/utils/logger.js";
-import { PROVIDER_CONFIG } from "@/config/providers.js";
+import { redis } from "@/config/redis";
+import { logger } from "@/utils/logger";
+import { PROVIDER_CONFIG } from "@/config/providers";
 
 const CB_PREFIX = "cb:";
 

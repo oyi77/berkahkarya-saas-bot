@@ -1262,11 +1262,13 @@ async function submitBan() {
 
 // ===================== TRANSACTIONS =====================
 let currentTxFilter = '';
+let txOffset = 0;
 
 function setTxFilter(el, filter) {
   document.querySelectorAll('[data-tx-filter]').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   currentTxFilter = filter;
+  txOffset = 0;
   loadTransactions();
 }
 
@@ -1274,11 +1276,14 @@ async function loadTransactions() {
   const wrap = document.getElementById('tx-table-wrap');
   wrap.innerHTML = '<div class="loading">Loading...</div>';
   try {
-    const params = new URLSearchParams({ limit: '50' });
+    const params = new URLSearchParams({ limit: '50', offset: String(txOffset) });
     if (currentTxFilter) params.set('status', currentTxFilter);
-    const txs = await api('/api/transactions?' + params);
-    if (!txs) return;
+    const resp = await api('/api/transactions?' + params);
+    if (!resp) return;
+    const { transactions: txs, total, offset: currentOffset, limit } = resp;
     if (!txs.length) { wrap.innerHTML = '<div class="empty-state">No transactions found</div>'; return; }
+    const currentPage = Math.floor(currentOffset / limit) + 1;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
     wrap.innerHTML = `<table>
       <thead><tr><th>ID</th><th>User</th><th>Amount</th><th>Credits</th><th>Status</th><th>Gateway</th><th>Date</th></tr></thead>
       <tbody>${txs.map(t => `<tr>
@@ -1290,9 +1295,17 @@ async function loadTransactions() {
         <td style="font-size:12px;color:var(--muted);">${esc(t.gateway||'—')}</td>
         <td style="font-size:12px;color:var(--muted);">${dt(t.createdAt)}</td>
       </tr>`).join('')}</tbody>
-    </table>`;
+    </table>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px;justify-content:flex-end;">
+      <button class="btn btn-ghost btn-sm" onclick="txPrev()" ${txOffset === 0 ? 'disabled' : ''}>← Prev</button>
+      <span style="font-size:13px;color:var(--muted);">Page ${currentPage} of ${totalPages}</span>
+      <button class="btn btn-ghost btn-sm" onclick="txNext()" ${currentOffset + limit >= total ? 'disabled' : ''}>Next →</button>
+    </div>`;
   } catch(e) { toast('Failed: ' + e.message, 'error'); }
 }
+
+function txPrev() { txOffset = Math.max(0, txOffset - 50); loadTransactions(); }
+function txNext() { txOffset += 50; loadTransactions(); }
 
 // ===================== VIDEOS =====================
 let currentVidFilter = '';

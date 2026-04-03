@@ -220,6 +220,11 @@
       <div style="margin-top:12px">
         <div class="nav-item" onclick="logout()" style="padding:8px 0;font-size:13px;color:var(--danger)">🚪 Logout</div>
       </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--dim);line-height:1.8">
+        <a href="/faq" style="color:var(--dim);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--dim)'">FAQ</a> ·
+        <a href="/terms" style="color:var(--dim);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--dim)'">Terms</a> ·
+        <a href="/privacy" style="color:var(--dim);text-decoration:none" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--dim)'">Privacy</a>
+      </div>
     </div>
   </aside>
 
@@ -262,6 +267,7 @@
     <!-- MY VIDEOS -->
     <div id="view-videos" class="view">
       <div id="videos-container" class="video-grid"></div>
+      <button id="load-more-videos-btn" class="btn btn-outline" style="display:none;margin-top:16px;width:100%" onclick="loadVideos(videosCursor)">Load More</button>
     </div>
 
     <!-- BILLING -->
@@ -345,7 +351,26 @@
         <div style="font-size:48px;margin-bottom:16px">👤</div>
         <h2 style="margin-bottom:8px">Profil Saya</h2>
         <div id="profile-info" style="text-align:left;max-width:400px;margin:24px auto"></div>
-        <button class="btn btn-outline" onclick="toast('Fitur edit profil segera hadir!', 'info')">✏️ Edit Profil</button>
+        <button class="btn btn-outline" onclick="toggleEditProfile()" id="edit-profile-btn">✏️ Edit Profil</button>
+        <div id="edit-profile-form" style="display:none;margin-top:20px;text-align:left">
+          <div class="form-group">
+            <label class="form-label">Nama Tampilan</label>
+            <input type="text" id="edit-firstName" maxlength="64" placeholder="Nama Anda">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bahasa</label>
+            <select id="edit-lang">
+              <option value="id">🇮🇩 Indonesia</option>
+              <option value="en">🇺🇸 English</option>
+              <option value="ru">🇷🇺 Русский</option>
+              <option value="zh">🇨🇳 中文</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="saveProfile()" style="flex:1">Simpan</button>
+            <button class="btn btn-outline" onclick="toggleEditProfile()" style="flex:1">Batal</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -369,7 +394,7 @@
             <option value="0">Nonaktif</option>
           </select>
         </div>
-        <button class="btn btn-primary btn-full" onclick="toast('Pengaturan berhasil disimpan!', 'ok')" style="margin-bottom:12px">Simpan Pengaturan</button>
+        <button class="btn btn-primary btn-full" onclick="saveSettings()" style="margin-bottom:12px">Simpan Pengaturan</button>
         <button class="btn btn-danger btn-full" onclick="deleteAccount()" style="margin-top:24px">Hapus Akun</button>
       </div>
     </div>
@@ -535,7 +560,7 @@ function nav(page) {
 
 // ── DASHBOARD ─────────────────────────────────────────────
 async function loadDashboard() {
-  const videos = await apiFetch('/api/user/videos');
+  const { videos } = await apiFetch('/api/user/videos?limit=4');
   if (!videos) return;
   document.getElementById('stat-videos').textContent = videos.length;
   const recent = videos.slice(0, 4);
@@ -564,7 +589,6 @@ function videoCard(v) {
   } else if (videoSrc) {
     thumbHtml = `<video src="${videoSrc}" controls autoplay muted loop preload="auto"${posterSrc} playsinline style="width:100%; height:100%; object-fit:cover; border-radius:12px;"></video>`;
   } else if (dl && !videoSrc) {
-    // If we only have a download link, show a poster or generic 
     thumbHtml = v.thumbnailUrl ? `<img src="${esc(v.thumbnailUrl)}" style="width:100%; height:100%; object-fit:cover; border-radius:12px;">` : '<span>🔗</span>';
   }
 
@@ -763,7 +787,7 @@ function startPolling() {
   pollInterval = setInterval(async () => {
     attempts++;
     try {
-      const videos = await apiFetch('/api/user/videos');
+      const { videos } = await apiFetch('/api/user/videos');
       if (!videos) { clearInterval(pollInterval); pollInterval = null; return; }
       loadVideosList(videos);
       const processing = videos.filter(v => v.status === 'processing' || v.status === 'pending');
@@ -785,12 +809,26 @@ function startPolling() {
 // Cleanup polling when page unloads
 window.addEventListener('beforeunload', () => { if (pollInterval) clearInterval(pollInterval); });
 
-async function loadVideos() {
+let videosCursor = null;
+
+async function loadVideos(cursor) {
   const container = document.getElementById('videos-container');
-  container.innerHTML = '<div style="padding:20px;color:var(--dim);font-size:14px"><div class="spinner" style="display:inline-block"></div> Memuat video...</div>';
-  const videos = await apiFetch('/api/user/videos');
-  if (!videos) return;
-  loadVideosList(videos);
+  if (!cursor) {
+    videosCursor = null;
+    container.innerHTML = '<div style="padding:20px;color:var(--dim);font-size:14px"><div class="spinner" style="display:inline-block"></div> Memuat video...</div>';
+  }
+  const url = '/api/user/videos?limit=20' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '');
+  const res = await apiFetch(url);
+  if (!res) return;
+  const { videos, nextCursor } = res;
+  if (!cursor) {
+    loadVideosList(videos);
+  } else {
+    container.insertAdjacentHTML('beforeend', videos.map(v => videoCard(v)).join(''));
+  }
+  videosCursor = nextCursor;
+  const loadMoreBtn = document.getElementById('load-more-videos-btn');
+  if (loadMoreBtn) loadMoreBtn.style.display = nextCursor ? '' : 'none';
   if (videos.some(v => v.status === 'processing' || v.status === 'pending')) startPolling();
 }
 
@@ -934,7 +972,7 @@ async function loadSubscription() {
 }
 
 async function buySubscription(plan) {
-  const result = await apiFetch('/api/subscription/buy', 'POST', { plan, cycle: 'monthly' });
+  const result = await apiFetch('/api/subscription/buy', { method: 'POST', body: JSON.stringify({ plan, cycle: 'monthly' }) });
   if (result?.paymentUrl) window.open(result.paymentUrl, '_blank');
 }
 
@@ -999,7 +1037,7 @@ async function generateImage() {
   btn.innerHTML = '<div class="spinner"></div> Generating...';
   document.getElementById('image-result').innerHTML = '';
   try {
-    const result = await apiFetch('/api/image/generate', 'POST', { prompt });
+    const result = await apiFetch('/api/image/generate', { method: 'POST', body: JSON.stringify({ prompt }) });
     if (result?.imageUrl) {
       document.getElementById('image-result').innerHTML = `<img src="${esc(result.imageUrl)}" style="max-width:100%;border-radius:12px;margin-top:16px;box-shadow: 0 10px 30px rgba(0,217,255,0.2);">`;
       toast('Gambar berhasil dibuat!', 'ok');
@@ -1015,14 +1053,40 @@ async function generateImage() {
 }
 
 // ── SETTINGS ─────────────────────────────────────────────
-function changeLang(lang) {
+async function saveSettings() {
+  const lang = document.getElementById('settings-lang').value;
+  const notif = document.getElementById('settings-notif').value === '1';
+  try {
+    const res = await apiFetch('/api/user/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ language: lang, notificationsEnabled: notif })
+    });
+    if (res?.ok) {
+      toast('Pengaturan berhasil disimpan!', 'ok');
+      localStorage.setItem('lang', lang);
+    } else {
+      toast(res?.error || 'Gagal menyimpan pengaturan', 'err');
+    }
+  } catch(e) {
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
+async function changeLang(lang) {
   localStorage.setItem('lang', lang);
-  location.reload();
+  try {
+    await apiFetch('/api/user/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ language: lang })
+    });
+  } catch (e) {
+    console.error('Failed to save language to server:', e);
+  }
 }
 
 async function deleteAccount() {
   if (!confirm('Yakin ingin menghapus akun? Tindakan ini tidak dapat dibatalkan.')) return;
-  const result = await apiFetch('/api/user', 'DELETE');
+  const result = await apiFetch('/api/user', { method: 'DELETE' });
   if (result?.message) {
     alert(result.message);
     localStorage.removeItem('token');
@@ -1070,6 +1134,41 @@ async function sendCredits() {
   } finally {
     btn.disabled = false;
     btn.innerHTML = oldText;
+  }
+}
+
+function toggleEditProfile() {
+  const form = document.getElementById('edit-profile-form');
+  const btn = document.getElementById('edit-profile-btn');
+  const visible = form.style.display !== 'none';
+  form.style.display = visible ? 'none' : 'block';
+  btn.textContent = visible ? '✏️ Edit Profil' : '✖ Tutup';
+  if (!visible && currentUser) {
+    document.getElementById('edit-firstName').value = currentUser.firstName || '';
+    document.getElementById('edit-lang').value = currentUser.language || 'id';
+  }
+}
+
+async function saveProfile() {
+  const firstName = document.getElementById('edit-firstName').value.trim();
+  const lang = document.getElementById('edit-lang').value;
+  if (!firstName) { toast('Nama tidak boleh kosong', 'warn'); return; }
+  try {
+    const res = await apiFetch('/api/user/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ firstName, language: lang })
+    });
+    if (res?.ok) {
+      toast('Profil berhasil disimpan!', 'ok');
+      currentUser = { ...currentUser, firstName, language: lang };
+      localStorage.setItem('lang', lang);
+      toggleEditProfile();
+      loadProfile();
+    } else {
+      toast(res?.error || 'Gagal menyimpan profil', 'err');
+    }
+  } catch (e) {
+    toast('Error: ' + e.message, 'err');
   }
 }
 

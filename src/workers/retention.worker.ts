@@ -111,6 +111,7 @@ export class RetentionScheduler {
       this.checkType4ActiveNoAffiliate(bot),
       this.checkType5Churned(bot),
       this.checkType6SubscriptionExpiring(bot),
+      this.checkType7VideoExpiry(bot),
     ]);
   }
 
@@ -313,6 +314,47 @@ export class RetentionScheduler {
           await this.sendMessage(bot, user.telegramId, MESSAGES[trigger.msgKey](user.firstName), user.language || 'id');
           await this.logSent(user.id, 'churn');
         }
+      }
+    }
+  }
+
+  /**
+   * Type 7: Videos expiring in next 3 days
+   */
+  static async checkType7VideoExpiry(bot: { telegram: Telegram }): Promise<void> {
+    const now = new Date();
+    const threeDaysLater = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const expiringVideos = await prisma.video.findMany({
+      where: {
+        status: 'completed',
+        expiresAt: { gt: now, lte: threeDaysLater },
+      },
+      select: {
+        userId: true,
+        user: { select: { id: true, telegramId: true, notificationsEnabled: true, language: true } },
+      },
+    });
+
+    const byUser = new Map<string, { user: typeof expiringVideos[0]['user']; count: number }>();
+    for (const video of expiringVideos) {
+      if (!video.user) continue;
+      const key = video.userId.toString();
+      const entry = byUser.get(key);
+      if (entry) {
+        entry.count++;
+      } else {
+        byUser.set(key, { user: video.user, count: 1 });
+      }
+    }
+
+    for (const { user, count } of byUser.values()) {
+      if (!user?.notificationsEnabled) continue;
+      if (await this.canSend(user.id, 'video_expiry')) {
+        const lang = user.language || 'id';
+        const msg = t('retention.video_expiry_warning', lang, { count: String(count) });
+        await this.sendMessage(bot, user.telegramId, msg, lang);
+        await this.logSent(user.id, 'video_expiry');
       }
     }
   }

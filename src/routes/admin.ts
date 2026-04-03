@@ -31,6 +31,9 @@ import { UserService } from "@/services/user.service";
 import { t } from "@/i18n/translations";
 import { getConfig, getConfigForAdmin } from "@/config/env";
 import { logger } from "@/utils/logger";
+import { ImageGenerationService } from "@/services/image.service";
+import { generateVideoWithFallback } from "@/services/video-fallback.service";
+import { CircuitBreaker } from "@/services/circuit-breaker.service";
 
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
@@ -406,7 +409,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     const params = request.params as { id: string };
     const body = request.body as { amount: number; reason: string };
 
-    if (!body.amount || body.amount <= 0) {
+    if (!body.amount || typeof body.amount !== 'number' || body.amount <= 0) {
       return reply.status(400).send({ error: "Invalid amount" });
     }
 
@@ -421,7 +424,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       await prisma.transaction
         .create({
           data: {
-            userId: user.id,
+            userId: user.telegramId,
             orderId: `ADMIN-GRANT-${Date.now()}`,
             type: "admin_grant",
             gateway: "admin",
@@ -471,29 +474,36 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // API: List transactions
   server.get("/api/transactions", async (request, _reply) => {
-    const query = request.query as { status?: string; limit?: string };
+    const query = request.query as {
+      status?: string;
+      limit?: string;
+      offset?: string;
+    };
     const limit = Math.min(
       Math.max(1, parseInt(query.limit || "50") || 50),
       200,
     );
+    const offset = Math.max(0, parseInt(query.offset || "0") || 0);
 
     const where: any = {};
     if (query.status) {
       where.status = query.status;
     }
 
-    const transactions = await prisma.transaction.findMany({
-      where,
-      take: limit,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: {
-          select: { telegramId: true, username: true, firstName: true },
+    const [transactions, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip: offset,
+        include: {
+          user: { select: { username: true, firstName: true } },
         },
-      },
-    });
+      }),
+      prisma.transaction.count({ where }),
+    ]);
 
-    return transactions;
+    return { transactions, total, offset, limit };
   });
 
   // API: List active subscriptions
@@ -690,7 +700,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     const { prompt, provider, aspectRatio = "1:1" } = request.body as any;
     if (!prompt) return reply.status(400).send({ error: "Prompt required" });
 
-    const { ImageGenerationService } = await import("@/services/image.service");
+    // ImageGenerationService imported statically above
     const result = await ImageGenerationService.generateImage({
       prompt,
       category: "product",
@@ -712,8 +722,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     } = request.body as any;
     if (!prompt) return reply.status(400).send({ error: "Prompt required" });
 
-    const { generateVideoWithFallback } =
-      await import("@/services/video-fallback.service");
+    // generateVideoWithFallback imported statically above
     const result = await generateVideoWithFallback({
       prompt,
       duration,
@@ -1555,8 +1564,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   /** GET /api/admin/providers/all — Full provider list with health + overrides + env status */
   server.get("/api/admin/providers/all", async () => {
     const overrides = await ProviderSettingsService.getDynamicSettings();
-    const getConfigModule = await import("@/config/env");
-    const config = getConfigModule.getConfig();
+    const config = getConfig();
     const cbPrefix = "cb:";
 
     // Build video provider list
@@ -1693,8 +1701,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   /** POST /api/admin/providers/reset-all-cb — Reset all circuit breakers */
   server.post("/api/admin/providers/reset-all-cb", async () => {
-    const { CircuitBreaker } =
-      await import("@/services/circuit-breaker.service");
+    // CircuitBreaker imported statically above
     await CircuitBreaker.resetAll();
     return { success: true, message: "All circuit breakers reset" };
   });

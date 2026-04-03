@@ -505,15 +505,12 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         title: `Video ${new Date().toLocaleDateString('id-ID')}`,
       });
 
-      // Deduct after job is created (worker refunds on failure)
-      await UserService.deductCredits(telegramId, creditCost);
-
       const storyboard = useManualStoryboard
         ? scenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: s.description }))
         : scenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }));
 
       try {
-        const { position } = await enqueueVideoGeneration({
+        const { job: enqueuedJob, position } = await enqueueVideoGeneration({
           jobId: video.jobId,
           niche: industry,
           platform,
@@ -529,6 +526,12 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           voScript: session.generateManualTranscript || undefined,
           correlationId: getCorrelationId(),
         });
+        try {
+          await UserService.deductCredits(telegramId, creditCost);
+        } catch (deductErr) {
+          await enqueuedJob.remove().catch(() => {});
+          throw deductErr;
+        }
         await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
         generateVideoAsync(ctx, video.jobId, industry, platform, presetConfig.totalSeconds, scenes.map((s: any, i: number) => ({ scene: i + 1, duration: s.durationSeconds, description: useManualStoryboard ? s.description : s.prompt }))).catch(async (err) => {
@@ -1285,7 +1288,7 @@ export async function showProSceneReview(
     }
 
     const sceneList = scenes
-      .map((s, i) => `${i + 1}. *${HPAS_SCENES[s.sceneId].nameId}* (${s.durationSeconds}s)\n   ${s.prompt.slice(0, 60)}...`)
+      .map((s, i) => `${i + 1}. *${HPAS_SCENES[s.sceneId].nameId}* (${s.durationSeconds}s)\n   ${s.prompt.slice(0, 200)}${s.prompt.length > 200 ? '...' : ''}`)
       .join('\n\n');
 
     const text = t('gen.pro_scene_review', lang, { industry, scenes: sceneList });

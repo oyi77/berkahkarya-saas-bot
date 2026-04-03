@@ -29,25 +29,11 @@ export async function handleSettingsCallbacks(ctx: BotContext, data: string): Pr
     return true;
   }
 
-  if (data === "account_favorites") {
-    const lang = ctx.session?.userLang || 'id';
-    await ctx.answerCbQuery(t('misc.coming_soon', lang));
-    return true;
-  }
-
-  if (data === "account_preferences") {
-    const lang = ctx.session?.userLang || 'id';
-    await ctx.answerCbQuery(t('misc.coming_soon', lang));
-    return true;
-  }
-
   if (data === "account_settings") {
-    const lang = ctx.session?.userLang || 'id';
-    await ctx.answerCbQuery(t('cb.lang_notif_coming_soon', lang));
-    return true;
+    data = "open_settings";
+    // fall through to open_settings handler below
   }
 
-  // open_settings / settings
   if (data === "open_settings" || data === "settings") {
     await ctx.answerCbQuery();
     const userId = ctx.from?.id;

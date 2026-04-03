@@ -17,8 +17,8 @@
 
 import axios from "axios";
 import { createHash } from "crypto";
-import { logger } from "@/utils/logger.js";
-import { redis } from "@/config/redis.js";
+import { logger } from "@/utils/logger";
+import { redis } from "@/config/redis";
 import { trackTokens } from "@/services/token-tracker.service";
 import { getConfig } from "@/config/env";
 

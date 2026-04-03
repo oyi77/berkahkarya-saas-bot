@@ -10,8 +10,8 @@
  * propagate to callers, so metrics collection cannot degrade business logic.
  */
 
-import { redis } from '@/config/redis.js';
-import { logger } from '@/utils/logger.js';
+import { redis } from '@/config/redis';
+import { logger } from '@/utils/logger';
 
 const METRICS_PREFIX = 'metrics';
 const DAY_TTL_SECONDS = 7 * 24 * 60 * 60; // Retain metrics for 7 days

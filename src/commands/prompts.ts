@@ -1035,13 +1035,18 @@ export async function trendingCommand(ctx: BotContext): Promise<void> {
 
 export async function fingerprintCommand(ctx: BotContext): Promise<void> {
   const lang = ctx.session?.userLang || "id";
-  await ctx.reply(t("fingerprint.coming_soon", lang), {
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: t("btn.main_menu", lang), callback_data: "main_menu" }],
-      ],
+  await ctx.reply(
+    `${t("fingerprint.preview_title", lang)}\n\n${t("fingerprint.preview_desc", lang)}`,
+    {
+      parse_mode: "Markdown",
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: t("fingerprint.try_library", lang), callback_data: "prompts_menu" }],
+          [{ text: t("btn.main_menu", lang), callback_data: "main_menu" }],
+        ],
+      },
     },
-  });
+  );
 }
 
 // ─── Save prompt from library ─────────────────────────────────────────────────

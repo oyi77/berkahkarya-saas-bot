@@ -375,10 +375,10 @@ export async function handlePromptLibraryCallbacks(ctx: BotContext, data: string
     return true;
   }
 
-  // report_bug
   if (data === "report_bug") {
     await ctx.answerCbQuery();
     const lang = ctx.session?.userLang || 'id';
+    if (ctx.session) ctx.session.state = 'WAITING_BUG_REPORT' as any;
     await ctx.editMessageText(
       t('cb.report_bug', lang),
       {

@@ -92,10 +92,16 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       packages,
       currentLang,
       botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
+      siteUrl: getConfig().WEBHOOK_URL || 'https://saas.aitradepulse.com',
       fbPixelId: getConfig().FACEBOOK_PIXEL_ID || "",
       ga4Id: getConfig().GA4_TRACKING_ID || "",
       ttPixelId: getConfig().TIKTOK_PIXEL_ID || "",
     });
+  });
+
+  // ─── FAQ ─────────────────────────────────────────────────────────────────────
+  server.get("/faq", async (_request, reply) => {
+    return reply.view("web/faq.ejs", { botUsername: getConfig().BOT_TOKEN?.split(':')[0] || 'bot' });
   });
 
   // ─── Terms of Service ────────────────────────────────────────────────────────
@@ -378,6 +384,52 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
       logger.error("Account deletion error:", error);
       return reply.status(500).send({ error: "Deletion failed" });
     }
+  });
+
+  // ── USER SETTINGS ──
+  server.patch("/api/user/settings", async (request, reply) => {
+    const user = await getUser(request, reply);
+    if (!user) return;
+    const { language, notificationsEnabled, firstName } = request.body as {
+      language?: string;
+      notificationsEnabled?: boolean;
+      firstName?: string;
+    };
+    const validLangs = ["id", "en", "ru", "zh"];
+    const data: Record<string, unknown> = {};
+    if (language !== undefined) {
+      if (!validLangs.includes(language))
+        return reply.status(400).send({ error: "Invalid language" });
+      data.language = language;
+    }
+    if (firstName !== undefined) {
+      if (typeof firstName !== "string" || firstName.trim().length === 0 || firstName.length > 64)
+        return reply.status(400).send({ error: "Invalid name (1-64 chars)" });
+      data.firstName = firstName.trim();
+    }
+    if (notificationsEnabled !== undefined) {
+      data.notificationsEnabled = Boolean(notificationsEnabled);
+    }
+    if (Object.keys(data).length === 0)
+      return reply.status(400).send({ error: "No settings to update" });
+    await prisma.user.update({ where: { uuid: user.uuid }, data });
+    return { ok: true };
+  });
+
+  // ── PWA MANIFEST ──
+  server.get("/manifest.json", async (_request, reply) => {
+    return reply.type('application/json').send({
+      name: 'BerkahKarya',
+      short_name: 'BerkahKarya',
+      start_url: '/app',
+      display: 'standalone',
+      background_color: '#0a0a1a',
+      theme_color: '#00d9ff',
+      icons: [
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+    });
   });
 
   // ── STORYBOARD PREVIEW ──
@@ -886,12 +938,24 @@ td{padding:8px;border-bottom:1px solid #eee}.total{font-size:24px;font-weight:bo
     const user = await getUser(request, reply);
     if (!user) return;
     try {
-      const videos = await prisma.video.findMany({
+      const query = request.query as { limit?: string; cursor?: string };
+      const limit = Math.min(Math.max(1, parseInt(query.limit || '20') || 20), 50);
+      const cursor = query.cursor as string | undefined;
+
+      const videoRows = await prisma.video.findMany({
         where: { userId: user.telegramId },
-        orderBy: { createdAt: "desc" },
-        take: 30,
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+        ...(cursor ? { cursor: { jobId: cursor }, skip: 1 } : {}),
       });
-      return videos;
+
+      const hasMore = videoRows.length > limit;
+      if (hasMore) videoRows.pop();
+
+      return {
+        videos: videoRows,
+        nextCursor: hasMore ? videoRows[videoRows.length - 1]?.jobId ?? null : null,
+      };
     } catch {
       return reply.status(500).send({ error: "Failed to fetch videos" });
     }

@@ -127,7 +127,8 @@ export type BotState =
   | "AWAITING_TRANSCRIPT_INPUT"
   | "DELETE_ACCOUNT_CONFIRMATION"
   | "avatar_talk_photo"
-  | "avatar_talk_text";
+  | "avatar_talk_text"
+  | "WAITING_BUG_REPORT";
 
 // =============================================================================
 // USER TYPES

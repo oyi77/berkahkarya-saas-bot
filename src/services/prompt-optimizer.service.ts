@@ -7,7 +7,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
-import { logger } from '@/utils/logger.js';
+import { logger } from '@/utils/logger';
 import { PROVIDER_CONFIG } from '@/config/providers';
 import { STYLE_PRESETS } from '@/config/styles';
 import { NICHE_CONFIG } from '@/config/niches';

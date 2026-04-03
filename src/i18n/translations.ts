@@ -567,6 +567,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: "🔕 Отписаться",
     zh: "🔕 取消订阅",
   },
+  "retention.video_expiry_warning": {
+    id: "⚠️ {count} video kamu akan kedaluwarsa dalam 3 hari. Segera download!",
+    en: "⚠️ {count} of your videos expire in 3 days. Download them now!",
+    ru: "⚠️ {count} ваших видео истекают через 3 дня. Скачайте их сейчас!",
+    zh: "⚠️ 您有 {count} 个视频将在3天内到期，请立即下载！",
+  },
 
   // ---------------------------------------------------------------------------
   // Profile / referral headings
@@ -908,6 +914,18 @@ const translations: Record<string, Record<Lang, string>> = {
     en: "❌ *Campaign Failed*\n\nFailed to create video. Credits refunded.",
     ru: "❌ *Кампания не удалась*\n\nНе удалось создать видео. Кредиты возвращены.",
     zh: "❌ *活动失败*\n\n创建视频失败。积分已退还。",
+  },
+  "gen.campaign_done_single": {
+    id: "✅ *Campaign Selesai*\n\n{count}/{total} video berhasil diproses.",
+    en: "✅ *Campaign Done*\n\n{count}/{total} video(s) processed.",
+    ru: "✅ *Кампания завершена*\n\n{count}/{total} видео обработано.",
+    zh: "✅ *活动完成*\n\n{count}/{total} 个视频已处理。",
+  },
+  "gen.campaign_done_all": {
+    id: "✅ *Campaign Selesai!*\n\n{total} video berhasil diproses semua.",
+    en: "✅ *Campaign Complete!*\n\nAll {total} videos processed successfully.",
+    ru: "✅ *Кампания завершена!*\n\nВсе {total} видео успешно обработаны.",
+    zh: "✅ *活动全部完成！*\n\n所有 {total} 个视频均已成功处理。",
   },
 
   // Image preference
@@ -2907,10 +2925,17 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // ── Report Bug ──
   "cb.report_bug": {
-    id: "🐛 *Report Bug*\n\nTemukan bug? Silakan hubungi tim kami:\n\n💬 @codergaboets\n\nSertakan:\n• Deskripsi masalah\n• Langkah-langkah yang dilakukan\n• Screenshot (jika ada)",
-    en: "🐛 *Report Bug*\n\nFound a bug? Please contact our team:\n\n💬 @codergaboets\n\nInclude:\n• Problem description\n• Steps to reproduce\n• Screenshot (if any)",
-    ru: "🐛 *Сообщить об ошибке*\n\nНашли баг? Свяжитесь с нами:\n\n💬 @codergaboets\n\nУкажите:\n• Описание проблемы\n• Шаги воспроизведения\n• Скриншот (если есть)",
-    zh: "🐛 *报告Bug*\n\n发现问题？请联系我们的团队：\n\n💬 @codergaboets\n\n请包含：\n• 问题描述\n• 重现步骤\n• 截图（如有）",
+    id: "🐛 *Report Bug*\n\nSilakan ketik laporan bug kamu di bawah ini. Sertakan:\n• Deskripsi masalah\n• Langkah-langkah yang dilakukan\n\nKetik pesanmu sekarang:",
+    en: "🐛 *Report Bug*\n\nPlease type your bug report below. Include:\n• Problem description\n• Steps to reproduce\n\nType your message now:",
+    ru: "🐛 *Сообщить об ошибке*\n\nПожалуйста, опишите проблему ниже. Укажите:\n• Описание проблемы\n• Шаги воспроизведения\n\nНапишите сообщение:",
+    zh: "🐛 *报告Bug*\n\n请在下方输入错误报告，包含：\n• 问题描述\n• 重现步骤\n\n请输入您的消息：",
+  },
+
+  "cb.bug_report_thanks": {
+    id: "✅ Laporan bug kamu telah dikirim. Terima kasih!",
+    en: "✅ Your bug report has been submitted. Thank you!",
+    ru: "✅ Ваш отчёт об ошибке отправлен. Спасибо!",
+    zh: "✅ 您的错误报告已提交。感谢您！",
   },
 
   // ── Image Generation Menu ──
@@ -3730,6 +3755,27 @@ const translations: Record<string, Record<Lang, string>> = {
     en: "🐛 Report Bug",
     ru: "🐛 Сообщить об ошибке",
     zh: "🐛 报告错误",
+  },
+
+  "videos.found_count": {
+    id: "Ditemukan {count} video",
+    en: "Found {count} video(s)",
+    ru: "Найдено видео: {count}",
+    zh: "找到 {count} 个视频",
+  },
+
+  "btn.chat_support": {
+    id: "💬 Chat Support",
+    en: "💬 Chat Support",
+    ru: "💬 Чат поддержки",
+    zh: "💬 聊天支持",
+  },
+
+  "btn.view_tutorial": {
+    id: "📖 Tutorial",
+    en: "📖 Tutorial",
+    ru: "📖 Туториал",
+    zh: "📖 教程",
   },
 
   "support.full_msg": {
@@ -4716,6 +4762,36 @@ const translations: Record<string, Record<Lang, string>> = {
     en: "❌ Cancel",
     ru: "❌ Отмена",
     zh: "❌ 取消",
+  },
+  "delete_account.success": {
+    id: "✅ Akun Anda telah dihapus. Semua data pribadi telah dihapus.",
+    en: "✅ Your account has been deleted. All personal data has been removed.",
+    ru: "✅ Ваш аккаунт удалён. Все личные данные удалены.",
+    zh: "✅ 您的账户已删除。所有个人数据已被移除。",
+  },
+  "delete_account.cancelled": {
+    id: "Penghapusan akun dibatalkan.",
+    en: "Account deletion cancelled.",
+    ru: "Удаление аккаунта отменено.",
+    zh: "账户删除已取消。",
+  },
+  "fingerprint.preview_title": {
+    id: "🎨 Brand Fingerprint — Segera Hadir",
+    en: "🎨 Brand Fingerprint — Coming Soon",
+    ru: "🎨 Бренд Отпечаток — Скоро",
+    zh: "🎨 品牌指纹 — 即将推出",
+  },
+  "fingerprint.preview_desc": {
+    id: "Fitur *Brand Fingerprint* akan menganalisis gaya visual dan suara merek Anda secara otomatis, sehingga semua video Anda terasa konsisten.\n\n✨ Sementara itu, coba *Prompt Library* kami untuk menemukan prompt terbaik yang sudah dikurasi!",
+    en: "The *Brand Fingerprint* feature will automatically analyze your visual style and brand voice, keeping all your videos consistent.\n\n✨ In the meantime, try our *Prompt Library* for curated prompts!",
+    ru: "Функция *Отпечаток бренда* автоматически проанализирует ваш визуальный стиль и голос бренда.\n\n✨ А пока попробуйте нашу *Библиотеку промптов*!",
+    zh: "*品牌指纹*功能将自动分析您的视觉风格和品牌声音。\n\n✨与此同时，试试我们的*提示词库*吧！",
+  },
+  "fingerprint.try_library": {
+    id: "📚 Coba Prompt Library",
+    en: "📚 Try Prompt Library",
+    ru: "📚 Библиотека промптов",
+    zh: "📚 试试提示词库",
   },
 };
 

@@ -6,9 +6,9 @@
  * consistency anchors into subsequent scene prompts.
  */
 
-import { logger } from '@/utils/logger.js';
-import { NICHE_CONFIG } from '@/config/niches.js';
-import { STYLE_PRESETS } from '@/config/styles.js';
+import { logger } from '@/utils/logger';
+import { NICHE_CONFIG } from '@/config/niches';
+import { STYLE_PRESETS } from '@/config/styles';
 
 /**
  * Tracks visual identity across scenes to maintain coherence.

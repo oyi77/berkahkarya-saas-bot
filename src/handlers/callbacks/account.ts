@@ -1,5 +1,6 @@
 import { BotContext } from "@/types";
 import { t } from "@/i18n/translations";
+import { prisma } from "@/config/database";
 import {
   handleTopupSelection,
   handlePaymentGateway,
@@ -141,6 +142,38 @@ export async function handleAccountCallback(ctx: BotContext, data: string): Prom
     if (data === "open_subscription") {
       await ctx.deleteMessage().catch(() => { });
       await subscriptionCommand(ctx);
+      return true;
+    }
+
+    // Account deletion confirmation
+    if (data === "delete_account_confirm") {
+      const lang = ctx.session?.userLang || 'id';
+      const telegramId = BigInt(ctx.from!.id);
+      try {
+        await prisma.user.update({
+          where: { telegramId },
+          data: {
+            firstName: 'Deleted User',
+            username: null,
+            phoneNumber: null,
+            referralCode: null,
+          },
+        });
+        await ctx.answerCbQuery();
+        await ctx.editMessageText(
+          t('delete_account.success', lang),
+          { parse_mode: 'Markdown' },
+        ).catch(() => ctx.reply(t('delete_account.success', lang)));
+      } catch (err) {
+        await ctx.answerCbQuery(t('error.generic', lang));
+      }
+      return true;
+    }
+
+    if (data === "delete_account_cancel") {
+      const lang = ctx.session?.userLang || 'id';
+      await ctx.answerCbQuery(t('delete_account.cancelled', lang)).catch(() => {});
+      await ctx.deleteMessage().catch(() => {});
       return true;
     }
 

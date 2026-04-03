@@ -1298,6 +1298,19 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Handle bug report submission
+    if (ctx.session?.state === 'WAITING_BUG_REPORT' && "text" in message) {
+      const reportText = message.text;
+      const lang = ctx.session?.userLang || 'id';
+      ctx.session.state = 'DASHBOARD';
+      await ctx.reply(t('cb.bug_report_thanks', lang), { parse_mode: 'Markdown' });
+      const adminIds = process.env.ADMIN_TELEGRAM_IDS?.split(',').map(id => id.trim()).filter(Boolean) || [];
+      for (const adminId of adminIds) {
+        await ctx.telegram.sendMessage(adminId, `🐛 Bug Report from @${ctx.from?.username || ctx.from?.id}:\n\n${reportText}`).catch(() => {});
+      }
+      return;
+    }
+
     // Handle /skip during video creation
     if ("text" in message && message.text === "/skip") {
       if (ctx.session?.videoCreation?.waitingForImage) {

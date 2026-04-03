@@ -528,7 +528,7 @@ async function processSingleScene(
     await handleCampaignJobComplete(
       telegram, chatId,
       job.data.campaignGroupId, job.data.campaignTotal || 5,
-      deliveryPath, result.videoUrl || '', niche,
+      deliveryPath, result.videoUrl || '', niche, job.data.userId,
     );
   } else {
     await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
@@ -827,7 +827,7 @@ async function processExtendedScenes(
     await handleCampaignJobComplete(
       telegram, chatId,
       job.data.campaignGroupId, job.data.campaignTotal || 5,
-      deliveryPath, '', niche,
+      deliveryPath, '', niche, job.data.userId,
     );
   } else {
     await sendVideoToUser(telegram, chatId, jobId, duration, platform, deliveryPath, niche, storyboard);
@@ -935,6 +935,7 @@ async function handleCampaignJobComplete(
   localPath: string,
   videoUrl: string,
   niche?: string,
+  userId?: string,
 ): Promise<void> {
   const urlsKey = `campaign_grp:${campaignGroupId}:urls`;
   const mergeKey = `campaign_grp:${campaignGroupId}:merging`;
@@ -985,10 +986,12 @@ async function handleCampaignJobComplete(
       return;
     }
 
+    const dbUserForLang = userId && userId !== '0' ? await UserService.findByTelegramId(BigInt(userId)) : null;
+    const lang = dbUserForLang?.language || 'id';
+
     if (tmpPaths.length === 1) {
-      // Only one video succeeded — just send it directly
       await telegram.sendVideo(chatId, { source: tmpPaths[0] }, {
-        caption: `✅ *Campaign Selesai*\n\n1/${campaignTotal} video berhasil diproses.`,
+        caption: t('gen.campaign_done_single', lang, { count: '1', total: String(campaignTotal) }),
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: [[{ text: '🎬 Buat Lagi', callback_data: 'create_video_new' }]] },
       });
@@ -997,10 +1000,7 @@ async function handleCampaignJobComplete(
       try {
         await concatenateVideos(tmpPaths, mergedPath, niche);
         await telegram.sendVideo(chatId, { source: mergedPath }, {
-          caption:
-            `✅ *Campaign Selesai!*\n\n` +
-            `🎬 ${tmpPaths.length}/${campaignTotal} video berhasil digabungkan.\n` +
-            `Durasi total: ~${tmpPaths.length * 30} detik`,
+          caption: t('gen.campaign_done_all', lang, { total: String(tmpPaths.length) }),
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
@@ -1011,7 +1011,6 @@ async function handleCampaignJobComplete(
         });
       } catch (mergeErr) {
         logger.error(`Campaign merge failed for ${campaignGroupId}:`, mergeErr);
-        // Fallback: send first video with note
         await telegram.sendVideo(chatId, { source: tmpPaths[0] }, {
           caption: `✅ Campaign selesai — mengirim video pertama (merge gagal).`,
           parse_mode: 'Markdown',
