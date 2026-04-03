@@ -8,6 +8,7 @@
 
 import { getConfig } from '@/config/env';
 import axios from 'axios';
+import { logger } from '@/utils/logger';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -547,10 +548,43 @@ export async function generateScenePromptsWithAI(
   );
 
   const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error('Gemini storyboard: no JSON in response');
 
-  const aiScenes: Array<{ sceneId: SceneId; prompt: string }> = JSON.parse(jsonMatch[0]);
+  // Extract first valid JSON array from response (robust against multiple arrays in output)
+  let aiScenes: Array<{ sceneId: SceneId; prompt: string }> = [];
+  const arrayMatches = [...text.matchAll(/\[[\s\S]*?\]/g)];
+  let parsed = false;
+  for (const m of arrayMatches) {
+    try {
+      const candidate = JSON.parse(m[0]);
+      if (Array.isArray(candidate) && candidate.length > 0) {
+        aiScenes = candidate;
+        parsed = true;
+        break;
+      }
+    } catch {
+      // try next match
+    }
+  }
+  // Fallback: try the whole greedy match if non-greedy found nothing
+  if (!parsed) {
+    const greedyMatch = text.match(/\[[\s\S]*\]/);
+    if (greedyMatch) {
+      try {
+        const candidate = JSON.parse(greedyMatch[0]);
+        if (Array.isArray(candidate)) aiScenes = candidate;
+      } catch {
+        // ignore
+      }
+    }
+  }
+  if (aiScenes.length === 0) throw new Error('Gemini storyboard: no valid JSON array in response');
+
+  // Validate match rate — warn if Gemini returned wrong sceneId keys
+  const matchedCount = scenes.filter(sceneId => aiScenes.some(s => s.sceneId === sceneId)).length;
+  if (matchedCount < Math.ceil(scenes.length / 2)) {
+    logger.warn(`[hpas-engine] Gemini storyboard: only ${matchedCount}/${scenes.length} scene IDs matched. ` +
+      `Expected: ${scenes.join(', ')}. Got: ${aiScenes.map(s => s.sceneId).join(', ')}. Falling back to static for unmatched.`);
+  }
 
   return scenes.map(sceneId => {
     const aiScene = aiScenes.find(s => s.sceneId === sceneId);

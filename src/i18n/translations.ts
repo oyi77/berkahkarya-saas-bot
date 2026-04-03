@@ -947,6 +947,12 @@ const translations: Record<string, Record<Lang, string>> = {
     ru: "🚀 Создать сразу (без фото)",
     zh: "🚀 直接生成（无照片）",
   },
+  "gen.image_url_expired": {
+    id: "⚠️ Gambar sebelumnya sudah kedaluwarsa. Silakan upload ulang untuk melanjutkan.",
+    en: "⚠️ Previous image has expired. Please upload a new one to continue.",
+    ru: "⚠️ Предыдущее изображение устарело. Пожалуйста, загрузите новое для продолжения.",
+    zh: "⚠️ 之前的图片已过期，请重新上传以继续。",
+  },
 
   // Prompt source
   "gen.prompt_source_title": {
@@ -2695,6 +2701,12 @@ const translations: Record<string, Record<Lang, string>> = {
     en: "⏭️ Skip — Describe Instead",
     ru: "⏭️ Пропустить — только описание",
     zh: "⏭️ 跳过 — 直接描述",
+  },
+  "btn.upload_new_image": {
+    id: "📤 Upload Gambar Baru",
+    en: "📤 Upload New Image",
+    ru: "📤 Загрузить новое фото",
+    zh: "📤 上传新图片",
   },
   "btn.add_avatar": {
     id: "➕ Tambah Avatar Baru",

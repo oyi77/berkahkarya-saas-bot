@@ -436,12 +436,11 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         title: `Video ${new Date().toLocaleDateString('id-ID')}`,
       });
 
-      await UserService.deductCredits(telegramId, creditCost);
-
       const storyboard = scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }));
 
+      let imageSetJob: any;
       try {
-        const { position } = await enqueueVideoGeneration({
+        const enqueueResult = await enqueueVideoGeneration({
           jobId: video.jobId,
           niche: industry,
           platform,
@@ -456,7 +455,16 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           enableSubtitles: true,
           language: user.language || 'id',
           correlationId: getCorrelationId(),
+          creditCost,
         });
+        imageSetJob = enqueueResult.job || null;
+        try {
+          await UserService.deductCredits(telegramId, creditCost);
+        } catch (deductErr) {
+          if (imageSetJob) await imageSetJob.remove().catch(() => {});
+          throw deductErr;
+        }
+        const position = enqueueResult.position;
 
         // ── Phase C: Non-blocking preview offer ──
         await ctx.reply(
@@ -540,6 +548,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           language: user.language || 'id',
           voScript: session.generateManualTranscript || undefined,
           correlationId: getCorrelationId(),
+          creditCost,
         });
         try {
           await UserService.deductCredits(telegramId, creditCost);
@@ -592,10 +601,9 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         title: `Clone Style — ${new Date().toLocaleDateString('id-ID')}`,
       });
 
-      await UserService.deductCredits(telegramId, creditCost);
-
+      let cloneJob: any;
       try {
-        const { position } = await enqueueVideoGeneration({
+        const cloneEnqueueResult = await enqueueVideoGeneration({
           jobId: video2.jobId,
           niche: industry,
           platform,
@@ -609,7 +617,16 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           enableSubtitles: true,
           language: user.language || 'id',
           correlationId: getCorrelationId(),
+          creditCost,
         });
+        cloneJob = cloneEnqueueResult.job || null;
+        try {
+          await UserService.deductCredits(telegramId, creditCost);
+        } catch (deductErr) {
+          if (cloneJob) await cloneJob.remove().catch(() => {});
+          throw deductErr;
+        }
+        const position = cloneEnqueueResult.position;
         await ctx.reply(t('gen.video_queued', lang, { position }));
       } catch {
         generateVideoAsync(ctx, video2.jobId, industry, platform, DURATION_PRESETS['standard'].totalSeconds, scenes.map((s, i) => ({ scene: i + 1, duration: s.durationSeconds, description: s.prompt }))).catch(async (err) => {
@@ -650,11 +667,9 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
           title: `Campaign ${campSize} Scene — ${productDesc.slice(0, 40)}`,
         });
 
-        // Deduct AFTER job creation succeeds (no refund needed in jobErr catch)
-        await UserService.deductCredits(telegramId, creditCost);
-
+        let campaignJob: any;
         try {
-          const { position } = await enqueueVideoGeneration({
+          const enqueueResult2 = await enqueueVideoGeneration({
             jobId: vid.jobId,
             niche: industry,
             platform,
@@ -668,7 +683,16 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
             enableSubtitles: true,
             language: user.language || 'id',
             correlationId: getCorrelationId(),
+            creditCost,
           });
+          campaignJob = enqueueResult2.job || null;
+          try {
+            await UserService.deductCredits(telegramId, creditCost);
+          } catch (deductErr) {
+            if (campaignJob) await campaignJob.remove().catch(() => {});
+            throw deductErr;
+          }
+          const position = enqueueResult2.position;
           await ctx.reply(
             t('gen.campaign_processing', lang, { size: campSize, position }),
             { parse_mode: 'Markdown' },

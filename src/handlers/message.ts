@@ -53,12 +53,24 @@ async function updateSessionDirectly(
   updater: (session: any) => void,
 ): Promise<void> {
   const key = `session:${userId}`;
-  const raw = await redis.get(key);
-  const session = raw
-    ? JSON.parse(raw)
-    : { state: "DASHBOARD", stateData: {}, lastActivity: new Date() };
-  updater(session);
-  await redis.setex(key, SESSION_TTL, JSON.stringify(session));
+  const lockKey = `session-lock:${userId}`;
+  // Try to acquire lock (expires in 2s to prevent deadlock)
+  const locked = await (redis as any).set(lockKey, '1', 'EX', 2, 'NX');
+  if (!locked) {
+    // Lock held by concurrent request — skip this update to avoid corruption
+    logger.warn(`Session update skipped for user ${userId}: lock held by concurrent request`);
+    return;
+  }
+  try {
+    const raw = await redis.get(key);
+    const session = raw
+      ? JSON.parse(raw)
+      : { state: "DASHBOARD", stateData: {}, lastActivity: new Date() };
+    updater(session);
+    await redis.setex(key, SESSION_TTL, JSON.stringify(session));
+  } finally {
+    await redis.del(lockKey).catch(() => {});
+  }
 }
 
 /**
@@ -234,7 +246,18 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const duration = parseInt(durationInput);
 
       if (isNaN(duration) || duration < 6 || duration > 300) {
-        await ctx.reply(t('msg.invalid_duration', ctx.session?.userLang || 'id'));
+        const errLang = ctx.session?.userLang || 'id';
+        if (ctx.session) ctx.session.state = 'DASHBOARD';
+        await ctx.reply(
+          t('msg.invalid_duration', errLang),
+          {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: t('btn.main_menu', errLang), callback_data: 'main_menu' },
+              ]],
+            },
+          },
+        );
         return;
       }
 

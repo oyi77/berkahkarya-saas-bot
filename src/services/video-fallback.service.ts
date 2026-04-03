@@ -1339,11 +1339,14 @@ export async function generateVideoWithFallback(
   params.duration = Math.max(5, params.duration);
 
   // Ensure reference image is a valid local file (download if URL)
+  const originalRefImage = params.referenceImage;
   const resolvedRef = await ensureLocalImage(params.referenceImage);
   const resolvedParams = resolvedRef !== params.referenceImage
     ? { ...params, referenceImage: resolvedRef }
     : params;
   params = resolvedParams;
+
+  try {
 
   const allProviders = getProviders().filter((p) => p.enabled);
 
@@ -1404,6 +1407,10 @@ export async function generateVideoWithFallback(
     ...enrichedBase,
     full: optimizedFull || enrichedBase.full,
   };
+
+  if (enriched.full && enriched.full.length > 800) {
+    enriched.full = enriched.full.slice(0, 800);
+  }
 
   // Use smart router to order providers by score
   let orderedKeys: string[];
@@ -1667,4 +1674,10 @@ export async function generateVideoWithFallback(
     success: false,
     error: `All ${providers.length} providers failed: ${errorSummary}`,
   };
+
+  } finally {
+    if (resolvedRef && resolvedRef !== originalRefImage) {
+      fs.unlink(resolvedRef, () => {});
+    }
+  }
 }

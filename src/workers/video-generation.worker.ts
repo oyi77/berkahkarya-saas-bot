@@ -95,6 +95,7 @@ export interface VideoGenerationJobData {
   correlationId?: string;
   cacheAsTemplate?: boolean; // Signal to cache completed video as niche template
   cacheNiche?: string;
+  creditCost?: number; // Actual cost charged at enqueue time; used for accurate refunds
 }
 
 // ── Helpers (mirrored from create.ts) ──
@@ -403,9 +404,16 @@ async function processSingleScene(
       logger.warn(`Job ${jobId} already failed/refunded — skipping duplicate refund`);
       return;
     }
-    const creditCost = await getVideoCreditCostAsync(duration);
+    const creditCost = job.data.creditCost ?? await getVideoCreditCostAsync(duration);
     await VideoService.updateStatus(jobId, 'failed', result.error);
-    await UserService.refundCredits(telegramId, creditCost, jobId, result.error || 'Generation failed');
+    // Atomic lock to prevent double-refund on BullMQ retry
+    const refundLockKey = `refund-lock:${jobId}`;
+    const lockAcquired = await (redis as any).set(refundLockKey, '1', 'EX', 3600, 'NX');
+    if (!lockAcquired) {
+      logger.warn(`Refund lock already held for job ${jobId} — skipping duplicate refund`);
+    } else {
+      await UserService.refundCredits(telegramId, creditCost, jobId, result.error || 'Generation failed');
+    }
     const userMessage = actionableError(result.error || 'Generation failed', { jobId });
     const { t: tFail } = await import('../i18n/translations.js');
     const failLang = job.data.language || 'id';
@@ -627,7 +635,13 @@ async function processExtendedScenes(
       throw new Error(`Scene ${sceneIndex + 1} failed after 2 attempts: ${result.error}`);
     }
 
-    await downloadVideo(result.videoUrl, scenePath);
+    try {
+      await downloadVideo(result.videoUrl, scenePath);
+    } catch (downloadErr) {
+      logger.warn(`Scene ${sceneIndex + 1} download failed, cleaning up partial file:`, downloadErr);
+      try { fs.unlinkSync(scenePath); } catch { /* ignore */ }
+      throw downloadErr;
+    }
     return { result, scenePath };
   }
 
@@ -649,9 +663,16 @@ async function processExtendedScenes(
       logger.warn(`Job ${jobId} already failed/refunded (scene 1) — skipping duplicate refund`);
       return;
     }
-    const creditCost = await getVideoCreditCostAsync(duration);
+    const creditCost = job.data.creditCost ?? await getVideoCreditCostAsync(duration);
     await VideoService.updateStatus(jobId, 'failed', err.message);
-    await UserService.refundCredits(telegramId, creditCost, jobId, err.message);
+    // Atomic lock to prevent double-refund on BullMQ retry
+    const refundLockKey = `refund-lock:${jobId}`;
+    const lockAcquired = await (redis as any).set(refundLockKey, '1', 'EX', 3600, 'NX');
+    if (!lockAcquired) {
+      logger.warn(`Refund lock already held for job ${jobId} — skipping duplicate refund`);
+    } else {
+      await UserService.refundCredits(telegramId, creditCost, jobId, err.message);
+    }
     const sceneUserMessage = actionableError(err.message, { jobId });
     await telegram.sendMessage(
       chatId,
@@ -721,9 +742,16 @@ async function processExtendedScenes(
       logger.warn(`Job ${jobId} already failed/refunded (all scenes) — skipping duplicate refund`);
       return;
     }
-    const creditCost = await getVideoCreditCostAsync(duration);
+    const creditCost = job.data.creditCost ?? await getVideoCreditCostAsync(duration);
     await VideoService.updateStatus(jobId, 'failed', 'All scenes failed');
-    await UserService.refundCredits(telegramId, creditCost, jobId, 'All scenes failed');
+    // Atomic lock to prevent double-refund on BullMQ retry
+    const refundLockKey = `refund-lock:${jobId}`;
+    const lockAcquired = await (redis as any).set(refundLockKey, '1', 'EX', 3600, 'NX');
+    if (!lockAcquired) {
+      logger.warn(`Refund lock already held for job ${jobId} — skipping duplicate refund`);
+    } else {
+      await UserService.refundCredits(telegramId, creditCost, jobId, 'All scenes failed');
+    }
     const workerLangFail = job.data.language || 'id';
     const { t } = await import('../i18n/translations.js');
     await telegram.sendMessage(chatId, t('gen.video_failed_refund', workerLangFail));
@@ -732,11 +760,18 @@ async function processExtendedScenes(
   // Proportional refund for failed scenes
   const failedSceneCount = scenes - successfulScenes.length;
   if (failedSceneCount > 0) {
-    const creditCost = await getVideoCreditCostAsync(duration);
+    const creditCost = job.data.creditCost ?? await getVideoCreditCostAsync(duration);
     const refundAmount = Math.round((creditCost * failedSceneCount / scenes) * 100) / 100;
     if (refundAmount > 0) {
-      await UserService.refundCredits(telegramId, refundAmount, jobId, `${failedSceneCount}/${scenes} scenes failed`)
-        .catch((err) => logger.error('CRITICAL: partial scene refund failed', { jobId, refundAmount, err }));
+      // Atomic lock to prevent double-refund on BullMQ retry
+      const partialRefundLockKey = `refund-lock:${jobId}:partial`;
+      const partialLockAcquired = await (redis as any).set(partialRefundLockKey, '1', 'EX', 3600, 'NX');
+      if (!partialLockAcquired) {
+        logger.warn(`Partial refund lock already held for job ${jobId} — skipping duplicate partial refund`);
+      } else {
+        await UserService.refundCredits(telegramId, refundAmount, jobId, `${failedSceneCount}/${scenes} scenes failed`)
+          .catch((err) => logger.error('CRITICAL: partial scene refund failed', { jobId, refundAmount, err }));
+      }
       const workerLang = job.data.language || 'id';
       await telegram.sendMessage(chatId,
         t('worker.partial_refund', workerLang, { amount: refundAmount, count: failedSceneCount })
@@ -952,7 +987,7 @@ async function handleCampaignJobComplete(
 
   // All jobs done — acquire merge lock (prevents duplicate merge if race condition)
   // Acquire merge lock — only the first worker to set the key proceeds
-  const lockAcquired = await redis.set(mergeKey, '1', 'EX', 3600, 'NX');
+  const lockAcquired = await (redis as any).set(mergeKey, '1', 'EX', 3600, 'NX');
   if (lockAcquired !== 'OK') return; // another worker is already merging
 
   try {
@@ -1186,9 +1221,16 @@ export function startVideoWorker(bot: { telegram: Telegram }): Worker<VideoGener
             logger.warn(`Job ${job.data.jobId} already failed/refunded (catch) — skipping duplicate refund`);
           } else {
             const telegramId = BigInt(job.data.userId);
-            const creditCost = await getVideoCreditCostAsync(job.data.duration);
+            const creditCost = job.data.creditCost ?? await getVideoCreditCostAsync(job.data.duration);
             await VideoService.updateStatus(job.data.jobId, 'failed', error.message);
-            await UserService.refundCredits(telegramId, creditCost, job.data.jobId, error.message);
+            // Atomic lock to prevent double-refund on BullMQ retry
+            const refundLockKey = `refund-lock:${job.data.jobId}`;
+            const lockAcquired = await (redis as any).set(refundLockKey, '1', 'EX', 3600, 'NX');
+            if (!lockAcquired) {
+              logger.warn(`Refund lock already held for job ${job.data.jobId} — skipping duplicate refund`);
+            } else {
+              await UserService.refundCredits(telegramId, creditCost, job.data.jobId, error.message);
+            }
             const workerUserMessage = actionableError(error.message, { jobId: job.data.jobId });
             await telegram.sendMessage(
               job.data.chatId,

@@ -19,8 +19,39 @@ export async function handleGenerationCallbacks(ctx: BotContext, data: string): 
   // make_video_from_image: start video flow pre-populated with last generated image context
   if (data === "make_video_from_image") {
     await ctx.answerCbQuery?.();
+    const lang = ctx.session?.userLang || 'id';
     const lastDesc = ctx.session?.generateProductDesc;
-    const lastImageUrl = ctx.session?.generateLastImageUrl;
+    let lastImageUrl = ctx.session?.generateLastImageUrl;
+
+    // Validate URL freshness — Telegram file links expire ~1h, provider URLs may expire sooner
+    if (lastImageUrl) {
+      try {
+        const axios = (await import('axios')).default;
+        const headRes = await axios.head(lastImageUrl, { timeout: 5000 }).catch(async (err: any) => {
+          // Some CDNs return 405 on HEAD but work fine on GET — treat as valid
+          if (err?.response?.status === 405) return { status: 405 };
+          throw err;
+        });
+        void headRes; // URL is reachable
+      } catch {
+        // URL expired or unreachable — clear it and prompt re-upload
+        lastImageUrl = undefined;
+        if (ctx.session) delete (ctx.session as any).generateLastImageUrl;
+        await ctx.reply(
+          t('gen.image_url_expired', lang),
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [[
+                { text: t('btn.upload_new_image', lang), callback_data: 'image_pref_upload' },
+                { text: t('gen.btn_skip_ref', lang), callback_data: 'image_pref_skip' },
+              ]],
+            },
+          }
+        );
+        return true;
+      }
+    }
 
     if (lastDesc) {
       if (ctx.session) {
@@ -30,7 +61,6 @@ export async function handleGenerationCallbacks(ctx: BotContext, data: string): 
       const { showGenerateMode } = await import("../../flows/generate.js");
       await showGenerateMode(ctx);
     } else {
-      // No context available — fall back to fresh start
       const { showGenerateMode } = await import("../../flows/generate.js");
       await showGenerateMode(ctx);
     }
