@@ -1,166 +1,65 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Provider Management — BerkahKarya Admin</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root {
-      --bg: #0d0d14;
-      --sidebar: #111118;
-      --card: #1a1a24;
-      --border: #2a2a3a;
-      --gold: #c4a35a;
-      --gold-dim: #8a6f3a;
-      --text: #e0e0f0;
-      --muted: #888899;
-      --green: #4ade80;
-      --red: #f87171;
-      --blue: #3b82f6;
-      --yellow: #fbbf24;
-    }
-    * { box-sizing: border-box; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; min-height: 100vh; }
-    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 50; display: flex; flex-direction: column; }
-    .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
-    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; color: var(--muted); font-size: 14px; }
-    .nav-item:hover { background: rgba(196,163,90,0.08); color: var(--text); }
-    .nav-item.active { border-left-color: var(--gold); color: var(--gold); background: rgba(196,163,90,0.1); }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
-    .kpi-card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-    .kpi-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
-    .badge-video { background: #1a2a4a; color: #60a5fa; }
-    .badge-image { background: #2a1a4a; color: #a78bfa; }
-    .badge-active { background: #0f3020; color: #4ade80; }
-    .badge-inactive { background: #3a0f0f; color: #f87171; }
-    .badge-closed { background: #0f3020; color: #4ade80; }
-    .badge-open { background: #3a0f0f; color: #f87171; }
-    .badge-half { background: #3a2a0a; color: #fbbf24; }
-    .badge-configured { background: #0f3020; color: #4ade80; }
-    .badge-missing { background: #3a0f0f; color: #f87171; }
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
-    .btn-gold { background: var(--gold); color: #0d0d14; }
-    .btn-gold:hover { background: #d4b36a; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .btn-danger { background: #3a0f0f; color: #f87171; border: 1px solid #5a1f1f; }
-    .btn-danger:hover { background: #5a1f1f; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .btn-xs { padding: 3px 8px; font-size: 11px; }
-    .input { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px; outline: none; }
-    .input:focus { border-color: var(--gold); }
-    .input-sm { width: 60px; text-align: center; padding: 4px 6px; }
-    .toggle { position: relative; width: 40px; height: 22px; background: var(--border); border-radius: 11px; cursor: pointer; transition: background 0.2s; }
-    .toggle.on { background: var(--green); }
-    .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; }
-    .toggle.on::after { transform: translateX(18px); }
-    .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
-    .tab { padding: 8px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid transparent; transition: all 0.15s; }
-    .tab.active { background: rgba(196,163,90,0.15); color: var(--gold); border-color: var(--gold-dim); }
-    .tab:hover:not(.active) { background: rgba(255,255,255,0.05); color: var(--text); }
-    .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
-    .provider-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
-    .provider-card:hover { border-color: var(--gold-dim); }
-    .provider-card.erroring { border-color: #5a1f1f; }
-    .provider-header { padding: 16px; cursor: pointer; }
-    .provider-header:hover { background: rgba(255,255,255,0.02); }
-    .provider-row { display: flex; align-items: center; gap: 12px; }
-    .provider-details { display: none; padding: 0 16px 16px; border-top: 1px solid var(--border); }
-    .provider-details.open { display: block; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .status-dot.green { background: var(--green); box-shadow: 0 0 8px rgba(74,222,128,0.4); }
-    .status-dot.yellow { background: var(--yellow); box-shadow: 0 0 8px rgba(251,191,36,0.4); }
-    .status-dot.red { background: var(--red); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
-    .status-dot.gray { background: var(--muted); }
-    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
-    .loading { text-align: center; padding: 40px; color: var(--muted); }
-    .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
-    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
-    /* Toast */
-    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
-    .toast { padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; max-width: 320px; animation: slideIn 0.2s ease; border: 1px solid; }
-    .toast-success { background: #0f3020; border-color: #1a5030; color: #4ade80; }
-    .toast-error { background: #3a0f0f; border-color: #5a1f1f; color: #f87171; }
-    .toast-info { background: #0f2040; border-color: #1a3060; color: #60a5fa; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
-    .modal h3 { font-size: 18px; font-weight: 700; margin: 0 0 20px; }
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    /* Mobile */
-    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
-      .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0 !important; padding: 12px !important; }
-      .hamburger { display: block; }
-      .provider-grid { grid-template-columns: 1fr; }
-      .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
-    }
-  </style>
-</head>
-<body>
+<style>
+  .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 16px; }
+  .provider-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
+  .provider-card:hover { border-color: var(--gold-dim); }
+  .provider-card.erroring { border-color: #5a1f1f; }
+  .provider-header { padding: 16px; cursor: pointer; }
+  .provider-header:hover { background: rgba(255,255,255,0.02); }
+  .provider-row { display: flex; align-items: center; gap: 12px; }
+  .provider-details { display: none; padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  .provider-details.open { display: block; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .status-dot.green { background: var(--green); box-shadow: 0 0 8px rgba(74,222,128,0.4); }
+  .status-dot.yellow { background: var(--yellow); box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+  .status-dot.red { background: var(--red); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+  .status-dot.gray { background: var(--muted); }
+  @media (max-width: 768px) {
+    .provider-grid { grid-template-columns: 1fr; }
+  }
+</style>
 
-<%- include('./partials/sidebar', { activePage: 'providers' }) %>
+<div class="section-title">🔌 Provider Management</div>
+<div class="section-sub">Configure AI providers, monitor circuit breakers, and manage API balances</div>
 
-<!-- Main Content -->
-<div class="main">
-  <div class="section-title">🔌 Provider Management</div>
-  <div class="section-sub">Configure AI providers, monitor circuit breakers, and manage API balances</div>
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <div class="tab active" data-tab="video" onclick="switchTab('video')">🎬 Video Providers</div>
+  <div class="tab" data-tab="image" onclick="switchTab('image')">🖼️ Image Providers</div>
+</div>
 
-  <!-- Tab Bar -->
-  <div class="tab-bar">
-    <div class="tab active" data-tab="video" onclick="switchTab('video')">🎬 Video Providers</div>
-    <div class="tab" data-tab="image" onclick="switchTab('image')">🖼️ Image Providers</div>
+<!-- Summary Cards -->
+<div class="kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+  <div class="kpi-card">
+    <div class="label">Total Providers</div>
+    <div class="value" id="summary-total">—</div>
   </div>
-
-  <!-- Summary Cards -->
-  <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
-    <div class="kpi-card">
-      <div class="label">Total Providers</div>
-      <div class="value" id="summary-total">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Active</div>
-      <div class="value" style="color: var(--green);" id="summary-active">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Configured</div>
-      <div class="value" style="color: var(--blue);" id="summary-configured">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="label">Erroring</div>
-      <div class="value" style="color: var(--red);" id="summary-erroring">—</div>
-    </div>
+  <div class="kpi-card">
+    <div class="label">Active</div>
+    <div class="value" style="color: var(--green);" id="summary-active">—</div>
   </div>
-
-  <!-- Bulk Actions -->
-  <div class="card" style="margin-bottom: 24px;">
-    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-      <span style="font-size: 13px; color: var(--muted); margin-right: 8px;">Bulk Actions:</span>
-      <button class="btn btn-ghost btn-sm" onclick="refreshAllBalances()">🔄 Refresh Balances</button>
-      <button class="btn btn-danger btn-sm" onclick="resetAllCB()">⚠️ Reset All Circuit Breakers</button>
-      <button class="btn btn-gold btn-sm" style="margin-left: auto;" onclick="loadProviders()">🔃 Reload</button>
-    </div>
+  <div class="kpi-card">
+    <div class="label">Configured</div>
+    <div class="value" style="color: var(--blue);" id="summary-configured">—</div>
   </div>
-
-  <!-- Provider Grid -->
-  <div id="provider-grid" class="provider-grid">
-    <div class="loading">Loading providers...</div>
+  <div class="kpi-card">
+    <div class="label">Erroring</div>
+    <div class="value" style="color: var(--red);" id="summary-erroring">—</div>
   </div>
+</div>
+
+<!-- Bulk Actions -->
+<div class="card" style="margin-bottom: 24px;">
+  <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+    <span style="font-size: 13px; color: var(--muted); margin-right: 8px;">Bulk Actions:</span>
+    <button class="btn btn-ghost btn-sm" onclick="refreshAllBalances()">🔄 Refresh Balances</button>
+    <button class="btn btn-danger btn-sm" onclick="resetAllCB()">⚠️ Reset All Circuit Breakers</button>
+    <button class="btn btn-gold btn-sm" style="margin-left: auto;" onclick="loadProviders()">🔃 Reload</button>
+  </div>
+</div>
+
+<!-- Provider Grid -->
+<div id="provider-grid" class="provider-grid">
+  <div class="loading">Loading providers...</div>
 </div>
 
 <!-- Models Modal -->
@@ -244,18 +143,6 @@ function dt(s) {
   return new Date(s).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// ===================== CLOCK =====================
-function updateClock() {
-  document.getElementById('live-clock').textContent = new Date().toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ===================== SIDEBAR =====================
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('open');
-}
-
 // ===================== STATE =====================
 let currentTab = 'video';
 let providersData = { video: [], image: [] };
@@ -275,15 +162,15 @@ function switchTab(tab) {
 async function loadProviders() {
   const grid = document.getElementById('provider-grid');
   grid.innerHTML = '<div class="loading">Loading providers...</div>';
-  
+
   try {
     const data = await api('/api/admin/providers/all');
     if (!data) return;
-    
+
     providersData = data;
     renderCards();
     updateSummary();
-    
+
     // Load balances after providers
     loadBalances();
   } catch (e) {
@@ -297,12 +184,12 @@ async function loadBalances() {
   try {
     const data = await api('/api/admin/providers/balances');
     if (!data || !data.balances) return;
-    
+
     balancesData = {};
     data.balances.forEach(b => {
       balancesData[b.key] = b.balance;
     });
-    
+
     // Update balance displays
     Object.entries(balancesData).forEach(([key, balance]) => {
       const el = document.getElementById(`balance-${key}`);
@@ -324,7 +211,7 @@ function updateSummary() {
   const active = providers.filter(p => p.enabled !== false).length;
   const configured = providers.filter(p => p.hasApiKey).length;
   const erroring = providers.filter(p => p.circuitBreaker?.state === 'open').length;
-  
+
   document.getElementById('summary-total').textContent = total;
   document.getElementById('summary-active').textContent = active;
   document.getElementById('summary-configured').textContent = configured;
@@ -335,12 +222,12 @@ function updateSummary() {
 function renderCards() {
   const grid = document.getElementById('provider-grid');
   const providers = providersData[currentTab] || [];
-  
+
   if (!providers.length) {
     grid.innerHTML = `<div class="empty-state">No ${currentTab} providers configured</div>`;
     return;
   }
-  
+
   grid.innerHTML = providers.map(p => renderProviderCard(p)).join('');
 }
 
@@ -349,12 +236,12 @@ function renderProviderCard(p) {
   const type = currentTab;
   const isExpanded = expandedCards.has(key);
   const hasError = p.circuitBreaker?.state === 'open';
-  
+
   // API Key status
   const apiKeyStatus = p.hasApiKey
     ? '<span class="status-dot green" title="API key configured"></span>'
     : '<span class="status-dot red" title="API key missing"></span>';
-  
+
   // Circuit breaker status
   let cbBadge = 'badge-closed';
   let cbDot = 'green';
@@ -368,11 +255,11 @@ function renderProviderCard(p) {
     cbDot = 'yellow';
     cbLabel = 'Half-Open';
   }
-  
+
   const balanceDisplay = balancesData[key] !== undefined
     ? `<span style="color: var(--green);">${esc(String(balancesData[key]))}</span>`
     : `<span id="balance-${key}"><span class="spinner"></span></span>`;
-  
+
   return `
     <div class="provider-card ${hasError ? 'erroring' : ''}" data-key="${esc(key)}">
       <div class="provider-header" onclick="toggleCard('${esc(key)}')">
@@ -402,7 +289,7 @@ function renderProviderCard(p) {
           </div>
         </div>
       </div>
-      
+
       <div class="provider-details ${isExpanded ? 'open' : ''}" id="details-${esc(key)}">
         <div style="padding-top: 16px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
@@ -423,7 +310,7 @@ function renderProviderCard(p) {
               <div style="font-size: 12px;">${reltime(p.circuitBreaker?.lastFailure)}</div>
             </div>
           </div>
-          
+
           ${p.strengths?.length ? `
             <div style="margin-bottom: 12px;">
               <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Strengths</div>
@@ -432,7 +319,7 @@ function renderProviderCard(p) {
               </div>
             </div>
           ` : ''}
-          
+
           ${p.quirks?.length ? `
             <div style="margin-bottom: 16px;">
               <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; margin-bottom: 6px;">Quirks / Notes</div>
@@ -441,7 +328,7 @@ function renderProviderCard(p) {
               </div>
             </div>
           ` : ''}
-          
+
           <div style="display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 16px;">
             <button class="btn btn-ghost btn-xs" onclick="testProvider('${esc(key)}')">🧪 Test</button>
             <button class="btn btn-ghost btn-xs" onclick="resetCB('${esc(key)}')">🔄 Reset CB</button>
@@ -489,7 +376,7 @@ async function refreshAllBalances() {
 
 async function resetAllCB() {
   if (!confirm('Reset all circuit breakers? This will allow requests to all providers again.')) return;
-  
+
   try {
     await api('/api/admin/providers/reset-all-cb', { method: 'POST' });
     toast('All circuit breakers reset', 'success');
@@ -503,12 +390,12 @@ async function resetAllCB() {
 async function saveProviders() {
   const providers = providersData[currentTab] || [];
   const settings = {};
-  
+
   providers.forEach(p => {
     const key = p.key || p.name;
     const prioEl = document.getElementById(`prio-${key}`);
     const toggleEl = document.getElementById(`toggle-${key}`);
-    
+
     if (prioEl && toggleEl) {
       settings[key] = {
         priority: parseInt(prioEl.value) || 99,
@@ -516,19 +403,19 @@ async function saveProviders() {
       };
     }
   });
-  
+
   try {
     await api('/api/admin/providers/settings', {
       method: 'POST',
       body: { type: currentTab, settings }
     });
     toast('Provider settings saved', 'success');
-    
+
     // Clear visual indicators
     document.querySelectorAll('.provider-card').forEach(card => {
       card.style.borderColor = '';
     });
-    
+
     loadProviders();
   } catch (e) {
     toast('Failed to save: ' + e.message, 'error');
@@ -547,10 +434,10 @@ async function resetCB(key) {
 
 async function testProvider(key) {
   toast(`Testing ${key}...`, 'info');
-  
+
   try {
     const result = await api(`/api/admin/providers/${encodeURIComponent(key)}/test`, { method: 'POST' });
-    
+
     if (result?.success) {
       toast(`✅ ${key} test passed`, 'success');
     } else {
@@ -565,20 +452,20 @@ async function showModels(key) {
   const modal = document.getElementById('modal-models');
   const content = document.getElementById('modal-models-content');
   const title = document.getElementById('modal-models-title');
-  
+
   title.textContent = `Models — ${key}`;
-  content.innerHTML = '<div class="loading">Loading models...</div>';
+  content.innerHTML = '<div class="loading">Loading...</div>';
   modal.classList.add('open');
-  
+
   try {
     const provider = [...providersData.video, ...providersData.image].find(p => (p.key || p.name) === key);
     const models = provider?.models || [];
-    
+
     if (!models.length) {
       content.innerHTML = '<div class="empty-state">No models configured for this provider</div>';
       return;
     }
-    
+
     content.innerHTML = `
       <table style="width: 100%; font-size: 13px;">
         <thead>
@@ -619,7 +506,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ===================== SAVE BUTTON (add to page) =====================
+// ===================== SAVE BUTTON =====================
 document.addEventListener('DOMContentLoaded', () => {
   // Add floating save button
   const saveBtn = document.createElement('button');
@@ -644,5 +531,3 @@ setInterval(() => {
   updateSummary();
 }, 60000);
 </script>
-</body>
-</html>
