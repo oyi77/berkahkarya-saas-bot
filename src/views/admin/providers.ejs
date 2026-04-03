@@ -120,6 +120,16 @@ function toast(msg, type = 'info') {
 }
 
 // ===================== HELPERS =====================
+function formatBalance(b) {
+  if (!b) return `<span class="spinner"></span>`;
+  if (b.status === 'not_configured') return `<span style="color:var(--muted);">—</span>`;
+  if (b.status === 'not_supported') return `<span style="color:var(--muted);">N/A</span>`;
+  if (b.status === 'error') return `<span style="color:var(--red);" title="${esc(b.error||'')}">Error</span>`;
+  if (b.currency === 'key_valid') return `<span style="color:var(--green);">✓ Valid</span>`;
+  if (b.balance !== null && b.balance !== undefined) return `<span style="color:var(--green);">${esc(String(b.balance))} ${esc(b.currency)}</span>`;
+  return `<span style="color:var(--muted);">N/A</span>`;
+}
+
 function esc(s) {
   if (s == null) return '';
   const d = document.createElement('div');
@@ -187,17 +197,13 @@ async function loadBalances() {
 
     balancesData = {};
     data.balances.forEach(b => {
-      balancesData[b.key] = b.balance;
+      balancesData[b.provider] = b;
     });
 
-    // Update balance displays
-    Object.entries(balancesData).forEach(([key, balance]) => {
+    // Update balance displays for cards already rendered with spinner placeholders
+    Object.entries(balancesData).forEach(([key, b]) => {
       const el = document.getElementById(`balance-${key}`);
-      if (el) {
-        el.innerHTML = balance !== null && balance !== undefined
-          ? `<span style="color: var(--green);">${esc(String(balance))}</span>`
-          : `<span style="color: var(--muted);">N/A</span>`;
-      }
+      if (el) el.innerHTML = formatBalance(b);
     });
   } catch (e) {
     console.error('Failed to load balances:', e);
@@ -257,7 +263,7 @@ function renderProviderCard(p) {
   }
 
   const balanceDisplay = balancesData[key] !== undefined
-    ? `<span style="color: var(--green);">${esc(String(balancesData[key]))}</span>`
+    ? formatBalance(balancesData[key])
     : `<span id="balance-${key}"><span class="spinner"></span></span>`;
 
   return `
