@@ -1,211 +1,88 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BerkahKarya Admin Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- ===== BERKAHKARYA FULL FUNNEL TRACKING ===== -->
-  <% if (locals.fbPixelId) { %>
-  <script>
-    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
-    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
-    (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init','<%= fbPixelId %>');
-    fbq('track','PageView');
-    fbq('track','InitiateCheckout',{content_name:'Admin Analytics',content_category:'saas_admin',event_source:'aitradepulse_admin'});
-  </script>
-  <% } %>
-  <% if (locals.ttPixelId) { %>
-  <script>
-    !function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
-    ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],
-    ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
-    for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
-    ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},
-    ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";
-    ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};
-    var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;
-    var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
-    ttq.load('<%= ttPixelId %>');ttq.page();
-    ttq.track('InitiateCheckout',{content_name:'Admin Analytics',content_type:'saas_admin'});
-    }(window,document,'ttq');
-  </script>
-  <% } %>
-  <% if (locals.ga4Id) { %>
-  <script async src="https://www.googletagmanager.com/gtag/js?id=<%= ga4Id %>"></script>
-  <script>
-    window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
-    gtag('js',new Date());gtag('config','<%= ga4Id %>');
-    gtag('event','begin_checkout',{page:'admin_analytics',event_source:'aitradepulse_admin'});
-  </script>
-  <% } %>
-  <!-- ===== END TRACKING ===== -->
-  <style>
-    :root {
-      --bg: #0d0d14;
-      --sidebar: #111118;
-      --card: #1a1a24;
-      --border: #2a2a3a;
-      --gold: #c4a35a;
-      --gold-dim: #8a6f3a;
-      --text: #e0e0f0;
-      --muted: #888899;
-    }
-    * { box-sizing: border-box; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; min-height: 100vh; }
-    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 50; display: flex; flex-direction: column; }
-    .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
-    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; color: var(--muted); font-size: 14px; }
-    .nav-item:hover { background: rgba(196,163,90,0.08); color: var(--text); }
-    .nav-item.active { border-left-color: var(--gold); color: var(--gold); background: rgba(196,163,90,0.1); }
-    .section { display: none; }
-    .section.active { display: block; }
-    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-    .kpi-card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
-    .kpi-card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
-    .kpi-card .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
-    .badge-free { background: #2a2a3a; color: #aaa; }
-    .badge-starter { background: #1a2a4a; color: #60a5fa; }
-    .badge-pro { background: #2a1a4a; color: #a78bfa; }
-    .badge-enterprise { background: #3a2a0a; color: var(--gold); }
-    .badge-active { background: #0f3020; color: #4ade80; }
-    .badge-banned { background: #3a0f0f; color: #f87171; }
-    .badge-pending { background: #3a2a0a; color: #fbbf24; }
-    .badge-success { background: #0f3020; color: #4ade80; }
-    .badge-failed { background: #3a0f0f; color: #f87171; }
-    .badge-completed { background: #0f3020; color: #4ade80; }
-    .badge-processing { background: #0f2040; color: #60a5fa; }
-    .badge-ok { background: #0f3020; color: #4ade80; }
-    .badge-error { background: #3a0f0f; color: #f87171; }
-    .badge-degraded { background: #3a2a0a; color: #fbbf24; }
-    .badge-closed { background: #0f3020; color: #4ade80; }
-    .badge-open { background: #3a0f0f; color: #f87171; }
-    .badge-half { background: #3a2a0a; color: #fbbf24; }
-    .badge-unknown { background: #2a2a3a; color: #aaa; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
-    td { padding: 10px 12px; border-bottom: 1px solid rgba(42,42,58,0.5); vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: rgba(196,163,90,0.03); }
-    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
-    .btn-gold { background: var(--gold); color: #0d0d14; }
-    .btn-gold:hover { background: #d4b36a; }
-    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-    .btn-danger { background: #3a0f0f; color: #f87171; border: 1px solid #5a1f1f; }
-    .btn-danger:hover { background: #5a1f1f; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-    .input { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; width: 100%; }
-    .input:focus { border-color: var(--gold); }
-    .select { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; }
-    .select:focus { border-color: var(--gold); }
-    textarea.input { resize: vertical; min-height: 100px; }
-    .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
-    .tab { padding: 6px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid transparent; transition: all 0.15s; }
-    .tab.active { background: rgba(196,163,90,0.15); color: var(--gold); border-color: var(--gold-dim); }
-    .tab:hover:not(.active) { background: rgba(255,255,255,0.05); color: var(--text); }
-    /* Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
-    .modal h3 { font-size: 18px; font-weight: 700; margin: 0 0 20px; }
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    /* Toast */
-    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
-    .toast { padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; max-width: 320px; animation: slideIn 0.2s ease; border: 1px solid; }
-    .toast-success { background: #0f3020; border-color: #1a5030; color: #4ade80; }
-    .toast-error { background: #3a0f0f; border-color: #5a1f1f; color: #f87171; }
-    .toast-info { background: #0f2040; border-color: #1a3060; color: #60a5fa; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-    .health-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-    .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-    .provider-card { background: #111118; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
-    .chart-container { position: relative; height: 200px; }
-    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
-    .empty-state { text-align: center; padding: 40px; color: var(--muted); }
-    .loading { text-align: center; padding: 20px; color: var(--muted); }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
-    @media (max-width: 768px) {
-      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
-      .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0 !important; padding: 12px !important; }
-      .hamburger { display: block; }
-      .kpi-row, .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
-      .health-card { min-width: unset; }
-      table { font-size: 11px; display: block; overflow-x: auto; white-space: nowrap; }
-      table td, table th { padding: 6px 8px; }
-      .section-title { font-size: 18px; }
-      .kpi-card .value { font-size: 16px !important; word-break: break-all; }
-      .kpi-card .label { font-size: 11px; }
-      .card { padding: 12px !important; }
-      #section-profit > div[style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2, 1fr) !important; }
-      #section-profit > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr 1fr !important; }
-      .tab { font-size: 12px; padding: 6px 10px; }
-    }
-    @media (max-width: 480px) {
-      #section-profit > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-      .kpi-row, .kpi-grid { grid-template-columns: 1fr !important; }
-      .main { padding: 8px !important; }
-      .nav-item { padding: 8px 12px; font-size: 13px; }
-      .tab-bar { flex-wrap: wrap; }
-      .btn { padding: 6px 10px; font-size: 12px; }
-    }
-  </style>
-  <script>
-    function toggleSidebar() {
-      const sb = document.getElementById('sidebar');
-      if (sb) sb.classList.toggle('open');
-    }
-  </script>
-</head>
-<body>
-
-<!-- Sidebar -->
-<button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
-<div class="sidebar" id="sidebar">
-  <div style="padding: 20px; border-bottom: 1px solid var(--border);">
-    <div style="font-size: 16px; font-weight: 700; color: var(--gold);">⚡ BerkahKarya</div>
-    <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
-  </div>
-  <nav style="flex: 1; padding: 12px 0; overflow-y: auto;" id="nav">
-    <div class="nav-item active" data-section="overview">📊 Overview</div>
-    <div class="nav-item" data-section="users">👥 Users</div>
-    <div class="nav-item" data-section="transactions">💳 Transactions</div>
-    <div class="nav-item" data-section="analytics">📈 Analytics</div>
-    <div class="nav-item" data-section="pricing">💰 Pricing</div>
-    <div class="nav-item" data-section="tokens">🪙 Token Usage</div>
-    <div class="nav-item" data-section="profit">💹 Revenue</div>
-    <div class="nav-item" data-section="niches">🏷️ Niches</div>
-    <div class="nav-item" data-section="landing-page">🌐 Landing Page</div>
-    <div style="margin: 8px 0; border-top: 1px solid var(--border);"></div>
-    <div class="nav-item" onclick="window.location='/admin/medias'" style="cursor:pointer;">🎬 Media Gallery</div>
-    <div class="nav-item" onclick="window.location='/admin/prompts'" style="cursor:pointer;">✍️ Prompts</div>
-    <div class="nav-item" onclick="window.location='/admin/providers'" style="cursor:pointer;">🔌 Providers</div>
-    <div class="nav-item" onclick="window.location='/admin/playground'" style="cursor:pointer;">🧪 Playground</div>
-    <div class="nav-item" onclick="window.location='/admin/settings'" style="cursor:pointer;">⚙️ Settings</div>
-    <div style="margin: 8px 0; border-top: 1px solid var(--border);"></div>
-    <div class="nav-item" data-section="ai-assistant">🤖 AI Assistant</div>
-  </nav>
-  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
-    <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
-    <button class="btn btn-ghost btn-sm" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="logout()">🚪 Logout</button>
-  </div>
-</div>
-
-<!-- Main Content -->
-<div class="main">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- ===== BERKAHKARYA FULL FUNNEL TRACKING ===== -->
+<% if (locals.fbPixelId) { %>
+<script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+  (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init','<%= fbPixelId %>');
+  fbq('track','PageView');
+  fbq('track','InitiateCheckout',{content_name:'Admin Analytics',content_category:'saas_admin',event_source:'aitradepulse_admin'});
+</script>
+<% } %>
+<% if (locals.ttPixelId) { %>
+<script>
+  !function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
+  ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],
+  ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+  for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
+  ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},
+  ttq.load=function(e,n){var i="https://analytics.tiktok.com/i18n/pixel/events.js";
+  ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=i,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};
+  var o=document.createElement("script");o.type="text/javascript",o.async=!0,o.src=i+"?sdkid="+e+"&lib="+t;
+  var a=document.getElementsByTagName("script")[0];a.parentNode.insertBefore(o,a)};
+  ttq.load('<%= ttPixelId %>');ttq.page();
+  ttq.track('InitiateCheckout',{content_name:'Admin Analytics',content_type:'saas_admin'});
+  }(window,document,'ttq');
+</script>
+<% } %>
+<% if (locals.ga4Id) { %>
+<script async src="https://www.googletagmanager.com/gtag/js?id=<%= ga4Id %>"></script>
+<script>
+  window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+  gtag('js',new Date());gtag('config','<%= ga4Id %>');
+  gtag('event','begin_checkout',{page:'admin_analytics',event_source:'aitradepulse_admin'});
+</script>
+<% } %>
+<!-- ===== END TRACKING ===== -->
+<style>
+  /* Page-specific styles for analytics dashboard */
+  .section { display: none; }
+  .kpi-card .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .badge-free { background: #2a2a3a; color: #aaa; }
+  .badge-starter { background: #1a2a4a; color: #60a5fa; }
+  .badge-pro { background: #2a1a4a; color: #a78bfa; }
+  .badge-enterprise { background: #3a2a0a; color: var(--gold); }
+  .badge-banned { background: #3a0f0f; color: #f87171; }
+  .badge-pending { background: #3a2a0a; color: #fbbf24; }
+  .badge-success { background: #0f3020; color: #4ade80; }
+  .badge-failed { background: #3a0f0f; color: #f87171; }
+  .badge-completed { background: #0f3020; color: #4ade80; }
+  .badge-processing { background: #0f2040; color: #60a5fa; }
+  .badge-ok { background: #0f3020; color: #4ade80; }
+  .badge-error { background: #3a0f0f; color: #f87171; }
+  .badge-degraded { background: #3a2a0a; color: #fbbf24; }
+  .badge-unknown { background: #2a2a3a; color: #aaa; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(42,42,58,0.5); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(196,163,90,0.03); }
+  .select { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; }
+  .select:focus { border-color: var(--gold); }
+  textarea.input { resize: vertical; min-height: 100px; }
+  .health-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .provider-card { background: #111118; border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .chart-container { position: relative; height: 200px; }
+  @media (max-width: 768px) {
+    .kpi-row, .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .health-card { min-width: unset; }
+    table { font-size: 11px; display: block; overflow-x: auto; white-space: nowrap; }
+    table td, table th { padding: 6px 8px; }
+    .kpi-card .value { font-size: 16px !important; word-break: break-all; }
+    .kpi-card .label { font-size: 11px; }
+    #section-profit > div[style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2, 1fr) !important; }
+    #section-profit > div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr 1fr !important; }
+  }
+  @media (max-width: 480px) {
+    #section-profit > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+    .kpi-row, .kpi-grid { grid-template-columns: 1fr !important; }
+    .tab-bar { flex-wrap: wrap; }
+  }
+</style>
 
   <!-- ====== OVERVIEW ====== -->
   <div id="section-overview" class="section active">
@@ -772,8 +649,6 @@
     </div>
   </div>
 
-</div><!-- /main -->
-
 <!-- ======= MODALS ======= -->
 
 <!-- User Detail Modal -->
@@ -986,20 +861,33 @@ function esc(s) {
   return d.innerHTML;
 }
 
-// ===================== NAVIGATION =====================
+// ===================== NAVIGATION (hash-based) =====================
 let currentSection = 'overview';
-document.querySelectorAll('.nav-item').forEach(el => {
-  el.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    el.classList.add('active');
-    const sec = el.dataset.section;
-    document.getElementById('section-' + sec).classList.add('active');
-    currentSection = sec;
-    console.log('[nav] switching to section:', sec);
-    try { loadSection(sec); } catch(e) { console.error('[nav] loadSection error:', e); }
+
+function showSectionFromHash() {
+  const hash = location.hash.replace('#', '') || 'overview';
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  const target = document.getElementById('section-' + hash);
+  if (target) {
+    target.style.display = 'block';
+    currentSection = hash;
+  } else {
+    document.getElementById('section-overview').style.display = 'block';
+    currentSection = 'overview';
+  }
+  // Update sidebar active state
+  document.querySelectorAll('.sidebar .nav-item').forEach(n => {
+    const href = n.getAttribute('onclick') || '';
+    if (href.includes('#' + hash) || (hash === 'overview' && href.includes("'/admin/dashboard'"))) {
+      n.classList.add('active');
+    } else if (n.classList.contains('active') && !href.includes('/admin/dashboard')) {
+      // Only remove active from dashboard sub-items, not other page links
+      n.classList.remove('active');
+    }
   });
-});
+  try { loadSection(currentSection); } catch(e) { /* section load error */ }
+}
+window.addEventListener('hashchange', showSectionFromHash);
 
 function loadSection(sec) {
   if (sec === 'overview') loadOverview();
@@ -2217,32 +2105,12 @@ document.getElementById('ai-chat-input').addEventListener('input', function() {
 const urlToken = new URLSearchParams(location.search).get('token');
 if (urlToken) { localStorage.setItem('admin_password', urlToken); }
 
-// Load initial section — support #hash navigation (e.g. redirect from /admin/settings)
-const initSection = location.hash.replace('#', '') || 'overview';
-if (initSection !== 'overview') {
-  const navItem = document.querySelector(`[data-section="${initSection}"]`);
-  if (navItem) navItem.click();
-  else loadOverview();
-} else {
-  loadOverview();
-}
+// Show section based on URL hash and load its data
+showSectionFromHash();
 
 // Auto-refresh overview + analytics every 30s
 setInterval(() => {
   if (currentSection === 'overview') loadOverview();
   if (currentSection === 'analytics') loadAnalytics();
 }, 30000);
-function toggleSidebar() {
-  document.querySelector('.sidebar').classList.toggle('open');
-}
-// Close sidebar when nav item clicked on mobile
-document.querySelectorAll('.nav-item').forEach(item => {
-  item.addEventListener('click', () => {
-    if (window.innerWidth <= 768) {
-      document.querySelector('.sidebar').classList.remove('open');
-    }
-  });
-});
 </script>
-</body>
-</html>

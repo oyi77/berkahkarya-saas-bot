@@ -1307,7 +1307,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   // ── Analytics Dashboard ──
 
   server.get("/admin/dashboard", async (_request, reply) => {
-    return reply.view("admin/analytics.ejs", trackingVars());
+    return reply.view("admin/analytics.ejs", { ...trackingVars(), activePage: 'dashboard', title: 'Dashboard' }, { layout: 'admin/layout.ejs' });
   });
 
   // API: Analytics data (today's metrics, active users, provider health, top niches, recent errors)
