@@ -64,7 +64,11 @@ const USD_TO_IDR = async (): Promise<number> => {
       "system",
       "exchange_rate",
     );
-    if (dbRate) return Number(dbRate);
+    if (dbRate) {
+      const rate = Number(dbRate);
+      // IDR/USD should be 10,000–50,000. If out of range, fall back to env.
+      if (rate >= 10_000 && rate <= 50_000) return rate;
+    }
   } catch {
     /* fallback to env */
   }

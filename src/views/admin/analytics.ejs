@@ -623,7 +623,7 @@
           <button class="btn btn-gold btn-sm" onclick="saveExchangeRate()">Save</button>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Used for cost calculations, profit reports, and pricing recommendations. Changes take effect immediately.</div>
-        <input type="number" id="st-exchangeRate" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);font-size:16px;" placeholder="16000" min="1000" step="100">
+        <input type="number" id="st-exchangeRate" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:8px;border-radius:6px;color:var(--text);font-size:16px;" placeholder="16000" min="10000" max="50000" step="100">
         <div style="font-size:11px;color:var(--muted);margin-top:8px;">Current: <span id="st-exchangeRateDisplay">loading...</span></div>
       </div>
 
@@ -729,7 +729,7 @@
         </div>
         <div style="display:flex;gap:10px;margin-top:8px;">
           <button onclick="saveNiche()" class="btn btn-gold btn-sm">Save Niche</button>
-          <button onclick="document.getElementById('nicheForm').style.display='none'" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">Cancel</button>
+          <button onclick="document.getElementById('nicheId').readOnly=false;document.getElementById('nicheForm').style.display='none'" class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text);">Cancel</button>
         </div>
       </div>
     </div>
@@ -1962,7 +1962,7 @@ async function saveLanding() {
 
 async function saveExchangeRate() {
   const rate = parseInt(document.getElementById('st-exchangeRate').value);
-  if (!rate || rate < 1000) { toast('Rate harus > 1000', 'error'); return; }
+  if (!rate || rate < 10000 || rate > 50000) { toast('Exchange rate must be between 10,000 and 50,000 IDR/USD', 'error'); return; }
   const res = await api('/api/settings/exchange-rate', { method: 'POST', body: { rate } });
   if (res !== null) {
     toast('Exchange rate saved: ' + rate);
@@ -2071,18 +2071,32 @@ async function loadNiches() {
         <td style="font-size:12px;color:var(--muted);">${n.id}</td>
         <td style="font-size:13px;">${n.name}</td>
         <td style="font-size:12px;color:var(--muted);">${(n.keywords || []).join(', ')}</td>
-        <td><button class="btn btn-sm" style="background:rgba(255,68,68,0.1);color:#ff4444;border:1px solid rgba(255,68,68,0.2);padding:4px 10px;font-size:12px;" onclick="deleteNiche('${n.id}')">Delete</button></td>
+        <td>
+          <button class="btn btn-sm" style="background:rgba(196,163,90,0.1);color:var(--gold);border:1px solid rgba(196,163,90,0.2);padding:4px 10px;font-size:12px;margin-right:4px;" onclick="editNiche('${n.id}','${(n.name||'').replace(/'/g,&quot;&#39;&quot;)}','${(n.emoji||'').replace(/'/g,&quot;&#39;&quot;)}','${(n.keywords||[]).join(', ').replace(/'/g,&quot;&#39;&quot;)}')">&#x270F;&#xFE0F; Edit</button>
+          <button class="btn btn-sm" style="background:rgba(255,68,68,0.1);color:#ff4444;border:1px solid rgba(255,68,68,0.2);padding:4px 10px;font-size:12px;" onclick="deleteNiche('${n.id}')">Delete</button>
+        </td>
       </tr>`).join('')}
     </tbody></table>`;
   } catch(e) { toast('Failed to load niches: ' + e.message, 'error'); }
 }
 
 function showNicheForm() {
+  document.getElementById('nicheId').readOnly = false;
   document.getElementById('nicheId').value = '';
   document.getElementById('nicheName').value = '';
   document.getElementById('nicheEmoji').value = '';
   document.getElementById('nicheKeywords').value = '';
   document.getElementById('nicheForm').style.display = 'block';
+}
+
+function editNiche(id, name, emoji, keywords) {
+  document.getElementById('nicheId').value = id;
+  document.getElementById('nicheId').readOnly = true;
+  document.getElementById('nicheName').value = name;
+  document.getElementById('nicheEmoji').value = emoji;
+  document.getElementById('nicheKeywords').value = keywords;
+  document.getElementById('nicheForm').style.display = 'block';
+  document.getElementById('nicheForm').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function saveNiche() {
@@ -2094,6 +2108,7 @@ async function saveNiche() {
   const res = await api('/api/niches', { method: 'POST', body: { id, name, emoji, keywords } });
   if (res !== null) {
     toast('Niche saved!');
+    document.getElementById('nicheId').readOnly = false;
     document.getElementById('nicheForm').style.display = 'none';
     loadNiches();
   } else {

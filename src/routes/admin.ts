@@ -35,6 +35,7 @@ import { ImageGenerationService } from "@/services/image.service";
 import { generateVideoWithFallback } from "@/services/video-fallback.service";
 import { CircuitBreaker } from "@/services/circuit-breaker.service";
 import { AdminConfigService } from "@/services/admin-config.service";
+import axios from "axios";
 
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
@@ -1800,7 +1801,32 @@ You are an expert system administrator and architect for this platform. Give spe
     const result = await omni.chat(sessionId, fullMessage);
 
     if (!result.success) {
-      return reply.status(500).send({ error: "AI is temporarily unavailable" });
+      // Fallback to Gemini direct API
+      try {
+        const geminiKey = getConfig().GEMINI_API_KEY;
+        if (!geminiKey) throw new Error('No Gemini key');
+        const geminiRes = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+          {
+            contents: [{
+              role: 'user',
+              parts: [{ text: fullMessage }]
+            }],
+            systemInstruction: {
+              parts: [{ text: 'You are an expert system administrator and architect for a Telegram bot SaaS platform. Give specific, actionable answers.' }]
+            },
+            generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
+          },
+          { timeout: 30000 }
+        );
+        const geminiContent = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (geminiContent) {
+          return { reply: geminiContent, model: 'gemini-2.0-flash (fallback)' };
+        }
+      } catch (fallbackErr: any) {
+        logger.warn('Gemini fallback also failed:', fallbackErr.message);
+      }
+      return reply.status(500).send({ error: "AI is temporarily unavailable. Please check OMNIROUTE_API_KEY or GEMINI_API_KEY configuration." });
     }
 
     return { reply: result.content, model: result.model };
@@ -1952,8 +1978,8 @@ You are an expert system administrator and architect for this platform. Give spe
   /** POST /api/settings/exchange-rate */
   server.post("/api/settings/exchange-rate", async (request, reply) => {
     const { rate } = request.body as any;
-    if (!rate || isNaN(Number(rate)) || Number(rate) < 1000) {
-      return reply.status(400).send({ error: "Invalid rate (must be > 1000)" });
+    if (!rate || isNaN(Number(rate)) || Number(rate) < 10_000 || Number(rate) > 50_000) {
+      return reply.status(400).send({ error: "Invalid rate (must be between 10,000 and 50,000 IDR/USD)" });
     }
     const numRate = Number(rate);
     // Persist to DB (survives restarts), keep Redis as cache
