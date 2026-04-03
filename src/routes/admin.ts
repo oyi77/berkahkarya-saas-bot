@@ -1022,7 +1022,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   });
 
   server.get("/admin/settings", async (_request, reply) => {
-    return reply.redirect("/admin/dashboard#settings");
+    return reply.view("admin/settings.ejs", { ...trackingVars(), activePage: 'settings', title: 'Settings' }, { layout: 'admin/layout.ejs' });
   });
 
   server.get("/admin/users", async (_request, reply) => {
