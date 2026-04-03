@@ -67,27 +67,7 @@
 </head>
 <body>
 
-<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">&#9776;</button>
-
-<!-- Sidebar -->
-<div class="sidebar">
-  <div style="padding: 20px; border-bottom: 1px solid var(--border);">
-    <div style="font-size: 16px; font-weight: 700; color: var(--gold);">&#9889; BerkahKarya</div>
-    <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
-  </div>
-  <nav style="flex: 1; padding: 12px 0;">
-    <a href="/admin/dashboard" class="nav-item">&#128202; Overview</a>
-    <a href="/admin/pricing" class="nav-item">&#128176; Pricing</a>
-    <a href="/admin/prompts" class="nav-item">&#9997;&#65039; Prompts</a>
-    <a href="/admin/config" class="nav-item">&#9881;&#65039; Config</a>
-    <a href="/admin/providers" class="nav-item">&#128268; Providers</a>
-    <a href="/admin/playground" class="nav-item">&#129514; Playground</a>
-    <a href="/admin/system" class="nav-item active">&#9881; System</a>
-  </nav>
-  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
-    <button class="btn btn-ghost btn-sm" style="width: 100%; justify-content: center;" onclick="logout()">&#128682; Logout</button>
-  </div>
-</div>
+<%- include('./partials/sidebar', { activePage: 'system' }) %>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>

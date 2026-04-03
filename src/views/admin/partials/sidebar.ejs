@@ -1,0 +1,37 @@
+<%
+  // activePage: 'dashboard' | 'playground' | 'providers' | 'system'
+  // For dashboard sections pass activePage='dashboard' — the section highlight is handled client-side
+  const _ap = typeof activePage !== 'undefined' ? activePage : 'dashboard';
+  function _nav(page) { return _ap === page ? 'nav-item active' : 'nav-item'; }
+%>
+<button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
+<div class="sidebar" id="sidebar">
+  <div style="padding: 20px; border-bottom: 1px solid var(--border);">
+    <div style="font-size: 16px; font-weight: 700; color: var(--gold);">⚡ BerkahKarya</div>
+    <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
+  </div>
+  <nav style="flex: 1; padding: 12px 0; overflow-y: auto;">
+    <div class="<%= _nav('dashboard') %>" onclick="window.location='/admin/dashboard'">📊 Overview</div>
+    <div class="<%= _nav('playground') %>" onclick="window.location='/admin/playground'">🧪 Playground</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#users'">👥 Users</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#transactions'">💳 Transactions</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#videos'">🎬 Videos</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#analytics'">📈 Analytics</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#pricing'">💰 Pricing</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#landing-page'">🌐 Landing Page</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#prompts'">✍️ Prompts</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#broadcast'">📢 Broadcast</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#system'">⚙️ System</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#tokens'">🪙 Token Usage</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#profit'">💹 Revenue</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#settings'">⚙️ Settings</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#niches'">🏷️ Niches</div>
+    <div class="<%= _nav('providers') %>" onclick="window.location='/admin/providers'">🔌 Providers</div>
+    <div class="nav-item" onclick="window.location='/admin/dashboard#ai-assistant'" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">🤖 AI Assistant</div>
+    <div class="<%= _nav('system') %>" onclick="window.location='/admin/system'">⚙️ System Config</div>
+  </nav>
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+    <div id="live-clock" style="font-size: 12px; color: var(--muted); font-family: monospace;"></div>
+    <button class="btn btn-ghost btn-sm" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="logout ? logout() : (localStorage.removeItem('admin_password'), document.cookie='admin_token=; Max-Age=0; Path=/;', location.href='/admin/login')">🚪 Logout</button>
+  </div>
+</div>
