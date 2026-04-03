@@ -382,9 +382,7 @@ export async function executeGeneration(ctx: BotContext): Promise<void> {
         resolution: selectedRes,
         referenceImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
         referenceImagePath: isLocalRef ? photoUrl : undefined,
-        mode: (photoUrl ? 'ip_adapter' : 'text2img') as 'img2img' | 'text2img' | 'ip_adapter',
-        avatarImageUrl: photoUrl && !isLocalRef ? photoUrl : undefined,
-        avatarImagePath: isLocalRef ? photoUrl : undefined,
+        mode: (photoUrl ? 'img2img' : 'text2img') as 'img2img' | 'text2img' | 'ip_adapter',
       };
 
       const userImages: Array<{ sceneIndex: number; url: string }> = [];

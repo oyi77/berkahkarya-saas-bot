@@ -30,6 +30,7 @@ import axios from "axios";
 import FormData from "form-data";
 import * as fs from "fs";
 import * as path from "path";
+import os from "os";
 
 const GEMINIGEN_API_BASE = "https://api.geminigen.ai/uapi/v1";
 
@@ -90,6 +91,27 @@ function mapAspectRatioSimple(ratio: string): string {
   if (ratio === "9:16") return "9:16";
   if (ratio === "1:1") return "1:1";
   return "16:9";
+}
+
+async function ensureLocalImage(refImage: string | null | undefined): Promise<string | null> {
+  if (!refImage) return null;
+  // Already a local file that exists
+  if (!refImage.startsWith('http') && fs.existsSync(refImage) && fs.statSync(refImage).size > 0) {
+    return refImage;
+  }
+  // HTTP URL — download to temp file
+  if (refImage.startsWith('http')) {
+    try {
+      const tmpPath = path.join(os.tmpdir(), `ref_img_${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`);
+      const response = await axios.get(refImage, { responseType: 'arraybuffer', timeout: 30000 });
+      fs.writeFileSync(tmpPath, Buffer.from(response.data));
+      return tmpPath;
+    } catch (err) {
+      logger.warn('[video-fallback] Failed to download reference image:', err);
+      return null;
+    }
+  }
+  return null;
 }
 
 function readRefImageBase64(refPath: string): string | null {
@@ -1315,6 +1337,13 @@ export async function generateVideoWithFallback(
 ): Promise<VideoFallbackResult> {
   // All video providers require minimum 5s duration
   params.duration = Math.max(5, params.duration);
+
+  // Ensure reference image is a valid local file (download if URL)
+  const resolvedRef = await ensureLocalImage(params.referenceImage);
+  const resolvedParams = resolvedRef !== params.referenceImage
+    ? { ...params, referenceImage: resolvedRef }
+    : params;
+  params = resolvedParams;
 
   const allProviders = getProviders().filter((p) => p.enabled);
 
