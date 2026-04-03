@@ -212,11 +212,20 @@ export class ProviderBalanceService {
   }
 
   static async fetchAllBalances(): Promise<BalanceResult[]> {
-    const results: BalanceResult[] = [];
-    for (const key of ALL_PROVIDER_KEYS) {
-      results.push(await this.fetchBalance(key));
-    }
-    return results;
+    const settled = await Promise.allSettled(
+      ALL_PROVIDER_KEYS.map((key) => this.fetchBalance(key)),
+    );
+    return settled.map((r, i) =>
+      r.status === "fulfilled"
+        ? r.value
+        : {
+            provider: ALL_PROVIDER_KEYS[i],
+            balance: null,
+            currency: "",
+            status: "error" as const,
+            error: r.reason?.message || "unknown",
+          },
+    );
   }
 
   static async fetchModels(providerKey: string): Promise<ModelResult> {

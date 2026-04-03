@@ -2072,7 +2072,7 @@ async function loadNiches() {
         <td style="font-size:13px;">${n.name}</td>
         <td style="font-size:12px;color:var(--muted);">${(n.keywords || []).join(', ')}</td>
         <td>
-          <button class="btn btn-sm" style="background:rgba(196,163,90,0.1);color:var(--gold);border:1px solid rgba(196,163,90,0.2);padding:4px 10px;font-size:12px;margin-right:4px;" onclick="editNiche('${n.id}','${(n.name||'').replace(/'/g,&quot;&#39;&quot;)}','${(n.emoji||'').replace(/'/g,&quot;&#39;&quot;)}','${(n.keywords||[]).join(', ').replace(/'/g,&quot;&#39;&quot;)}')">&#x270F;&#xFE0F; Edit</button>
+          <button class="btn btn-sm" style="background:rgba(196,163,90,0.1);color:var(--gold);border:1px solid rgba(196,163,90,0.2);padding:4px 10px;font-size:12px;margin-right:4px;" onclick="editNiche('${n.id}','${(n.name||'').replace(/'/g,"\\'")}','${(n.emoji||'').replace(/'/g,"\\'")}','${(n.keywords||[]).join(', ').replace(/'/g,"\\'")}')">✏️ Edit</button>
           <button class="btn btn-sm" style="background:rgba(255,68,68,0.1);color:#ff4444;border:1px solid rgba(255,68,68,0.2);padding:4px 10px;font-size:12px;" onclick="deleteNiche('${n.id}')">Delete</button>
         </td>
       </tr>`).join('')}
