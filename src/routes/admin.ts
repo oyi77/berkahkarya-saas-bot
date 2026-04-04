@@ -27,6 +27,7 @@ import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 import { ProviderSettingsService } from "@/services/provider-settings.service";
 import { AITaskSettingsService, AITaskSettings } from "@/services/ai-task-settings.service";
 import { AIConfigService, AITasksConfig, AIPromptsConfig, AIChatConfig } from '@/services/ai-config.service';
+import { CustomProviderService } from '@/services/custom-provider.service';
 import { ProviderBalanceService } from "@/services/provider-balance.service";
 import { getOmniRouteService } from "@/services/omniroute.service";
 import { UserService } from "@/services/user.service";
@@ -1807,6 +1808,69 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     await AIConfigService.updatePromptsConfig({});
     await AIConfigService.updateChatConfig({});
     return reply.send({ ok: true });
+  });
+
+  // ── Custom Providers API ──────────────────────────────────────────────────
+  // GET /api/admin/custom-providers
+  server.get('/api/admin/custom-providers', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const providers = await CustomProviderService.getAll();
+    return reply.send(providers);
+  });
+
+  // POST /api/admin/custom-providers
+  server.post('/api/admin/custom-providers', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { name, baseUrl, apiKey } = request.body as any;
+    if (!name || !baseUrl || !apiKey) return reply.status(400).send({ error: 'name, baseUrl, apiKey required' });
+    const provider = await CustomProviderService.create({ name, baseUrl, apiKey });
+    return reply.send(provider);
+  });
+
+  // PUT /api/admin/custom-providers/:id
+  server.put('/api/admin/custom-providers/:id', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { id } = request.params as any;
+    const data = request.body as any;
+    const provider = await CustomProviderService.update(id, data);
+    return reply.send(provider);
+  });
+
+  // DELETE /api/admin/custom-providers/:id
+  server.delete('/api/admin/custom-providers/:id', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { id } = request.params as any;
+    await CustomProviderService.delete(id);
+    return reply.send({ ok: true });
+  });
+
+  // POST /api/admin/custom-providers/:id/fetch-models
+  server.post('/api/admin/custom-providers/:id/fetch-models', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { id } = request.params as any;
+    const models = await CustomProviderService.fetchModels(id);
+    return reply.send({ ok: true, count: models.length, models });
+  });
+
+  // POST /api/admin/custom-providers/:id/test
+  server.post('/api/admin/custom-providers/:id/test', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { id } = request.params as any;
+    const { model } = (request.body as any) || {};
+    const result = await CustomProviderService.testProvider(id, model);
+    return reply.send(result);
+  });
+
+  // POST /api/admin/custom-providers/:id/check-balance
+  server.post('/api/admin/custom-providers/:id/check-balance', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const { id } = request.params as any;
+    try {
+      const balance = await CustomProviderService.checkBalance(id);
+      return reply.send({ success: true, balance });
+    } catch (err: any) {
+      return reply.status(400).send({ success: false, error: err.message });
+    }
   });
 
   // GET /api/admin/models-catalog

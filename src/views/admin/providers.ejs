@@ -26,6 +26,7 @@
   <div class="tab active" data-tab="video" onclick="switchTab('video')">🎬 Video Providers</div>
   <div class="tab" data-tab="image" onclick="switchTab('image')">🖼️ Image Providers</div>
   <div class="tab" data-tab="ai-tasks" onclick="switchTab('ai-tasks')">🤖 AI Tasks</div>
+  <div class="tab" data-tab="custom" onclick="switchTab('custom')">🔧 Custom Providers</div>
 </div>
 
 <!-- Summary Cards -->
@@ -158,6 +159,52 @@
   </div>
 </div>
 
+<!-- Custom Providers Panel -->
+<div id="custom-providers-panel" style="display:none;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+    <div>
+      <div style="font-size:15px; font-weight:600; margin-bottom:4px;">🔧 Custom AI Providers</div>
+      <div style="font-size:12px; color:var(--muted);">Add any OpenAI-compatible provider. Balance is auto-detected by URL pattern.</div>
+    </div>
+    <button class="btn btn-gold btn-sm" onclick="openAddCustomProvider()">+ Add Provider</button>
+  </div>
+  <div id="custom-provider-list" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:16px;">
+    <div class="loading">Loading...</div>
+  </div>
+</div>
+
+<!-- Custom Provider Add/Edit Modal -->
+<div class="modal-overlay" id="modal-custom-provider">
+  <div class="modal" style="max-width:480px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h3 style="margin:0;" id="modal-custom-provider-title">Add Custom Provider</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-custom-provider')">✕</button>
+    </div>
+    <input type="hidden" id="cp-edit-id" />
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:6px;">Display Name *</label>
+        <input class="input" id="cp-name" placeholder="e.g. Laozhang / My Provider" />
+      </div>
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:6px;">Base URL *</label>
+        <input class="input" id="cp-baseUrl" placeholder="https://api.example.com/v1" />
+        <div style="font-size:11px; color:var(--muted); margin-top:4px;">Must be OpenAI-compatible (/v1/chat/completions, /v1/models)</div>
+      </div>
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:6px;">API Key *</label>
+        <input class="input" id="cp-apiKey" type="password" placeholder="sk-..." autocomplete="new-password" />
+      </div>
+      <div style="display:flex; gap:10px; padding-top:6px; flex-wrap:wrap;">
+        <button class="btn btn-gold" id="cp-save-btn" onclick="saveCustomProvider()">💾 Save</button>
+        <button class="btn btn-ghost" id="cp-test-btn" onclick="testCustomProviderModal()" style="display:none;">⚡ Test</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-custom-provider')" style="margin-left:auto;">Cancel</button>
+      </div>
+      <div id="cp-modal-status" style="font-size:12px;"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Models Modal -->
 <div class="modal-overlay" id="modal-models">
   <div class="modal" style="max-width: 700px;">
@@ -262,13 +309,19 @@ function switchTab(tab) {
   document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
 
   const isAITasks = tab === 'ai-tasks';
+  const isCustom = tab === 'custom';
+  const isBuiltin = !isAITasks && !isCustom;
+
   document.getElementById('ai-tasks-panel').style.display = isAITasks ? 'block' : 'none';
-  document.getElementById('provider-grid').style.display = isAITasks ? 'none' : '';
-  document.querySelector('.kpi-grid').style.display = isAITasks ? 'none' : '';
-  document.querySelector('.card').style.display = isAITasks ? 'none' : '';
+  document.getElementById('custom-providers-panel').style.display = isCustom ? 'block' : 'none';
+  document.getElementById('provider-grid').style.display = isBuiltin ? '' : 'none';
+  document.querySelector('.kpi-grid').style.display = isBuiltin ? '' : 'none';
+  document.querySelector('.card').style.display = isBuiltin ? '' : 'none';
 
   if (isAITasks) {
     loadAITaskSettings();
+  } else if (isCustom) {
+    loadCustomProviders();
   } else {
     renderCards();
     updateSummary();
@@ -725,4 +778,216 @@ setInterval(() => {
   loadBalances();
   updateSummary();
 }, 60000);
+
+// ===================== CUSTOM PROVIDERS =====================
+let customProvidersData = [];
+
+async function loadCustomProviders() {
+  const list = document.getElementById('custom-provider-list');
+  list.innerHTML = '<div class="loading">Loading...</div>';
+  try {
+    const data = await api('/api/admin/custom-providers');
+    customProvidersData = data || [];
+    renderCustomProviders();
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--red);">Failed to load: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderCustomProviders() {
+  const list = document.getElementById('custom-provider-list');
+  if (!customProvidersData.length) {
+    list.innerHTML = `<div class="card" style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">
+      No custom providers yet.<br><br>
+      <button class="btn btn-gold btn-sm" onclick="openAddCustomProvider()">+ Add your first provider</button>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = customProvidersData.map(p => {
+    const bal = p.lastBalance;
+    let balHtml;
+    if (!bal) {
+      balHtml = `<span style="color:var(--muted);">Not checked</span>`;
+    } else if (bal.error) {
+      balHtml = `<span style="color:var(--red);" title="${esc(bal.error)}">Error: ${esc(bal.error.slice(0,40))}</span>`;
+    } else if (bal.balance === null || bal.balance === undefined) {
+      balHtml = `<span style="color:var(--muted);">${esc(bal.unit || 'N/A')}</span>`;
+    } else {
+      balHtml = `<span style="color:var(--green);">${Number(bal.balance).toLocaleString()} ${esc(bal.unit || bal.currency || 'credits')}</span>`;
+    }
+    const checkedAt = bal?.checkedAt ? new Date(bal.checkedAt).toLocaleString() : '';
+    const strategyBadge = bal?.strategyUsed ? `<span style="font-size:10px; color:var(--muted); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${esc(bal.strategyUsed)}</span>` : '';
+
+    return `<div class="provider-card" id="cp-card-${esc(p.id)}">
+      <div class="provider-header" style="padding:16px;">
+        <div class="provider-row">
+          <div class="status-dot ${p.enabled ? 'green' : 'gray'}"></div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(p.name)}</div>
+            <div style="font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(p.baseUrl)}</div>
+          </div>
+          <div style="font-size:11px; color:var(--muted); text-align:right; white-space:nowrap;">${p.models.length} models</div>
+        </div>
+      </div>
+      <div style="padding:0 16px 16px; border-top:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:8px; margin:12px 0 8px; font-size:13px; flex-wrap:wrap;">
+          <span>💰</span>
+          <span id="cp-balance-${esc(p.id)}">${balHtml}</span>
+          ${strategyBadge}
+          ${checkedAt ? `<span style="font-size:10px; color:var(--muted);">· ${esc(checkedAt)}</span>` : ''}
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+          <button class="btn btn-ghost btn-sm" onclick="checkCustomBalance('${esc(p.id)}')" id="cp-balance-btn-${esc(p.id)}">💰 Check Balance</button>
+          <button class="btn btn-ghost btn-sm" onclick="fetchCustomModels('${esc(p.id)}')" id="cp-models-btn-${esc(p.id)}">🔍 Fetch Models</button>
+          <button class="btn btn-ghost btn-sm" onclick="testCustomProvider('${esc(p.id)}')" id="cp-test-btn-${esc(p.id)}">⚡ Test</button>
+          <button class="btn btn-ghost btn-sm" onclick="openEditCustomProvider('${esc(p.id)}')" style="margin-left:auto;">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCustomProvider('${esc(p.id)}', '${esc(p.name)}')">🗑️</button>
+        </div>
+        ${p.models.length ? `<div style="margin-top:10px; font-size:11px; color:var(--muted);">Models: ${p.models.slice(0,5).map(m => esc(m.id)).join(', ')}${p.models.length > 5 ? ` +${p.models.length-5} more` : ''}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function checkCustomBalance(id) {
+  const btn = document.getElementById(`cp-balance-btn-${id}`);
+  const display = document.getElementById(`cp-balance-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Checking...'; }
+  if (display) display.innerHTML = '<span class="spinner"></span>';
+  try {
+    const data = await api(`/api/admin/custom-providers/${id}/check-balance`, { method: 'POST' });
+    const bal = data.balance;
+    const p = customProvidersData.find(p => p.id === id);
+    if (p) p.lastBalance = bal;
+    let balHtml;
+    if (bal.error) {
+      balHtml = `<span style="color:var(--red);" title="${esc(bal.error)}">Error: ${esc(bal.error.slice(0,60))}</span>`;
+    } else if (bal.balance === null || bal.balance === undefined) {
+      balHtml = `<span style="color:var(--muted);">${esc(bal.unit || 'N/A')}</span>`;
+    } else {
+      balHtml = `<span style="color:var(--green);">${Number(bal.balance).toLocaleString()} ${esc(bal.unit || bal.currency || 'credits')}</span>`;
+    }
+    if (display) display.innerHTML = balHtml;
+    toast(`Balance checked: ${bal.balance !== undefined ? bal.balance : (bal.error || 'N/A')}`, bal.error ? 'error' : 'success');
+  } catch (e) {
+    if (display) display.innerHTML = `<span style="color:var(--red);">Error</span>`;
+    toast(`Balance check failed: ${e.message}`, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💰 Check Balance'; }
+  }
+}
+
+async function fetchCustomModels(id) {
+  const btn = document.getElementById(`cp-models-btn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Fetching...'; }
+  try {
+    const data = await api(`/api/admin/custom-providers/${id}/fetch-models`, { method: 'POST' });
+    const p = customProvidersData.find(p => p.id === id);
+    if (p) p.models = data;
+    renderCustomProviders();
+    toast(`Fetched ${data.length} models`, 'success');
+  } catch (e) {
+    toast(`Fetch models failed: ${e.message}`, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔍 Fetch Models'; }
+  }
+}
+
+async function testCustomProvider(id) {
+  const btn = document.getElementById(`cp-test-btn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Testing...'; }
+  try {
+    const data = await api(`/api/admin/custom-providers/${id}/test`, { method: 'POST' });
+    toast(`✅ Test OK — ${data.model} replied in ${data.latencyMs}ms: "${(data.response||'').slice(0,50)}"`, 'success');
+  } catch (e) {
+    toast(`Test failed: ${e.message}`, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Test'; }
+  }
+}
+
+function openAddCustomProvider() {
+  document.getElementById('modal-custom-provider-title').textContent = 'Add Custom Provider';
+  document.getElementById('cp-edit-id').value = '';
+  document.getElementById('cp-name').value = '';
+  document.getElementById('cp-baseUrl').value = '';
+  document.getElementById('cp-apiKey').value = '';
+  document.getElementById('cp-modal-status').textContent = '';
+  document.getElementById('cp-test-btn').style.display = 'none';
+  document.getElementById('modal-custom-provider').classList.add('active');
+}
+
+function openEditCustomProvider(id) {
+  const p = customProvidersData.find(p => p.id === id);
+  if (!p) return;
+  document.getElementById('modal-custom-provider-title').textContent = 'Edit Custom Provider';
+  document.getElementById('cp-edit-id').value = p.id;
+  document.getElementById('cp-name').value = p.name;
+  document.getElementById('cp-baseUrl').value = p.baseUrl;
+  document.getElementById('cp-apiKey').value = '';
+  document.getElementById('cp-apiKey').placeholder = '(leave blank to keep existing)';
+  document.getElementById('cp-modal-status').textContent = '';
+  document.getElementById('cp-test-btn').style.display = 'inline-block';
+  document.getElementById('modal-custom-provider').classList.add('active');
+}
+
+async function saveCustomProvider() {
+  const editId = document.getElementById('cp-edit-id').value.trim();
+  const name = document.getElementById('cp-name').value.trim();
+  const baseUrl = document.getElementById('cp-baseUrl').value.trim();
+  const apiKey = document.getElementById('cp-apiKey').value.trim();
+  const statusEl = document.getElementById('cp-modal-status');
+
+  if (!name || !baseUrl) { statusEl.style.color='var(--red)'; statusEl.textContent = 'Name and Base URL are required.'; return; }
+
+  const saveBtn = document.getElementById('cp-save-btn');
+  saveBtn.disabled = true; saveBtn.textContent = '⏳ Saving...';
+  statusEl.textContent = '';
+
+  try {
+    if (editId) {
+      const body = { name, baseUrl, ...(apiKey ? { apiKey } : {}) };
+      await api(`/api/admin/custom-providers/${editId}`, { method: 'PUT', body });
+    } else {
+      if (!apiKey) { statusEl.style.color='var(--red)'; statusEl.textContent = 'API Key is required for new providers.'; saveBtn.disabled = false; saveBtn.textContent = '💾 Save'; return; }
+      await api('/api/admin/custom-providers', { method: 'POST', body: { name, baseUrl, apiKey } });
+    }
+    closeModal('modal-custom-provider');
+    toast(`Provider "${name}" saved`, 'success');
+    await loadCustomProviders();
+  } catch (e) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = e.message;
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = '💾 Save';
+  }
+}
+
+async function testCustomProviderModal() {
+  const editId = document.getElementById('cp-edit-id').value.trim();
+  if (!editId) return;
+  const btn = document.getElementById('cp-test-btn');
+  btn.disabled = true; btn.textContent = '⏳ Testing...';
+  try {
+    const data = await api(`/api/admin/custom-providers/${editId}/test`, { method: 'POST' });
+    document.getElementById('cp-modal-status').style.color = 'var(--green)';
+    document.getElementById('cp-modal-status').textContent = `✅ ${data.model} → "${(data.response||'').slice(0,60)}" (${data.latencyMs}ms)`;
+  } catch (e) {
+    document.getElementById('cp-modal-status').style.color = 'var(--red)';
+    document.getElementById('cp-modal-status').textContent = `❌ ${e.message}`;
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Test';
+  }
+}
+
+async function deleteCustomProvider(id, name) {
+  if (!confirm(`Delete provider "${name}"? This cannot be undone.`)) return;
+  try {
+    await api(`/api/admin/custom-providers/${id}`, { method: 'DELETE' });
+    toast(`Provider "${name}" deleted`, 'success');
+    await loadCustomProviders();
+  } catch (e) {
+    toast(`Delete failed: ${e.message}`, 'error');
+  }
+}
 </script>
