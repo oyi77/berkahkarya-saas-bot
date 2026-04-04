@@ -17,6 +17,17 @@
   .preset-btn { background: rgba(196,163,90,0.1); color: var(--gold); border: 1px solid var(--gold-dim); padding: 3px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s; }
   .preset-btn:hover { background: rgba(196,163,90,0.2); }
   .tab-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+  .filter-chip { background: var(--bg); border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space:nowrap; }
+  .filter-chip.active { background: rgba(196,163,90,0.15); border-color: var(--gold); color: var(--gold); }
+  .cap-badge { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; margin-right:3px; }
+  .cap-vision { background:rgba(99,179,237,0.15); color:#63b3ed; }
+  .cap-reasoning { background:rgba(154,117,237,0.15); color:#9a75ed; }
+  .cap-tools { background:rgba(72,187,120,0.15); color:#48bb78; }
+  .cap-open { background:rgba(237,137,54,0.15); color:#ed8936; }
+  .model-row:hover { background: rgba(255,255,255,0.02); }
+  .model-id { font-family: 'JetBrains Mono', monospace; font-size:11px; color:var(--fg); }
+  .provider-name { font-size:11px; color:var(--muted); }
+  #model-search:focus { border-color: var(--gold-dim); outline: none; }
 </style>
 
 <div id="toast-container"></div>
@@ -29,6 +40,7 @@
   <div class="ai-tab active" data-tab="tasks" onclick="switchAiTab('tasks')">🤖 AI Tasks</div>
   <div class="ai-tab" data-tab="prompts" onclick="switchAiTab('prompts')">💬 System Prompts</div>
   <div class="ai-tab" data-tab="chat" onclick="switchAiTab('chat')">⚙️ Chat Model</div>
+  <div class="ai-tab" data-tab="models" onclick="switchAiTab('models')">🔍 Model Browser</div>
 </div>
 
 <!-- ====== TAB: AI TASKS ====== -->
@@ -302,6 +314,44 @@
   </div>
 </div>
 
+<!-- ====== TAB: MODEL BROWSER ====== -->
+<div id="ai-panel-models" class="ai-panel">
+  <!-- Search + filters bar -->
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+    <input type="text" class="input" id="model-search" placeholder="Search models, providers, families…"
+           style="flex:1;min-width:200px;" oninput="filterModels()">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="filter-chip" id="chip-vision" onclick="toggleChip('vision')">👁 Vision</button>
+      <button class="filter-chip" id="chip-reasoning" onclick="toggleChip('reasoning')">🧠 Reasoning</button>
+      <button class="filter-chip" id="chip-tools" onclick="toggleChip('tools')">🔧 Tools</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="loadModelCatalog(true)">🔄 Refresh</button>
+  </div>
+
+  <!-- Stats bar -->
+  <div id="model-stats" style="font-size:12px;color:var(--muted);margin-bottom:12px;">Loading…</div>
+
+  <!-- Table -->
+  <div style="overflow-x:auto;">
+    <table style="width:100%;font-size:12px;border-collapse:collapse;" id="model-table">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);text-align:left;">
+          <th style="padding:8px 10px;color:var(--muted);font-weight:600;white-space:nowrap;">Model</th>
+          <th style="padding:8px 10px;color:var(--muted);font-weight:600;">Provider</th>
+          <th style="padding:8px 10px;color:var(--muted);font-weight:600;">Capabilities</th>
+          <th style="padding:8px 10px;color:var(--muted);font-weight:600;white-space:nowrap;">Context</th>
+          <th style="padding:8px 10px;color:var(--muted);font-weight:600;">Use for Task</th>
+        </tr>
+      </thead>
+      <tbody id="model-tbody">
+        <tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">Loading model catalog…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="model-pagination" style="display:flex;justify-content:center;gap:8px;margin-top:16px;"></div>
+</div>
+
 <script>
 // ===================== AUTH =====================
 const getToken = () => localStorage.getItem('admin_password') || new URLSearchParams(location.search).get('token') || '';
@@ -515,4 +565,144 @@ if (urlToken) {
 }
 
 loadConfig();
+
+// ── MODEL BROWSER ──────────────────────────────────────────
+let allModels = [];
+let activeChips = new Set();
+let currentPage = 1;
+const PAGE_SIZE = 50;
+
+async function loadModelCatalog(forceRefresh = false) {
+  const tbody = document.getElementById('model-tbody');
+  const stats = document.getElementById('model-stats');
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">Loading 4,000+ models from models.dev…</td></tr>';
+  stats.textContent = 'Loading…';
+
+  try {
+    const url = forceRefresh ? '/api/admin/models-catalog?refresh=1' : '/api/admin/models-catalog';
+    const data = await api(url);
+    if (!data) return;
+    allModels = data.models || [];
+    stats.innerHTML = `<strong style="color:var(--fg)">${data.total.toLocaleString()}</strong> models across all providers — <span style="color:#63b3ed"><strong>${data.visionCount.toLocaleString()}</strong> vision-capable 👁</span>`;
+    currentPage = 1;
+    filterModels();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--red);">Failed to load: ${esc(e.message)}</td></tr>`;
+    stats.textContent = 'Error loading catalog';
+  }
+}
+
+function toggleChip(chip) {
+  const el = document.getElementById('chip-' + chip);
+  if (activeChips.has(chip)) { activeChips.delete(chip); el.classList.remove('active'); }
+  else { activeChips.add(chip); el.classList.add('active'); }
+  currentPage = 1;
+  filterModels();
+}
+
+function filterModels() {
+  const q = (document.getElementById('model-search').value || '').toLowerCase();
+  let filtered = allModels;
+
+  if (q) filtered = filtered.filter(m =>
+    m.id.toLowerCase().includes(q) ||
+    m.name.toLowerCase().includes(q) ||
+    m.provider.toLowerCase().includes(q) ||
+    m.providerName.toLowerCase().includes(q) ||
+    (m.family || '').toLowerCase().includes(q)
+  );
+  if (activeChips.has('vision'))    filtered = filtered.filter(m => m.vision);
+  if (activeChips.has('reasoning')) filtered = filtered.filter(m => m.reasoning);
+  if (activeChips.has('tools'))     filtered = filtered.filter(m => m.toolCall);
+
+  renderModels(filtered);
+}
+
+function renderModels(models) {
+  const tbody = document.getElementById('model-tbody');
+  const total = models.length;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = models.slice(start, start + PAGE_SIZE);
+
+  if (!page.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:40px;text-align:center;color:var(--muted);">No models match filters</td></tr>';
+    document.getElementById('model-pagination').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = page.map(m => {
+    const caps = [
+      m.vision    ? '<span class="cap-badge cap-vision">👁 Vision</span>' : '',
+      m.reasoning ? '<span class="cap-badge cap-reasoning">🧠 Reasoning</span>' : '',
+      m.toolCall  ? '<span class="cap-badge cap-tools">🔧 Tools</span>' : '',
+      m.openWeights ? '<span class="cap-badge cap-open">⚡ Open</span>' : '',
+    ].filter(Boolean).join('');
+
+    const ctx = m.contextWindow ? (m.contextWindow >= 1000000 ? (m.contextWindow/1000000).toFixed(1)+'M' : m.contextWindow >= 1000 ? Math.round(m.contextWindow/1000)+'K' : m.contextWindow) : '—';
+
+    return `<tr class="model-row" style="border-bottom:1px solid rgba(255,255,255,0.04);">
+      <td style="padding:8px 10px;">
+        <div class="model-id">${esc(m.id)}</div>
+        ${m.family ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;">${esc(m.family)}</div>` : ''}
+      </td>
+      <td style="padding:8px 10px;" class="provider-name">${esc(m.providerName)}</td>
+      <td style="padding:8px 10px;">${caps || '<span style="color:var(--muted);font-size:11px;">text only</span>'}</td>
+      <td style="padding:8px 10px;color:var(--muted);white-space:nowrap;">${ctx}</td>
+      <td style="padding:8px 10px;">
+        <select class="input" style="font-size:11px;padding:3px 6px;height:auto;" onchange="useModelForTask('${esc(m.id)}', this.value); this.value=''">
+          <option value="">Use for…</option>
+          <option value="promptEnhancement">Prompt Enhancement</option>
+          <option value="promptGeneration">Prompt Generation</option>
+          <option value="storyboard">Storyboard</option>
+          <option value="caption">Caption</option>
+          <option value="voNarration">VO Narration</option>
+          <option value="transcript">Transcript</option>
+          <option value="qualityCheck">Quality Check</option>
+          <option value="watermarkDetect">Watermark</option>
+          <option value="chat">Chat Model</option>
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pag = document.getElementById('model-pagination');
+  if (totalPages <= 1) { pag.innerHTML = `<span style="font-size:12px;color:var(--muted);">Showing ${total} models</span>`; return; }
+
+  let pagHtml = `<span style="font-size:12px;color:var(--muted);margin-right:8px;">${total.toLocaleString()} results</span>`;
+  if (currentPage > 1) pagHtml += `<button class="btn btn-ghost btn-sm" onclick="gotoPage(${currentPage-1})">← Prev</button>`;
+  pagHtml += `<span style="font-size:12px;color:var(--muted);padding:0 8px;">Page ${currentPage} / ${totalPages}</span>`;
+  if (currentPage < totalPages) pagHtml += `<button class="btn btn-ghost btn-sm" onclick="gotoPage(${currentPage+1})">Next →</button>`;
+  pag.innerHTML = pagHtml;
+}
+
+function gotoPage(n) { currentPage = n; filterModels(); document.getElementById('model-table').scrollIntoView({behavior:'smooth'}); }
+
+function useModelForTask(modelId, task) {
+  if (!task) return;
+  if (task === 'chat') {
+    const el = document.getElementById('chat-default-model');
+    if (el) { el.value = modelId; toast(`Chat model set to ${modelId}`, 'success'); }
+  } else {
+    switchAiTab('tasks');
+    const modelInput = document.getElementById(`task-${task}-model`);
+    const providerSel = document.getElementById(`task-${task}-provider`);
+    if (modelInput) {
+      modelInput.value = modelId;
+      if (providerSel) { providerSel.value = 'omniroute'; onProviderChange(task); }
+      modelInput.value = modelId; // re-set after onProviderChange resets it
+      modelInput.style.borderColor = 'var(--gold)';
+      setTimeout(() => { if (modelInput) modelInput.style.borderColor = ''; }, 2000);
+      toast(`"${modelId}" set for ${task} — remember to Save`, 'success');
+    }
+  }
+}
+
+// Lazy-load when tab is opened
+const _origSwitchAiTab = switchAiTab;
+switchAiTab = function(tab) {
+  _origSwitchAiTab(tab);
+  if (tab === 'models' && allModels.length === 0) loadModelCatalog();
+};
 </script>

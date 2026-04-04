@@ -1809,6 +1809,66 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return reply.send({ ok: true });
   });
 
+  // GET /api/admin/models-catalog
+  // Proxies models.dev/api.json, shapes it into a flat array, caches 1h in Redis
+  server.get('/api/admin/models-catalog', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+
+    const CACHE_KEY = 'admin:models_catalog';
+    const CACHE_TTL = 3600;
+
+    // Try Redis cache first
+    try {
+      const cached = await redis.get(CACHE_KEY);
+      if (cached) return reply.send(JSON.parse(cached));
+    } catch { /* fall through */ }
+
+    // Fetch from models.dev
+    const response = await axios.get('https://models.dev/api.json', { timeout: 15000 });
+    const raw = response.data as Record<string, any>;
+
+    // Flatten into array
+    const models: any[] = [];
+    for (const [providerId, providerData] of Object.entries(raw)) {
+      if (!providerData || typeof providerData !== 'object') continue;
+      const providerName = (providerData as any).name || providerId;
+      const providerModels = (providerData as any).models;
+      if (!providerModels || typeof providerModels !== 'object') continue;
+      for (const [modelId, modelData] of Object.entries(providerModels)) {
+        if (!modelData || typeof modelData !== 'object') continue;
+        const m = modelData as any;
+        models.push({
+          id: modelId,
+          name: m.name || modelId,
+          provider: providerId,
+          providerName,
+          family: m.family || '',
+          vision: !!m.attachment,
+          reasoning: !!m.reasoning,
+          toolCall: !!m.tool_call,
+          openWeights: !!m.open_weights,
+          inputModalities: m.modalities?.input || ['text'],
+          outputModalities: m.modalities?.output || ['text'],
+          contextWindow: m.limit?.context || null,
+          outputLimit: m.limit?.output || null,
+          releaseDate: m.release_date || null,
+        });
+      }
+    }
+
+    // Sort: vision first, then by provider
+    models.sort((a, b) => {
+      if (a.vision !== b.vision) return a.vision ? -1 : 1;
+      return a.provider.localeCompare(b.provider);
+    });
+
+    const result = { models, total: models.length, visionCount: models.filter(m => m.vision).length };
+
+    try { await redis.set(CACHE_KEY, JSON.stringify(result), 'EX', CACHE_TTL); } catch { /* non-fatal */ }
+
+    return reply.send(result);
+  });
+
   // ── Admin AI Chat ──────────────────────────────────────────────────────────
   const adminChatRateMap = new Map<
     string,
