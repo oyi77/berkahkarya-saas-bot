@@ -287,12 +287,92 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       const result = await omni.analyzeImage(media.data, media.mimeType, prompt, visionModel);
       if (!result.success || !result.content) {
         logger.warn(`OmniRoute vision (base64) returned empty: ${result.error}`);
-        return ContentAnalysisService.getFallbackResult(mediaType);
+        return ContentAnalysisService._extractViaGroq(mediaUrl, mediaType);
       }
       logger.info(`OmniRoute vision (base64) succeeded for ${mediaType} (${result.model})`);
       return parseGeminiResponse(result.content);
     } catch (omniErr: any) {
       logger.warn(`OmniRoute vision fallback failed: ${omniErr.message}`);
+      return ContentAnalysisService._extractViaGroq(mediaUrl, mediaType);
+    }
+  }
+
+  /**
+   * Groq vision fallback — used when OmniRoute times out.
+   * Images: sent directly as base64. Videos: single frame extracted via ffmpeg first.
+   */
+  private static async _extractViaGroq(
+    mediaUrl: string,
+    mediaType: 'video' | 'image',
+  ): Promise<AnalysisResult> {
+    const apiKey = getConfig().GROQ_API_KEY;
+    if (!apiKey) return ContentAnalysisService.getFallbackResult(mediaType);
+
+    try {
+      let base64Data: string;
+      let imageMime = 'image/jpeg';
+
+      if (mediaType === 'video') {
+        // Extract a single frame via ffmpeg
+        const { execFile: execFileCb } = await import('child_process');
+        const { promisify } = await import('util');
+        const execFileAsync = promisify(execFileCb);
+        const tmpBase = `/tmp/groq_${Date.now()}`;
+        const videoPath = `${tmpBase}.mp4`;
+        const framePath = `${tmpBase}.jpg`;
+        try {
+          const videoRes = await axios.get(mediaUrl, { responseType: 'arraybuffer', timeout: 30000 });
+          const { writeFile } = await import('fs/promises');
+          await writeFile(videoPath, Buffer.from(videoRes.data));
+          await execFileAsync('ffmpeg', ['-i', videoPath, '-ss', '00:00:01', '-vframes', '1', framePath, '-y'], { timeout: 15000 });
+          base64Data = (await readFile(framePath)).toString('base64');
+        } finally {
+          const { unlink } = await import('fs/promises');
+          await unlink(videoPath).catch(() => {});
+          await unlink(framePath).catch(() => {});
+        }
+      } else {
+        const media = await fetchMediaAsBase64(mediaUrl);
+        base64Data = media.data;
+        imageMime = media.mimeType.startsWith('image/') ? media.mimeType : 'image/jpeg';
+      }
+
+      const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
+      const response = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:${imageMime};base64,${base64Data}` } },
+            ],
+          }],
+          max_tokens: 2000,
+          temperature: 0.65,
+        },
+        {
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+          timeout: 30000,
+        },
+      );
+
+      const content = response.data?.choices?.[0]?.message?.content;
+      if (!content) return ContentAnalysisService.getFallbackResult(mediaType);
+
+      logger.info(`Groq vision succeeded for ${mediaType}`);
+      trackTokens({
+        provider: 'groq',
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        service: `groq_vision_${mediaType}`,
+        promptTokens: response.data?.usage?.prompt_tokens || 0,
+        completionTokens: response.data?.usage?.completion_tokens || 0,
+      }).catch(() => {});
+
+      return parseGeminiResponse(content);
+    } catch (err: any) {
+      logger.warn(`Groq vision fallback failed: ${err.message}`);
       return ContentAnalysisService.getFallbackResult(mediaType);
     }
   }

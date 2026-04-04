@@ -498,6 +498,77 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
       logger.warn(`[VideoAnalysis] OmniRoute text fallback failed: ${textErr.message}`);
     }
 
+    logger.warn('[VideoAnalysis] OmniRoute analysis failed, trying Groq vision fallback');
+    return VideoAnalysisService._analyzeViaGroq(keyFramePaths, videoUrl);
+  }
+
+  // ── Private: Groq vision fallback (when OmniRoute times out) ──
+
+  private static async _analyzeViaGroq(
+    keyFramePaths: string[],
+    videoUrl: string,
+  ): Promise<VideoAnalysisResult> {
+    const apiKey = getConfig().GROQ_API_KEY;
+    if (!apiKey || keyFramePaths.length === 0) return buildFallbackResult(videoUrl);
+
+    const ANALYSIS_PROMPT = `Analyze this video frame and return ONLY a valid JSON object (no markdown):
+{"niche":"one of: fitness,food,travel,business,fashion,education,tech,beauty,general","style":"brief visual style","totalDuration":15,"transcript":"spoken words if any","storyboard":[{"scene":1,"startTime":0,"duration":15,"description":"detailed visual description","prompt":"cinematic AI video generation prompt for recreating this scene"}]}`;
+
+    for (const framePath of keyFramePaths.slice(0, 2)) {
+      try {
+        if (!fs.existsSync(framePath)) continue;
+        const base64 = fs.readFileSync(framePath).toString('base64');
+
+        const response = await axios.post(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: ANALYSIS_PROMPT },
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+              ],
+            }],
+            max_tokens: 1500,
+            temperature: 0.4,
+          },
+          {
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            timeout: 30000,
+          },
+        );
+
+        const content = response.data?.choices?.[0]?.message?.content;
+        if (!content) continue;
+
+        const jsonStr = extractJSON(content);
+        const parsed = JSON.parse(jsonStr);
+        const storyboard: AnalyzedScene[] = (parsed.storyboard || []).slice(0, 8).map((s: any, idx: number) => ({
+          scene: s.scene ?? idx + 1,
+          startTime: s.startTime ?? 0,
+          duration: s.duration ?? 5,
+          description: s.description ?? '',
+          prompt: s.prompt ?? '',
+        }));
+
+        if (storyboard.length) {
+          logger.info(`[VideoAnalysis] Groq vision fallback succeeded with frame ${framePath}`);
+          return {
+            success: true,
+            niche: parsed.niche || 'general',
+            style: parsed.style || '',
+            totalDuration: parsed.totalDuration || 15,
+            transcript: parsed.transcript || '',
+            storyboard,
+            keyFramePaths,
+          };
+        }
+      } catch (err: any) {
+        logger.warn(`[VideoAnalysis] Groq vision frame failed: ${err.message}`);
+      }
+    }
+
     logger.warn('[VideoAnalysis] All analysis methods failed, returning fallback result');
     return buildFallbackResult(videoUrl);
   }
