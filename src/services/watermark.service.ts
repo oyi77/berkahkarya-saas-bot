@@ -17,12 +17,14 @@ import * as path from 'path';
 import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
 import { trackTokens } from '@/services/token-tracker.service';
+import { AIConfigService } from '@/services/ai-config.service';
 
 const execFile = promisify(execFileCb);
 
-function getGeminiVisionUrl() {
-  const config = getConfig();
-  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${config.GEMINI_API_KEY || ''}`;
+async function getGeminiVisionUrl(): Promise<string> {
+  const cfg = await AIConfigService.getTaskConfig('watermarkDetect');
+  const model = cfg.model || 'gemini-2.0-flash';
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
 }
 function getWorkDir() { return getConfig().VIDEO_DIR; }
 
@@ -58,11 +60,14 @@ export class WatermarkService {
       let mimeType = imgResp.headers['content-type'] || 'image/jpeg';
       if (!mimeType.startsWith('image/')) mimeType = 'image/jpeg';
 
-      const response = await axios.post(getGeminiVisionUrl(), {
-        contents: [{
-          parts: [
-            {
-              text: `Analyze this image for watermarks, logos, or text overlays that are NOT part of the main content.
+      const [promptsCfg, taskCfg, visionUrl] = await Promise.all([
+        AIConfigService.getPromptsConfig(),
+        AIConfigService.getTaskConfig('watermarkDetect'),
+        getGeminiVisionUrl(),
+      ]);
+      const model = taskCfg.model || 'gemini-2.0-flash';
+
+      const hardcodedPrompt = `Analyze this image for watermarks, logos, or text overlays that are NOT part of the main content.
 
 If watermarks exist, respond in this EXACT JSON format:
 {"hasWatermark": true, "confidence": 0.9, "regions": [{"x": 70, "y": 90, "width": 25, "height": 8, "type": "text"}]}
@@ -74,8 +79,14 @@ If NO watermarks exist, respond: {"hasWatermark": false, "confidence": 0.9, "reg
 
 Common watermark locations: bottom-right corner, center of image, bottom strip.
 Only report actual watermarks/logos, NOT text that is part of the product/scene.
-Respond with ONLY the JSON, no other text.`,
-            },
+Respond with ONLY the JSON, no other text.`;
+
+      const detectionPrompt = promptsCfg.watermarkDetect || hardcodedPrompt;
+
+      const response = await axios.post(visionUrl, {
+        contents: [{
+          parts: [
+            { text: detectionPrompt },
             {
               inline_data: { mime_type: mimeType, data: base64 },
             },
@@ -92,7 +103,7 @@ Respond with ONLY the JSON, no other text.`,
       // Track Gemini Vision API cost
       const usageMeta = response.data?.usageMetadata;
       if (usageMeta) {
-        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_detection', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
+        trackTokens({ provider: 'gemini-direct', model, service: 'watermark_detection', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
       }
 
       // Parse JSON from response (handle markdown code blocks)
@@ -269,7 +280,13 @@ Respond with ONLY the JSON, no other text.`,
     }
 
     try {
-      const response = await axios.post(getGeminiVisionUrl(), {
+      const [taskCfg, visionUrl] = await Promise.all([
+        AIConfigService.getTaskConfig('watermarkDetect'),
+        getGeminiVisionUrl(),
+      ]);
+      const model = taskCfg.model || 'gemini-2.0-flash';
+
+      const response = await axios.post(visionUrl, {
         contents: [{
           parts: [
             {
@@ -291,7 +308,7 @@ Respond with ONLY the JSON, no other text.`,
       // Track Gemini Vision API cost
       const usageMeta2 = response.data?.usageMetadata;
       if (usageMeta2) {
-        trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'watermark_clean', promptTokens: usageMeta2.promptTokenCount || 0, completionTokens: usageMeta2.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
+        trackTokens({ provider: 'gemini-direct', model, service: 'watermark_clean', promptTokens: usageMeta2.promptTokenCount || 0, completionTokens: usageMeta2.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
       }
 
       const jsonStr = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();

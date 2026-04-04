@@ -12,6 +12,9 @@ import { processVideoJob } from './video-generation.service';
 import crypto from 'crypto';
 import { getVideoCreditCost } from '@/config/pricing';
 import { getAILabel } from '@/config/languages';
+import axios from 'axios';
+import { AITaskSettingsService, AITaskProvider } from '@/services/ai-task-settings.service';
+import { trackTokens } from '@/services/token-tracker.service';
 
 // GeminiGen configuration (for future use)
 // const GEMINIGEN_EMAIL = process.env.GEMINIGEN_EMAIL || 'grahainsanmandiri@gmail.com';
@@ -91,6 +94,102 @@ const NICHE_TEMPLATES = {
     ],
   },
 };
+
+// ---------------------------------------------------------------------------
+// LLM helper for storyboard generation
+// ---------------------------------------------------------------------------
+
+async function callLLMForText(
+  prompt: string,
+  providerConfig: AITaskProvider,
+): Promise<string | null> {
+  const config = getConfig();
+
+  if (providerConfig.provider === 'groq') {
+    const apiKey = config.GROQ_API_KEY || '';
+    if (!apiKey) return null;
+    const model = providerConfig.model || 'llama-3.3-70b-versatile';
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      { model, messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 1024 },
+      { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, timeout: 10_000 },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    trackTokens({ provider: 'groq', model, service: 'storyboard', promptTokens: response.data?.usage?.prompt_tokens || 0, completionTokens: response.data?.usage?.completion_tokens || 0 }).catch(() => {});
+    return content || null;
+  }
+
+  if (providerConfig.provider === 'gemini') {
+    const apiKey = config.GEMINI_API_KEY || '';
+    if (!apiKey) return null;
+    const model = providerConfig.model || 'gemini-2.5-flash';
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      { contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 1024, temperature: 0.7 } },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 10_000 },
+    );
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const usage = response.data?.usageMetadata;
+    if (usage) trackTokens({ provider: 'gemini-direct', model, service: 'storyboard', promptTokens: usage.promptTokenCount || 0, completionTokens: usage.candidatesTokenCount || 0 }).catch(() => {});
+    return text || null;
+  }
+
+  if (providerConfig.provider === 'omniroute') {
+    const omniUrl = config.OMNIROUTE_URL || 'http://localhost:20128/v1';
+    const apiKey = config.OMNIROUTE_API_KEY || '';
+    const model = providerConfig.model || 'antigravity/gemini-2.5-flash';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const response = await axios.post(
+      `${omniUrl}/chat/completions`,
+      { model, messages: [{ role: 'user', content: prompt }], temperature: 0.7, max_tokens: 1024 },
+      { headers, timeout: 10_000 },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    const usage = response.data?.usage;
+    if (usage) trackTokens({ provider: 'omniroute', model: response.data?.model || model, service: 'storyboard', promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 }).catch(() => {});
+    return content || null;
+  }
+
+  return null;
+}
+
+async function generateStoryboardWithLLM(
+  params: { niche: string; duration: number; productDescription?: string },
+  providerConfig: AITaskProvider,
+): Promise<Array<{ scene: number; duration: number; type: string; description: string; prompt: string }> | null> {
+  const scenesNeeded = Math.ceil(params.duration / 5);
+  const userPrompt =
+    `Generate a JSON storyboard for a ${params.niche} video (${params.duration}s total, ~${scenesNeeded} scenes of 5s each)` +
+    (params.productDescription ? `, product: ${params.productDescription}` : '') +
+    `.\n\nReturn ONLY a JSON array (no markdown):\n` +
+    `[{"scene":1,"duration":5,"type":"intro","description":"...","prompt":"cinematic AI video generation prompt..."},...]\n\n` +
+    `Each prompt should be detailed enough to independently generate that scene.`;
+
+  try {
+    const raw = await callLLMForText(userPrompt, providerConfig);
+    if (!raw) return null;
+
+    // Strip markdown fences if present
+    const jsonStr = raw.replace(/```(?:json)?\s*([\s\S]*?)```/, '$1').trim();
+    const arrMatch = jsonStr.match(/\[[\s\S]*\]/);
+    if (!arrMatch) return null;
+
+    const parsed = JSON.parse(arrMatch[0]);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+
+    return parsed.map((s: any, idx: number) => ({
+      scene: s.scene ?? idx + 1,
+      duration: s.duration ?? 5,
+      type: s.type ?? 'scene',
+      description: s.description ?? '',
+      prompt: s.prompt ?? '',
+    }));
+  } catch (err: any) {
+    logger.warn(`[VideoService] generateStoryboardWithLLM parse failed: ${err.message}`);
+    return null;
+  }
+}
 
 export class VideoService {
   /**
@@ -343,13 +442,13 @@ Visual style: Cinematic, high quality, engaging transitions.
   }> {
     const nicheTemplate = NICHE_TEMPLATES[params.niche as keyof typeof NICHE_TEMPLATES];
     const baseScenes = params.customScenes || nicheTemplate?.storyboardTemplate || [];
-    
+
     // Standard 5s per scene
     const scenesNeeded = Math.ceil(params.duration / 5);
     const adjustedScenes = baseScenes.slice(0, scenesNeeded);
-    
-    // Generate scene prompts
-    const scenes = adjustedScenes.map((scene, idx) => ({
+
+    // Generate scene prompts from templates (always computed as fallback)
+    const templateScenes = adjustedScenes.map((scene, idx) => ({
       ...scene,
       scene: idx + 1,
       prompt: this.generateScenePrompt({
@@ -359,6 +458,21 @@ Visual style: Cinematic, high quality, engaging transitions.
         productDescription: params.productDescription,
       }),
     }));
+
+    // Check if LLM provider is configured for storyboard
+    let scenes = templateScenes;
+    try {
+      const taskSettings = await AITaskSettingsService.getSettings();
+      const storyboardConfig = taskSettings.storyboard;
+      if (storyboardConfig.provider !== 'builtin') {
+        const llmScenes = await generateStoryboardWithLLM(params, storyboardConfig);
+        if (llmScenes) {
+          scenes = llmScenes;
+        }
+      }
+    } catch (err: any) {
+      logger.warn(`[VideoService] Storyboard LLM failed, using template: ${err.message}`);
+    }
 
     // Generate caption
     const caption = await this.generateCaption({

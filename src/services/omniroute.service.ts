@@ -7,6 +7,7 @@ import axios, { AxiosInstance } from 'axios';
 import { logger } from '@/utils/logger';
 import { trackTokens } from '@/services/token-tracker.service';
 import { getConfig } from '@/config/env';
+import { AIConfigService } from '@/services/ai-config.service';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -204,12 +205,17 @@ export class OmniRouteService {
 
   async chat(userId: string, message: string, model?: string): Promise<ChatResponse> {
     const config = getConfig();
-    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
+    const [chatCfg, prompts] = await Promise.all([
+      AIConfigService.getChatConfig(),
+      AIConfigService.getPromptsConfig(),
+    ]);
+    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || chatCfg.defaultModel || 'antigravity/gemini-2.5-flash';
+    const systemPrompt = prompts.botPersona || BERKAHKARYA_SYSTEM_PROMPT;
     const history = this.conversationHistory.get(userId) || [];
 
     // Inject system prompt if this is the start of conversation
     const messagesWithSystem: ChatMessage[] = [
-      { role: 'system', content: BERKAHKARYA_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...history.slice(-18),
       { role: 'user', content: message },
     ];
@@ -275,7 +281,8 @@ export class OmniRouteService {
 
   async analyzeImage(base64Data: string, mimeType: string, prompt: string, model?: string): Promise<ChatResponse> {
     const config = getConfig();
-    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
+    const chatCfg = await AIConfigService.getChatConfig();
+    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || chatCfg.defaultModel || 'antigravity/gemini-2.5-flash';
     try {
       const response = await this.client.post('/chat/completions', {
         model: model || DEFAULT_MODEL,

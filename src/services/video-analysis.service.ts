@@ -12,11 +12,14 @@ import * as path from 'path';
 import { logger } from '@/utils/logger';
 import { getConfig } from '@/config/env';
 import axios from 'axios';
+import { AIConfigService } from '@/services/ai-config.service';
 
 const execFile = promisify(execFileCb);
 
-function getGeminiVisionUrl() {
-  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
+async function getGeminiVisionUrl() {
+  const cfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
+  const model = cfg?.model || 'gemini-2.5-flash';
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -291,7 +294,7 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
 
     let responseText = '';
     try {
-      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
+      const response = await axios.post(await getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 60_000,
       });
@@ -383,7 +386,7 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
     };
 
     try {
-      const response = await axios.post(getGeminiVisionUrl(), requestBody, {
+      const response = await axios.post(await getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 30_000,
       });

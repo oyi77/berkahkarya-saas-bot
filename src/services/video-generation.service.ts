@@ -18,6 +18,8 @@ import { ProviderRouter } from "@/services/provider-router.service";
 import { QualityCheckService } from "@/services/quality-check.service";
 import { VideoPostProcessing } from "@/services/video-post-processing.service";
 import { getVideoCreditCost } from "@/config/pricing";
+import { AITaskSettingsService, AITaskProvider } from "@/services/ai-task-settings.service";
+import { trackTokens } from "@/services/token-tracker.service";
 
 const GEMINIGEN_API_BASE = "https://api.geminigen.ai/uapi/v1";
 
@@ -142,7 +144,7 @@ export async function generateVideo(
 
   let prompt = params.prompt;
   if (!prompt) {
-    prompt = generatePromptFromNiche(niche, styles, duration);
+    prompt = await generatePromptFromNicheAsync(niche, styles, duration);
   }
 
   // Handle playground/debug force provider
@@ -561,6 +563,96 @@ export function generatePromptFromNiche(
   };
 
   return templates[nicheKey] || templates.fnb;
+}
+
+/**
+ * Async version of generatePromptFromNiche — uses configured LLM if provider != builtin.
+ * Falls back to template result on failure or when builtin is configured.
+ */
+export async function generatePromptFromNicheAsync(
+  niche: string,
+  styles: string[],
+  duration: number,
+): Promise<string> {
+  const templateResult = generatePromptFromNiche(niche, styles, duration);
+
+  try {
+    const taskSettings = await AITaskSettingsService.getSettings();
+    const cfg = taskSettings.promptGeneration;
+    if (cfg.provider === 'builtin') return templateResult;
+
+    const styleStr = styles.join(', ');
+    const llmPrompt =
+      `Generate a creative, detailed AI video generation prompt for a ${niche} video.\n` +
+      `Styles: ${styleStr}\n` +
+      `Duration: ${duration}s\n\n` +
+      `Requirements:\n` +
+      `- Be specific about visuals, camera work, lighting, and mood\n` +
+      `- Keep under 150 words\n` +
+      `- Output ONLY the prompt, nothing else`;
+
+    const result = await callLLMForPromptGen(llmPrompt, cfg);
+    if (result && result.trim().length > 10) {
+      logger.info(`[VideoGeneration] LLM prompt generation succeeded for niche=${niche}`);
+      return result.trim();
+    }
+  } catch (err: any) {
+    logger.warn(`[VideoGeneration] LLM prompt generation failed, using template: ${err.message}`);
+  }
+
+  return templateResult;
+}
+
+async function callLLMForPromptGen(prompt: string, cfg: AITaskProvider): Promise<string | null> {
+  const config = getConfig();
+
+  if (cfg.provider === 'groq') {
+    const apiKey = config.GROQ_API_KEY || '';
+    if (!apiKey) return null;
+    const model = cfg.model || 'llama-3.3-70b-versatile';
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      { model, messages: [{ role: 'user', content: prompt }], temperature: 0.8, max_tokens: 256 },
+      { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, timeout: 8_000 },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    trackTokens({ provider: 'groq', model, service: 'prompt_generation', promptTokens: response.data?.usage?.prompt_tokens || 0, completionTokens: response.data?.usage?.completion_tokens || 0 }).catch(() => {});
+    return content || null;
+  }
+
+  if (cfg.provider === 'gemini') {
+    const apiKey = config.GEMINI_API_KEY || '';
+    if (!apiKey) return null;
+    const model = cfg.model || 'gemini-2.5-flash';
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      { contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 256, temperature: 0.8 } },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 8_000 },
+    );
+    const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const usage = response.data?.usageMetadata;
+    if (usage) trackTokens({ provider: 'gemini-direct', model, service: 'prompt_generation', promptTokens: usage.promptTokenCount || 0, completionTokens: usage.candidatesTokenCount || 0 }).catch(() => {});
+    return text || null;
+  }
+
+  if (cfg.provider === 'omniroute') {
+    const omniUrl = config.OMNIROUTE_URL || 'http://localhost:20128/v1';
+    const apiKey = config.OMNIROUTE_API_KEY || '';
+    const model = cfg.model || 'antigravity/gemini-2.5-flash';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    const response = await axios.post(
+      `${omniUrl}/chat/completions`,
+      { model, messages: [{ role: 'user', content: prompt }], temperature: 0.8, max_tokens: 256 },
+      { headers, timeout: 8_000 },
+    );
+    const content = response.data?.choices?.[0]?.message?.content;
+    const usage = response.data?.usage;
+    if (usage) trackTokens({ provider: 'omniroute', model: response.data?.model || model, service: 'prompt_generation', promptTokens: usage.prompt_tokens || 0, completionTokens: usage.completion_tokens || 0 }).catch(() => {});
+    return content || null;
+  }
+
+  return null;
 }
 
 /**

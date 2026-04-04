@@ -25,6 +25,8 @@ import {
 } from "@/config/pricing";
 import { INDUSTRY_TEMPLATES, DURATION_PRESETS } from "@/config/hpas-engine";
 import { ProviderSettingsService } from "@/services/provider-settings.service";
+import { AITaskSettingsService, AITaskSettings } from "@/services/ai-task-settings.service";
+import { AIConfigService, AITasksConfig, AIPromptsConfig, AIChatConfig } from '@/services/ai-config.service';
 import { ProviderBalanceService } from "@/services/provider-balance.service";
 import { getOmniRouteService } from "@/services/omniroute.service";
 import { UserService } from "@/services/user.service";
@@ -1597,6 +1599,15 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return reply.view("admin/providers.ejs", { ...trackingVars(), activePage: 'providers', title: 'Provider Management' }, { layout: 'admin/layout.ejs' });
   });
 
+  /** GET /admin/ai-config — AI Configuration page */
+  server.get('/admin/ai-config', async (_request, reply) => {
+    return reply.view('admin/ai-config.ejs', {
+      ...trackingVars(),
+      activePage: 'ai-config',
+      title: 'AI Configuration',
+    }, { layout: 'admin/layout.ejs' });
+  });
+
   /** GET /api/admin/providers/all — Full provider list with health + overrides + env status */
   server.get("/api/admin/providers/all", async () => {
     const overrides = await ProviderSettingsService.getDynamicSettings();
@@ -1740,6 +1751,62 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     // CircuitBreaker imported statically above
     await CircuitBreaker.resetAll();
     return { success: true, message: "All circuit breakers reset" };
+  });
+
+  // ── AI Task Settings ───────────────────────────────────────────────────────
+
+  /** GET /api/admin/ai-tasks/settings */
+  server.get("/api/admin/ai-tasks/settings", async (_req, reply) => {
+    const settings = await AITaskSettingsService.getSettings();
+    return reply.send(settings);
+  });
+
+  /** POST /api/admin/ai-tasks/settings */
+  server.post("/api/admin/ai-tasks/settings", async (request, reply) => {
+    const body = request.body as Partial<AITaskSettings>;
+    await AITaskSettingsService.updateSettings(body);
+    return reply.send({ ok: true });
+  });
+
+  // ── AI Config API ──────────────────────────────────────────────────────────
+  // GET /api/admin/ai-config
+  server.get('/api/admin/ai-config', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const config = await AIConfigService.getFullConfig();
+    return reply.send(config);
+  });
+
+  // POST /api/admin/ai-config/tasks
+  server.post('/api/admin/ai-config/tasks', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const body = request.body as Partial<AITasksConfig>;
+    await AIConfigService.updateTasksConfig(body);
+    return reply.send({ ok: true });
+  });
+
+  // POST /api/admin/ai-config/prompts
+  server.post('/api/admin/ai-config/prompts', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const body = request.body as Partial<AIPromptsConfig>;
+    await AIConfigService.updatePromptsConfig(body);
+    return reply.send({ ok: true });
+  });
+
+  // POST /api/admin/ai-config/chat
+  server.post('/api/admin/ai-config/chat', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    const body = request.body as Partial<AIChatConfig>;
+    await AIConfigService.updateChatConfig(body);
+    return reply.send({ ok: true });
+  });
+
+  // POST /api/admin/ai-config/reset (reset all to defaults)
+  server.post('/api/admin/ai-config/reset', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    await AIConfigService.updateTasksConfig({});
+    await AIConfigService.updatePromptsConfig({});
+    await AIConfigService.updateChatConfig({});
+    return reply.send({ ok: true });
   });
 
   // ── Admin AI Chat ──────────────────────────────────────────────────────────

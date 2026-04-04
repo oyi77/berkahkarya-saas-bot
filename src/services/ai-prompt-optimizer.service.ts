@@ -21,6 +21,7 @@ import { logger } from "@/utils/logger";
 import { redis } from "@/config/redis";
 import { trackTokens } from "@/services/token-tracker.service";
 import { getConfig } from "@/config/env";
+import { AIConfigService } from "@/services/ai-config.service";
 
 const LLM_TIMEOUT = 5000; // 5 seconds per LLM call
 const CACHE_TTL = 3600; // 1 hour in seconds
@@ -36,6 +37,7 @@ export interface AIPromptOptimizerContext {
 function buildMetaPrompt(
   rawPrompt: string,
   context: AIPromptOptimizerContext,
+  templateOverride?: string,
 ): string {
   const imageInstruction = context.hasReferenceImage
     ? `\nCRITICAL: A reference image IS provided. THE SUBJECT IN THE REFERENCE IMAGE IS THE REAL SUBJECT. If the original prompt mentions a specific subject (e.g., "steak", "burger", "watch") that differs from the visual category of the reference image, IGNORE that specific subject name and replace it with a general description of the reference image's subject while keeping the STYLE, LIGHTING, and VIBE of the original prompt.`
@@ -43,6 +45,15 @@ function buildMetaPrompt(
 
   // Add variation seed so same prompt produces different enrichments each time
   const variationSeed = Math.random().toString(36).slice(2, 6);
+
+  // If admin has configured a custom template, use it with placeholder substitution
+  if (templateOverride) {
+    return templateOverride
+      .replace(/{rawPrompt}/g, rawPrompt)
+      .replace(/{niche}/g, context.niche)
+      .replace(/{style}/g, context.style)
+      .replace(/{hasReferenceImage}/g, context.hasReferenceImage ? "yes" : "no");
+  }
 
   return (
     `You are an expert AI image/video prompt engineer. Your task is to optimize this prompt for maximum quality in AI generation.\n\n` +
@@ -90,15 +101,17 @@ async function saveToCache(key: string, value: string): Promise<void> {
 }
 
 /** Tier 0: Groq (Llama 3.3 70B — fastest, cheapest at ~$0.05/1M tokens) */
-async function tryGroq(metaPrompt: string): Promise<string | null> {
+async function tryGroq(metaPrompt: string, modelOverride?: string): Promise<string | null> {
   const GROQ_API_KEY = getConfig().GROQ_API_KEY || "";
   if (!GROQ_API_KEY) return null;
+
+  const model = modelOverride || "llama-3.3-70b-versatile";
 
   try {
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
-        model: "llama-3.3-70b-versatile",
+        model,
         messages: [{ role: "user", content: metaPrompt }],
         temperature: 0.7,
         max_tokens: 512,
@@ -116,7 +129,7 @@ async function tryGroq(metaPrompt: string): Promise<string | null> {
     if (content && content.trim().length > 10) {
       trackTokens({
         provider: "groq",
-        model: "llama-3.3-70b-versatile",
+        model,
         service: "prompt_optimizer",
         promptTokens: response.data?.usage?.prompt_tokens || 0,
         completionTokens: response.data?.usage?.completion_tokens || 0,
@@ -134,13 +147,15 @@ async function tryGroq(metaPrompt: string): Promise<string | null> {
 }
 
 /** Tier 1: Gemini Flash */
-async function tryGemini(metaPrompt: string): Promise<string | null> {
+async function tryGemini(metaPrompt: string, modelOverride?: string): Promise<string | null> {
   const GEMINI_API_KEY = getConfig().GEMINI_API_KEY || "";
   if (!GEMINI_API_KEY) return null;
 
+  const model = modelOverride || "gemini-2.5-flash";
+
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: metaPrompt }] }],
         generationConfig: { maxOutputTokens: 512, temperature: 0.7 },
@@ -155,7 +170,7 @@ async function tryGemini(metaPrompt: string): Promise<string | null> {
       if (usage) {
         trackTokens({
           provider: "gemini-direct",
-          model: "gemini-2.5-flash",
+          model,
           service: "prompt_optimizer",
           promptTokens: usage.promptTokenCount || 0,
           completionTokens: usage.candidatesTokenCount || 0,
@@ -176,10 +191,11 @@ async function tryGemini(metaPrompt: string): Promise<string | null> {
 }
 
 /** Tier 2: OmniRoute (OpenAI-compatible) */
-async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
+async function tryOmniRoute(metaPrompt: string, modelOverride?: string): Promise<string | null> {
   const config = getConfig();
   const OMNIROUTE_URL = config.OMNIROUTE_URL || "http://localhost:20128/v1";
   const OMNIROUTE_API_KEY = config.OMNIROUTE_API_KEY || "";
+  const model = modelOverride || "antigravity/gemini-2.5-flash";
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -191,7 +207,7 @@ async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
     const response = await axios.post(
       `${OMNIROUTE_URL}/chat/completions`,
       {
-        model: "antigravity/gemini-2.5-flash",
+        model,
         messages: [{ role: "user", content: metaPrompt }],
         temperature: 0.7,
         max_tokens: 512,
@@ -205,7 +221,7 @@ async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
       if (usage) {
         trackTokens({
           provider: "omniroute",
-          model: response.data?.model || "antigravity/gemini-2.5-flash",
+          model: response.data?.model || model,
           service: "prompt_optimizer",
           promptTokens: usage.prompt_tokens || 0,
           completionTokens: usage.completion_tokens || 0,
@@ -228,6 +244,7 @@ async function tryOmniRoute(metaPrompt: string): Promise<string | null> {
 export class AIPromptOptimizer {
   /**
    * Optimize a prompt using LLM rotation with rule-based fallback.
+   * Reads admin-configured provider/model for promptEnhancement task.
    * Returns the original prompt if all methods fail (never blocks).
    */
   static async optimize(
@@ -235,8 +252,6 @@ export class AIPromptOptimizer {
     context: AIPromptOptimizerContext,
   ): Promise<string> {
     try {
-      // FORCE REDIS CACHE FLUSH FOR THIS CALL (bypass if it's a critical subject fix)
-      // Actually, just add a logger to see what's happening
       logger.info(
         `[AIPromptOptimizer] Optimizing: ${rawPrompt.slice(0, 50)}... | hasRef=${context.hasReferenceImage}`,
       );
@@ -249,25 +264,45 @@ export class AIPromptOptimizer {
         return cached;
       }
 
-      const metaPrompt = buildMetaPrompt(rawPrompt, context);
+      const [prompts, taskCfg] = await Promise.all([
+        AIConfigService.getPromptsConfig().catch(() => null),
+        AIConfigService.getTaskConfig('promptEnhancement').catch(() => null),
+      ]);
+      const metaPrompt = buildMetaPrompt(rawPrompt, context, prompts?.promptOptimizer || undefined);
+      const preferred = taskCfg;
 
-      // Try LLMs in rotation: Groq (fastest) → Gemini → OmniRoute
-      const groqResult = await tryGroq(metaPrompt);
-      if (groqResult) {
-        await saveToCache(cacheKey, groqResult);
-        return groqResult;
+      // If builtin is configured, skip all LLMs
+      if (preferred?.provider === 'builtin') {
+        logger.info("[AIPromptOptimizer] builtin configured — skipping LLMs");
+        return rawPrompt;
       }
 
-      const geminiResult = await tryGemini(metaPrompt);
-      if (geminiResult) {
-        await saveToCache(cacheKey, geminiResult);
-        return geminiResult;
+      // Try preferred provider first (with configured model), then fall through
+      if (preferred?.provider === 'groq') {
+        const result = await tryGroq(metaPrompt, preferred.model || undefined);
+        if (result) { await saveToCache(cacheKey, result); return result; }
+      } else if (preferred?.provider === 'gemini') {
+        const result = await tryGemini(metaPrompt, preferred.model || undefined);
+        if (result) { await saveToCache(cacheKey, result); return result; }
+      } else if (preferred?.provider === 'omniroute') {
+        const result = await tryOmniRoute(metaPrompt, preferred.model || undefined);
+        if (result) { await saveToCache(cacheKey, result); return result; }
       }
 
-      const omniResult = await tryOmniRoute(metaPrompt);
-      if (omniResult) {
-        await saveToCache(cacheKey, omniResult);
-        return omniResult;
+      // Fall through to remaining providers in default order: Groq → Gemini → OmniRoute
+      if (preferred?.provider !== 'groq') {
+        const groqResult = await tryGroq(metaPrompt);
+        if (groqResult) { await saveToCache(cacheKey, groqResult); return groqResult; }
+      }
+
+      if (preferred?.provider !== 'gemini') {
+        const geminiResult = await tryGemini(metaPrompt);
+        if (geminiResult) { await saveToCache(cacheKey, geminiResult); return geminiResult; }
+      }
+
+      if (preferred?.provider !== 'omniroute') {
+        const omniResult = await tryOmniRoute(metaPrompt);
+        if (omniResult) { await saveToCache(cacheKey, omniResult); return omniResult; }
       }
 
       // All LLMs failed — fall back to raw prompt (rule-based PromptEngine

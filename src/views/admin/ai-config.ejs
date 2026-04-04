@@ -1,0 +1,518 @@
+<style>
+  .ai-tabs { display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
+  .ai-tab { padding:10px 20px;cursor:pointer;font-size:14px;border-bottom:2px solid transparent;color:var(--muted);white-space:nowrap; }
+  .ai-tab.active { border-bottom:2px solid var(--gold);color:var(--gold); }
+  .ai-panel { display:none; }
+  .ai-panel.active { display:block; }
+  .task-card { border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; background: var(--bg); }
+  .task-card:hover { border-color: var(--gold-dim); }
+  .task-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .task-desc { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+  .field-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+  .prompt-card { border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; background: var(--bg); }
+  .prompt-card:hover { border-color: var(--gold-dim); }
+  .prompt-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .prompt-desc { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .preset-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .preset-btn { background: rgba(196,163,90,0.1); color: var(--gold); border: 1px solid var(--gold-dim); padding: 3px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: 'JetBrains Mono', monospace; transition: all 0.15s; }
+  .preset-btn:hover { background: rgba(196,163,90,0.2); }
+  .tab-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+</style>
+
+<div id="toast-container"></div>
+
+<div class="section-title">🤖 AI Configuration</div>
+<div class="section-sub">Configure AI providers, models, system prompts, and chat settings</div>
+
+<!-- Tab Bar -->
+<div class="ai-tabs">
+  <div class="ai-tab active" data-tab="tasks" onclick="switchAiTab('tasks')">🤖 AI Tasks</div>
+  <div class="ai-tab" data-tab="prompts" onclick="switchAiTab('prompts')">💬 System Prompts</div>
+  <div class="ai-tab" data-tab="chat" onclick="switchAiTab('chat')">⚙️ Chat Model</div>
+</div>
+
+<!-- ====== TAB: AI TASKS ====== -->
+<div id="ai-panel-tasks" class="ai-panel active">
+  <div class="tab-actions">
+    <button class="btn btn-gold" onclick="saveTasks()">💾 Save Tasks</button>
+    <button class="btn btn-ghost" onclick="resetAll('tasks')">🔄 Reset to Defaults</button>
+  </div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+    Configure which AI provider and model handles each task. Select <strong>builtin</strong> to use the built-in template engine with no LLM call.
+  </div>
+
+  <!-- Storyboard -->
+  <div class="task-card">
+    <div class="task-title">🎬 Storyboard Generation</div>
+    <div class="task-desc">Generates scene-by-scene storyboard for video creation flows</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-storyboard-provider">Provider</label>
+        <select class="input" id="task-storyboard-provider" style="width:100%;" onchange="onProviderChange('storyboard')">
+          <option value="builtin">builtin (templates only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-storyboard-model-wrap">
+        <label class="field-label" for="task-storyboard-model">Model</label>
+        <select class="input" id="task-storyboard-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('storyboard')"></select>
+        <input class="input" id="task-storyboard-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Transcript -->
+  <div class="task-card">
+    <div class="task-title">📝 Transcript Generation</div>
+    <div class="task-desc">Analyzes reference videos with Gemini Vision — provider selection controls which Gemini model is used</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-transcript-provider">Provider</label>
+        <select class="input" id="task-transcript-provider" style="width:100%;" onchange="onProviderChange('transcript')">
+          <option value="gemini">gemini (vision required)</option>
+          <option value="builtin">builtin (disabled)</option>
+          <option value="groq">groq</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-transcript-model-wrap">
+        <label class="field-label" for="task-transcript-model">Model</label>
+        <select class="input" id="task-transcript-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('transcript')"></select>
+        <input class="input" id="task-transcript-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Enhancement -->
+  <div class="task-card">
+    <div class="task-title">✨ Prompt Enhancement</div>
+    <div class="task-desc">Enriches video/image generation prompts before sending to providers</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-promptEnhancement-provider">Provider</label>
+        <select class="input" id="task-promptEnhancement-provider" style="width:100%;" onchange="onProviderChange('promptEnhancement')">
+          <option value="builtin">builtin (rule-based only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-promptEnhancement-model-wrap">
+        <label class="field-label" for="task-promptEnhancement-model">Model</label>
+        <select class="input" id="task-promptEnhancement-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('promptEnhancement')"></select>
+        <input class="input" id="task-promptEnhancement-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Generation -->
+  <div class="task-card">
+    <div class="task-title">💡 Prompt Generation</div>
+    <div class="task-desc">Generates initial video prompts from niche/style selections</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-promptGeneration-provider">Provider</label>
+        <select class="input" id="task-promptGeneration-provider" style="width:100%;" onchange="onProviderChange('promptGeneration')">
+          <option value="builtin">builtin (templates only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-promptGeneration-model-wrap">
+        <label class="field-label" for="task-promptGeneration-model">Model</label>
+        <select class="input" id="task-promptGeneration-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('promptGeneration')"></select>
+        <input class="input" id="task-promptGeneration-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Caption Generation -->
+  <div class="task-card">
+    <div class="task-title">💬 Caption Generation</div>
+    <div class="task-desc">Generates social media captions for video content</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-caption-provider">Provider</label>
+        <select class="input" id="task-caption-provider" style="width:100%;" onchange="onProviderChange('caption')">
+          <option value="builtin">builtin (templates only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-caption-model-wrap">
+        <label class="field-label" for="task-caption-model">Model</label>
+        <select class="input" id="task-caption-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('caption')"></select>
+        <input class="input" id="task-caption-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- VO Narration -->
+  <div class="task-card">
+    <div class="task-title">🎙️ VO Narration</div>
+    <div class="task-desc">Generates voiceover narration scripts for video content</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-voNarration-provider">Provider</label>
+        <select class="input" id="task-voNarration-provider" style="width:100%;" onchange="onProviderChange('voNarration')">
+          <option value="builtin">builtin (templates only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-voNarration-model-wrap">
+        <label class="field-label" for="task-voNarration-model">Model</label>
+        <select class="input" id="task-voNarration-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('voNarration')"></select>
+        <input class="input" id="task-voNarration-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Quality Check -->
+  <div class="task-card">
+    <div class="task-title">🔍 Quality Check</div>
+    <div class="task-desc">AI video frame quality scoring and analysis</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-qualityCheck-provider">Provider</label>
+        <select class="input" id="task-qualityCheck-provider" style="width:100%;" onchange="onProviderChange('qualityCheck')">
+          <option value="builtin">builtin (templates only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-qualityCheck-model-wrap">
+        <label class="field-label" for="task-qualityCheck-model">Model</label>
+        <select class="input" id="task-qualityCheck-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('qualityCheck')"></select>
+        <input class="input" id="task-qualityCheck-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Watermark Detection -->
+  <div class="task-card">
+    <div class="task-title">🚫 Watermark Detection</div>
+    <div class="task-desc">Detects watermarks in generated video frames</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-watermarkDetect-provider">Provider</label>
+        <select class="input" id="task-watermarkDetect-provider" style="width:100%;" onchange="onProviderChange('watermarkDetect')">
+          <option value="builtin">builtin (templates only)</option>
+          <option value="groq">groq</option>
+          <option value="gemini">gemini</option>
+          <option value="omniroute">omniroute</option>
+        </select>
+      </div>
+      <div id="task-watermarkDetect-model-wrap">
+        <label class="field-label" for="task-watermarkDetect-model">Model</label>
+        <select class="input" id="task-watermarkDetect-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('watermarkDetect')"></select>
+        <input class="input" id="task-watermarkDetect-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== TAB: SYSTEM PROMPTS ====== -->
+<div id="ai-panel-prompts" class="ai-panel">
+  <div class="tab-actions">
+    <button class="btn btn-gold" onclick="savePrompts()">💾 Save Prompts</button>
+    <button class="btn btn-ghost" onclick="resetAll('prompts')">🔄 Reset to Defaults</button>
+  </div>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">
+    Customize system prompts for each AI task. Leave fields empty to use built-in defaults.
+  </div>
+
+  <!-- Bot Persona -->
+  <div class="prompt-card">
+    <div class="prompt-title">🤖 Bot Persona</div>
+    <div class="prompt-desc">The AI assistant's identity, capabilities, and instructions. Leave empty to use the built-in BerkahKarya persona.</div>
+    <textarea class="input" id="prompt-botPersona" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+
+  <!-- Prompt Optimizer -->
+  <div class="prompt-card">
+    <div class="prompt-title">✨ Prompt Optimizer</div>
+    <div class="prompt-desc">Meta-prompt template for enhancing generation prompts. Use {rawPrompt}, {niche}, {style}, {hasReferenceImage} as variables. Leave empty for built-in template.</div>
+    <textarea class="input" id="prompt-promptOptimizer" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+
+  <!-- VO Narration -->
+  <div class="prompt-card">
+    <div class="prompt-title">🎙️ VO Narration</div>
+    <div class="prompt-desc">Template for voiceover script generation. Variables: {niche}, {duration}, {language}, {sceneDescriptions}, {wordBudget}. Leave empty for built-in.</div>
+    <textarea class="input" id="prompt-voNarration" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+
+  <!-- Quality Check -->
+  <div class="prompt-card">
+    <div class="prompt-title">🔍 Quality Check</div>
+    <div class="prompt-desc">Prompt for AI video frame quality scoring. Leave empty for built-in.</div>
+    <textarea class="input" id="prompt-qualityCheck" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+
+  <!-- Watermark Detection -->
+  <div class="prompt-card">
+    <div class="prompt-title">🚫 Watermark Detection</div>
+    <div class="prompt-desc">Prompt for watermark detection analysis. Leave empty for built-in.</div>
+    <textarea class="input" id="prompt-watermarkDetect" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+
+  <!-- Caption Generation -->
+  <div class="prompt-card">
+    <div class="prompt-title">💬 Caption Generation</div>
+    <div class="prompt-desc">Template for social media caption generation. Leave empty for built-in.</div>
+    <textarea class="input" id="prompt-captionGeneration" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+
+  <!-- Storyboard Generation -->
+  <div class="prompt-card">
+    <div class="prompt-title">🎬 Storyboard Generation</div>
+    <div class="prompt-desc">Template for AI storyboard creation. Variables: {niche}, {duration}, {scenes}. Leave empty for built-in.</div>
+    <textarea class="input" id="prompt-storyboardGeneration" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
+  </div>
+</div>
+
+<!-- ====== TAB: CHAT MODEL ====== -->
+<div id="ai-panel-chat" class="ai-panel">
+  <div class="tab-actions">
+    <button class="btn btn-gold" onclick="saveChat()">💾 Save Chat Config</button>
+    <button class="btn btn-ghost" onclick="resetAll('chat')">🔄 Reset to Defaults</button>
+  </div>
+
+  <div class="card" style="max-width: 600px;">
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px;padding-bottom:12px;border-bottom:1px solid var(--border);">Default Chat Model</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+      The model used for all chat interactions via OmniRoute. This model handles user chat, assistant responses, and any unspecified LLM calls.
+    </div>
+    <label class="field-label" for="chat-default-model">Model</label>
+    <input class="input" id="chat-default-model" type="text" placeholder="e.g. antigravity/gemini-2.5-flash" style="width:100%;" />
+    <div class="preset-btns">
+      <span style="font-size:11px;color:var(--muted);align-self:center;">Presets:</span>
+      <button class="preset-btn" onclick="setPreset('chat-default-model', 'antigravity/gemini-2.5-flash')">antigravity/gemini-2.5-flash</button>
+      <button class="preset-btn" onclick="setPreset('chat-default-model', 'gpt-4o')">gpt-4o</button>
+      <button class="preset-btn" onclick="setPreset('chat-default-model', 'gpt-4o-mini')">gpt-4o-mini</button>
+      <button class="preset-btn" onclick="setPreset('chat-default-model', 'claude-3-5-sonnet')">claude-3-5-sonnet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== AUTH =====================
+const getToken = () => localStorage.getItem('admin_password') || new URLSearchParams(location.search).get('token') || '';
+
+function logout() {
+  localStorage.removeItem('admin_password');
+  document.cookie = 'admin_token=; Max-Age=0; Path=/;';
+  location.href = '/admin/login';
+}
+
+// ===================== API =====================
+async function api(path, opts = {}) {
+  const token = getToken();
+  const headers = {
+    'Authorization': 'Basic ' + btoa(':' + token),
+    ...(opts.headers || {}),
+  };
+  if (opts.body && typeof opts.body !== 'string' && !(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  try {
+    const res = await fetch(path, { ...opts, headers, credentials: 'include' });
+    if (res.status === 401) { location.href = '/admin/login'; return null; }
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    if (!res.ok) throw new Error(typeof data === 'string' ? data : (data?.error || 'Request failed'));
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}
+
+// ===================== TOAST =====================
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// ===================== HELPERS =====================
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+function setPreset(fieldId, value) {
+  const el = document.getElementById(fieldId);
+  if (el) el.value = value;
+}
+
+// ===================== TAB SWITCHING =====================
+function switchAiTab(tab) {
+  document.querySelectorAll('.ai-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.ai-tab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.ai-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`ai-panel-${tab}`).classList.add('active');
+}
+
+// ===================== PROVIDER / MODEL LOGIC =====================
+const AI_TASK_MODELS = {
+  groq: ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
+  gemini: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+  omniroute: ['antigravity/gemini-2.5-flash', 'gpt-4o', 'gpt-4o-mini'],
+  builtin: [],
+};
+
+const ALL_TASKS = ['storyboard', 'transcript', 'promptEnhancement', 'promptGeneration', 'caption', 'voNarration', 'qualityCheck', 'watermarkDetect'];
+
+function onProviderChange(task) {
+  const provider = document.getElementById(`task-${task}-provider`).value;
+  const modelSelect = document.getElementById(`task-${task}-model-select`);
+  const modelInput = document.getElementById(`task-${task}-model`);
+  const models = AI_TASK_MODELS[provider] || [];
+
+  if (provider === 'builtin') {
+    modelSelect.style.display = 'none';
+    modelInput.style.display = 'none';
+    return;
+  }
+
+  modelInput.style.display = '';
+  if (models.length) {
+    modelSelect.innerHTML = models.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    if (!modelInput.value || !models.includes(modelInput.value)) {
+      modelInput.value = models[0];
+    }
+    modelSelect.value = models.includes(modelInput.value) ? modelInput.value : models[0];
+    modelSelect.style.display = '';
+  } else {
+    modelSelect.style.display = 'none';
+  }
+}
+
+function syncModelInput(task) {
+  const modelSelect = document.getElementById(`task-${task}-model-select`);
+  const modelInput = document.getElementById(`task-${task}-model`);
+  modelInput.value = modelSelect.value;
+}
+
+// ===================== LOAD CONFIG =====================
+async function loadConfig() {
+  try {
+    const data = await api('/api/admin/ai-config');
+    if (!data) return;
+
+    // Populate tasks
+    if (data.tasks) {
+      ALL_TASKS.forEach(task => {
+        const cfg = data.tasks[task] || {};
+        const providerEl = document.getElementById(`task-${task}-provider`);
+        const modelEl = document.getElementById(`task-${task}-model`);
+        if (providerEl && cfg.provider) providerEl.value = cfg.provider;
+        onProviderChange(task);
+        if (modelEl && cfg.model) {
+          modelEl.value = cfg.model;
+          const modelSelect = document.getElementById(`task-${task}-model-select`);
+          if (modelSelect) modelSelect.value = cfg.model;
+        }
+      });
+    }
+
+    // Populate prompts
+    if (data.prompts) {
+      const promptFields = ['botPersona', 'promptOptimizer', 'voNarration', 'qualityCheck', 'watermarkDetect', 'captionGeneration', 'storyboardGeneration'];
+      promptFields.forEach(key => {
+        const el = document.getElementById(`prompt-${key}`);
+        if (el && data.prompts[key] != null) el.value = data.prompts[key];
+      });
+    }
+
+    // Populate chat
+    if (data.chat) {
+      const chatEl = document.getElementById('chat-default-model');
+      if (chatEl && data.chat.defaultModel) chatEl.value = data.chat.defaultModel;
+    }
+  } catch (e) {
+    toast('Failed to load AI config: ' + e.message, 'error');
+  }
+}
+
+// ===================== SAVE TASKS =====================
+async function saveTasks() {
+  const tasks = {};
+  ALL_TASKS.forEach(task => {
+    const provider = document.getElementById(`task-${task}-provider`)?.value || 'builtin';
+    const model = document.getElementById(`task-${task}-model`)?.value || '';
+    tasks[task] = { provider, model };
+  });
+
+  try {
+    await api('/api/admin/ai-config/tasks', { method: 'POST', body: tasks });
+    toast('Tasks config saved', 'success');
+  } catch (e) {
+    toast('Failed to save tasks: ' + e.message, 'error');
+  }
+}
+
+// ===================== SAVE PROMPTS =====================
+async function savePrompts() {
+  const prompts = {};
+  const promptFields = ['botPersona', 'promptOptimizer', 'voNarration', 'qualityCheck', 'watermarkDetect', 'captionGeneration', 'storyboardGeneration'];
+  promptFields.forEach(key => {
+    const el = document.getElementById(`prompt-${key}`);
+    if (el) prompts[key] = el.value;
+  });
+
+  try {
+    await api('/api/admin/ai-config/prompts', { method: 'POST', body: prompts });
+    toast('Prompts saved', 'success');
+  } catch (e) {
+    toast('Failed to save prompts: ' + e.message, 'error');
+  }
+}
+
+// ===================== SAVE CHAT =====================
+async function saveChat() {
+  const chat = { defaultModel: document.getElementById('chat-default-model').value };
+
+  try {
+    await api('/api/admin/ai-config/chat', { method: 'POST', body: chat });
+    toast('Chat config saved', 'success');
+  } catch (e) {
+    toast('Failed to save chat config: ' + e.message, 'error');
+  }
+}
+
+// ===================== RESET ALL =====================
+async function resetAll(scope) {
+  const label = scope === 'tasks' ? 'AI task configuration' : scope === 'prompts' ? 'all system prompts' : 'chat model config';
+  if (!confirm(`Reset ${label} to built-in defaults?`)) return;
+
+  try {
+    await api('/api/admin/ai-config/reset', { method: 'POST', body: { scope } });
+    await loadConfig();
+    toast('Reset to defaults', 'success');
+  } catch (e) {
+    toast('Failed to reset: ' + e.message, 'error');
+  }
+}
+
+// ===================== INIT =====================
+const urlToken = new URLSearchParams(location.search).get('token');
+if (urlToken) {
+  localStorage.setItem('admin_password', urlToken);
+}
+
+loadConfig();
+</script>

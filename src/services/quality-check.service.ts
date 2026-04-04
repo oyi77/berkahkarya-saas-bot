@@ -15,6 +15,7 @@ import { logger } from '@/utils/logger';
 import { getConfig } from '@/config/env';
 import axios from 'axios';
 import { trackTokens } from '@/services/token-tracker.service';
+import { AIConfigService } from '@/services/ai-config.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
@@ -22,8 +23,10 @@ import { exec as execCallback } from 'child_process';
 
 const exec = promisify(execCallback);
 
-function getGeminiVisionUrl() {
-  return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
+async function getGeminiVisionUrl(): Promise<string> {
+  const cfg = await AIConfigService.getTaskConfig('qualityCheck');
+  const model = cfg.model || 'gemini-2.0-flash';
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
 }
 
 const FRAME_DIR = '/tmp/quality_check_frames';
@@ -143,7 +146,12 @@ export class QualityCheckService {
     const imageBuffer = fs.readFileSync(framePath);
     const base64Image = imageBuffer.toString('base64');
 
-    const prompt = [
+    const [promptsCfg, taskCfg] = await Promise.all([
+      AIConfigService.getPromptsConfig(),
+      AIConfigService.getTaskConfig('qualityCheck'),
+    ]);
+
+    const hardcodedPrompt = [
       `Rate this AI-generated video frame for commercial quality (0-10).`,
       `Expected: ${expectedNiche} content, ${expectedDuration}s duration.`,
       hasReferenceImage ? `This video was generated from a reference image.` : '',
@@ -152,6 +160,9 @@ export class QualityCheckService {
       `score: N`,
       `issues: [comma separated list or "none"]`,
     ].filter(Boolean).join('\n');
+
+    const prompt = promptsCfg.qualityCheck || hardcodedPrompt;
+    const model = taskCfg.model || 'gemini-2.0-flash';
 
     const payload = {
       contents: [
@@ -173,7 +184,7 @@ export class QualityCheckService {
       },
     };
 
-    const response = await axios.post(getGeminiVisionUrl(), payload, {
+    const response = await axios.post(await getGeminiVisionUrl(), payload, {
       headers: { 'Content-Type': 'application/json' },
       timeout: 5000,
     });
@@ -181,7 +192,7 @@ export class QualityCheckService {
     const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const usageMeta = response.data?.usageMetadata;
     if (usageMeta) {
-      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'quality_check', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
+      trackTokens({ provider: 'gemini-direct', model, service: 'quality_check', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
     }
     return this.parseResponse(text);
   }

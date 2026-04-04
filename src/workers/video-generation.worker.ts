@@ -19,6 +19,7 @@ import { GeminiGenService } from '@/services/geminigen.service';
 import { generateVideoWithFallback } from '@/services/video-fallback.service';
 import { getVideoCreditCostAsync } from '@/config/pricing';
 import { actionableError } from '@/utils/errors';
+import { AIConfigService } from '@/services/ai-config.service';
 import { promisify } from 'util';
 import { execFile as execFileCallback } from 'child_process';
 import * as fs from 'fs';
@@ -194,6 +195,13 @@ async function generateVOScriptWithAI(
   const GEMINI_API_KEY = getConfig().GEMINI_API_KEY || '';
   if (!GEMINI_API_KEY) throw new Error('No Gemini API key');
 
+  const [promptsCfg, taskCfg] = await Promise.all([
+    AIConfigService.getPromptsConfig().catch(() => null),
+    AIConfigService.getTaskConfig('voNarration').catch(() => null),
+  ]);
+
+  const model = taskCfg?.model || 'llama-3.3-70b-versatile';
+
   const sceneDescriptions = storyboard.map((s, i) =>
     `Scene ${i + 1} (${s.duration}s): ${s.description}`
   ).join('\n');
@@ -202,7 +210,16 @@ async function generateVOScriptWithAI(
   const wpm = getLangConfig(language).readingSpeedWpm;
   const wordBudget = Math.round((totalDuration * wpm) / 60);
 
-  const prompt = `Generate a ${langLabel} voiceover narration script for a ${niche} marketing video.
+  let prompt: string;
+  if (promptsCfg?.voNarration) {
+    prompt = promptsCfg.voNarration
+      .replace(/{niche}/g, niche)
+      .replace(/{duration}/g, String(totalDuration))
+      .replace(/{language}/g, langLabel)
+      .replace(/{sceneDescriptions}/g, sceneDescriptions)
+      .replace(/{wordBudget}/g, String(wordBudget));
+  } else {
+    prompt = `Generate a ${langLabel} voiceover narration script for a ${niche} marketing video.
 
 Scenes:
 ${sceneDescriptions}
@@ -217,8 +234,36 @@ Requirements:
 - End with a soft call-to-action
 - Do NOT include scene labels, timestamps, or stage directions
 - Output ONLY the narration text, nothing else`;
+  }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  // Use Groq if task is configured for it, otherwise fall back to Gemini
+  const provider = taskCfg?.provider || 'groq';
+  if (provider === 'groq') {
+    const GROQ_API_KEY = getConfig().GROQ_API_KEY || '';
+    if (GROQ_API_KEY) {
+      const { default: axios } = await import('axios');
+      const response = await axios.post(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 512,
+        },
+        {
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_API_KEY}` },
+          timeout: 30000,
+        }
+      );
+      const text = response.data?.choices?.[0]?.message?.content;
+      if (!text) throw new Error('Empty Groq response');
+      return text.trim();
+    }
+    // Fall through to Gemini if no Groq key
+  }
+
+  const geminiModel = provider === 'gemini' ? (taskCfg?.model || 'gemini-2.5-flash') : 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${GEMINI_API_KEY}`;
 
   const { default: axios } = await import('axios');
   const response = await axios.post(url, {
@@ -233,7 +278,7 @@ Requirements:
   const usageMeta = response.data?.usageMetadata;
   if (usageMeta) {
     const { trackTokens } = await import('../services/token-tracker.service.js');
-    trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'vo_script_generation', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
+    trackTokens({ provider: 'gemini-direct', model: geminiModel, service: 'vo_script_generation', promptTokens: usageMeta.promptTokenCount || 0, completionTokens: usageMeta.candidatesTokenCount || 0 }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
   }
 
   return text.trim();
