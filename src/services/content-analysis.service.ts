@@ -13,6 +13,28 @@ import { extname } from 'path';
 import { trackTokens } from '@/services/token-tracker.service';
 import { getOmniRouteService } from '@/services/omniroute.service';
 
+const OMNI_IMAGE_PROMPT = `Analyze this image in detail for AI content creation purposes. Describe:
+1. Subject/product (exact appearance, materials, textures, colors)
+2. Composition and framing
+3. Lighting (direction, quality, temperature)
+4. Style and mood
+5. Background and setting
+
+Output as a single detailed paragraph (200-400 words) starting with the main subject. Be specific and technical enough to recreate this image with an AI generator.`;
+
+const OMNI_VIDEO_PROMPT = `Analyze this video frame for content recreation purposes. Based on what you see, describe:
+1. Characters/people (appearance, clothing, expression, role)
+2. Scene content and action
+3. Visual style (lighting, color grade, camera angle)
+4. Mood and aesthetic
+5. What type of content this appears to be (marketing, lifestyle, education, etc.)
+
+Also provide a brief storyboard outline:
+STORYBOARD:
+Scene 1 | 5s | [description of this scene and what should happen]
+
+Output 300-500 words total.`;
+
 function getGeminiVisionUrl() {
   return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
 }
@@ -130,8 +152,8 @@ export class ContentAnalysisService {
       logger.info(`Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
 
       if (!getConfig().GEMINI_API_KEY) {
-        logger.warn('GEMINI_API_KEY not set, returning fallback response');
-        return this.getFallbackResult(mediaType);
+        logger.warn('GEMINI_API_KEY not set, trying OmniRoute fallback');
+        return ContentAnalysisService._extractViaOmniRoute(mediaUrl, mediaType);
       }
 
       const systemPrompt = mediaType === 'image'
@@ -225,18 +247,32 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       return parseGeminiResponse(generatedText);
 
     } catch (error: any) {
-      logger.error('Prompt extraction failed:', error.message);
+      logger.warn(`Gemini extractPrompt failed (${error.response?.status ?? error.message}), trying OmniRoute fallback`);
+      return ContentAnalysisService._extractViaOmniRoute(mediaUrl, mediaType);
+    }
+  }
 
-      // If API fails, return fallback instead of crashing
-      if (error.response?.status === 400 || error.response?.status === 403) {
-        logger.warn('Gemini API error, returning fallback');
-        return this.getFallbackResult(mediaType);
+  /**
+   * OmniRoute vision fallback for extractPrompt — used when Gemini key is missing or 403.
+   */
+  private static async _extractViaOmniRoute(
+    mediaUrl: string,
+    mediaType: 'video' | 'image',
+  ): Promise<AnalysisResult> {
+    try {
+      const media = await fetchMediaAsBase64(mediaUrl);
+      const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
+      const omni = getOmniRouteService();
+      const result = await omni.analyzeImage(media.data, media.mimeType, prompt);
+      if (!result.success || !result.content) {
+        logger.warn('OmniRoute vision fallback returned empty, using template fallback');
+        return ContentAnalysisService.getFallbackResult(mediaType);
       }
-
-      return {
-        success: false,
-        error: error.message || 'Failed to extract prompt',
-      };
+      logger.info(`OmniRoute vision fallback succeeded for ${mediaType} (${result.model})`);
+      return parseGeminiResponse(result.content);
+    } catch (omniErr: any) {
+      logger.warn(`OmniRoute vision fallback failed: ${omniErr.message}`);
+      return ContentAnalysisService.getFallbackResult(mediaType);
     }
   }
 
