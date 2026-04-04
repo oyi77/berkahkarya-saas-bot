@@ -260,21 +260,36 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
     mediaUrl: string,
     mediaType: 'video' | 'image',
   ): Promise<AnalysisResult> {
+    const omni = getOmniRouteService();
+    const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
+    const visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
+      ? taskCfg.model
+      : 'antigravity/gemini-2.5-flash';
+    const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
+
+    // For HTTP URLs (Telegram CDN), pass URL directly — avoids large base64 payload
+    if (mediaType === 'image' && mediaUrl.startsWith('http')) {
+      try {
+        const result = await omni.analyzeImageUrl(mediaUrl, prompt, visionModel);
+        if (result.success && result.content) {
+          logger.info(`OmniRoute vision (URL) succeeded for ${mediaType} (${result.model})`);
+          return parseGeminiResponse(result.content);
+        }
+        logger.warn(`OmniRoute analyzeImageUrl returned empty: ${result.error}`);
+      } catch (urlErr: any) {
+        logger.warn(`OmniRoute analyzeImageUrl failed: ${urlErr.message}, trying base64`);
+      }
+    }
+
+    // Fallback: download and encode as base64
     try {
       const media = await fetchMediaAsBase64(mediaUrl);
-      const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
-      const omni = getOmniRouteService();
-      // Use transcript task model (vision-capable) instead of chat default
-      const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
-      const visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
-        ? taskCfg.model
-        : 'antigravity/gemini-2.5-flash';
       const result = await omni.analyzeImage(media.data, media.mimeType, prompt, visionModel);
       if (!result.success || !result.content) {
-        logger.warn('OmniRoute vision fallback returned empty, using template fallback');
+        logger.warn(`OmniRoute vision (base64) returned empty: ${result.error}`);
         return ContentAnalysisService.getFallbackResult(mediaType);
       }
-      logger.info(`OmniRoute vision fallback succeeded for ${mediaType} (${result.model})`);
+      logger.info(`OmniRoute vision (base64) succeeded for ${mediaType} (${result.model})`);
       return parseGeminiResponse(result.content);
     } catch (omniErr: any) {
       logger.warn(`OmniRoute vision fallback failed: ${omniErr.message}`);
@@ -290,10 +305,8 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       logger.info(`Cloning video: ${sourceUrl.slice(0, 50)}...`);
 
       if (!getConfig().GEMINI_API_KEY) {
-        logger.warn('GEMINI_API_KEY not set, returning fallback response');
-        const fallback = this.getFallbackResult('video');
-        fallback.prompt = `Clone style: ${fallback.prompt}`;
-        return fallback;
+        logger.warn('GEMINI_API_KEY not set for cloneVideo, trying OmniRoute');
+        return ContentAnalysisService._extractViaOmniRoute(sourceUrl, 'video');
       }
 
       const media = await fetchMediaAsBase64(sourceUrl);
@@ -366,11 +379,8 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       return result;
 
     } catch (error: any) {
-      logger.error('Video cloning failed:', error.message);
-      return {
-        success: false,
-        error: error.message || 'Failed to clone video',
-      };
+      logger.warn(`Video cloning via Gemini failed: ${error.message}, trying OmniRoute`);
+      return ContentAnalysisService._extractViaOmniRoute(sourceUrl, 'video');
     }
   }
 
@@ -382,10 +392,8 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       logger.info(`Cloning image: ${sourceUrl.slice(0, 50)}...`);
 
       if (!getConfig().GEMINI_API_KEY) {
-        logger.warn('GEMINI_API_KEY not set, returning fallback response');
-        const fallback = this.getFallbackResult('image');
-        fallback.prompt = `Clone style: ${fallback.prompt}`;
-        return fallback;
+        logger.warn('GEMINI_API_KEY not set for cloneImage, trying OmniRoute');
+        return ContentAnalysisService._extractViaOmniRoute(sourceUrl, 'image');
       }
 
       const media = await fetchMediaAsBase64(sourceUrl);
@@ -441,37 +449,8 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       return parseGeminiResponse(generatedText);
 
     } catch (error: any) {
-      const detail = error.response?.data ? JSON.stringify(error.response.data).slice(0, 300) : error.message;
-      logger.warn(`Direct Gemini image cloning failed, trying OmniRoute fallback: ${detail}`);
-
-      // Fallback: re-fetch image and analyze via OmniRoute vision
-      try {
-        const media = await fetchMediaAsBase64(sourceUrl);
-        const systemPrompt =
-          'You are an expert at analyzing images for AI recreation. Create a DETAILED prompt:\n\n' +
-          '1. CHARACTER/PERSON (if present): Gender, age range, ethnicity/skin tone, hairstyle & color, facial expression & emotion, body posture & gesture, EXACT clothing description (e.g. "cream silk blouse tucked into charcoal wool trousers" not "outfit"), accessories (jewelry, glasses, watch), gaze direction, hand position. If no person, skip to #2.\n' +
-          '2. SUBJECT/PRODUCT: Exact object appearance, materials, textures, colors (specific: "burgundy" not "red"), brand elements, surface details\n' +
-          '3. COMPOSITION: Layout, rule-of-thirds, negative space, depth layers, focal point, subject-to-frame ratio\n' +
-          '4. LIGHTING: Key light direction, fill ratio, rim light, color temperature (e.g. 3200K), quality (hard/soft), catchlights\n' +
-          '5. COLOR PALETTE: Dominant + accent colors, saturation, contrast, color grading style\n' +
-          '6. CAMERA: Lens (e.g. 85mm f/1.8), angle, distance, depth of field, bokeh quality\n' +
-          '7. BACKGROUND: Environment details, blur quality, supporting elements, depth layers\n' +
-          '8. STYLE & MOOD: Art direction, aesthetic, emotional tone, commercial intent\n\n' +
-          'Output as a single cohesive prompt, 300-400 words.';
-        const omni = getOmniRouteService();
-        const fallbackResult = await omni.analyzeImage(media.data, media.mimeType, systemPrompt);
-        if (fallbackResult.success && fallbackResult.content) {
-          logger.info('Image cloning succeeded via OmniRoute fallback');
-          return parseGeminiResponse(fallbackResult.content);
-        }
-      } catch (fallbackErr: any) {
-        logger.error(`OmniRoute vision fallback also failed: ${fallbackErr.message}`);
-      }
-
-      return {
-        success: false,
-        error: error.message || 'Failed to clone image',
-      };
+      logger.warn(`Image cloning via Gemini failed: ${error.message}, trying OmniRoute`);
+      return ContentAnalysisService._extractViaOmniRoute(sourceUrl, 'image');
     }
   }
 

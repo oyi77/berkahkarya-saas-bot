@@ -279,6 +279,37 @@ export class OmniRouteService {
     }
   }
 
+  /**
+   * Analyze an image from a direct HTTP URL (preferred over base64 for large files).
+   */
+  async analyzeImageUrl(imageUrl: string, prompt: string, model?: string): Promise<ChatResponse> {
+    const config = getConfig();
+    const chatCfg = await AIConfigService.getChatConfig();
+    const DEFAULT_MODEL = chatCfg.defaultModel || config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
+    try {
+      const response = await this.client.post('/chat/completions', {
+        model: model || DEFAULT_MODEL,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ],
+        }],
+        temperature: 0.65,
+        max_tokens: 2000,
+      }, { timeout: 60000 });
+
+      const content = response.data?.choices?.[0]?.message?.content || '';
+      if (!content) return { success: false, error: 'Empty response from vision model' };
+      return { success: true, content, model: response.data?.model || DEFAULT_MODEL };
+    } catch (error: any) {
+      const errMsg = error.response?.data?.error?.message || error.message || 'Unknown error';
+      logger.error('OmniRoute analyzeImageUrl error:', errMsg);
+      return { success: false, error: errMsg };
+    }
+  }
+
   async analyzeImage(base64Data: string, mimeType: string, prompt: string, model?: string): Promise<ChatResponse> {
     const config = getConfig();
     const chatCfg = await AIConfigService.getChatConfig();
