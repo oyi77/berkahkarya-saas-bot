@@ -59,6 +59,16 @@ export interface ImageGenerationParams {
   avatarImagePath?: string;
   mode?: ImageGenerationMode;
   resolution?: "standard" | "hd" | "ultra";
+  elementSelection?: {
+    keepProduct: boolean;
+    keepCharacter: boolean;
+    keepBackground: boolean;
+  };
+  elementAnalysis?: {
+    productDesc: string;
+    characterDesc: string;
+    backgroundDesc: string;
+  };
   _forceProvider?: string;
 }
 
@@ -245,7 +255,7 @@ async function generateViaFalaiImg2Img(
     {
       prompt,
       image_url: imageUrl,
-      strength: await AdminConfigService.getAiParam('falai_img2img_strength', 0.75),
+      strength: (params as any)._elementStrengthOverride ?? await AdminConfigService.getAiParam('falai_img2img_strength', 0.75),
       image_size:
         params.aspectRatio === "16:9"
           ? "landscape_16_9"
@@ -1318,6 +1328,47 @@ export class ImageGenerationService {
         );
         // Flag for downstream — callers can warn user about degraded quality
         (params as any)._visionAnalysisFailed = true;
+      }
+    }
+
+    // ── Element selection prompt/strength adjustment ──
+    // When the user selected which elements to keep from the reference image,
+    // tailor the prompt and override the img2img strength accordingly.
+    let elementStrengthOverride: number | undefined;
+    if (params.elementSelection && params.elementAnalysis) {
+      const sel = params.elementSelection;
+      const ea = params.elementAnalysis;
+      const keepCount = [sel.keepProduct, sel.keepCharacter, sel.keepBackground].filter(Boolean).length;
+
+      if (keepCount === 0) {
+        // keepNone — pure text2img, discard reference
+        params = { ...params, mode: "text2img", referenceImageUrl: undefined, referenceImagePath: undefined };
+        logger.info("🎯 Element selection: keepNone — switching to text2img");
+      } else if (sel.keepProduct && !sel.keepCharacter && !sel.keepBackground) {
+        visionEnrichedPrompt = `${params.prompt}. Preserve exact product: ${ea.productDesc}. New scene/background as described.`;
+        elementStrengthOverride = 0.90;
+        logger.info("🎯 Element selection: keepProduct only");
+      } else if (sel.keepCharacter && !sel.keepProduct && !sel.keepBackground) {
+        visionEnrichedPrompt = `${params.prompt}. Preserve character appearance: ${ea.characterDesc}.`;
+        elementStrengthOverride = 0.85;
+        logger.info("🎯 Element selection: keepCharacter only");
+      } else if (sel.keepProduct && sel.keepCharacter && !sel.keepBackground) {
+        visionEnrichedPrompt = `${params.prompt}. Preserve product: ${ea.productDesc}. Preserve character: ${ea.characterDesc}. Change background.`;
+        elementStrengthOverride = 0.85;
+        logger.info("🎯 Element selection: keepProduct + keepCharacter");
+      } else if (sel.keepBackground && !sel.keepProduct && !sel.keepCharacter) {
+        visionEnrichedPrompt = `${params.prompt}. Preserve background scene: ${ea.backgroundDesc}.`;
+        elementStrengthOverride = 0.75;
+        logger.info("🎯 Element selection: keepBackground only");
+      } else {
+        // keepAll or other combos — use full vision enrichment (current behavior)
+        elementStrengthOverride = 0.80;
+        logger.info("🎯 Element selection: keepAll/multi — using full enrichment");
+      }
+
+      // Store strength override for downstream providers
+      if (elementStrengthOverride !== undefined) {
+        (params as any)._elementStrengthOverride = elementStrengthOverride;
       }
     }
 

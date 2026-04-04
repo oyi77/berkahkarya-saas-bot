@@ -10,6 +10,77 @@ import { t } from "@/i18n/translations";
 
 const btnBackMain = (lang: string) => ({ text: t('btn.main_menu', lang), callback_data: "main_menu" });
 
+// ── Element detection for reference images ──
+
+const CHARACTER_KEYWORDS = ['person', 'woman', 'man', 'model', 'figure', 'people', 'character', 'individual', 'portrait', 'face', 'hands'];
+const PRODUCT_KEYWORDS = ['product', 'bottle', 'package', 'item', 'object', 'brand', 'label', 'box', 'bag', 'container', 'device', 'gadget'];
+
+export function detectImageElements(analysisText: string): {
+  hasCharacter: boolean;
+  hasProduct: boolean;
+  characterDesc: string;
+  productDesc: string;
+  backgroundDesc: string;
+} {
+  const lower = analysisText.toLowerCase();
+  const hasCharacter = CHARACTER_KEYWORDS.some(kw => lower.includes(kw));
+  const hasProduct = PRODUCT_KEYWORDS.some(kw => lower.includes(kw));
+
+  // Extract rough descriptions from the analysis text
+  let characterDesc = '';
+  let productDesc = '';
+  if (hasCharacter) {
+    for (const kw of CHARACTER_KEYWORDS) {
+      const idx = lower.indexOf(kw);
+      if (idx >= 0) {
+        characterDesc = analysisText.slice(Math.max(0, idx - 20), idx + 150).trim();
+        break;
+      }
+    }
+  }
+  if (hasProduct) {
+    for (const kw of PRODUCT_KEYWORDS) {
+      const idx = lower.indexOf(kw);
+      if (idx >= 0) {
+        productDesc = analysisText.slice(Math.max(0, idx - 20), idx + 150).trim();
+        break;
+      }
+    }
+  }
+  // Background is always the full analysis trimmed
+  const backgroundDesc = analysisText.slice(0, 200).trim();
+
+  return { hasCharacter, hasProduct, characterDesc, productDesc, backgroundDesc };
+}
+
+export function renderElementSelectionKeyboard(
+  sel: { keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean },
+) {
+  const check = (on: boolean) => on ? '\u2705' : '\u2610';
+  return {
+    inline_keyboard: [
+      [{ text: `${check(sel.keepProduct)} Product/Subject`, callback_data: 'imgelem_product' }],
+      [{ text: `${check(sel.keepCharacter)} Character/Person`, callback_data: 'imgelem_character' }],
+      [{ text: `${check(sel.keepBackground)} Background/Scene`, callback_data: 'imgelem_background' }],
+      [{ text: '\u2728 Generate \u2192', callback_data: 'imgelem_confirm' }],
+    ],
+  };
+}
+
+export function buildElementSelectionMessage(
+  analysis: { hasCharacter: boolean; hasProduct: boolean },
+): string {
+  const detected: string[] = [];
+  if (analysis.hasCharacter) detected.push('Person/Character');
+  if (analysis.hasProduct) detected.push('Product/Object');
+  return (
+    `\ud83c\udfaf *Select what to keep from the reference image*\n\n` +
+    `I detected: ${detected.join(' + ')} in your reference.\n\n` +
+    `Choose which elements to preserve in the output:\n` +
+    `_(tap to toggle, then Generate)_`
+  );
+}
+
 const categoryNames: Record<string, string> = {
   product: "🛍️ Product Photo",
   fnb: "🍔 F&B Food",
@@ -435,6 +506,69 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
         reply_markup: {
           inline_keyboard: [
             [btnBackMain(lang2)],
+          ],
+        },
+      },
+    );
+    return true;
+  }
+
+  // imgelem_* — element selection toggles
+  if (data === "imgelem_product" || data === "imgelem_character" || data === "imgelem_background") {
+    await ctx.answerCbQuery();
+    const sel = (ctx.session.stateData?.imageElementSelection as {
+      keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean;
+    }) || { keepProduct: true, keepCharacter: false, keepBackground: false };
+
+    if (data === "imgelem_product") sel.keepProduct = !sel.keepProduct;
+    if (data === "imgelem_character") sel.keepCharacter = !sel.keepCharacter;
+    if (data === "imgelem_background") sel.keepBackground = !sel.keepBackground;
+
+    ctx.session.stateData = { ...ctx.session.stateData, imageElementSelection: sel };
+    const analysis = ctx.session.stateData?.imageAnalysisResult as { hasCharacter: boolean; hasProduct: boolean } | undefined;
+
+    await ctx.editMessageText(
+      buildElementSelectionMessage(analysis || { hasCharacter: true, hasProduct: true }),
+      {
+        parse_mode: "Markdown",
+        reply_markup: renderElementSelectionKeyboard(sel),
+      },
+    );
+    return true;
+  }
+
+  // imgelem_confirm — proceed to prompt entry with element selection saved
+  if (data === "imgelem_confirm") {
+    await ctx.answerCbQuery();
+    const lang = ctx.session?.userLang || 'id';
+    const sel = (ctx.session.stateData?.imageElementSelection as {
+      keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean;
+    }) || { keepProduct: true, keepCharacter: false, keepBackground: false };
+
+    // If all elements are off, switch to text2img mode
+    const keepAny = sel.keepProduct || sel.keepCharacter || sel.keepBackground;
+    if (!keepAny) {
+      ctx.session.stateData = { ...ctx.session.stateData, mode: "text2img", referenceImageUrl: undefined };
+    }
+
+    ctx.session.state = "IMAGE_GENERATION_WAITING";
+    const category = ctx.session.stateData?.imageCategory as string;
+
+    const hintKeys: Record<string, string> = {
+      product: 'cb.imgref_hint_product',
+      fnb: 'cb.imgref_hint_fnb',
+      realestate: 'cb.imgref_hint_realestate',
+      car: 'cb.imgref_hint_car',
+    };
+    const hint = t(hintKeys[category] || 'cb.imgref_hint_default', lang);
+
+    await ctx.editMessageText(
+      t('cb.describe_image', lang, { hint }),
+      {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: t('btn.back', lang), callback_data: "image_generate" }],
           ],
         },
       },

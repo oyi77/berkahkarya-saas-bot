@@ -129,6 +129,7 @@ export type BotState =
   | "DELETE_ACCOUNT_CONFIRMATION"
   | "avatar_talk_photo"
   | "avatar_talk_text"
+  | "IMAGE_ELEMENT_SELECTION"
   | "WAITING_BUG_REPORT";
 
 // =============================================================================

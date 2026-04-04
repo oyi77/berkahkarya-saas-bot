@@ -26,6 +26,7 @@ import {
 import { AvatarService } from "@/services/avatar.service";
 import { ContentAnalysisService } from "@/services/content-analysis.service";
 import { PostAutomationService } from "@/services/postautomation.service";
+import { detectImageElements, renderElementSelectionKeyboard } from "./callbacks/image";
 import { generateStoryboard } from "@/services/video-generation.service";
 import { getVideoCreditCost, getImageCreditCostAsync, CUSTOM_DURATION_MIN } from "@/config/pricing";
 import { canUseDailyFree, canUseWelcomeBonus, getNextDailyFreeReset } from "@/config/free-trial";
@@ -582,14 +583,79 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
       const referenceUrl = fileLink.toString();
 
+      const refImgLang = ctx.session?.userLang || 'id';
+
+      // Analyze image to detect elements (character, product, background)
+      let analysisResult: { hasCharacter: boolean; hasProduct: boolean; characterDesc: string; productDesc: string; backgroundDesc: string } | null = null;
+      try {
+        const analysis = await ContentAnalysisService.extractPrompt(referenceUrl, 'image');
+        if (analysis.success && analysis.prompt) {
+          analysisResult = detectImageElements(analysis.prompt);
+        }
+      } catch (err) {
+        logger.warn("Element detection failed (non-fatal):", err);
+      }
+
+      // If both character AND product detected, show element selection keyboard
+      if (analysisResult && analysisResult.hasCharacter && analysisResult.hasProduct) {
+        ctx.session.state = "IMAGE_ELEMENT_SELECTION";
+        ctx.session.stateData = {
+          ...ctx.session.stateData,
+          referenceImageUrl: referenceUrl,
+          mode: "img2img",
+          imageAnalysisResult: {
+            hasProduct: analysisResult.hasProduct,
+            hasCharacter: analysisResult.hasCharacter,
+            productDesc: analysisResult.productDesc,
+            characterDesc: analysisResult.characterDesc,
+            backgroundDesc: analysisResult.backgroundDesc,
+          },
+          imageElementSelection: {
+            keepProduct: true,
+            keepCharacter: false,
+            keepBackground: false,
+          },
+        };
+
+        const detected: string[] = [];
+        if (analysisResult.hasCharacter) detected.push('Person/Character');
+        if (analysisResult.hasProduct) detected.push('Product/Object');
+
+        await ctx.reply(
+          `\ud83c\udfaf *Select what to keep from the reference image*\n\n` +
+          `I detected: ${detected.join(' + ')} in your reference.\n\n` +
+          `Choose which elements to preserve in the output:\n` +
+          `_(tap to toggle, then Generate)_`,
+          {
+            parse_mode: "Markdown",
+            reply_markup: renderElementSelectionKeyboard({
+              keepProduct: true,
+              keepCharacter: false,
+              keepBackground: false,
+            }),
+          },
+        );
+        return;
+      }
+
+      // Single element type or detection failed — proceed normally
       ctx.session.state = "IMAGE_GENERATION_WAITING";
       ctx.session.stateData = {
         ...ctx.session.stateData,
         referenceImageUrl: referenceUrl,
         mode: "img2img",
+        // Save analysis if available (single element)
+        ...(analysisResult ? {
+          imageAnalysisResult: {
+            hasProduct: analysisResult.hasProduct,
+            hasCharacter: analysisResult.hasCharacter,
+            productDesc: analysisResult.productDesc,
+            characterDesc: analysisResult.characterDesc,
+            backgroundDesc: analysisResult.backgroundDesc,
+          },
+        } : {}),
       };
 
-      const refImgLang = ctx.session?.userLang || 'id';
       await ctx.reply(
         t('msg.ref_image_received', refImgLang),
         {
@@ -707,6 +773,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const mode =
         (ctx.session.stateData?.mode as ImageGenerationMode) || "text2img";
       const selectedPrompt = ctx.session.stateData?.selectedPrompt as string | undefined;
+      const elementSelection = ctx.session.stateData?.imageElementSelection as {
+        keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean;
+      } | undefined;
+      const elementAnalysis = ctx.session.stateData?.imageAnalysisResult as {
+        productDesc: string; characterDesc: string; backgroundDesc: string;
+      } | undefined;
 
       const modeLabel =
         mode === "img2img"
@@ -776,6 +848,8 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             referenceImageUrl,
             avatarImageUrl,
             mode,
+            elementSelection,
+            elementAnalysis,
           });
 
           if (result.success && result.imageUrl) {
