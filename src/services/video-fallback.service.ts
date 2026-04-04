@@ -1362,13 +1362,9 @@ export async function generateVideoWithFallback(
     try {
       const { ContentAnalysisService } =
         await import("./content-analysis.service.js");
-      // Detect if it's a URL or local file path
-      const refUrl = params.referenceImage.startsWith("http")
-        ? params.referenceImage
-        : `file://${params.referenceImage}`;
-
+      // Pass URL or local path directly — fetchMediaAsBase64 handles both
       const analysis = await ContentAnalysisService.extractPrompt(
-        refUrl,
+        params.referenceImage,
         "image",
       );
       if (analysis.success && analysis.prompt) {

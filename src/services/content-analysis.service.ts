@@ -8,6 +8,8 @@
 import { logger } from '@/utils/logger';
 import { getConfig } from '@/config/env';
 import axios from 'axios';
+import { readFile } from 'fs/promises';
+import { extname } from 'path';
 import { trackTokens } from '@/services/token-tracker.service';
 import { getOmniRouteService } from '@/services/omniroute.service';
 
@@ -37,6 +39,26 @@ export interface ViralTrend {
  * Fetch media as base64 for Gemini inline_data
  */
 async function fetchMediaAsBase64(url: string): Promise<{ data: string; mimeType: string }> {
+  // Local file path — read directly (axios cannot handle file:// or bare paths)
+  const isLocal = !url.startsWith('http://') && !url.startsWith('https://');
+  if (isLocal) {
+    const localPath = url.startsWith('file://') ? url.slice(7) : url;
+    const buf = await readFile(localPath);
+    const ext = extname(localPath).toLowerCase();
+    let mimeType = 'image/jpeg';
+    if (ext === '.png') mimeType = 'image/png';
+    else if (ext === '.webp') mimeType = 'image/webp';
+    else if (ext === '.gif') mimeType = 'image/gif';
+    else if (ext === '.mp4') mimeType = 'video/mp4';
+    else if (ext === '.mov') mimeType = 'video/quicktime';
+    else {
+      // Magic bytes fallback
+      if (buf[0] === 0x89 && buf[1] === 0x50) mimeType = 'image/png';
+      else if (buf[0] === 0xFF && buf[1] === 0xD8) mimeType = 'image/jpeg';
+    }
+    return { data: buf.toString('base64'), mimeType };
+  }
+
   const response = await axios.get(url, {
     responseType: 'arraybuffer',
     timeout: 30000,
