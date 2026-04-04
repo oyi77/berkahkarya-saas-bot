@@ -97,6 +97,50 @@
     </div>
   </div>
 
+  <!-- Vision Fallback 1 -->
+  <div class="task-card">
+    <div class="task-title">🔄 Vision Fallback 1</div>
+    <div class="task-desc">2nd attempt when the primary transcript/vision provider fails (default: OmniRoute antigravity/gemini-2.5-flash)</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-transcriptFallback1-provider">Provider</label>
+        <select class="input" id="task-transcriptFallback1-provider" style="width:100%;" onchange="onProviderChange('transcriptFallback1')">
+          <option value="omniroute">omniroute</option>
+          <option value="gemini">gemini</option>
+          <option value="groq">groq</option>
+          <option value="builtin">builtin (disabled)</option>
+        </select>
+      </div>
+      <div id="task-transcriptFallback1-model-wrap">
+        <label class="field-label" for="task-transcriptFallback1-model">Model</label>
+        <select class="input" id="task-transcriptFallback1-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('transcriptFallback1')"></select>
+        <input class="input" id="task-transcriptFallback1-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Vision Fallback 2 -->
+  <div class="task-card">
+    <div class="task-title">🔄 Vision Fallback 2</div>
+    <div class="task-desc">3rd attempt when fallback 1 also fails (default: Groq meta-llama/llama-4-scout-17b-16e-instruct)</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div>
+        <label class="field-label" for="task-transcriptFallback2-provider">Provider</label>
+        <select class="input" id="task-transcriptFallback2-provider" style="width:100%;" onchange="onProviderChange('transcriptFallback2')">
+          <option value="groq">groq</option>
+          <option value="omniroute">omniroute</option>
+          <option value="gemini">gemini</option>
+          <option value="builtin">builtin (disabled)</option>
+        </select>
+      </div>
+      <div id="task-transcriptFallback2-model-wrap">
+        <label class="field-label" for="task-transcriptFallback2-model">Model</label>
+        <select class="input" id="task-transcriptFallback2-model-select" style="width:100%;display:none;margin-bottom:6px;" onchange="syncModelInput('transcriptFallback2')"></select>
+        <input class="input" id="task-transcriptFallback2-model" type="text" placeholder="model name" style="width:100%;" />
+      </div>
+    </div>
+  </div>
+
   <!-- Prompt Enhancement -->
   <div class="task-card">
     <div class="task-title">✨ Prompt Enhancement</div>
@@ -288,6 +332,20 @@
     <div class="prompt-desc">Template for AI storyboard creation. Variables: {niche}, {duration}, {scenes}. Leave empty for built-in.</div>
     <textarea class="input" id="prompt-storyboardGeneration" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in default"></textarea>
   </div>
+
+  <!-- Image Analysis Prompt -->
+  <div class="prompt-card">
+    <div class="prompt-title">🖼️ Image Analysis Prompt</div>
+    <div class="prompt-desc">Prompt sent to vision providers when analyzing reference images (clone image, extract prompt). Leave empty to use the built-in detailed image analysis prompt.</div>
+    <textarea class="input" id="prompt-imageAnalysisPrompt" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in prompt"></textarea>
+  </div>
+
+  <!-- Video Analysis Prompt -->
+  <div class="prompt-card">
+    <div class="prompt-title">🎥 Video Analysis Prompt</div>
+    <div class="prompt-desc">Prompt sent to vision providers when analyzing reference videos (clone video, extract prompt). Leave empty to use the built-in detailed video analysis prompt.</div>
+    <textarea class="input" id="prompt-videoAnalysisPrompt" rows="8" style="width:100%;font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;resize:vertical;line-height:1.5;" placeholder="Leave empty to use built-in prompt"></textarea>
+  </div>
 </div>
 
 <!-- ====== TAB: CHAT MODEL ====== -->
@@ -424,7 +482,7 @@ const AI_TASK_MODELS = {
   builtin: [],
 };
 
-const ALL_TASKS = ['storyboard', 'transcript', 'promptEnhancement', 'promptGeneration', 'caption', 'voNarration', 'qualityCheck', 'watermarkDetect'];
+const ALL_TASKS = ['storyboard', 'transcript', 'transcriptFallback1', 'transcriptFallback2', 'promptEnhancement', 'promptGeneration', 'caption', 'voNarration', 'qualityCheck', 'watermarkDetect'];
 
 function onProviderChange(task) {
   const provider = document.getElementById(`task-${task}-provider`).value;
@@ -481,7 +539,7 @@ async function loadConfig() {
 
     // Populate prompts
     if (data.prompts) {
-      const promptFields = ['botPersona', 'promptOptimizer', 'voNarration', 'qualityCheck', 'watermarkDetect', 'captionGeneration', 'storyboardGeneration'];
+      const promptFields = ['botPersona', 'promptOptimizer', 'voNarration', 'qualityCheck', 'watermarkDetect', 'captionGeneration', 'storyboardGeneration', 'imageAnalysisPrompt', 'videoAnalysisPrompt'];
       promptFields.forEach(key => {
         const el = document.getElementById(`prompt-${key}`);
         if (el && data.prompts[key] != null) el.value = data.prompts[key];
@@ -518,7 +576,7 @@ async function saveTasks() {
 // ===================== SAVE PROMPTS =====================
 async function savePrompts() {
   const prompts = {};
-  const promptFields = ['botPersona', 'promptOptimizer', 'voNarration', 'qualityCheck', 'watermarkDetect', 'captionGeneration', 'storyboardGeneration'];
+  const promptFields = ['botPersona', 'promptOptimizer', 'voNarration', 'qualityCheck', 'watermarkDetect', 'captionGeneration', 'storyboardGeneration', 'imageAnalysisPrompt', 'videoAnalysisPrompt'];
   promptFields.forEach(key => {
     const el = document.getElementById(`prompt-${key}`);
     if (el) prompts[key] = el.value;
@@ -656,7 +714,9 @@ function renderModels(models) {
           <option value="storyboard">Storyboard</option>
           <option value="caption">Caption</option>
           <option value="voNarration">VO Narration</option>
-          <option value="transcript">Transcript</option>
+          <option value="transcript">Transcript (Primary)</option>
+          <option value="transcriptFallback1">Vision Fallback 1</option>
+          <option value="transcriptFallback2">Vision Fallback 2</option>
           <option value="qualityCheck">Quality Check</option>
           <option value="watermarkDetect">Watermark</option>
           <option value="chat">Chat Model</option>

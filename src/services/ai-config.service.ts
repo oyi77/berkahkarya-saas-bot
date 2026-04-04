@@ -9,16 +9,19 @@
 import { redis } from '@/config/redis';
 import { prisma } from '@/config/database';
 
-export type LLMProvider = 'groq' | 'gemini' | 'omniroute' | 'builtin';
+export type LLMProvider = 'groq' | 'gemini' | 'omniroute' | 'builtin' | 'custom';
 
 export interface TaskProviderConfig {
   provider: LLMProvider;
   model: string;
+  customProviderId?: string;  // used when provider === 'custom'
 }
 
 export interface AITasksConfig {
   storyboard: TaskProviderConfig;
   transcript: TaskProviderConfig;
+  transcriptFallback1: TaskProviderConfig;  // 2nd attempt when primary fails
+  transcriptFallback2: TaskProviderConfig;  // 3rd attempt when fallback1 fails
   promptEnhancement: TaskProviderConfig;
   promptGeneration: TaskProviderConfig;
   caption: TaskProviderConfig;
@@ -35,6 +38,8 @@ export interface AIPromptsConfig {
   watermarkDetect: string;     // Watermark detection prompt
   captionGeneration: string;   // Caption generation prompt template (use {niche}, {sceneCount})
   storyboardGeneration: string; // Storyboard generation prompt template (use {niche}, {duration}, {scenes})
+  imageAnalysisPrompt: string; // Prompt for image analysis (empty = use hardcoded OMNI_IMAGE_PROMPT)
+  videoAnalysisPrompt: string; // Prompt for video analysis (empty = use hardcoded OMNI_VIDEO_PROMPT)
 }
 
 export interface AIChatConfig {
@@ -50,6 +55,8 @@ export interface AIFullConfig {
 const DEFAULT_TASKS: AITasksConfig = {
   storyboard: { provider: 'builtin', model: '' },
   transcript: { provider: 'gemini', model: 'gemini-2.5-flash' },
+  transcriptFallback1: { provider: 'omniroute', model: 'antigravity/gemini-2.5-flash' },
+  transcriptFallback2: { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
   promptEnhancement: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   promptGeneration: { provider: 'builtin', model: '' },
   caption: { provider: 'gemini', model: 'gemini-2.5-flash' },
@@ -66,6 +73,8 @@ const DEFAULT_PROMPTS: AIPromptsConfig = {
   watermarkDetect: '',
   captionGeneration: '',
   storyboardGeneration: '',
+  imageAnalysisPrompt: '', // Empty = use hardcoded OMNI_IMAGE_PROMPT
+  videoAnalysisPrompt: '', // Empty = use hardcoded OMNI_VIDEO_PROMPT
 };
 
 const DEFAULT_CHAT: AIChatConfig = {

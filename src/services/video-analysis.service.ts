@@ -202,8 +202,8 @@ export class VideoAnalysisService {
     // ── 4. Gemini analysis ─────────────────────────────────────────────────
     let analysisResult: VideoAnalysisResult;
     if (!getConfig().GEMINI_API_KEY) {
-      logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — trying OmniRoute fallback');
-      analysisResult = await VideoAnalysisService._analyzeViaOmniRoute(keyFramePaths, videoUrl);
+      logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — using config-driven fallback chain');
+      analysisResult = await VideoAnalysisService._analyzeViaFallbackChain(keyFramePaths, videoUrl);
       if (!analysisResult.totalDuration) analysisResult.totalDuration = totalDuration;
       analysisResult.keyFramePaths = keyFramePaths;
     } else {
@@ -302,9 +302,8 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
       responseText =
         response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } catch (err: any) {
-      logger.warn(`[VideoAnalysis] Gemini API failed (${err.message}), trying OmniRoute fallback`);
-      // Fallback: use OmniRoute vision with key frames
-      return VideoAnalysisService._analyzeViaOmniRoute(keyFramePaths, originalUrl);
+      logger.warn(`[VideoAnalysis] Gemini API failed (${err.message}), using config-driven fallback chain`);
+      return VideoAnalysisService._analyzeViaFallbackChain(keyFramePaths, originalUrl);
     }
 
     // ── Parse JSON ──────────────────────────────────────────────────────────
@@ -414,8 +413,47 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
         keyFramePaths: [],
       };
     } catch {
-      return VideoAnalysisService._analyzeViaOmniRoute([], videoUrl);
+      return VideoAnalysisService._analyzeViaFallbackChain([], videoUrl);
     }
+  }
+
+  // ── Private: config-driven fallback chain (reads transcriptFallback1/2 from admin config) ──
+
+  private static async _analyzeViaFallbackChain(
+    keyFramePaths: string[],
+    videoUrl: string,
+  ): Promise<VideoAnalysisResult> {
+    const tasksConfig = await AIConfigService.getTasksConfig().catch(() => null);
+    const fallback1 = tasksConfig?.transcriptFallback1 ?? { provider: 'omniroute', model: 'antigravity/gemini-2.5-flash' };
+    const fallback2 = tasksConfig?.transcriptFallback2 ?? { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' };
+
+    const chain = [fallback1, fallback2];
+    for (const cfg of chain) {
+      try {
+        const result = await VideoAnalysisService._analyzeViaProvider(cfg.provider, cfg.model, keyFramePaths, videoUrl);
+        if (result.success) return result;
+      } catch (err: any) {
+        logger.warn(`[VideoAnalysis] Fallback provider ${cfg.provider}/${cfg.model} failed: ${err.message}`);
+      }
+    }
+
+    logger.warn('[VideoAnalysis] All fallback providers failed, returning hardcoded fallback');
+    return buildFallbackResult(videoUrl);
+  }
+
+  // ── Private: dispatch to a specific provider ────────────────────────────
+
+  private static async _analyzeViaProvider(
+    provider: string,
+    model: string,
+    keyFramePaths: string[],
+    videoUrl: string,
+  ): Promise<VideoAnalysisResult> {
+    if (provider === 'groq') {
+      return VideoAnalysisService._analyzeViaGroq(keyFramePaths, videoUrl, model);
+    }
+    // omniroute or any custom provider
+    return VideoAnalysisService._analyzeViaOmniRoute(keyFramePaths, videoUrl, model);
   }
 
   // ── Private: OmniRoute vision fallback (when Gemini key is revoked/403) ──
@@ -423,16 +461,20 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
   private static async _analyzeViaOmniRoute(
     keyFramePaths: string[],
     videoUrl: string,
+    modelOverride?: string,
   ): Promise<VideoAnalysisResult> {
     const ANALYSIS_PROMPT = `Analyze this video frame and return ONLY a valid JSON object (no markdown):
 {"niche":"one of: fitness,food,travel,business,fashion,education,tech,beauty,general","style":"brief visual style","totalDuration":15,"transcript":"spoken words if any","storyboard":[{"scene":1,"startTime":0,"duration":15,"description":"detailed visual description","prompt":"cinematic AI video generation prompt for recreating this scene"}]}`;
 
     const omni = getOmniRouteService();
-    // Use transcript task model (vision-capable) instead of chat default
-    const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
-    const visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
-      ? taskCfg.model
-      : 'antigravity/gemini-2.5-flash';
+    let visionModel = modelOverride;
+    if (!visionModel) {
+      // Use transcript task model (vision-capable) instead of chat default
+      const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
+      visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
+        ? taskCfg.model
+        : 'antigravity/gemini-2.5-flash';
+    }
 
     // Try with first key frame (image)
     if (keyFramePaths.length > 0) {
@@ -507,9 +549,12 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
   private static async _analyzeViaGroq(
     keyFramePaths: string[],
     videoUrl: string,
+    modelOverride?: string,
   ): Promise<VideoAnalysisResult> {
     const apiKey = getConfig().GROQ_API_KEY;
     if (!apiKey || keyFramePaths.length === 0) return buildFallbackResult(videoUrl);
+
+    const groqModel = modelOverride || 'meta-llama/llama-4-scout-17b-16e-instruct';
 
     const ANALYSIS_PROMPT = `Analyze this video frame and return ONLY a valid JSON object (no markdown):
 {"niche":"one of: fitness,food,travel,business,fashion,education,tech,beauty,general","style":"brief visual style","totalDuration":15,"transcript":"spoken words if any","storyboard":[{"scene":1,"startTime":0,"duration":15,"description":"detailed visual description","prompt":"cinematic AI video generation prompt for recreating this scene"}]}`;
@@ -522,7 +567,7 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
         const response = await axios.post(
           'https://api.groq.com/openai/v1/chat/completions',
           {
-            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            model: groqModel,
             messages: [{
               role: 'user',
               content: [

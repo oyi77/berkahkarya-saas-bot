@@ -146,19 +146,55 @@ function parseGeminiResponse(text: string): AnalysisResult {
 export class ContentAnalysisService {
 
   /**
-   * Extract prompt from video/image using Gemini Vision API
+   * Extract prompt from video/image — config-driven fallback chain.
+   * Primary → transcriptFallback1 → transcriptFallback2 → hardcoded fallback result.
    */
   static async extractPrompt(mediaUrl: string, mediaType: 'video' | 'image'): Promise<AnalysisResult> {
-    try {
-      logger.info(`Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
+    logger.info(`Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
 
-      if (!getConfig().GEMINI_API_KEY) {
-        logger.warn('GEMINI_API_KEY not set, trying OmniRoute fallback');
-        return ContentAnalysisService._extractViaOmniRoute(mediaUrl, mediaType);
+    const [tasksConfig, promptsConfig] = await Promise.all([
+      AIConfigService.getTasksConfig().catch(() => null),
+      AIConfigService.getPromptsConfig().catch(() => null),
+    ]);
+
+    const primary = tasksConfig?.transcript ?? { provider: 'gemini' as const, model: 'gemini-2.5-flash' };
+    const fallback1 = tasksConfig?.transcriptFallback1 ?? { provider: 'omniroute' as const, model: 'antigravity/gemini-2.5-flash' };
+    const fallback2 = tasksConfig?.transcriptFallback2 ?? { provider: 'groq' as const, model: 'meta-llama/llama-4-scout-17b-16e-instruct' };
+
+    const configuredImagePrompt = promptsConfig?.imageAnalysisPrompt || '';
+    const configuredVideoPrompt = promptsConfig?.videoAnalysisPrompt || '';
+
+    const chain = [primary, fallback1, fallback2];
+
+    for (const cfg of chain) {
+      try {
+        const result = await ContentAnalysisService._extractViaProvider(
+          cfg.provider, cfg.model, mediaUrl, mediaType,
+          configuredImagePrompt, configuredVideoPrompt,
+        );
+        if (result.success && result.prompt) return result;
+      } catch (err: any) {
+        logger.warn(`Vision provider ${cfg.provider}/${cfg.model} failed: ${err.message}`);
       }
+    }
 
-      const systemPrompt = mediaType === 'image'
-        ? `You are an expert AI image prompt engineer. Analyze this image with MAXIMUM DETAIL:
+    logger.warn('All vision providers failed, returning fallback result');
+    return ContentAnalysisService.getFallbackResult(mediaType);
+  }
+
+  /**
+   * Generic vision dispatch — routes to the right API based on provider name.
+   */
+  private static async _extractViaProvider(
+    provider: string,
+    model: string,
+    mediaUrl: string,
+    mediaType: 'video' | 'image',
+    configuredImagePrompt: string,
+    configuredVideoPrompt: string,
+  ): Promise<AnalysisResult> {
+    const imagePrompt = configuredImagePrompt || (mediaType === 'image'
+      ? `You are an expert AI image prompt engineer. Analyze this image with MAXIMUM DETAIL:
 
 1. CHARACTER/PERSON (if present): Gender, approximate age range, ethnicity/skin tone, hairstyle & color, facial expression, body posture, clothing (exact description: "navy wool blazer over white Oxford shirt" not "suit"), accessories, hand position, gaze direction. If no person, describe the main product/object with equal detail.
 2. SUBJECT/PRODUCT: Exact appearance, materials, textures, brand elements (e.g. "burgundy leather handbag with brushed gold hardware, visible stitching pattern" not "bag")
@@ -171,7 +207,10 @@ export class ContentAnalysisService {
 9. BACKGROUND: Environment details, depth layers, blur quality, props
 
 Output as a single cohesive prompt paragraph, 300-400 words. Character description MUST come first if people are present. Prioritize technical precision.`
-        : `You are an expert video analysis AI. Analyze this video with MAXIMUM DETAIL:
+      : '');
+
+    const videoPrompt = configuredVideoPrompt || (mediaType === 'video'
+      ? `You are an expert video analysis AI. Analyze this video with MAXIMUM DETAIL:
 
 CHARACTER/PERSON DEFINITION (CRITICAL — describe ALL people visible):
 For EACH person/character:
@@ -204,21 +243,21 @@ Scene 1 | Xs | [Character action + camera + lighting + text overlay]
 Scene 2 | Xs | [Character action + camera + lighting + text overlay]
 (continue for ALL scenes)
 
-Output 400-600 words total. Character descriptions MUST be detailed enough to recreate with a different AI model.`;
+Output 400-600 words total. Character descriptions MUST be detailed enough to recreate with a different AI model.`
+      : '');
 
-      // Fetch media and convert to base64
+    const systemPrompt = mediaType === 'image' ? imagePrompt : videoPrompt;
+
+    if (provider === 'gemini') {
+      if (!getConfig().GEMINI_API_KEY) {
+        throw new Error('GEMINI_API_KEY not set');
+      }
       const media = await fetchMediaAsBase64(mediaUrl);
-
       const requestBody = {
         contents: [{
           parts: [
             { text: systemPrompt },
-            {
-              inline_data: {
-                mime_type: media.mimeType,
-                data: media.data,
-              },
-            },
+            { inline_data: { mime_type: media.mimeType, data: media.data } },
           ],
         }],
         generationConfig: {
@@ -226,46 +265,45 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
           maxOutputTokens: mediaType === 'video' ? 3500 : 2000,
         },
       };
-
       const response = await axios.post(getGeminiVisionUrl(), requestBody, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 45000,
       });
-
       const generatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!generatedText) {
-        logger.warn('Gemini returned empty response');
-        return this.getFallbackResult(mediaType);
-      }
-
+      if (!generatedText) throw new Error('Gemini returned empty response');
       const usageMeta = response.data?.usageMetadata;
-      // Always track — use actual metadata or estimate if missing
       const promptTokens = usageMeta?.promptTokenCount || (mediaType === 'video' ? 3000 : 2000);
       const completionTokens = usageMeta?.candidatesTokenCount || (mediaType === 'video' ? 2000 : 1500);
-      trackTokens({ provider: 'gemini-direct', model: 'gemini-2.5-flash', service: 'content_analysis', promptTokens, completionTokens }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
-
+      trackTokens({ provider: 'gemini-direct', model: model || 'gemini-2.5-flash', service: 'content_analysis', promptTokens, completionTokens }).catch(err => logger.warn('Token tracking failed', { error: err.message }));
       return parseGeminiResponse(generatedText);
-
-    } catch (error: any) {
-      logger.warn(`Gemini extractPrompt failed (${error.response?.status ?? error.message}), trying OmniRoute fallback`);
-      return ContentAnalysisService._extractViaOmniRoute(mediaUrl, mediaType);
     }
+
+    if (provider === 'groq') {
+      return ContentAnalysisService._extractViaGroq(mediaUrl, mediaType, model, systemPrompt);
+    }
+
+    // omniroute or any custom provider — use OmniRoute with the specified model
+    return ContentAnalysisService._extractViaOmniRoute(mediaUrl, mediaType, model || 'antigravity/gemini-2.5-flash', systemPrompt);
   }
 
   /**
-   * OmniRoute vision fallback for extractPrompt — used when Gemini key is missing or 403.
+   * OmniRoute vision fallback — used when Gemini key is missing or 403.
+   * Accepts optional model and prompt overrides for config-driven dispatch.
    */
   private static async _extractViaOmniRoute(
     mediaUrl: string,
     mediaType: 'video' | 'image',
+    visionModel?: string,
+    promptOverride?: string,
   ): Promise<AnalysisResult> {
     const omni = getOmniRouteService();
-    const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
-    const visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
-      ? taskCfg.model
-      : 'antigravity/gemini-2.5-flash';
-    const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
+    if (!visionModel) {
+      const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
+      visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
+        ? taskCfg.model
+        : 'antigravity/gemini-2.5-flash';
+    }
+    const prompt = promptOverride ?? (mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT);
 
     // For HTTP URLs (Telegram CDN), pass URL directly — avoids large base64 payload
     if (mediaType === 'image' && mediaUrl.startsWith('http')) {
@@ -282,99 +320,93 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
     }
 
     // Fallback: download and encode as base64
-    try {
-      const media = await fetchMediaAsBase64(mediaUrl);
-      const result = await omni.analyzeImage(media.data, media.mimeType, prompt, visionModel);
-      if (!result.success || !result.content) {
-        logger.warn(`OmniRoute vision (base64) returned empty: ${result.error}`);
-        return ContentAnalysisService._extractViaGroq(mediaUrl, mediaType);
-      }
-      logger.info(`OmniRoute vision (base64) succeeded for ${mediaType} (${result.model})`);
-      return parseGeminiResponse(result.content);
-    } catch (omniErr: any) {
-      logger.warn(`OmniRoute vision fallback failed: ${omniErr.message}`);
-      return ContentAnalysisService._extractViaGroq(mediaUrl, mediaType);
+    const media = await fetchMediaAsBase64(mediaUrl);
+    const result = await omni.analyzeImage(media.data, media.mimeType, prompt, visionModel);
+    if (!result.success || !result.content) {
+      throw new Error(`OmniRoute vision (base64) returned empty: ${result.error}`);
     }
+    logger.info(`OmniRoute vision (base64) succeeded for ${mediaType} (${result.model})`);
+    return parseGeminiResponse(result.content);
   }
 
   /**
    * Groq vision fallback — used when OmniRoute times out.
    * Images: sent directly as base64. Videos: single frame extracted via ffmpeg first.
+   * Accepts optional model and prompt overrides for config-driven dispatch.
    */
   private static async _extractViaGroq(
     mediaUrl: string,
     mediaType: 'video' | 'image',
+    modelOverride?: string,
+    promptOverride?: string,
   ): Promise<AnalysisResult> {
     const apiKey = getConfig().GROQ_API_KEY;
-    if (!apiKey) return ContentAnalysisService.getFallbackResult(mediaType);
+    if (!apiKey) throw new Error('GROQ_API_KEY not set');
 
-    try {
-      let base64Data: string;
-      let imageMime = 'image/jpeg';
+    const groqModel = modelOverride || 'meta-llama/llama-4-scout-17b-16e-instruct';
 
-      if (mediaType === 'video') {
-        // Extract a single frame via ffmpeg
-        const { execFile: execFileCb } = await import('child_process');
-        const { promisify } = await import('util');
-        const execFileAsync = promisify(execFileCb);
-        const tmpBase = `/tmp/groq_${Date.now()}`;
-        const videoPath = `${tmpBase}.mp4`;
-        const framePath = `${tmpBase}.jpg`;
-        try {
-          const videoRes = await axios.get(mediaUrl, { responseType: 'arraybuffer', timeout: 30000 });
-          const { writeFile } = await import('fs/promises');
-          await writeFile(videoPath, Buffer.from(videoRes.data));
-          await execFileAsync('ffmpeg', ['-i', videoPath, '-ss', '00:00:01', '-vframes', '1', framePath, '-y'], { timeout: 15000 });
-          base64Data = (await readFile(framePath)).toString('base64');
-        } finally {
-          const { unlink } = await import('fs/promises');
-          await unlink(videoPath).catch(() => {});
-          await unlink(framePath).catch(() => {});
-        }
-      } else {
-        const media = await fetchMediaAsBase64(mediaUrl);
-        base64Data = media.data;
-        imageMime = media.mimeType.startsWith('image/') ? media.mimeType : 'image/jpeg';
+    let base64Data: string;
+    let imageMime = 'image/jpeg';
+
+    if (mediaType === 'video') {
+      // Extract a single frame via ffmpeg
+      const { execFile: execFileCb } = await import('child_process');
+      const { promisify } = await import('util');
+      const execFileAsync = promisify(execFileCb);
+      const tmpBase = `/tmp/groq_${Date.now()}`;
+      const videoPath = `${tmpBase}.mp4`;
+      const framePath = `${tmpBase}.jpg`;
+      try {
+        const videoRes = await axios.get(mediaUrl, { responseType: 'arraybuffer', timeout: 30000 });
+        const { writeFile } = await import('fs/promises');
+        await writeFile(videoPath, Buffer.from(videoRes.data));
+        await execFileAsync('ffmpeg', ['-i', videoPath, '-ss', '00:00:01', '-vframes', '1', framePath, '-y'], { timeout: 15000 });
+        base64Data = (await readFile(framePath)).toString('base64');
+      } finally {
+        const { unlink } = await import('fs/promises');
+        await unlink(videoPath).catch(() => {});
+        await unlink(framePath).catch(() => {});
       }
-
-      const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
-      const response = await axios.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { type: 'image_url', image_url: { url: `data:${imageMime};base64,${base64Data}` } },
-            ],
-          }],
-          max_tokens: 2000,
-          temperature: 0.65,
-        },
-        {
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-          timeout: 30000,
-        },
-      );
-
-      const content = response.data?.choices?.[0]?.message?.content;
-      if (!content) return ContentAnalysisService.getFallbackResult(mediaType);
-
-      logger.info(`Groq vision succeeded for ${mediaType}`);
-      trackTokens({
-        provider: 'groq',
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        service: `groq_vision_${mediaType}`,
-        promptTokens: response.data?.usage?.prompt_tokens || 0,
-        completionTokens: response.data?.usage?.completion_tokens || 0,
-      }).catch(() => {});
-
-      return parseGeminiResponse(content);
-    } catch (err: any) {
-      logger.warn(`Groq vision fallback failed: ${err.message}`);
-      return ContentAnalysisService.getFallbackResult(mediaType);
+    } else {
+      const media = await fetchMediaAsBase64(mediaUrl);
+      base64Data = media.data;
+      imageMime = media.mimeType.startsWith('image/') ? media.mimeType : 'image/jpeg';
     }
+
+    const prompt = promptOverride ?? (mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT);
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: groqModel,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: `data:${imageMime};base64,${base64Data}` } },
+          ],
+        }],
+        max_tokens: 2000,
+        temperature: 0.65,
+      },
+      {
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        timeout: 30000,
+      },
+    );
+
+    const content = response.data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Groq returned empty response');
+
+    logger.info(`Groq vision succeeded for ${mediaType}`);
+    trackTokens({
+      provider: 'groq',
+      model: groqModel,
+      service: `groq_vision_${mediaType}`,
+      promptTokens: response.data?.usage?.prompt_tokens || 0,
+      completionTokens: response.data?.usage?.completion_tokens || 0,
+    }).catch(() => {});
+
+    return parseGeminiResponse(content);
   }
 
   /**
