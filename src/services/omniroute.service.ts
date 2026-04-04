@@ -298,7 +298,7 @@ export class OmniRouteService {
         }],
         temperature: 0.65,
         max_tokens: 2000,
-      }, { timeout: 60000 });
+      }, { timeout: 12000 });
 
       const content = response.data?.choices?.[0]?.message?.content || '';
       if (!content) return { success: false, error: 'Empty response from vision model' };
@@ -326,7 +326,7 @@ export class OmniRouteService {
         }],
         temperature: 0.65,
         max_tokens: 2000,
-      }, { timeout: 60000 });
+      }, { timeout: 12000 });
 
       const content = response.data?.choices?.[0]?.message?.content || '';
       if (!content) return { success: false, error: 'Empty response from vision model' };
