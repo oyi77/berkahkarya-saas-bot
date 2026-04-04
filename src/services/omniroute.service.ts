@@ -209,7 +209,7 @@ export class OmniRouteService {
       AIConfigService.getChatConfig(),
       AIConfigService.getPromptsConfig(),
     ]);
-    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || chatCfg.defaultModel || 'antigravity/gemini-2.5-flash';
+    const DEFAULT_MODEL = chatCfg.defaultModel || config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
     const systemPrompt = prompts.botPersona || BERKAHKARYA_SYSTEM_PROMPT;
     const history = this.conversationHistory.get(userId) || [];
 
@@ -282,7 +282,7 @@ export class OmniRouteService {
   async analyzeImage(base64Data: string, mimeType: string, prompt: string, model?: string): Promise<ChatResponse> {
     const config = getConfig();
     const chatCfg = await AIConfigService.getChatConfig();
-    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || chatCfg.defaultModel || 'antigravity/gemini-2.5-flash';
+    const DEFAULT_MODEL = chatCfg.defaultModel || config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
     try {
       const response = await this.client.post('/chat/completions', {
         model: model || DEFAULT_MODEL,
