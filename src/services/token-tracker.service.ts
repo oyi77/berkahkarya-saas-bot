@@ -6,7 +6,7 @@
 import { prisma } from "@/config/database";
 import { logger } from "@/utils/logger";
 import { getConfig } from "@/config/env";
-import { PaymentSettingsService } from "@/services/payment-settings.service";
+import { ExchangeRateService } from "@/services/exchange-rate.service";
 
 // Cost per 1K tokens in USD (input / output)
 const MODEL_COSTS: Record<string, { input: number; output: number }> = {
@@ -59,19 +59,8 @@ const GENERATION_COSTS: Record<string, number> = {
 };
 
 const USD_TO_IDR = async (): Promise<number> => {
-  try {
-    const dbRate = await PaymentSettingsService.getPricingConfig(
-      "system",
-      "exchange_rate",
-    );
-    if (dbRate) {
-      const rate = Number(dbRate);
-      // IDR/USD should be 10,000–50,000. If out of range, fall back to env.
-      if (rate >= 10_000 && rate <= 50_000) return rate;
-    }
-  } catch {
-    /* fallback to env */
-  }
+  const result = await ExchangeRateService.getRate().catch(() => null);
+  if (result) return result.rate;
   return getConfig().USD_TO_IDR_RATE;
 };
 

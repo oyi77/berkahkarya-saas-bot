@@ -38,6 +38,7 @@ import { ImageGenerationService } from "@/services/image.service";
 import { generateVideoWithFallback } from "@/services/video-fallback.service";
 import { CircuitBreaker } from "@/services/circuit-breaker.service";
 import { AdminConfigService } from "@/services/admin-config.service";
+import { ExchangeRateService } from "@/services/exchange-rate.service";
 import axios from "axios";
 
 const LOGIN_RATE_LIMIT_MAX = 5;
@@ -2198,18 +2199,12 @@ You are an expert system administrator and architect for this platform. Give spe
 
   /** GET /api/settings/exchange-rate */
   server.get("/api/settings/exchange-rate", async () => {
-    // Redis cache first, then DB, then env fallback
-    const cached = await redis.get("admin:exchange_rate");
-    if (cached) return { rate: Number(cached) };
-    const dbRow = await prisma.pricingConfig.findUnique({
-      where: { category_key: { category: "system", key: "exchange_rate" } },
-    });
-    if (dbRow) {
-      const rate = Number(dbRow.value);
-      await redis.set("admin:exchange_rate", String(rate)); // warm cache
-      return { rate };
-    }
-    return { rate: getConfig().USD_TO_IDR_RATE };
+    return ExchangeRateService.getRate();
+  });
+
+  /** POST /api/settings/exchange-rate/refresh — force-fetch from frankfurter.dev */
+  server.post("/api/settings/exchange-rate/refresh", async () => {
+    return ExchangeRateService.refresh();
   });
 
   /** POST /api/settings/exchange-rate */
