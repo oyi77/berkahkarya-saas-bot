@@ -13,6 +13,7 @@ import { logger } from '@/utils/logger';
 import { getConfig } from '@/config/env';
 import axios from 'axios';
 import { AIConfigService } from '@/services/ai-config.service';
+import { getOmniRouteService } from '@/services/omniroute.service';
 
 const execFile = promisify(execFileCb);
 
@@ -201,9 +202,9 @@ export class VideoAnalysisService {
     // ── 4. Gemini analysis ─────────────────────────────────────────────────
     let analysisResult: VideoAnalysisResult;
     if (!getConfig().GEMINI_API_KEY) {
-      logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — using fallback result');
-      analysisResult = buildFallbackResult(videoUrl);
-      analysisResult.totalDuration = totalDuration;
+      logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — trying OmniRoute fallback');
+      analysisResult = await VideoAnalysisService._analyzeViaOmniRoute(keyFramePaths, videoUrl);
+      if (!analysisResult.totalDuration) analysisResult.totalDuration = totalDuration;
       analysisResult.keyFramePaths = keyFramePaths;
     } else {
       analysisResult = await VideoAnalysisService._callGemini(tempPath, videoUrl, keyFramePaths);
@@ -301,8 +302,9 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
       responseText =
         response.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     } catch (err: any) {
-      logger.error(`[VideoAnalysis] Gemini API error: ${err.message}`);
-      return { success: false, error: `Gemini API error: ${err.message}` };
+      logger.warn(`[VideoAnalysis] Gemini API failed (${err.message}), trying OmniRoute fallback`);
+      // Fallback: use OmniRoute vision with key frames
+      return VideoAnalysisService._analyzeViaOmniRoute(keyFramePaths, originalUrl);
     }
 
     // ── Parse JSON ──────────────────────────────────────────────────────────
@@ -412,7 +414,86 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
         keyFramePaths: [],
       };
     } catch {
-      return buildFallbackResult(videoUrl);
+      return VideoAnalysisService._analyzeViaOmniRoute([], videoUrl);
     }
+  }
+
+  // ── Private: OmniRoute vision fallback (when Gemini key is revoked/403) ──
+
+  private static async _analyzeViaOmniRoute(
+    keyFramePaths: string[],
+    videoUrl: string,
+  ): Promise<VideoAnalysisResult> {
+    const ANALYSIS_PROMPT = `Analyze this video frame and return ONLY a valid JSON object (no markdown):
+{"niche":"one of: fitness,food,travel,business,fashion,education,tech,beauty,general","style":"brief visual style","totalDuration":15,"transcript":"spoken words if any","storyboard":[{"scene":1,"startTime":0,"duration":15,"description":"detailed visual description","prompt":"cinematic AI video generation prompt for recreating this scene"}]}`;
+
+    const omni = getOmniRouteService();
+
+    // Try with first key frame (image)
+    if (keyFramePaths.length > 0) {
+      for (const framePath of keyFramePaths.slice(0, 3)) {
+        try {
+          if (!fs.existsSync(framePath)) continue;
+          const buf = fs.readFileSync(framePath);
+          const base64 = buf.toString('base64');
+          const result = await omni.analyzeImage(base64, 'image/jpeg', ANALYSIS_PROMPT);
+          if (!result.success || !result.content) continue;
+
+          const jsonStr = extractJSON(result.content);
+          const parsed = JSON.parse(jsonStr);
+          const storyboard: AnalyzedScene[] = (parsed.storyboard || [])
+            .slice(0, 8)
+            .map((s: any, idx: number) => ({
+              scene: s.scene ?? idx + 1,
+              startTime: s.startTime ?? 0,
+              duration: s.duration ?? 5,
+              description: s.description ?? '',
+              prompt: s.prompt ?? '',
+            }));
+
+          if (storyboard.length) {
+            logger.info(`[VideoAnalysis] OmniRoute fallback succeeded with frame ${framePath}`);
+            return {
+              success: true,
+              niche: parsed.niche || 'general',
+              style: parsed.style || '',
+              totalDuration: parsed.totalDuration || 15,
+              transcript: parsed.transcript || '',
+              storyboard,
+              keyFramePaths,
+            };
+          }
+        } catch (frameErr: any) {
+          logger.warn(`[VideoAnalysis] OmniRoute frame analysis failed: ${frameErr.message}`);
+        }
+      }
+    }
+
+    // Last resort: text-only analysis via OmniRoute chat
+    try {
+      const textPrompt = `Analyze a video from this URL: ${videoUrl.slice(0, 200)}\n\nReturn ONLY valid JSON: {"niche":"general","style":"unknown","totalDuration":15,"transcript":"","storyboard":[{"scene":1,"startTime":0,"duration":15,"description":"Video content","prompt":"cinematic video recreation based on the source video"}]}`;
+      const result = await omni.chat('video-analysis-system', textPrompt);
+      if (result.success && result.content) {
+        const jsonStr = extractJSON(result.content);
+        const parsed = JSON.parse(jsonStr);
+        const storyboard: AnalyzedScene[] = (parsed.storyboard || [])
+          .map((s: any, idx: number) => ({
+            scene: s.scene ?? idx + 1,
+            startTime: s.startTime ?? 0,
+            duration: s.duration ?? 5,
+            description: s.description ?? '',
+            prompt: s.prompt ?? '',
+          }));
+        if (storyboard.length) {
+          omni.clearHistory('video-analysis-system');
+          return { success: true, niche: parsed.niche || 'general', style: parsed.style || '', totalDuration: 15, transcript: '', storyboard, keyFramePaths };
+        }
+      }
+    } catch (textErr: any) {
+      logger.warn(`[VideoAnalysis] OmniRoute text fallback failed: ${textErr.message}`);
+    }
+
+    logger.warn('[VideoAnalysis] All analysis methods failed, returning fallback result');
+    return buildFallbackResult(videoUrl);
   }
 }
