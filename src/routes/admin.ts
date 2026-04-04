@@ -697,7 +697,7 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // Admin config view page
   server.get("/admin/config", async (_request, reply) => {
-    return reply.view("admin/config.ejs", trackingVars());
+    return reply.redirect("/admin/settings#runtime");
   });
 
   // Admin playground view page
