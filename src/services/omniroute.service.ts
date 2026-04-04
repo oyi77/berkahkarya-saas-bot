@@ -195,7 +195,7 @@ export class OmniRouteService {
     const omniApiKey = config.OMNIROUTE_API_KEY || '';
     this.client = axios.create({
       baseURL: omniUrl,
-      timeout: 120_000,
+      timeout: 30_000,
       headers: {
         'Content-Type': 'application/json',
         ...(omniApiKey ? { 'Authorization': `Bearer ${omniApiKey}` } : {}),
