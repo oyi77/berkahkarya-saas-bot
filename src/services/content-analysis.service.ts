@@ -12,6 +12,7 @@ import { readFile } from 'fs/promises';
 import { extname } from 'path';
 import { trackTokens } from '@/services/token-tracker.service';
 import { getOmniRouteService } from '@/services/omniroute.service';
+import { AIConfigService } from '@/services/ai-config.service';
 
 const OMNI_IMAGE_PROMPT = `Analyze this image in detail for AI content creation purposes. Describe:
 1. Subject/product (exact appearance, materials, textures, colors)
@@ -263,7 +264,12 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
       const media = await fetchMediaAsBase64(mediaUrl);
       const prompt = mediaType === 'image' ? OMNI_IMAGE_PROMPT : OMNI_VIDEO_PROMPT;
       const omni = getOmniRouteService();
-      const result = await omni.analyzeImage(media.data, media.mimeType, prompt);
+      // Use transcript task model (vision-capable) instead of chat default
+      const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
+      const visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
+        ? taskCfg.model
+        : 'antigravity/gemini-2.5-flash';
+      const result = await omni.analyzeImage(media.data, media.mimeType, prompt, visionModel);
       if (!result.success || !result.content) {
         logger.warn('OmniRoute vision fallback returned empty, using template fallback');
         return ContentAnalysisService.getFallbackResult(mediaType);

@@ -428,6 +428,11 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
 {"niche":"one of: fitness,food,travel,business,fashion,education,tech,beauty,general","style":"brief visual style","totalDuration":15,"transcript":"spoken words if any","storyboard":[{"scene":1,"startTime":0,"duration":15,"description":"detailed visual description","prompt":"cinematic AI video generation prompt for recreating this scene"}]}`;
 
     const omni = getOmniRouteService();
+    // Use transcript task model (vision-capable) instead of chat default
+    const taskCfg = await AIConfigService.getTaskConfig('transcript').catch(() => null);
+    const visionModel = (taskCfg?.provider === 'omniroute' && taskCfg.model)
+      ? taskCfg.model
+      : 'antigravity/gemini-2.5-flash';
 
     // Try with first key frame (image)
     if (keyFramePaths.length > 0) {
@@ -436,7 +441,7 @@ Break the video into 1 scene per ~5 seconds (max 8 scenes total). Make each prom
           if (!fs.existsSync(framePath)) continue;
           const buf = fs.readFileSync(framePath);
           const base64 = buf.toString('base64');
-          const result = await omni.analyzeImage(base64, 'image/jpeg', ANALYSIS_PROMPT);
+          const result = await omni.analyzeImage(base64, 'image/jpeg', ANALYSIS_PROMPT, visionModel);
           if (!result.success || !result.content) continue;
 
           const jsonStr = extractJSON(result.content);
