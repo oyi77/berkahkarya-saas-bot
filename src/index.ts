@@ -86,7 +86,10 @@ async function main() {
         const val = String(row.value ?? '');
         if (val && val !== 'null') process.env[row.key] = val;
       }
-      if (apiKeyOverrides.length) logger.info(`[API Keys] Loaded ${apiKeyOverrides.length} DB overrides into process.env`);
+      if (apiKeyOverrides.length) {
+        initConfig(); // re-parse process.env so getConfig() picks up DB overrides
+        logger.info(`[API Keys] Loaded ${apiKeyOverrides.length} DB overrides into process.env`);
+      }
     } catch (e: any) { logger.warn('[API Keys] Could not load DB overrides:', e.message); }
     logger.info("✅ Pricing config ready");
 

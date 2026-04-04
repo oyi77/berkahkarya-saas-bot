@@ -272,6 +272,46 @@ export class OmniRouteService {
       return [];
     }
   }
+
+  async analyzeImage(base64Data: string, mimeType: string, prompt: string, model?: string): Promise<ChatResponse> {
+    const config = getConfig();
+    const DEFAULT_MODEL = config.OMNIROUTE_DEFAULT_MODEL || 'antigravity/gemini-2.5-flash';
+    try {
+      const response = await this.client.post('/chat/completions', {
+        model: model || DEFAULT_MODEL,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } },
+          ],
+        }],
+        temperature: 0.65,
+        max_tokens: 2000,
+      }, { timeout: 60000 });
+
+      const content = response.data?.choices?.[0]?.message?.content || '';
+      if (!content) return { success: false, error: 'Empty response from vision model' };
+
+      const usedModel = response.data?.model || DEFAULT_MODEL;
+      const usage = response.data?.usage;
+      if (usage) {
+        trackTokens({
+          provider: 'omniroute',
+          model: usedModel,
+          service: 'clone_image_fallback',
+          promptTokens: usage.prompt_tokens || 0,
+          completionTokens: usage.completion_tokens || 0,
+        }).catch(() => {});
+      }
+
+      return { success: true, content, model: usedModel };
+    } catch (error: any) {
+      const errMsg = error.response?.data?.error?.message || error.message || 'Unknown error';
+      logger.error('OmniRoute analyzeImage error:', errMsg);
+      return { success: false, error: errMsg };
+    }
+  }
 }
 
 let _instance: OmniRouteService | null = null;

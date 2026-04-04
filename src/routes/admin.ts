@@ -29,7 +29,7 @@ import { ProviderBalanceService } from "@/services/provider-balance.service";
 import { getOmniRouteService } from "@/services/omniroute.service";
 import { UserService } from "@/services/user.service";
 import { t } from "@/i18n/translations";
-import { getConfig, getConfigForAdmin } from "@/config/env";
+import { getConfig, getConfigForAdmin, initConfig } from "@/config/env";
 import { logger } from "@/utils/logger";
 import { ImageGenerationService } from "@/services/image.service";
 import { generateVideoWithFallback } from "@/services/video-fallback.service";
@@ -2470,6 +2470,7 @@ You are an expert system administrator and architect for this platform. Give spe
       update: { value: trimmed },
     });
     process.env[name] = trimmed;
+    initConfig(); // refresh cached config so getConfig() picks up new value immediately
     return { ok: true };
   });
 

@@ -9,6 +9,7 @@ import { logger } from '@/utils/logger';
 import { getConfig } from '@/config/env';
 import axios from 'axios';
 import { trackTokens } from '@/services/token-tracker.service';
+import { getOmniRouteService } from '@/services/omniroute.service';
 
 function getGeminiVisionUrl() {
   return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${getConfig().GEMINI_API_KEY || ''}`;
@@ -377,7 +378,32 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
 
     } catch (error: any) {
       const detail = error.response?.data ? JSON.stringify(error.response.data).slice(0, 300) : error.message;
-      logger.error(`Image cloning failed: ${detail}`);
+      logger.warn(`Direct Gemini image cloning failed, trying OmniRoute fallback: ${detail}`);
+
+      // Fallback: re-fetch image and analyze via OmniRoute vision
+      try {
+        const media = await fetchMediaAsBase64(sourceUrl);
+        const systemPrompt =
+          'You are an expert at analyzing images for AI recreation. Create a DETAILED prompt:\n\n' +
+          '1. CHARACTER/PERSON (if present): Gender, age range, ethnicity/skin tone, hairstyle & color, facial expression & emotion, body posture & gesture, EXACT clothing description (e.g. "cream silk blouse tucked into charcoal wool trousers" not "outfit"), accessories (jewelry, glasses, watch), gaze direction, hand position. If no person, skip to #2.\n' +
+          '2. SUBJECT/PRODUCT: Exact object appearance, materials, textures, colors (specific: "burgundy" not "red"), brand elements, surface details\n' +
+          '3. COMPOSITION: Layout, rule-of-thirds, negative space, depth layers, focal point, subject-to-frame ratio\n' +
+          '4. LIGHTING: Key light direction, fill ratio, rim light, color temperature (e.g. 3200K), quality (hard/soft), catchlights\n' +
+          '5. COLOR PALETTE: Dominant + accent colors, saturation, contrast, color grading style\n' +
+          '6. CAMERA: Lens (e.g. 85mm f/1.8), angle, distance, depth of field, bokeh quality\n' +
+          '7. BACKGROUND: Environment details, blur quality, supporting elements, depth layers\n' +
+          '8. STYLE & MOOD: Art direction, aesthetic, emotional tone, commercial intent\n\n' +
+          'Output as a single cohesive prompt, 300-400 words.';
+        const omni = getOmniRouteService();
+        const fallbackResult = await omni.analyzeImage(media.data, media.mimeType, systemPrompt);
+        if (fallbackResult.success && fallbackResult.content) {
+          logger.info('Image cloning succeeded via OmniRoute fallback');
+          return parseGeminiResponse(fallbackResult.content);
+        }
+      } catch (fallbackErr: any) {
+        logger.error(`OmniRoute vision fallback also failed: ${fallbackErr.message}`);
+      }
+
       return {
         success: false,
         error: error.message || 'Failed to clone image',
