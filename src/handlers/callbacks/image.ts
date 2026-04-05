@@ -59,13 +59,16 @@ export function detectImageElements(analysisText: string): {
 export function renderElementSelectionKeyboard(
   sel: { keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean },
 ) {
-  const check = (on: boolean) => on ? '\u2705' : '\u2610';
+  const check = (on: boolean) => on ? '✅' : '☐';
   return {
     inline_keyboard: [
-      [{ text: `${check(sel.keepProduct)} Product/Subject`, callback_data: 'imgelem_product' }],
-      [{ text: `${check(sel.keepCharacter)} Character/Person`, callback_data: 'imgelem_character' }],
+      [{ text: `${check(sel.keepProduct)} Produk/Objek`, callback_data: 'imgelem_product' }],
+      [{ text: `${check(sel.keepCharacter)} Orang/Model`, callback_data: 'imgelem_character' }],
       [{ text: `${check(sel.keepBackground)} Background/Scene`, callback_data: 'imgelem_background' }],
-      [{ text: '\u2728 Generate \u2192', callback_data: 'imgelem_confirm' }],
+      [
+        { text: '✨ Generate →', callback_data: 'imgelem_confirm' },
+        { text: '⏭️ Lewati', callback_data: 'imgelem_skip' },
+      ],
     ],
   };
 }
@@ -76,22 +79,21 @@ export function buildElementSelectionMessage(
   productDesc?: string,
 ): string {
   const detected: string[] = [];
-  if (analysis.hasCharacter) detected.push('Person/Character');
-  if (analysis.hasProduct) detected.push('Product/Object');
+  if (analysis.hasCharacter) detected.push('👤 Orang/Model');
+  if (analysis.hasProduct) detected.push('📦 Produk/Objek');
+  if (!analysis.hasCharacter && !analysis.hasProduct) detected.push('🖼️ Gambar');
 
   let descPreview = '';
-  if (characterDesc || productDesc) {
-    const parts: string[] = [];
-    if (characterDesc) parts.push(characterDesc.slice(0, 60) + (characterDesc.length > 60 ? '...' : ''));
-    if (productDesc) parts.push('| ' + productDesc.slice(0, 60) + (productDesc.length > 60 ? '...' : ''));
-    descPreview = `\n\ud83d\udcdd _${parts.join(' ')}_`;
+  const desc = productDesc || characterDesc;
+  if (desc) {
+    descPreview = `\n📝 _${desc.slice(0, 80)}${desc.length > 80 ? '...' : ''}_`;
   }
 
   return (
-    `\ud83c\udfaf *Select what to keep from the reference image*\n\n` +
-    `I detected: ${detected.join(' + ')} in your reference.${descPreview}\n\n` +
-    `Choose which elements to preserve in the output:\n` +
-    `_(tap to toggle, then Generate)_`
+    `🎯 *Pilih elemen yang ingin dipertahankan*\n\n` +
+    `Terdeteksi: ${detected.join(' + ')}${descPreview}\n\n` +
+    `Pilih elemen yang ingin dipertahankan di hasil:\n` +
+    `_✅ = dipertahankan · ☐ = tidak · lalu tap Generate_`
   );
 }
 
@@ -566,6 +568,32 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
         reply_markup: renderElementSelectionKeyboard(sel),
       },
     );
+    return true;
+  }
+
+  // imgelem_skip — skip element selection, use full reference as-is
+  if (data === "imgelem_skip") {
+    await ctx.answerCbQuery('Melewati pemilihan elemen...');
+    if (ctx.session.state === 'VIDEO_ELEMENT_SELECTION') {
+      const { handleVideoCreationImage } = await import('../message.js');
+      const pendingPhotos = ctx.session.videoCreation?.pendingPhotos || [];
+      ctx.session.state = 'DASHBOARD';
+      await handleVideoCreationImage(ctx, pendingPhotos);
+      return true;
+    }
+    // Image: proceed without element selection (full reference)
+    const lang = ctx.session?.userLang || 'id';
+    ctx.session.state = "IMAGE_GENERATION_WAITING";
+    const category = ctx.session.stateData?.imageCategory as string;
+    const hintKeys: Record<string, string> = {
+      product: 'cb.imgref_hint_product', fnb: 'cb.imgref_hint_fnb',
+      realestate: 'cb.imgref_hint_realestate', car: 'cb.imgref_hint_car',
+    };
+    const hint = t(hintKeys[category] || 'cb.imgref_hint_default', lang);
+    await ctx.editMessageText(t('cb.describe_image', lang, { hint }), {
+      parse_mode: "Markdown",
+      reply_markup: { inline_keyboard: [[{ text: t('btn.back', lang), callback_data: "image_generate" }]] },
+    });
     return true;
   }
 

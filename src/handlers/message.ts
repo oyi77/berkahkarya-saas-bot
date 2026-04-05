@@ -585,6 +585,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
 
       const refImgLang = ctx.session?.userLang || 'id';
 
+      // Show loading indicator while vision analysis runs (~3-5s)
+      const loadingMsg = await ctx.reply('🔍 _Menganalisis gambar..._', { parse_mode: 'Markdown' });
+
       // Analyze image to detect elements (character, product, background)
       let analysisResult: { hasCharacter: boolean; hasProduct: boolean; characterDesc: string; productDesc: string; backgroundDesc: string } | null = null;
       try {
@@ -595,6 +598,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       } catch (err) {
         logger.warn("Element detection failed (non-fatal):", err);
       }
+
+      // Remove loading indicator
+      ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsg.message_id).catch(() => {});
 
       // Always show element selection keyboard when analysis succeeds —
       // gives user full control over what to preserve (product, character, background).
