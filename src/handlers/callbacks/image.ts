@@ -23,8 +23,11 @@ export function detectImageElements(analysisText: string): {
   backgroundDesc: string;
 } {
   const lower = analysisText.toLowerCase();
-  const hasCharacter = CHARACTER_KEYWORDS.some(kw => lower.includes(kw));
-  const hasProduct = PRODUCT_KEYWORDS.some(kw => lower.includes(kw));
+  let hasCharacter = CHARACTER_KEYWORDS.some(kw => new RegExp(`\\b${kw}\\b`).test(lower));
+  let hasProduct = PRODUCT_KEYWORDS.some(kw => new RegExp(`\\b${kw}\\b`).test(lower));
+  if (/\b(no|tanpa|without)\s+(person|human|character|model|orang)\b/.test(lower)) {
+    hasCharacter = false;
+  }
 
   // Extract rough descriptions from the analysis text
   let characterDesc = '';
@@ -69,13 +72,24 @@ export function renderElementSelectionKeyboard(
 
 export function buildElementSelectionMessage(
   analysis: { hasCharacter: boolean; hasProduct: boolean },
+  characterDesc?: string,
+  productDesc?: string,
 ): string {
   const detected: string[] = [];
   if (analysis.hasCharacter) detected.push('Person/Character');
   if (analysis.hasProduct) detected.push('Product/Object');
+
+  let descPreview = '';
+  if (characterDesc || productDesc) {
+    const parts: string[] = [];
+    if (characterDesc) parts.push(characterDesc.slice(0, 60) + (characterDesc.length > 60 ? '...' : ''));
+    if (productDesc) parts.push('| ' + productDesc.slice(0, 60) + (productDesc.length > 60 ? '...' : ''));
+    descPreview = `\n\ud83d\udcdd _${parts.join(' ')}_`;
+  }
+
   return (
     `\ud83c\udfaf *Select what to keep from the reference image*\n\n` +
-    `I detected: ${detected.join(' + ')} in your reference.\n\n` +
+    `I detected: ${detected.join(' + ')} in your reference.${descPreview}\n\n` +
     `Choose which elements to preserve in the output:\n` +
     `_(tap to toggle, then Generate)_`
   );
@@ -525,9 +539,9 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
       if (data === "imgelem_character") vsel.keepCharacter = !vsel.keepCharacter;
       if (data === "imgelem_background") vsel.keepBackground = !vsel.keepBackground;
       ctx.session.videoCreation = { ...ctx.session.videoCreation, videoElementSelection: vsel };
-      const videoAnalysis = ctx.session.videoCreation?.videoAnalysisResult as { hasCharacter: boolean; hasProduct: boolean } | undefined;
+      const videoAnalysis = ctx.session.videoCreation?.videoAnalysisResult as { hasCharacter: boolean; hasProduct: boolean; characterDesc?: string; productDesc?: string } | undefined;
       await ctx.editMessageText(
-        buildElementSelectionMessage(videoAnalysis || { hasCharacter: true, hasProduct: true }),
+        buildElementSelectionMessage(videoAnalysis || { hasCharacter: true, hasProduct: true }, videoAnalysis?.characterDesc, videoAnalysis?.productDesc),
         { parse_mode: "Markdown", reply_markup: renderElementSelectionKeyboard(vsel) },
       );
       return true;
@@ -543,10 +557,10 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
     if (data === "imgelem_background") sel.keepBackground = !sel.keepBackground;
 
     ctx.session.stateData = { ...ctx.session.stateData, imageElementSelection: sel };
-    const analysis = ctx.session.stateData?.imageAnalysisResult as { hasCharacter: boolean; hasProduct: boolean } | undefined;
+    const analysis = ctx.session.stateData?.imageAnalysisResult as { hasCharacter: boolean; hasProduct: boolean; characterDesc?: string; productDesc?: string } | undefined;
 
     await ctx.editMessageText(
-      buildElementSelectionMessage(analysis || { hasCharacter: true, hasProduct: true }),
+      buildElementSelectionMessage(analysis || { hasCharacter: true, hasProduct: true }, analysis?.characterDesc, analysis?.productDesc),
       {
         parse_mode: "Markdown",
         reply_markup: renderElementSelectionKeyboard(sel),
@@ -591,8 +605,9 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
     };
     const hint = t(hintKeys[category] || 'cb.imgref_hint_default', lang);
 
+    const textOnlyNote = !keepAny ? '\n\n_(tanpa referensi, mode text-only)_' : '';
     await ctx.editMessageText(
-      t('cb.describe_image', lang, { hint }),
+      t('cb.describe_image', lang, { hint }) + textOnlyNote,
       {
         parse_mode: "Markdown",
         reply_markup: {

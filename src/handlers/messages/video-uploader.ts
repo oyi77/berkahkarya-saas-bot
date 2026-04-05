@@ -17,6 +17,23 @@ import { execFile as execFileCallback } from "child_process";
 import { promisify } from "util";
 const execFile = promisify(execFileCallback);
 
+async function withConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let idx = 0;
+  async function run() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
 export async function handleDisassemble(ctx: BotContext): Promise<void> {
   const message = ctx.message as any;
   if (!message) return;
@@ -133,7 +150,7 @@ export async function handleVideoElementPrecheck(
           },
         };
         await ctx.reply(
-          buildElementSelectionMessage(elements),
+          buildElementSelectionMessage(elements, elements.characterDesc, elements.productDesc),
           {
             parse_mode: 'Markdown',
             reply_markup: renderElementSelectionKeyboard({
@@ -245,7 +262,7 @@ export async function handleVideoCreationImage(
         parse_mode: "Markdown",
       });
 
-      const analysisPromises = photos.map(async (photo, idx) => {
+      const results = await withConcurrency(photos, 3, async (photo, idx) => {
         try {
           const photoUrl = (
             await ctx.telegram.getFileLink(photo.fileId)
@@ -264,8 +281,7 @@ export async function handleVideoCreationImage(
         }
       });
 
-      const analysisResults = await Promise.all(analysisPromises);
-      const validResults = analysisResults.filter(Boolean);
+      const validResults = results.filter((r): r is NonNullable<typeof r> => r !== null && r !== undefined);
 
       if (validResults.length > 0) {
         visionInsights = validResults.join("\n\n");

@@ -55,8 +55,8 @@ export interface AIFullConfig {
 const DEFAULT_TASKS: AITasksConfig = {
   storyboard: { provider: 'builtin', model: '' },
   transcript: { provider: 'gemini', model: 'gemini-2.5-flash' },
-  transcriptFallback1: { provider: 'omniroute', model: 'antigravity/gemini-2.5-flash' },
-  transcriptFallback2: { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+  transcriptFallback1: { provider: 'groq', model: 'meta-llama/llama-4-scout-17b-16e-instruct' },
+  transcriptFallback2: { provider: 'omniroute', model: 'antigravity/gemini-2.5-flash' },
   promptEnhancement: { provider: 'groq', model: 'llama-3.3-70b-versatile' },
   promptGeneration: { provider: 'builtin', model: '' },
   caption: { provider: 'gemini', model: 'gemini-2.5-flash' },
@@ -85,6 +85,19 @@ const REDIS_KEY_TASKS = 'admin:ai_config:tasks';
 const REDIS_KEY_PROMPTS = 'admin:ai_config:prompts';
 const REDIS_KEY_CHAT = 'admin:ai_config:chat';
 
+const VALID_PROVIDERS: LLMProvider[] = ['groq', 'gemini', 'omniroute', 'builtin', 'custom'];
+
+function validateProviders(obj: any, path = ''): void {
+  if (obj && typeof obj === 'object') {
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === 'provider' && typeof v === 'string' && !VALID_PROVIDERS.includes(v as LLMProvider)) {
+        throw new Error(`Invalid provider "${v}" at ${path}.${k} — must be one of: ${VALID_PROVIDERS.join(', ')}`);
+      }
+      if (typeof v === 'object') validateProviders(v, `${path}.${k}`);
+    }
+  }
+}
+
 export class AIConfigService {
   // Get full config (merges all 3 sections)
   static async getFullConfig(): Promise<AIFullConfig> {
@@ -112,7 +125,7 @@ export class AIConfigService {
       });
       if (dbRow) {
         const settings = dbRow.value as Partial<AITasksConfig>;
-        await redis.set(REDIS_KEY_TASKS, JSON.stringify(settings));
+        await redis.set(REDIS_KEY_TASKS, JSON.stringify(settings), 'EX', 900);
         return { ...DEFAULT_TASKS, ...settings };
       }
     } catch {
@@ -137,7 +150,7 @@ export class AIConfigService {
       });
       if (dbRow) {
         const settings = dbRow.value as Partial<AIPromptsConfig>;
-        await redis.set(REDIS_KEY_PROMPTS, JSON.stringify(settings));
+        await redis.set(REDIS_KEY_PROMPTS, JSON.stringify(settings), 'EX', 900);
         return { ...DEFAULT_PROMPTS, ...settings };
       }
     } catch {
@@ -162,7 +175,7 @@ export class AIConfigService {
       });
       if (dbRow) {
         const settings = dbRow.value as Partial<AIChatConfig>;
-        await redis.set(REDIS_KEY_CHAT, JSON.stringify(settings));
+        await redis.set(REDIS_KEY_CHAT, JSON.stringify(settings), 'EX', 900);
         return { ...DEFAULT_CHAT, ...settings };
       }
     } catch {
@@ -173,6 +186,7 @@ export class AIConfigService {
 
   // Update tasks section (saves to Redis + DB, merges with current)
   static async updateTasksConfig(tasks: Partial<AITasksConfig>): Promise<void> {
+    validateProviders(tasks);
     const current = await AIConfigService.getTasksConfig();
     const merged = { ...current, ...tasks };
     await prisma.pricingConfig.upsert({

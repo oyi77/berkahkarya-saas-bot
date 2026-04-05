@@ -13,6 +13,7 @@ import { extname } from 'path';
 import { trackTokens } from '@/services/token-tracker.service';
 import { getOmniRouteService } from '@/services/omniroute.service';
 import { AIConfigService } from '@/services/ai-config.service';
+import { redis } from '@/config/redis';
 
 const OMNI_IMAGE_PROMPT = `Analyze this image in detail for AI content creation purposes. Describe:
 1. Subject/product (exact appearance, materials, textures, colors)
@@ -152,6 +153,17 @@ export class ContentAnalysisService {
   static async extractPrompt(mediaUrl: string, mediaType: 'video' | 'image'): Promise<AnalysisResult> {
     logger.info(`Extracting prompt from ${mediaType}: ${mediaUrl.slice(0, 50)}...`);
 
+    // Check vision cache
+    const cacheKey = `vision:cache:${mediaType}:${Buffer.from(mediaUrl).toString('base64').slice(0, 48)}`;
+    const cacheTTL = mediaType === 'image' ? 86400 : 21600; // 24h images, 6h videos
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        logger.debug(`vision:cache hit for ${mediaUrl.slice(-40)}`);
+        return JSON.parse(cached) as AnalysisResult;
+      }
+    } catch { /* cache miss, continue */ }
+
     const [tasksConfig, promptsConfig] = await Promise.all([
       AIConfigService.getTasksConfig().catch(() => null),
       AIConfigService.getPromptsConfig().catch(() => null),
@@ -172,7 +184,12 @@ export class ContentAnalysisService {
           cfg.provider, cfg.model, mediaUrl, mediaType,
           configuredImagePrompt, configuredVideoPrompt,
         );
-        if (result.success && result.prompt) return result;
+        if (result.success && result.prompt) {
+          try {
+            await redis.set(cacheKey, JSON.stringify(result), 'EX', cacheTTL);
+          } catch { /* non-fatal */ }
+          return result;
+        }
       } catch (err: any) {
         logger.warn(`Vision provider ${cfg.provider}/${cfg.model} failed: ${err.message}`);
       }
@@ -691,9 +708,7 @@ Output 400-600 words total. Character descriptions MUST be detailed enough to re
   /**
    * Generate storyboard from analysis
    */
-  static async generateStoryboard(niche: string, duration: number): Promise<any> {
-    const _scenes = Math.ceil(duration / 5); // 5 seconds per scene
-
+  static async generateStoryboard(niche: string, _duration: number): Promise<any> {
     const storyboardTemplates: Record<string, any> = {
       product: {
         scenes: [

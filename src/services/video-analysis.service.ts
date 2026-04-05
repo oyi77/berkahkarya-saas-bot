@@ -134,93 +134,100 @@ export class VideoAnalysisService {
   static async analyze(videoUrl: string): Promise<VideoAnalysisResult> {
     const jobId = Date.now().toString();
     const tmpDir = '/tmp/videos';
-    const framesDir = `/tmp/video_frames/${jobId}`;
+    let framesDir = '';
     const tempPath = `${tmpDir}/analyze_${jobId}.mp4`;
 
-    // Ensure directories exist
-    for (const dir of [tmpDir, framesDir]) {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    }
+    // Ensure tmp dir exists
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
-    // ── 1. Download video ──────────────────────────────────────────────────
-    const isSocialPlatform = /tiktok\.com|instagram\.com|youtube\.com|youtu\.be|twitter\.com|x\.com|facebook\.com|fb\.watch|pinterest\.com|bilibili\.com/i.test(videoUrl);
+    framesDir = `/tmp/video_frames/${jobId}`;
+    if (!fs.existsSync(framesDir)) fs.mkdirSync(framesDir, { recursive: true });
+
     try {
-      logger.info(`[VideoAnalysis] Downloading video (${isSocialPlatform ? 'yt-dlp' : 'wget'}): ${videoUrl.slice(0, 80)}`);
-      if (isSocialPlatform) {
-        // Use yt-dlp for social platforms (handles auth-less public videos)
-        // Use full path because pm2/child_process may not include ~/.local/bin in PATH
-        const ytdlpBin = '/home/openclaw/.local/bin/yt-dlp';
-        const ytdlpCmd = require('fs').existsSync(ytdlpBin) ? ytdlpBin : 'yt-dlp';
-        await execFile(ytdlpCmd, [
-          '--no-playlist', '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-          '--merge-output-format', 'mp4', '-o', tempPath, videoUrl,
-        ], { timeout: 120_000 });
+      // ── 1. Download video ──────────────────────────────────────────────────
+      const isSocialPlatform = /tiktok\.com|instagram\.com|youtube\.com|youtu\.be|twitter\.com|x\.com|facebook\.com|fb\.watch|pinterest\.com|bilibili\.com/i.test(videoUrl);
+      try {
+        logger.info(`[VideoAnalysis] Downloading video (${isSocialPlatform ? 'yt-dlp' : 'wget'}): ${videoUrl.slice(0, 80)}`);
+        if (isSocialPlatform) {
+          // Use yt-dlp for social platforms (handles auth-less public videos)
+          // Use full path because pm2/child_process may not include ~/.local/bin in PATH
+          const ytdlpBin = '/home/openclaw/.local/bin/yt-dlp';
+          const ytdlpCmd = require('fs').existsSync(ytdlpBin) ? ytdlpBin : 'yt-dlp';
+          await execFile(ytdlpCmd, [
+            '--no-playlist', '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            '--merge-output-format', 'mp4', '-o', tempPath, videoUrl,
+          ], { timeout: 120_000 });
+        } else {
+          const { execFile: execFileCb } = await import('child_process');
+          const { promisify: prom } = await import('util');
+          await prom(execFileCb)('wget', ['-q', '-O', tempPath, videoUrl]);
+        }
+        if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
+          throw new Error('Downloaded file is empty');
+        }
+      } catch (err: any) {
+        logger.warn(`[VideoAnalysis] Download failed: ${err.message}`);
+        if (!getConfig().GEMINI_API_KEY) return buildFallbackResult(videoUrl);
+        // Try to proceed with Gemini using the original URL directly
+        return VideoAnalysisService._analyzeViaUrl(videoUrl);
+      }
+
+      // ── 2. Get duration ────────────────────────────────────────────────────
+      let totalDuration = 15;
+      try {
+        const { stdout } = await execFile('ffprobe', [
+          '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', tempPath,
+        ], { timeout: 15_000 });
+        const parsed = parseFloat(stdout.trim());
+        if (!isNaN(parsed)) totalDuration = Math.round(parsed);
+      } catch (err: any) {
+        logger.warn(`[VideoAnalysis] ffprobe failed: ${err.message}`);
+      }
+
+      // ── 3. Extract frames (1 per 5s, max 8) ───────────────────────────────
+      const keyFramePaths: string[] = [];
+      try {
+        await execFile('ffmpeg', [
+          '-y', '-i', tempPath, '-vf', 'fps=1/5,scale=640:-1', '-q:v', '2',
+          path.join(framesDir, 'frame_%03d.jpg'),
+        ], { timeout: 15_000 });
+        const files = fs.readdirSync(framesDir)
+          .filter(f => f.endsWith('.jpg'))
+          .sort()
+          .slice(0, 8)
+          .map(f => path.join(framesDir, f));
+        keyFramePaths.push(...files);
+      } catch (err: any) {
+        logger.warn(`[VideoAnalysis] ffmpeg frame extraction failed: ${err.message}`);
+      }
+
+      // ── 4. Gemini analysis ─────────────────────────────────────────────────
+      let analysisResult: VideoAnalysisResult;
+      if (!getConfig().GEMINI_API_KEY) {
+        logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — using config-driven fallback chain');
+        analysisResult = await VideoAnalysisService._analyzeViaFallbackChain(keyFramePaths, videoUrl);
+        if (!analysisResult.totalDuration) analysisResult.totalDuration = totalDuration;
+        analysisResult.keyFramePaths = keyFramePaths;
       } else {
-        const { execFile: execFileCb } = await import('child_process');
-        const { promisify: prom } = await import('util');
-        await prom(execFileCb)('wget', ['-q', '-O', tempPath, videoUrl]);
+        analysisResult = await VideoAnalysisService._callGemini(tempPath, videoUrl, keyFramePaths);
+        // Merge real duration from ffprobe if Gemini didn't parse it
+        if (!analysisResult.totalDuration) analysisResult.totalDuration = totalDuration;
+        analysisResult.keyFramePaths = keyFramePaths;
       }
-      if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
-        throw new Error('Downloaded file is empty');
+
+      // ── 5. Cleanup temp video (keep frames for caller) ─────────────────────
+      try {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      } catch {
+        // Non-fatal
       }
-    } catch (err: any) {
-      logger.warn(`[VideoAnalysis] Download failed: ${err.message}`);
-      if (!getConfig().GEMINI_API_KEY) return buildFallbackResult(videoUrl);
-      // Try to proceed with Gemini using the original URL directly
-      return VideoAnalysisService._analyzeViaUrl(videoUrl);
-    }
 
-    // ── 2. Get duration ────────────────────────────────────────────────────
-    let totalDuration = 15;
-    try {
-      const { stdout } = await execFile('ffprobe', [
-        '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', tempPath,
-      ], { timeout: 15_000 });
-      const parsed = parseFloat(stdout.trim());
-      if (!isNaN(parsed)) totalDuration = Math.round(parsed);
-    } catch (err: any) {
-      logger.warn(`[VideoAnalysis] ffprobe failed: ${err.message}`);
+      return analysisResult;
+    } finally {
+      if (framesDir) {
+        fs.promises.rm(framesDir, { recursive: true, force: true }).catch(() => {});
+      }
     }
-
-    // ── 3. Extract frames (1 per 5s, max 8) ───────────────────────────────
-    const keyFramePaths: string[] = [];
-    try {
-      await execFile('ffmpeg', [
-        '-y', '-i', tempPath, '-vf', 'fps=1/5,scale=640:-1', '-q:v', '2',
-        path.join(framesDir, 'frame_%03d.jpg'),
-      ], { timeout: 15_000 });
-      const files = fs.readdirSync(framesDir)
-        .filter(f => f.endsWith('.jpg'))
-        .sort()
-        .slice(0, 8)
-        .map(f => path.join(framesDir, f));
-      keyFramePaths.push(...files);
-    } catch (err: any) {
-      logger.warn(`[VideoAnalysis] ffmpeg frame extraction failed: ${err.message}`);
-    }
-
-    // ── 4. Gemini analysis ─────────────────────────────────────────────────
-    let analysisResult: VideoAnalysisResult;
-    if (!getConfig().GEMINI_API_KEY) {
-      logger.warn('[VideoAnalysis] GEMINI_API_KEY not set — using config-driven fallback chain');
-      analysisResult = await VideoAnalysisService._analyzeViaFallbackChain(keyFramePaths, videoUrl);
-      if (!analysisResult.totalDuration) analysisResult.totalDuration = totalDuration;
-      analysisResult.keyFramePaths = keyFramePaths;
-    } else {
-      analysisResult = await VideoAnalysisService._callGemini(tempPath, videoUrl, keyFramePaths);
-      // Merge real duration from ffprobe if Gemini didn't parse it
-      if (!analysisResult.totalDuration) analysisResult.totalDuration = totalDuration;
-      analysisResult.keyFramePaths = keyFramePaths;
-    }
-
-    // ── 5. Cleanup temp video (keep frames for caller) ─────────────────────
-    try {
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-    } catch {
-      // Non-fatal
-    }
-
-    return analysisResult;
   }
 
   // ── Private: call Gemini with the local video file as base64 ────────────
