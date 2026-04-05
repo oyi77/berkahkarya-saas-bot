@@ -599,9 +599,6 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         logger.warn("Element detection failed (non-fatal):", err);
       }
 
-      // Remove loading indicator
-      ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsg.message_id).catch(() => {});
-
       // Always show element selection keyboard when analysis succeeds —
       // gives user full control over what to preserve (product, character, background).
       // Default selection is context-aware: product-only shots default to keepProduct=true.
@@ -627,12 +624,12 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
           imageElementSelection: defaultSel,
         };
 
-        const detected: string[] = [];
-        if (analysisResult.hasCharacter) detected.push('👤 Orang/Model');
-        if (analysisResult.hasProduct) detected.push('📦 Produk/Objek');
-        if (!analysisResult.hasCharacter && !analysisResult.hasProduct) detected.push('🖼️ Gambar');
-
-        await ctx.reply(
+        // Edit the loading message in place → element selection keyboard
+        // (same message ID stays, loading text visible briefly, then updated with buttons)
+        await ctx.telegram.editMessageText(
+          ctx.chat!.id,
+          loadingMsg.message_id,
+          undefined,
           buildElementSelectionMessage(analysisResult, analysisResult.characterDesc, analysisResult.productDesc),
           {
             parse_mode: "Markdown",
@@ -641,6 +638,9 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         );
         return;
       }
+
+      // Remove loading indicator (analysis failed path)
+      ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsg.message_id).catch(() => {});
 
       // Vision analysis failed — proceed directly without element selection
       ctx.session.state = "IMAGE_GENERATION_WAITING";
