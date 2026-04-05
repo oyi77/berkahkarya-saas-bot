@@ -175,6 +175,8 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       url.startsWith("/api/profit-report") ||
       url.startsWith("/api/settings/") ||
       url.startsWith("/api/niches") ||
+      url.startsWith("/api/personas") ||
+      url === "/admin/personas" ||
       url.startsWith("/api/admin/") ||
       url.startsWith("/api/admin-config") ||
       url.startsWith("/api/referral/") ||
@@ -2671,6 +2673,35 @@ You are an expert system administrator and architect for this platform. Give spe
   // GET /admin/system — redirect to consolidated settings page
   server.get("/admin/system", async (_request, reply) => {
     return reply.redirect('/admin/settings');
+  });
+
+  // ── Persona Management ──
+  server.get('/api/personas', async () => {
+    const { getPersonasAsync } = await import('../config/personas.js');
+    return getPersonasAsync();
+  });
+
+  server.post('/api/personas', async (request, reply) => {
+    const body = request.body as {
+      id: string;
+      allowedNiches?: string[] | string;
+      allowedPresets?: string[];
+      priceMultiplier?: number;
+    };
+    if (!body.id) return reply.status(400).send({ error: 'id required' });
+    await prisma.pricingConfig.upsert({
+      where: { category_key: { category: 'persona', key: body.id } },
+      create: { category: 'persona', key: body.id, value: body as any, updatedBy: BigInt(0) },
+      update: { value: body as any, updatedBy: BigInt(0) },
+    });
+    return { success: true };
+  });
+
+  server.get('/admin/personas', async (_req, reply) => {
+    const { getPersonasAsync } = await import('../config/personas.js');
+    const { NICHE_IDS } = await import('../config/niches.js');
+    const personas = await getPersonasAsync();
+    return reply.view('admin/personas', { personas, nicheIds: NICHE_IDS });
   });
 
   // ── WELCOME MESSAGE OVERRIDE ──

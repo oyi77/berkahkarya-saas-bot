@@ -20,6 +20,8 @@ import { VideoPostProcessing } from "@/services/video-post-processing.service";
 import { getVideoCreditCost } from "@/config/pricing";
 import { AITaskSettingsService, AITaskProvider } from "@/services/ai-task-settings.service";
 import { trackTokens } from "@/services/token-tracker.service";
+import { NICHE_CONFIG, getNicheConfig, resolveNicheKey } from "@/config/niches";
+export { getNicheConfig, resolveNicheKey };
 
 const GEMINIGEN_API_BASE = "https://api.geminigen.ai/uapi/v1";
 
@@ -33,48 +35,14 @@ function isDemoMode(): boolean {
 // NICHES & STYLES
 // ============================================================================
 
-export const NICHES = {
-  fnb: {
-    name: "Food & Beverage",
-    emoji: "🍔",
-    styles: ["appetizing", "cozy", "energetic"],
-  },
-  fashion: {
-    name: "Fashion & Beauty",
-    emoji: "👗",
-    styles: ["elegant", "trendy", "playful"],
-  },
-  tech: {
-    name: "Tech & Gadget",
-    emoji: "📱",
-    styles: ["modern", "sleek", "futuristic"],
-  },
-  health: {
-    name: "Health & Fitness",
-    emoji: "💪",
-    styles: ["energetic", "motivational", "clean"],
-  },
-  travel: {
-    name: "Travel & Lifestyle",
-    emoji: "✈️",
-    styles: ["cinematic", "adventurous", "dreamy"],
-  },
-  education: {
-    name: "Education",
-    emoji: "📚",
-    styles: ["professional", "engaging", "clear"],
-  },
-  finance: {
-    name: "Finance & Business",
-    emoji: "💰",
-    styles: ["professional", "trustworthy", "modern"],
-  },
-  entertainment: {
-    name: "Entertainment",
-    emoji: "🎭",
-    styles: ["vibrant", "exciting", "bold"],
-  },
-} as const;
+// Backward-compatible re-export for consumers that import NICHES from this module
+export const NICHES: Record<string, { name: string; emoji: string; styles: string[] }> =
+  Object.fromEntries(
+    Object.keys(NICHE_CONFIG).map(k => {
+      const v = NICHE_CONFIG[k as keyof typeof NICHE_CONFIG];
+      return [k, { name: v.name, emoji: v.emoji, styles: (v.keywords as string[]).slice(0, 3) }];
+    })
+  );
 
 export const PROVIDERS = {
   geminigen: {
@@ -547,22 +515,15 @@ export function generatePromptFromNiche(
   styles: string[],
   duration: number,
 ): string {
-  const nicheKey = niche as keyof typeof NICHES;
-  const _nicheConfig = NICHES[nicheKey] || NICHES.fnb;
-  const styleStr = styles.join(", ");
-
-  const templates: Record<string, string> = {
-    fnb: `Create a ${styleStr} food video showing delicious ${niche} content, cinematic quality, trending on TikTok, ${duration}s duration`,
-    fashion: `Create a ${styleStr} fashion and beauty video showcasing trendy styles, professional lighting, ${duration}s duration`,
-    tech: `Create a ${styleStr} tech gadget demo video with modern aesthetic, product showcase, ${duration}s duration`,
-    health: `Create a ${styleStr} fitness and health workout video with energetic energy, demonstration moves, ${duration}s duration`,
-    travel: `Create a ${styleStr} travel vlog video with stunning locations, cinematic shots, ${duration}s duration`,
-    education: `Create a ${styleStr} educational explainer video with clear visuals, ${duration}s duration`,
-    finance: `Create a ${styleStr} finance and business content video with professional presentation, ${duration}s duration`,
-    entertainment: `Create a ${styleStr} entertaining and fun short video, trending format, ${duration}s duration`,
-  };
-
-  return templates[nicheKey] || templates.fnb;
+  const config = getNicheConfig(niche);
+  if (!config) {
+    return `Create a ${styles.join(', ') || 'professional'} video for ${niche}, ${duration}s, high quality`;
+  }
+  const styleStr = styles.length > 0 ? styles.join(', ') : config.keywords.slice(0, 2).join(', ');
+  const palette = config.colorPalettes[0] || 'natural';
+  const introTemplate = config.sceneTemplates.intro[0]
+    .replace(/\{[^}]+\}/g, config.keywords[0] || niche);
+  return `Create a ${styleStr} ${config.name.toLowerCase()} video, ${duration}s. Opening: ${introTemplate}. Color palette: ${palette}. Professional quality, trending on social media.`;
 }
 
 /**
@@ -661,7 +622,7 @@ async function callLLMForPromptGen(prompt: string, cfg: AITaskProvider): Promise
 export function generateStoryboard(
   niche: string,
   styles: string[],
-  duration: number,
+  _duration: number,
   scenes: number,
 ): Array<{
   scene: number;

@@ -29,6 +29,8 @@ import { getConfig } from '@/config/env';
 import { getCorrelationId } from '@/utils/correlation';
 import { sendAdminAlert } from '@/services/admin-alert.service';
 import type { DurationPreset } from '@/config/hpas-engine';
+import { getPersonaForUser, isPresetAllowedForPersona, isNicheAllowedForPersona } from '@/config/personas';
+import { NICHE_CONFIG } from '@/config/niches';
 
 const execFileAsync = promisify(execFile);
 const VIDEO_DIR = getConfig().VIDEO_DIR;
@@ -1267,12 +1269,17 @@ export async function showSmartPresetSelection(ctx: BotContext): Promise<void> {
     const mode = ctx.session?.generateMode as string || 'smart';
     const text = `${getStepIndicator(mode, 3)} ${t('gen.smart_select_duration', lang)}`;
 
+    const persona = getPersonaForUser(ctx.session?.userMode);
+    const allPresets = [
+      { text: `⚡ Quick — 15s (${UNIT_COSTS.VIDEO_15S / 10} cr)`, callback_data: 'preset_quick', key: 'quick' },
+      { text: `🎯 Standard — 30s (${UNIT_COSTS.VIDEO_30S / 10} cr)`, callback_data: 'preset_standard', key: 'standard' },
+      { text: `📽️ Extended — 60s (${UNIT_COSTS.VIDEO_60S / 10} cr)`, callback_data: 'preset_extended', key: 'extended' },
+      { text: '⏱️ Custom', callback_data: 'preset_custom', key: 'custom' },
+    ];
+    const filteredPresets = allPresets.filter(p => isPresetAllowedForPersona(persona, p.key));
     const markup = {
       inline_keyboard: [
-        [{ text: `⚡ Quick — 15s (${UNIT_COSTS.VIDEO_15S / 10} cr)`, callback_data: 'preset_quick' }],
-        [{ text: `🎯 Standard — 30s (${UNIT_COSTS.VIDEO_30S / 10} cr)`, callback_data: 'preset_standard' }],
-        [{ text: `📽️ Extended — 60s (${UNIT_COSTS.VIDEO_60S / 10} cr)`, callback_data: 'preset_extended' }],
-        [{ text: '⏱️ Custom', callback_data: 'preset_custom' }],
+        ...filteredPresets.map(p => [{ text: p.text, callback_data: p.callback_data }]),
         [{ text: t('btn.back', lang), callback_data: 'action_video' }],
         [{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }],
       ],

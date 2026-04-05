@@ -120,6 +120,10 @@ export async function handleDurationSelection(
 
     if (!dbUser) return;
 
+    if (ctx.session) {
+      ctx.session.userMode = dbUser.userMode || 'content_creator';
+    }
+
     const creditCost = getVideoCreditCost(duration);
 
     if (Number(dbUser.creditBalance) < creditCost) {

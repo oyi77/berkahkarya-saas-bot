@@ -43,7 +43,8 @@ model User {
   dailyFreeUsed     Boolean   @default(false) @map("daily_free_used")
   dailyFreeResetAt  DateTime? @map("daily_free_reset_at")
   selectedNiche     String?   @map("selected_niche") @db.VarChar(32)
-  
+  userMode          String?   @map("user_mode") @db.VarChar(32)
+
   // Security
   isBanned          Boolean   @default(false) @map("is_banned")
   banReason         String?   @map("ban_reason")

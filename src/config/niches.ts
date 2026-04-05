@@ -247,10 +247,121 @@ export const NICHE_CONFIG: Record<string, NicheConfig> = {
     keywords: ['smart', 'insightful', 'curious', 'knowledge', 'learn'],
     colorPalettes: ['clean', 'focused', 'inspiring', 'academic'],
   },
+  cinematic: {
+    id: 'cinematic',
+    name: 'Cinematic & Film',
+    emoji: '🎬',
+    defaultAspectRatio: '16:9',
+    sceneTemplates: {
+      intro: [
+        'establishing wide shot of {setting} with dramatic lighting',
+        'dramatic close-up of {subject} in cinematic style',
+        'atmospheric b-roll of {setting} with {lighting}',
+      ],
+      body: [
+        'tension-building sequence featuring {product} as hero element',
+        'narrative moment with {subject} and {product}',
+        'visual metaphor using {product} in {setting}',
+      ],
+      outro: [
+        'climactic reveal with {subject} front and center',
+        'slow fade with {product} in frame, moody lighting',
+        'title card over {setting} with {product} visible',
+      ],
+    },
+    keywords: ['cinematic', 'narrative', 'dramatic', 'film', 'storytelling'],
+    colorPalettes: ['moody dark', 'golden hour', 'desaturated', 'high contrast'],
+  },
+  anime: {
+    id: 'anime',
+    name: 'Anime & Illustration',
+    emoji: '🎌',
+    defaultAspectRatio: '16:9',
+    sceneTemplates: {
+      intro: [
+        'anime-style character reveal with {product} as hero item',
+        'stylized flat-lay illustration featuring {product}',
+        'illustrated title card with {product} in vibrant colors',
+      ],
+      body: [
+        'action sequence with {product} as key prop',
+        'cute character interaction with {product}',
+        'dramatic lighting effect on {product} in anime style',
+      ],
+      outro: [
+        'kawaii satisfaction moment featuring {product}',
+        'stylized end card with {product} and sparkle effects',
+        'cel-shaded closeup of {product}',
+      ],
+    },
+    keywords: ['anime', 'illustration', 'manga', 'stylized', 'vibrant'],
+    colorPalettes: ['vibrant anime', 'pastel', 'neon', 'cel-shaded'],
+  },
+  music_video: {
+    id: 'music_video',
+    name: 'Music Video',
+    emoji: '🎤',
+    defaultAspectRatio: '16:9',
+    sceneTemplates: {
+      intro: [
+        'beat-synced flash reveal of {product}',
+        'performance stage reveal with {product} as focal point',
+        'rhythm montage featuring {product} in motion',
+      ],
+      body: [
+        'dance sequence with {product} prominently visible',
+        'concert lighting on {product}',
+        'lyrical visual interpretation featuring {product}',
+      ],
+      outro: [
+        'final performance frame with {product} center stage',
+        'crowd energy shot with {product}',
+        'fade to black with {product} silhouette',
+      ],
+    },
+    keywords: ['rhythm', 'beat', 'music', 'performance', 'visual'],
+    colorPalettes: ['neon glow', 'concert lights', 'retro', 'high energy'],
+  },
 };
 
 export const NICHE_LIST = Object.values(NICHE_CONFIG);
 export const NICHE_IDS = Object.keys(NICHE_CONFIG);
+
+// Maps old/alternate niche keys to canonical NICHE_CONFIG keys
+export const NICHE_KEY_ALIASES: Record<string, string> = {
+  // Old NICHES object keys (video-generation.service.ts)
+  fnb: 'food_culinary',
+  fashion: 'fashion_lifestyle',
+  tech: 'tech_gadgets',
+  health: 'fitness_health',
+  travel: 'travel_adventure',
+  education: 'education_knowledge',
+  finance: 'business_finance',
+  entertainment: 'entertainment',
+
+  // Lang handler onboarding keys (onboarding.ts)
+  beauty: 'beauty_skincare',
+  property: 'home_decor',
+  general: 'food_culinary',
+
+  // NICHE_MOOD_MAP keys (scene-consistency.service.ts)
+  cooking: 'food_culinary',
+  fitness: 'fitness_health',
+  trading: 'business_finance',
+  retail: 'food_culinary',
+  services: 'business_finance',
+  professional: 'business_finance',
+  hospitality: 'food_culinary',
+};
+
+export function resolveNicheKey(key: string): string {
+  return NICHE_KEY_ALIASES[key] || key;
+}
+
+// Always use this — never NICHE_CONFIG[key] directly
+export function getNicheConfig(key: string): NicheConfig | undefined {
+  return NICHE_CONFIG[resolveNicheKey(key) as keyof typeof NICHE_CONFIG];
+}
 
 // Cache for 5 minutes
 let nicheCache: any[] | null = null;

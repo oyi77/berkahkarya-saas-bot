@@ -7,7 +7,7 @@
  */
 
 import { logger } from '@/utils/logger';
-import { NICHE_CONFIG } from '@/config/niches';
+import { NICHE_CONFIG, resolveNicheKey } from '@/config/niches';
 import { STYLE_PRESETS } from '@/config/styles';
 
 /**
@@ -36,6 +36,10 @@ const NICHE_MOOD_MAP: Record<string, string> = {
   home_decor: 'cozy and inviting',
   business_finance: 'professional and confident',
   education_knowledge: 'clean and informative',
+  // New niches
+  cinematic: 'dramatic and cinematic',
+  anime: 'vibrant and stylized',
+  music_video: 'energetic and rhythmic',
   // Fallback keys used in the simpler NICHES map from video-generation service
   trading: 'analytical and focused',
   fitness: 'energetic and powerful',
@@ -88,7 +92,8 @@ export class SceneConsistencyEngine {
     const colorPalette = SceneConsistencyEngine.deriveColorPalette(niche, firstScenePrompt);
     const lightingStyle = SceneConsistencyEngine.deriveLighting(style, firstScenePrompt);
     const cameraStyle = STYLE_CAMERA_MAP[style] || 'consistent framing';
-    const mood = NICHE_MOOD_MAP[niche] || 'professional and engaging';
+    const canonicalNiche = resolveNicheKey(niche);
+    const mood = NICHE_MOOD_MAP[canonicalNiche as keyof typeof NICHE_MOOD_MAP] || 'professional and engaging';
 
     const memory: SceneMemory = {
       mainSubject,

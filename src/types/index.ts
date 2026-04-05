@@ -81,6 +81,7 @@ export interface SessionData {
   customPresetConfig?: any; // DurationPresetConfig for custom durations
   cloneRefUrl?: string;
   userLang?: string; // Cached user language for i18n (set during generation flows)
+  userMode?: string; // Cached user persona/mode (set during /create and generation flows)
 
   // Pro mode: multi-image upload
   generatePhotos?: Array<{ sceneIndex: number; fileId: string; url: string }>;
@@ -104,6 +105,7 @@ export interface SessionData {
 export type BotState =
   | "START"
   | "ONBOARDING_LANGUAGE"
+  | "ONBOARDING_PERSONA"
   | "DASHBOARD"
   | "CREATE_VIDEO_UPLOAD"
   | "CREATE_VIDEO_NICHE"

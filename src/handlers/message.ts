@@ -45,6 +45,8 @@ import { actionableError } from "@/utils/errors";
 import { redis } from "@/config/redis";
 import { VideoAnalysisService } from "@/services/video-analysis.service";
 import { t } from "@/i18n/translations";
+import { getPersonaForUser, isNicheAllowedForPersona } from "@/config/personas";
+import { resolveNicheKey } from "@/config/niches";
 
 const SESSION_TTL = 86400; // 24h
 
@@ -751,23 +753,26 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     if ("photo" in message) {
       if (ctx.session.state === "CREATE_VIDEO_UPLOAD") {
         const cvuLang = ctx.session?.userLang || 'id';
+        const _cvuPersona = getPersonaForUser(ctx.session?.userMode);
+        const _allNicheButtons = [
+          { text: t('msg.niche_btn_fnb', cvuLang), callback_data: "niche_fnb", key: "fnb" },
+          { text: t('msg.niche_btn_beauty', cvuLang), callback_data: "niche_beauty", key: "beauty" },
+          { text: t('msg.niche_btn_retail', cvuLang), callback_data: "niche_retail", key: "retail" },
+          { text: t('msg.niche_btn_services', cvuLang), callback_data: "niche_services", key: "services" },
+          { text: t('msg.niche_btn_professional', cvuLang), callback_data: "niche_professional", key: "professional" },
+          { text: t('msg.niche_btn_hospitality', cvuLang), callback_data: "niche_hospitality", key: "hospitality" },
+        ].filter(b => isNicheAllowedForPersona(_cvuPersona, resolveNicheKey(b.key)));
+        // Pair buttons into rows of 2
+        const _nicheRows: { text: string; callback_data: string }[][] = [];
+        for (let i = 0; i < _allNicheButtons.length; i += 2) {
+          _nicheRows.push(_allNicheButtons.slice(i, i + 2).map(b => ({ text: b.text, callback_data: b.callback_data })));
+        }
         await ctx.reply(
           t('msg.photo_received_niche', cvuLang),
           {
             reply_markup: {
-              inline_keyboard: [
-                [
-                  { text: t('msg.niche_btn_fnb', cvuLang), callback_data: "niche_fnb" },
-                  { text: t('msg.niche_btn_beauty', cvuLang), callback_data: "niche_beauty" },
-                ],
-                [
-                  { text: t('msg.niche_btn_retail', cvuLang), callback_data: "niche_retail" },
-                  { text: t('msg.niche_btn_services', cvuLang), callback_data: "niche_services" },
-                ],
-                [
-                  { text: t('msg.niche_btn_professional', cvuLang), callback_data: "niche_professional" },
-                  { text: t('msg.niche_btn_hospitality', cvuLang), callback_data: "niche_hospitality" },
-                ],
+              inline_keyboard: _nicheRows.length > 0 ? _nicheRows : [
+                [{ text: t('msg.niche_btn_fnb', cvuLang), callback_data: "niche_fnb" }],
               ],
             },
           },

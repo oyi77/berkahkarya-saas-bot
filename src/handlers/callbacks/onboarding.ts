@@ -127,6 +127,9 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
 
     const telegramId = BigInt(user.id);
 
+    const { resolveNicheKey } = await import('@/config/niches.js');
+    const canonicalNiche = resolveNicheKey(niche);
+
     const detectedLang = (ctx.session?.stateData?.detectedLang as string) || "id";
     await prisma.user.upsert({
       where: { telegramId },
@@ -136,7 +139,7 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
         firstName: user.first_name,
         lastName: user.last_name,
         language: detectedLang,
-        selectedNiche: niche,
+        selectedNiche: canonicalNiche,
         welcomeBonusUsed: false,
         dailyFreeUsed: false,
         dailyFreeResetAt: null,
@@ -144,13 +147,15 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
         tier: 'free',
         creditBalance: 0,
         notificationsEnabled: true,
+        userMode: (ctx.session?.stateData?.selectedUserMode as string) || 'content_creator',
       },
       update: {
-        selectedNiche: niche,
+        selectedNiche: canonicalNiche,
+        userMode: (ctx.session?.stateData?.selectedUserMode as string) || 'content_creator',
       },
     });
 
-    logger.info(`Upserted user with niche: ${telegramId}, niche: ${niche}`);
+    logger.info(`Upserted user with niche: ${telegramId}, niche: ${canonicalNiche}`);
 
     // Grant welcome bonus (no-op if already used)
     const granted = await UserService.grantWelcomeBonus(telegramId);
@@ -341,6 +346,68 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
     return true;
   }
 
+  if (data.startsWith('persona_select_')) {
+    await ctx.answerCbQuery();
+    const personaKey = data.replace('persona_select_', '');
+    const userMode = personaKey === 'skip' ? 'content_creator' : personaKey;
+
+    // Store in session
+    ctx.session.stateData = { ...ctx.session.stateData, selectedUserMode: userMode };
+
+    // Persist to DB immediately (user already created in onboard_lang_*)
+    const userId = ctx.from?.id;
+    if (userId) {
+      await prisma.user.update({
+        where: { telegramId: BigInt(userId) },
+        data: { userMode },
+      }).catch(() => {}); // ignore if user not yet created
+    }
+
+    // Get allowed niches for this persona
+    const { getPersonaForUser, isNicheAllowedForPersona } = await import('@/config/personas.js');
+    const { NICHE_CONFIG } = await import('@/config/niches.js');
+    const persona = getPersonaForUser(userMode);
+
+    const allowedNiches = Object.entries(NICHE_CONFIG).filter(([k]) =>
+      isNicheAllowedForPersona(persona, k)
+    );
+
+    const rows: Array<Array<{ text: string; callback_data: string }>> = [];
+    for (let i = 0; i < allowedNiches.length; i += 2) {
+      rows.push(
+        allowedNiches.slice(i, i + 2).map(([k, v]) => ({
+          text: `${v.emoji} ${v.name}`,
+          callback_data: `onboard_niche_${k}`,
+        }))
+      );
+    }
+
+    await ctx.reply(
+      '📁 *Pilih niche konten kamu:*',
+      {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: rows },
+      }
+    );
+    ctx.session.state = 'DASHBOARD';
+    return true;
+  }
+
+  if (data.startsWith('persona_set_')) {
+    await ctx.answerCbQuery('✅ Profil diperbarui!');
+    const userMode = data.replace('persona_set_', '');
+    const userId = ctx.from?.id;
+    if (userId) {
+      await prisma.user.update({
+        where: { telegramId: BigInt(userId) },
+        data: { userMode },
+      }).catch(() => {});
+    }
+    ctx.session.stateData = { ...ctx.session.stateData, selectedUserMode: userMode };
+    await ctx.editMessageText('✅ Profil berhasil diatur!').catch(() => {});
+    return true;
+  }
+
   // Onboarding language selection (more languages paginated)
   if (data.startsWith("onboard_lang_more_")) {
     await ctx.answerCbQuery();
@@ -433,18 +500,27 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
       parse_mode: "Markdown",
     });
 
-    const lang = langCode;
+    ctx.session.stateData = { ...ctx.session.stateData, detectedLang: langCode };
+    ctx.session.state = 'ONBOARDING_PERSONA';
 
-    // Show niche picker before welcome flow
-    const nicheKeyboard = {
-      inline_keyboard: [
-        [{ text: '🍔 F&B', callback_data: 'onboard_niche_fnb' }, { text: '👗 Fashion', callback_data: 'onboard_niche_fashion' }],
-        [{ text: '💄 Beauty', callback_data: 'onboard_niche_beauty' }, { text: '📱 Tech', callback_data: 'onboard_niche_tech' }],
-        [{ text: '🏠 Property', callback_data: 'onboard_niche_property' }, { text: '🎯 Other', callback_data: 'onboard_niche_general' }],
-      ],
-    };
-    await ctx.reply(t('onboarding.select_niche', lang), { reply_markup: nicheKeyboard });
-    return true; // Wait for niche selection before showing welcome
+    await ctx.reply(
+      '🎯 *Pilih profil kamu:*\n\n_Ini membantu kami menyesuaikan pengalaman terbaik untukmu_',
+      {
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '🏪 UMKM / Toko Kecil', callback_data: 'persona_select_umkm' }],
+            [{ text: '🎥 Content Creator', callback_data: 'persona_select_content_creator' }],
+            [{ text: '🎬 Movie Director', callback_data: 'persona_select_movie_director' }],
+            [{ text: '🎌 Anime Studio', callback_data: 'persona_select_anime_studio' }],
+            [{ text: '💼 Corporate', callback_data: 'persona_select_corporate' }],
+            [{ text: '🏢 Agency', callback_data: 'persona_select_agency' }],
+            [{ text: '⏭️ Lewati', callback_data: 'persona_select_skip' }],
+          ],
+        },
+      }
+    );
+    return true;
   }
 
   return false;
