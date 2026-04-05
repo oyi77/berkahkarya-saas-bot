@@ -49,7 +49,7 @@ import { t } from "@/i18n/translations";
 const SESSION_TTL = 86400; // 24h
 
 /** Write session data directly to Redis without going through middleware */
-async function updateSessionDirectly(
+export async function updateSessionDirectly(
   userId: number,
   updater: (session: any) => void,
 ): Promise<void> {
@@ -692,6 +692,30 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         }
         if (menuMatch('help')) { await helpCommand(ctx); return; }
 
+        // t2v contextless: detect video intent keywords in text
+        if (
+          (ctx.session.state === 'DASHBOARD' || ctx.session.state === 'START') &&
+          /\b(buat video|create video|jadikan video|video dari|bikin video|video tentang)\b/i.test(text)
+        ) {
+          const videoPrompt = text;
+          ctx.session.stateData = { ...ctx.session.stateData, pendingVideoPrompt: videoPrompt };
+          await ctx.reply(
+            `🎬 *Deteksi: prompt video*\n\n_"${videoPrompt.slice(0, 200)}"_\n\nMau buat video dari prompt ini?`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '🎬 Ya, buat video!', callback_data: 't2v_confirm_contextless' },
+                    { text: '💬 Chat saja', callback_data: 'media_intent_ignore' },
+                  ],
+                ],
+              },
+            },
+          );
+          return;
+        }
+
         // No menu match → try AI chat or show main menu
         {
             const trimmed = text.trim();
@@ -761,6 +785,47 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       const referenceUrl = fileLink.toString();
 
       const refImgLang = ctx.session?.userLang || 'id';
+
+      // i2t mode: analyze only, no generation
+      if (ctx.session.stateData?.mode === 'analyze') {
+        const analyzeLoading = await ctx.reply('🔍 _Menganalisis gambar..._', { parse_mode: 'Markdown' });
+        try {
+          const analysis = await ContentAnalysisService.extractPrompt(referenceUrl, 'image');
+          if (analysis.success && analysis.prompt) {
+            const elements = detectImageElements(analysis.prompt);
+            const detected: string[] = [];
+            if (elements.hasProduct) detected.push(`📦 *Produk:* _${elements.productDesc || 'terdeteksi'}_`);
+            if (elements.hasCharacter) detected.push(`👤 *Orang:* _${elements.characterDesc || 'terdeteksi'}_`);
+            if (elements.backgroundDesc) detected.push(`🖼️ *Background:* _${elements.backgroundDesc}_`);
+            const detectedText = detected.length > 0 ? detected.join('\n') : '_Tidak ada elemen spesifik_';
+
+            await ctx.telegram.editMessageText(ctx.chat!.id, analyzeLoading.message_id, undefined,
+              `📝 *Deskripsi Gambar*\n\n${detectedText}\n\n*Prompt AI:*\n\`${analysis.prompt.slice(0, 400)}\``,
+              {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: '🖼️ Edit Gambar', callback_data: 'imgref_upload' },
+                      { text: '🎬 Jadikan Video', callback_data: 'create_video_new' },
+                    ],
+                    [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+                  ],
+                },
+              },
+            );
+          } else {
+            await ctx.telegram.editMessageText(ctx.chat!.id, analyzeLoading.message_id, undefined, '❌ Tidak bisa menganalisis gambar.');
+          }
+        } catch (err) {
+          logger.warn('i2t analyze failed:', err);
+          await ctx.telegram.deleteMessage(ctx.chat!.id, analyzeLoading.message_id).catch(() => {});
+          await ctx.reply('❌ Analisis gambar gagal.');
+        }
+        ctx.session.state = 'DASHBOARD';
+        ctx.session.stateData = {};
+        return;
+      }
 
       // Show loading indicator while vision analysis runs (~3-5s)
       const loadingMsg = await ctx.reply('🔍 _Menganalisis gambar..._', { parse_mode: 'Markdown' });

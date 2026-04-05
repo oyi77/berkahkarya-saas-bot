@@ -69,6 +69,18 @@ export async function handleCloneCallbacks(ctx: BotContext, data: string): Promi
     return true;
   }
 
+  // Analyze Video (v2t from menu)
+  if (data === "analyze_video_menu") {
+    await ctx.answerCbQuery();
+    ctx.session.state = "CLONE_VIDEO_WAITING";
+    ctx.session.stateData = { ...ctx.session.stateData, mode: 'analyze_only' };
+    await ctx.editMessageText(
+      '📝 *Analisis Video*\n\nKirim video atau URL video yang ingin dianalisis.\n\nBot akan mendeskripsikan gaya, konten, dan prompt AI yang sesuai.',
+      { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '◀️ Kembali', callback_data: 'main_menu' }]] } },
+    );
+    return true;
+  }
+
   if (data === "clone_edit_desc") {
     await ctx.answerCbQuery();
 

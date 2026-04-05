@@ -224,6 +224,7 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
               },
             ],
             [{ text: t('btn.automotive', lang), callback_data: "img_car" }],
+            [{ text: '🔍 Analisis Gambar', callback_data: 'image_analyze' }],
             [{ text: t('btn.manage_avatar', lang), callback_data: "avatar_manage" }],
             [btnBackMain(lang)],
           ],
@@ -622,6 +623,20 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
       ctx.session.stateData = { ...ctx.session.stateData, mode: "text2img", referenceImageUrl: undefined };
     }
 
+    // If a pending prompt was stored (from spontaneous photo+caption upload), skip the prompt step
+    const pendingPrompt = ctx.session.stateData?.pendingPrompt as string | undefined;
+    if (pendingPrompt) {
+      const { executeImageGeneration } = await import('../message.js');
+      ctx.session.stateData = { ...ctx.session.stateData, pendingPrompt: undefined };
+      const category = ctx.session.stateData?.imageCategory as string;
+      const referenceImageUrl = ctx.session.stateData?.referenceImageUrl as string | undefined;
+      const mode = (ctx.session.stateData?.mode as string || "img2img") as import('@/services/image.service').ImageGenerationMode;
+      const elementAnalysis = ctx.session.stateData?.imageAnalysisResult as { productDesc: string; characterDesc: string; backgroundDesc: string } | undefined;
+      ctx.session.state = "DASHBOARD";
+      await executeImageGeneration(ctx, pendingPrompt, { category, referenceImageUrl, mode, elementSelection: sel, elementAnalysis });
+      return true;
+    }
+
     ctx.session.state = "IMAGE_GENERATION_WAITING";
     const category = ctx.session.stateData?.imageCategory as string;
 
@@ -643,6 +658,21 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
             [{ text: t('btn.back', lang), callback_data: "image_generate" }],
           ],
         },
+      },
+    );
+    return true;
+  }
+
+  // image_analyze — analyze-only mode (i2t from menu)
+  if (data === "image_analyze") {
+    await ctx.answerCbQuery();
+    ctx.session.state = 'IMAGE_REFERENCE_WAITING';
+    ctx.session.stateData = { ...ctx.session.stateData, mode: 'analyze' };
+    await ctx.editMessageText(
+      '🔍 *Analisis Gambar*\n\nKirim foto yang ingin dianalisis.\n\nBot akan mendeskripsikan isi gambar, elemen yang terdeteksi, dan prompt AI yang sesuai.',
+      {
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: [[{ text: '◀️ Kembali', callback_data: 'image_generate' }]] },
       },
     );
     return true;

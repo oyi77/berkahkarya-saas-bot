@@ -5,7 +5,7 @@ import { detectImageElements, renderElementSelectionKeyboard, buildElementSelect
 import { t } from '@/i18n/translations';
 
 export async function handleMediaIntentCallback(ctx: BotContext, data: string): Promise<boolean> {
-  if (!data.startsWith('media_intent_')) return false;
+  if (!data.startsWith('media_intent_') && data !== 't2v_confirm_contextless') return false;
 
   await ctx.answerCbQuery().catch(() => {});
 
@@ -221,25 +221,42 @@ export async function handleMediaIntentCallback(ctx: BotContext, data: string): 
       return true;
     }
 
+    await ctx.editMessageText('🔍 _Menganalisis video..._', { parse_mode: 'Markdown' });
     ctx.session.state = 'DASHBOARD';
     ctx.session.stateData = {};
-    await ctx.editMessageText('🔍 _Menganalisis video..._', { parse_mode: 'Markdown' });
 
     const chatId = ctx.chat!.id;
     const telegram = ctx.telegram;
+    const userId = ctx.from!.id;
 
     void (async () => {
       try {
         const result = await ContentAnalysisService.cloneVideo(pendingUrl);
         if (result.success && result.prompt) {
-          await telegram.sendMessage(
-            chatId,
-            `✅ *Analisis selesai!*\n\n*Prompt video:*\n\`${result.prompt.slice(0, 300)}\`\n\n_Kirim ke antrian video..._`,
-            { parse_mode: 'Markdown' },
+          const cleanPrompt = result.prompt
+            .replace(/\*\*/g, '').replace(/\*/g, '').replace(/_/g, '').replace(/`/g, '')
+            .slice(0, 1500);
+
+          const { updateSessionDirectly } = await import('../message.js');
+          await updateSessionDirectly(userId, (session) => {
+            session.stateData = { ...session.stateData, clonePrompt: result.prompt, cloneStyle: result.style };
+          });
+
+          await telegram.sendMessage(chatId,
+            `✅ *Analisis video selesai!*\n\n*Gaya:* ${result.style || 'Modern/Dynamic'}\n\n*Prompt:*\n_${cleanPrompt.slice(0, 400)}_`,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🎬 Buat Video Serupa', callback_data: 'create_video_new' }],
+                  [{ text: '✏️ Edit Deskripsi', callback_data: 'clone_edit_desc' }],
+                  [{ text: '🏠 Menu Utama', callback_data: 'main_menu' }],
+                ],
+              },
+            },
           );
-          // TODO: enqueue video generation with result.prompt (same as clone video flow)
         } else {
-          await telegram.sendMessage(chatId, '❌ Tidak bisa menganalisis video.');
+          await telegram.sendMessage(chatId, '❌ Tidak bisa menganalisis video. Coba lagi.');
         }
       } catch (err) {
         logger.error('media_intent_v2v failed:', err);
@@ -286,6 +303,85 @@ export async function handleMediaIntentCallback(ctx: BotContext, data: string): 
         await telegram.sendMessage(chatId, '❌ Analisis video gagal.');
       }
     })();
+    return true;
+  }
+
+  // ── t2v contextless confirm ───────────────────────────────────────────────────
+  if (data === 't2v_confirm_contextless') {
+    await ctx.answerCbQuery();
+    const videoPrompt = ctx.session.stateData?.pendingVideoPrompt as string | undefined;
+    if (!videoPrompt) {
+      await ctx.editMessageText('❌ Prompt tidak ditemukan. Coba lagi.');
+      ctx.session.state = 'DASHBOARD';
+      return true;
+    }
+
+    ctx.session.state = 'DASHBOARD';
+    ctx.session.stateData = { ...ctx.session.stateData, pendingVideoPrompt: undefined };
+
+    const { enqueueVideoGeneration } = await import('../../config/queue.js');
+    const { UserService } = await import('../../services/user.service.js');
+    const { getVideoCreditCostAsync } = await import('../../config/pricing.js');
+    const { prisma } = await import('../../config/database.js');
+    const { generateStoryboard } = await import('../../services/video-generation.service.js');
+
+    const telegramId = BigInt(ctx.from!.id);
+    const creditCost = await getVideoCreditCostAsync(15);
+    const user = await UserService.findByTelegramId(telegramId);
+
+    if (!user || Number(user.creditBalance) < creditCost) {
+      await ctx.editMessageText('❌ Kredit tidak cukup untuk membuat video. Top up terlebih dahulu.', {
+        reply_markup: { inline_keyboard: [[{ text: '💳 Top Up', callback_data: 'topup_menu' }]] },
+      });
+      return true;
+    }
+
+    await ctx.editMessageText('⏳ _Menambahkan ke antrian video..._', { parse_mode: 'Markdown' });
+
+    const chatId = ctx.chat!.id;
+    const telegram = ctx.telegram;
+
+    try {
+      const storyboard = generateStoryboard('general', ['cinematic'], 15, 3);
+      const jobId = `T2V-CTX-${Date.now()}-${telegramId}`;
+      await prisma.video.create({
+        data: {
+          userId: telegramId,
+          jobId,
+          niche: 'general',
+          platform: 'reels',
+          duration: 15,
+          scenes: storyboard.length,
+          status: 'processing',
+          creditsUsed: creditCost,
+          storyboard,
+        },
+      });
+      await UserService.deductCredits(telegramId, creditCost);
+      const { position } = await enqueueVideoGeneration({
+        jobId,
+        niche: 'general',
+        platform: 'reels',
+        duration: 15,
+        scenes: storyboard.length,
+        storyboard,
+        userId: telegramId.toString(),
+        chatId,
+        customPrompt: videoPrompt,
+        enableVO: false,
+        enableSubtitles: false,
+        language: 'id',
+        creditCost,
+      });
+
+      await telegram.sendMessage(chatId,
+        `✅ *Video masuk antrian!*\n\nPrompt: _${videoPrompt.slice(0, 100)}_\n\nPosisi antrian: #${position}\nEstimasi: ~2-5 menit`,
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '🏠 Menu Utama', callback_data: 'main_menu' }]] } },
+      );
+    } catch (err) {
+      logger.error('t2v_confirm_contextless failed:', err);
+      await telegram.sendMessage(chatId, '❌ Gagal menambah ke antrian. Coba lagi.');
+    }
     return true;
   }
 
