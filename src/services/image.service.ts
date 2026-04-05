@@ -1138,7 +1138,17 @@ function getProviders(): ImageProvider[] {
       supportsIPAdapter: false,
       generate: generateViaTogether,
     },
-    // Tier 2: PiAPI — high quality Flux Dev text2img + img2img
+    // Tier 2: LaoZhang kontext-pro — best for product editing/preservation
+    {
+      key: "laozhang",
+      name: "LaoZhang (Kontext + GPT-Image)",
+      enabled: !!getConfig().LAOZHANG_API_KEY,
+      supportsImg2Img: true,
+      supportsIPAdapter: false,
+      generate: generateViaLaoZhangGptImage,
+      generateImg2Img: generateViaLaoZhangKontext,
+    },
+    // Tier 3: PiAPI — high quality Flux Dev text2img + img2img
     {
       key: "piapi",
       name: "PiAPI (Flux Dev)",
@@ -1148,7 +1158,7 @@ function getProviders(): ImageProvider[] {
       generate: generateViaPiAPI,
       generateImg2Img: generateViaPiAPIImg2Img,
     },
-    // Tier 3: Good quality, free tier
+    // Tier 4: Good quality, free tier
     {
       key: "gemini",
       name: "Google Gemini",
@@ -1158,7 +1168,7 @@ function getProviders(): ImageProvider[] {
       generate: generateViaGemini,
       generateImg2Img: generateViaGeminiImg2Img,
     },
-    // Tier 3: Cheap img2img + IP-Adapter ($0.005-0.01/img)
+    // Tier 4: Cheap img2img + IP-Adapter ($0.005-0.01/img)
     {
       key: "segmind",
       name: "SegMind (SDXL + IP-Adapter)",
@@ -1169,7 +1179,7 @@ function getProviders(): ImageProvider[] {
       generateImg2Img: generateViaSegmindImg2Img,
       generateIPAdapter: generateViaSegmindIPAdapter,
     },
-    // Tier 4: Reliable text2img ($0.01/img)
+    // Tier 5: Reliable text2img ($0.01/img)
     {
       key: "siliconflow",
       name: "SiliconFlow Flux",
@@ -1178,7 +1188,7 @@ function getProviders(): ImageProvider[] {
       supportsIPAdapter: false,
       generate: generateViaSiliconFlow,
     },
-    // Tier 5: Fal.ai — best img2img + IP-Adapter quality ($0.03/img)
+    // Tier 6: Fal.ai — good img2img + IP-Adapter quality ($0.03/img)
     {
       key: "falai",
       name: "Fal.ai Flux",
@@ -1188,16 +1198,6 @@ function getProviders(): ImageProvider[] {
       generate: generateViaFalai,
       generateImg2Img: generateViaFalaiImg2Img,
       generateIPAdapter: generateViaFalaiIPAdapter,
-    },
-    // Tier 7: LaoZhang — reliable img2img ($0.04-0.05/img)
-    {
-      key: "laozhang",
-      name: "LaoZhang (Kontext + GPT-Image)",
-      enabled: !!getConfig().LAOZHANG_API_KEY,
-      supportsImg2Img: true,
-      supportsIPAdapter: false,
-      generate: generateViaLaoZhangGptImage,
-      generateImg2Img: generateViaLaoZhangKontext,
     },
     // Tier 8: EvoLink — async img2img ($0.03/img)
     {
@@ -1380,6 +1380,11 @@ export class ImageGenerationService {
       if (elementStrengthOverride !== undefined) {
         (params as any)._elementStrengthOverride = elementStrengthOverride;
       }
+
+      // Always add anti-UI/screenshot negative prompt for img2img to prevent
+      // garbled text when user uploads screenshots instead of clean product photos
+      (params as any)._negativePrompt = ((params as any)._negativePrompt || '') +
+        ', text overlay, ui elements, interface, screenshot, watermark, button, icon, timestamp, chat bubble, telegram, mobile app';
     }
 
     // Resolve target dimensions from aspect ratio + resolution tier

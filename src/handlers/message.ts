@@ -84,6 +84,183 @@ async function updateSessionDirectly(
 
 
 /**
+ * Shared image generation executor — used by both the IMAGE_GENERATION_WAITING handler
+ * and the catch-all spontaneous photo upload flow.
+ */
+export async function executeImageGeneration(
+  ctx: BotContext,
+  description: string,
+  opts: {
+    category?: string;
+    referenceImageUrl?: string;
+    avatarImageUrl?: string;
+    mode?: ImageGenerationMode;
+    elementSelection?: { keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean };
+    elementAnalysis?: { productDesc: string; characterDesc: string; backgroundDesc: string };
+  },
+): Promise<void> {
+  const {
+    category,
+    referenceImageUrl,
+    avatarImageUrl,
+    mode = "text2img",
+    elementSelection,
+    elementAnalysis,
+  } = opts;
+
+  const modeLabel =
+    mode === "img2img" ? " (with reference)" : mode === "ip_adapter" ? " (with avatar)" : "";
+
+  const estimatedCost = await getImageCreditCostAsync();
+  const telegramId = BigInt(ctx.from!.id);
+  const user = await UserService.findByTelegramId(telegramId);
+
+  let useFreeSlot: 'daily' | 'welcome' | null = null;
+  const selectedPrompt = ctx.session.stateData?.selectedPrompt as string | undefined;
+  const isLibraryPrompt = selectedPrompt === description;
+
+  if (!user || Number(user.creditBalance) < estimatedCost) {
+    if (isLibraryPrompt && canUseDailyFree(user)) {
+      useFreeSlot = 'daily';
+    } else if (isLibraryPrompt && canUseWelcomeBonus(user)) {
+      useFreeSlot = 'welcome';
+    } else {
+      const lang = ctx.session?.userLang || 'id';
+      const reason = !isLibraryPrompt
+        ? t('msg.custom_only_premium', lang)
+        : t('msg.credits_exhausted', lang);
+      await ctx.reply(
+        t('msg.generation_start_failed', lang, { reason }),
+        { parse_mode: "Markdown" },
+      );
+      ctx.session.state = "DASHBOARD";
+      return;
+    }
+  }
+
+  await ctx.reply(
+    t('msg.generating_image', ctx.session?.userLang || 'id', { modeLabel }),
+    { parse_mode: "Markdown" },
+  );
+
+  ctx.session.state = "DASHBOARD";
+
+  const chatId = ctx.chat!.id;
+  const telegram = ctx.telegram;
+
+  void (async () => {
+    try {
+      const result = await ImageGenerationService.generateImage({
+        prompt: description,
+        category: category || "product",
+        aspectRatio:
+          category === "realestate" || category === "car"
+            ? "16:9"
+            : category === "fnb"
+              ? "4:5"
+              : "1:1",
+        style:
+          category === "fnb"
+            ? "food photography"
+            : category === "realestate"
+              ? "architectural"
+              : category === "car"
+                ? "automotive"
+                : "commercial",
+        referenceImageUrl,
+        avatarImageUrl,
+        mode,
+        elementSelection,
+        elementAnalysis,
+      });
+
+      if (result.success && result.imageUrl) {
+        const isDemo = result.provider === "demo";
+
+        if (useFreeSlot === 'daily') {
+          await prisma.user.update({
+            where: { telegramId },
+            data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() },
+          });
+          await MetricsService.increment('generation_trial_daily');
+        } else if (useFreeSlot === 'welcome') {
+          const updated = await prisma.user.updateMany({
+            where: { telegramId, welcomeBonusUsed: false },
+            data: { welcomeBonusUsed: true },
+          });
+          if (updated.count === 0) {
+            logger.warn(`Welcome bonus already used for user ${telegramId} — skipping charge`);
+          }
+          await MetricsService.increment('generation_trial_welcome');
+        } else if (!isDemo) {
+          const actualCost = await getImageCreditCostAsync(result.provider);
+          await UserService.deductCredits(telegramId, actualCost);
+          logger.info(`🖼️ Charged ${actualCost} credits for image (provider: ${result.provider})`);
+        }
+
+        const modeInfo =
+          result.mode === "img2img"
+            ? "\n📸 _Generated with your reference image_"
+            : result.mode === "ip_adapter"
+              ? "\n👤 _Generated with avatar consistency_"
+              : "";
+
+        const lang2 = ctx.session?.userLang || 'id';
+        const captionText = isDemo
+          ? `🖼️ *Sample Image (Demo)*\n\n_Description: ${description}_\n\n⚠️ This is a placeholder image. AI generation is temporarily unavailable.\nThe actual product will generate images matching your description.`
+          : t('msg.image_success', lang2, { description, modeInfo });
+
+        let photoSource: string | { source: Buffer };
+        let isBase64 = false;
+        if (result.imageUrl!.startsWith("data:")) {
+          const base64Data = result.imageUrl!.split(",")[1];
+          photoSource = { source: Buffer.from(base64Data, "base64") };
+          isBase64 = true;
+        } else {
+          photoSource = result.imageUrl!;
+        }
+
+        if (ctx.session) {
+          ctx.session.generateLastImageUrl = isBase64 ? undefined : result.imageUrl;
+        }
+
+        await telegram.sendPhoto(chatId, photoSource as any, {
+          caption: captionText,
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              ...(isDemo || isBase64
+                ? []
+                : [[{ text: "⬇️ Download", url: result.imageUrl! }]]),
+              [
+                { text: t('msg.btn_make_variation', lang2), callback_data: "image_generate" },
+                { text: t('msg.btn_make_video', lang2), callback_data: "make_video_from_image" },
+              ],
+              [{ text: t('btn.main_menu', lang2), callback_data: "main_menu" }],
+            ],
+          },
+        });
+      } else {
+        const lang3 = ctx.session?.userLang || 'id';
+        await telegram.sendMessage(
+          chatId,
+          t('msg.generate_failed', lang3, { error: result.error || "Unknown error" }),
+          {
+            parse_mode: "Markdown",
+            reply_markup: {
+              inline_keyboard: [[{ text: t('btn.try_again', lang3), callback_data: "image_generate" }]],
+            },
+          },
+        );
+      }
+    } catch (error: any) {
+      logger.error("Image generation error:", error);
+      await telegram.sendMessage(chatId, t('msg.image_analyze_failed', ctx.session?.userLang || 'id'));
+    }
+  })();
+}
+
+/**
  * Handle incoming messages
  */
 export async function messageHandler(ctx: BotContext): Promise<void> {
@@ -747,6 +924,132 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       return;
     }
 
+    // Catch-all: spontaneous photo/video in any non-flow state → intent selection
+    const MEDIA_HANDLED_STATES: string[] = [
+      'CREATE_VIDEO_UPLOAD', 'IMAGE_REFERENCE_WAITING', 'AVATAR_UPLOAD_WAITING',
+      'avatar_talk_photo', 'AWAITING_MULTI_IMAGE_UPLOAD', 'AWAITING_GENERATE_IMAGE',
+      'IMAGE_ELEMENT_SELECTION', 'VIDEO_ELEMENT_SELECTION', 'CLONE_IMAGE_WAITING',
+      'DISASSEMBLE_WAITING', 'CLONE_VIDEO_WAITING', 'MEDIA_INTENT_SELECTION',
+    ];
+
+    if (("photo" in message || "video" in message) && !MEDIA_HANDLED_STATES.includes(ctx.session.state)) {
+      const lang = ctx.session?.userLang || 'id';
+
+      if ("video" in message) {
+        // ── Contextless video upload ──
+        const fileLink = await ctx.telegram.getFileLink(message.video.file_id);
+        const videoUrl = fileLink.toString();
+
+        ctx.session.state = 'MEDIA_INTENT_SELECTION';
+        ctx.session.stateData = {
+          ...ctx.session.stateData,
+          pendingMediaUrl: videoUrl,
+          pendingMediaType: 'video',
+        };
+
+        await ctx.reply(
+          '🎬 *Video diterima!* Mau diapakan?\n\n_Pilih aksi di bawah:_',
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '🎬 Buat Video Serupa', callback_data: 'media_intent_v2v' },
+                  { text: '📝 Analisis Video', callback_data: 'media_intent_v2t' },
+                ],
+                [{ text: '❌ Abaikan', callback_data: 'media_intent_ignore' }],
+              ],
+            },
+          },
+        );
+        return;
+      }
+
+      // ── Contextless photo upload ──
+      const photos = message.photo;
+      const largestPhoto = photos[photos.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(largestPhoto.file_id);
+      const photoUrl = fileLink.toString();
+      const mediaGroupId = (message as any).media_group_id as string | undefined;
+      const captionText = (message as any).caption as string | undefined;
+
+      if (mediaGroupId) {
+        // Multi-photo batch: debounce and collect
+        const existingUrls: string[] = (ctx.session.stateData as any)?._batchUrls || [];
+        existingUrls.push(photoUrl);
+        const lastGroupId = (ctx.session.stateData as any)?._batchGroupId;
+
+        ctx.session.stateData = {
+          ...ctx.session.stateData,
+          _batchGroupId: mediaGroupId,
+          _batchUrls: existingUrls,
+        };
+
+        if (lastGroupId === mediaGroupId) {
+          // Same group still arriving — accumulate silently
+          return;
+        }
+
+        // First photo of new group — wait for rest
+        await new Promise((r) => setTimeout(r, 1500));
+        const finalUrls: string[] = (ctx.session.stateData as any)?._batchUrls || [photoUrl];
+
+        ctx.session.state = 'MEDIA_INTENT_SELECTION';
+        ctx.session.stateData = {
+          ...ctx.session.stateData,
+          pendingMediaUrl: finalUrls[0],
+          pendingMediaUrls: finalUrls,
+          pendingMediaType: 'photo_batch',
+        };
+
+        await ctx.reply(
+          `📸 *${finalUrls.length} foto diterima!* Mau diapakan?`,
+          {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '🎬 Jadikan Video Slideshow', callback_data: 'media_intent_batch_i2v' },
+                  { text: '🖼️ Edit Foto Pertama', callback_data: 'media_intent_i2i' },
+                ],
+                [{ text: '❌ Abaikan', callback_data: 'media_intent_ignore' }],
+              ],
+            },
+          },
+        );
+        return;
+      }
+
+      // Single photo
+      ctx.session.state = 'MEDIA_INTENT_SELECTION';
+      ctx.session.stateData = {
+        ...ctx.session.stateData,
+        pendingMediaUrl: photoUrl,
+        pendingMediaType: 'photo',
+        pendingPrompt: captionText,
+      };
+
+      await ctx.reply(
+        '📸 *Gambar diterima!* Mau diapakan?\n\n_Pilih aksi:_',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🖼️ Edit Gambar', callback_data: 'media_intent_i2i' },
+                { text: '🎬 Jadikan Video', callback_data: 'media_intent_i2v' },
+              ],
+              [
+                { text: '📝 Dapatkan Deskripsi', callback_data: 'media_intent_i2t' },
+                { text: '❌ Abaikan', callback_data: 'media_intent_ignore' },
+              ],
+            ],
+          },
+        },
+      );
+      return;
+    }
+
     // Handle talking photo — text script step
     if (ctx.session.state === "avatar_talk_text" && "text" in message) {
       const { handleAvatarTalkText } = await import('./callbacks/avatar-talk.js');
@@ -758,186 +1061,13 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
     if (ctx.session.state === "IMAGE_GENERATION_WAITING" && "text" in message) {
       const description = message.text;
       const category = ctx.session.stateData?.imageCategory as string;
-      const referenceImageUrl = ctx.session.stateData?.referenceImageUrl as
-        | string
-        | undefined;
-      const avatarImageUrl = ctx.session.stateData?.avatarImageUrl as
-        | string
-        | undefined;
-      const mode =
-        (ctx.session.stateData?.mode as ImageGenerationMode) || "text2img";
-      const selectedPrompt = ctx.session.stateData?.selectedPrompt as string | undefined;
-      const elementSelection = ctx.session.stateData?.imageElementSelection as {
-        keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean;
-      } | undefined;
-      const elementAnalysis = ctx.session.stateData?.imageAnalysisResult as {
-        productDesc: string; characterDesc: string; backgroundDesc: string;
-      } | undefined;
+      const referenceImageUrl = ctx.session.stateData?.referenceImageUrl as string | undefined;
+      const avatarImageUrl = ctx.session.stateData?.avatarImageUrl as string | undefined;
+      const mode = (ctx.session.stateData?.mode as ImageGenerationMode) || "text2img";
+      const elementSelection = ctx.session.stateData?.imageElementSelection as { keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean } | undefined;
+      const elementAnalysis = ctx.session.stateData?.imageAnalysisResult as { productDesc: string; characterDesc: string; backgroundDesc: string } | undefined;
 
-      const modeLabel =
-        mode === "img2img"
-          ? " (with reference)"
-          : mode === "ip_adapter"
-            ? " (with avatar)"
-            : "";
-
-      // Check credits before generating (sync check — fast)
-      const estimatedCost = await getImageCreditCostAsync();
-      const telegramIdImg = BigInt(ctx.from!.id);
-      const userImg = await UserService.findByTelegramId(telegramIdImg);
-
-      let useFreeSlot: 'daily' | 'welcome' | null = null;
-      const isLibraryPrompt = selectedPrompt === description;
-
-      if (!userImg || Number(userImg.creditBalance) < estimatedCost) {
-        if (isLibraryPrompt && canUseDailyFree(userImg)) {
-          useFreeSlot = 'daily';
-        } else if (isLibraryPrompt && canUseWelcomeBonus(userImg)) {
-          useFreeSlot = 'welcome';
-        } else {
-          const igLang = ctx.session?.userLang || 'id';
-          const reason = !isLibraryPrompt
-            ? t('msg.custom_only_premium', igLang)
-            : t('msg.credits_exhausted', igLang);
-
-          await ctx.reply(
-            t('msg.generation_start_failed', igLang, { reason }),
-            { parse_mode: "Markdown" },
-          );
-          ctx.session.state = "DASHBOARD";
-          return;
-        }
-      }
-
-      await ctx.reply(
-        t('msg.generating_image', ctx.session?.userLang || 'id', { modeLabel }),
-        { parse_mode: "Markdown" },
-      );
-
-      // Release session immediately — fire and forget
-      ctx.session.state = "DASHBOARD";
-
-      const chatId = ctx.chat!.id;
-      const telegram = ctx.telegram;
-
-      void (async () => {
-        try {
-          const result = await ImageGenerationService.generateImage({
-            prompt: description,
-            category: category || "product",
-            aspectRatio:
-              category === "realestate" || category === "car"
-                ? "16:9"
-                : category === "fnb"
-                  ? "4:5"
-                  : "1:1",
-            style:
-              category === "fnb"
-                ? "food photography"
-                : category === "realestate"
-                  ? "architectural"
-                  : category === "car"
-                    ? "automotive"
-                    : "commercial",
-            referenceImageUrl,
-            avatarImageUrl,
-            mode,
-            elementSelection,
-            elementAnalysis,
-          });
-
-          if (result.success && result.imageUrl) {
-            const isDemo = result.provider === "demo";
-
-            if (useFreeSlot === 'daily') {
-              await prisma.user.update({
-                where: { telegramId: telegramIdImg },
-                data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() },
-              });
-              await MetricsService.increment('generation_trial_daily');
-            } else if (useFreeSlot === 'welcome') {
-              // Atomic check-and-set to prevent double-claim on concurrent requests
-              const updated = await prisma.user.updateMany({
-                where: { telegramId: telegramIdImg, welcomeBonusUsed: false },
-                data: { welcomeBonusUsed: true },
-              });
-              if (updated.count === 0) {
-                logger.warn(`Welcome bonus already used for user ${telegramIdImg} — skipping charge`);
-              }
-              await MetricsService.increment('generation_trial_welcome');
-            } else if (!isDemo) {
-              const actualCost = await getImageCreditCostAsync(result.provider);
-              await UserService.deductCredits(telegramIdImg, actualCost);
-              logger.info(`🖼️ Charged ${actualCost} credits for image (provider: ${result.provider})`);
-            }
-
-            const modeInfo =
-              result.mode === "img2img"
-                ? "\n📸 _Generated with your reference image_"
-                : result.mode === "ip_adapter"
-                  ? "\n👤 _Generated with avatar consistency_"
-                  : "";
-
-            const imgLang2 = ctx.session?.userLang || 'id';
-            const caption = isDemo
-              ? `🖼️ *Sample Image (Demo)*\n\n` +
-              `_Description: ${description}_\n\n` +
-              `⚠️ This is a placeholder image. AI generation is temporarily unavailable.\n` +
-              `The actual product will generate images matching your description.`
-              : t('msg.image_success', imgLang2, { description, modeInfo });
-
-            let photoSource: string | { source: Buffer };
-            let isBase64 = false;
-            if (result.imageUrl!.startsWith("data:")) {
-              const base64Data = result.imageUrl!.split(",")[1];
-              photoSource = { source: Buffer.from(base64Data, "base64") };
-              isBase64 = true;
-            } else {
-              photoSource = result.imageUrl!;
-            }
-
-            // Store result for "make video from this image" flow
-            if (ctx.session) {
-              ctx.session.generateLastImageUrl = isBase64 ? undefined : result.imageUrl;
-            }
-
-            await telegram.sendPhoto(chatId, photoSource as any, {
-              caption,
-              parse_mode: "Markdown",
-              reply_markup: {
-                inline_keyboard: [
-                  ...(isDemo || isBase64
-                    ? []
-                    : [[{ text: "⬇️ Download", url: result.imageUrl! }]]),
-                  [
-                    { text: t('msg.btn_make_variation', imgLang2), callback_data: "image_generate" },
-                    { text: t('msg.btn_make_video', imgLang2), callback_data: "make_video_from_image" },
-                  ],
-                  [{ text: t('btn.main_menu', imgLang2), callback_data: "main_menu" }],
-                ],
-              },
-            });
-          } else {
-            const gfLang = ctx.session?.userLang || 'id';
-            await telegram.sendMessage(
-              chatId,
-              t('msg.generate_failed', gfLang, { error: result.error || "Unknown error" }),
-              {
-                parse_mode: "Markdown",
-                reply_markup: {
-                  inline_keyboard: [
-                    [{ text: t('btn.try_again', gfLang), callback_data: "image_generate" }],
-                  ],
-                },
-              },
-            );
-          }
-        } catch (error: any) {
-          logger.error("Image generation error:", error);
-          await telegram.sendMessage(chatId, t('msg.image_analyze_failed', ctx.session?.userLang || 'id'));
-        }
-      })();
-
+      await executeImageGeneration(ctx, description, { category, referenceImageUrl, avatarImageUrl, mode, elementSelection, elementAnalysis });
       return;
     }
 

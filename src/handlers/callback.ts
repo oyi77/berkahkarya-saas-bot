@@ -22,6 +22,7 @@ import { handlePromptLibraryCallbacks } from "./callbacks/promptLibrary";
 import { handlePromptsCallback } from "./callbacks/prompts";
 import { handleAccountCallback } from "./callbacks/account";
 import { handleAvatarTalkCallbacks } from "./callbacks/avatar-talk";
+import { handleMediaIntentCallback } from "./callbacks/media-intent";
 
 /**
  * Handle callback queries
@@ -40,6 +41,7 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     // Route in order: more specific before general
 
+    if (await handleMediaIntentCallback(ctx, data)) return;
     if (await handleNavigationCallbacks(ctx, data)) return;
     if (await handleOnboardingCallbacks(ctx, data)) return;
     if (await handleAdminCallbacks(ctx, data)) return;

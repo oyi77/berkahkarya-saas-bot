@@ -134,7 +134,8 @@ export type BotState =
   | "avatar_talk_text"
   | "IMAGE_ELEMENT_SELECTION"
   | "VIDEO_ELEMENT_SELECTION"
-  | "WAITING_BUG_REPORT";
+  | "WAITING_BUG_REPORT"
+  | "MEDIA_INTENT_SELECTION";
 
 // =============================================================================
 // USER TYPES
