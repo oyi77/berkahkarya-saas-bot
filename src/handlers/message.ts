@@ -26,7 +26,7 @@ import {
 import { AvatarService } from "@/services/avatar.service";
 import { ContentAnalysisService } from "@/services/content-analysis.service";
 import { PostAutomationService } from "@/services/postautomation.service";
-import { detectImageElements, renderElementSelectionKeyboard } from "./callbacks/image";
+import { detectImageElements, renderElementSelectionKeyboard, buildElementSelectionMessage } from "./callbacks/image";
 import { generateStoryboard } from "@/services/video-generation.service";
 import { getVideoCreditCost, getImageCreditCostAsync, CUSTOM_DURATION_MIN } from "@/config/pricing";
 import { canUseDailyFree, canUseWelcomeBonus, getNextDailyFreeReset } from "@/config/free-trial";
@@ -596,8 +596,16 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
         logger.warn("Element detection failed (non-fatal):", err);
       }
 
-      // If both character AND product detected, show element selection keyboard
-      if (analysisResult && analysisResult.hasCharacter && analysisResult.hasProduct) {
+      // Always show element selection keyboard when analysis succeeds —
+      // gives user full control over what to preserve (product, character, background).
+      // Default selection is context-aware: product-only shots default to keepProduct=true.
+      if (analysisResult) {
+        const defaultSel = {
+          keepProduct: analysisResult.hasProduct,
+          keepCharacter: analysisResult.hasProduct ? false : analysisResult.hasCharacter,
+          keepBackground: false,
+        };
+
         ctx.session.state = "IMAGE_ELEMENT_SELECTION";
         ctx.session.stateData = {
           ...ctx.session.stateData,
@@ -610,50 +618,30 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
             characterDesc: analysisResult.characterDesc,
             backgroundDesc: analysisResult.backgroundDesc,
           },
-          imageElementSelection: {
-            keepProduct: true,
-            keepCharacter: false,
-            keepBackground: false,
-          },
+          imageElementSelection: defaultSel,
         };
 
         const detected: string[] = [];
-        if (analysisResult.hasCharacter) detected.push('Person/Character');
-        if (analysisResult.hasProduct) detected.push('Product/Object');
+        if (analysisResult.hasCharacter) detected.push('👤 Orang/Model');
+        if (analysisResult.hasProduct) detected.push('📦 Produk/Objek');
+        if (!analysisResult.hasCharacter && !analysisResult.hasProduct) detected.push('🖼️ Gambar');
 
         await ctx.reply(
-          `\ud83c\udfaf *Select what to keep from the reference image*\n\n` +
-          `I detected: ${detected.join(' + ')} in your reference.\n\n` +
-          `Choose which elements to preserve in the output:\n` +
-          `_(tap to toggle, then Generate)_`,
+          buildElementSelectionMessage(analysisResult, analysisResult.characterDesc, analysisResult.productDesc),
           {
             parse_mode: "Markdown",
-            reply_markup: renderElementSelectionKeyboard({
-              keepProduct: true,
-              keepCharacter: false,
-              keepBackground: false,
-            }),
+            reply_markup: renderElementSelectionKeyboard(defaultSel),
           },
         );
         return;
       }
 
-      // Single element type or detection failed — proceed normally
+      // Vision analysis failed — proceed directly without element selection
       ctx.session.state = "IMAGE_GENERATION_WAITING";
       ctx.session.stateData = {
         ...ctx.session.stateData,
         referenceImageUrl: referenceUrl,
         mode: "img2img",
-        // Save analysis if available (single element)
-        ...(analysisResult ? {
-          imageAnalysisResult: {
-            hasProduct: analysisResult.hasProduct,
-            hasCharacter: analysisResult.hasCharacter,
-            productDesc: analysisResult.productDesc,
-            characterDesc: analysisResult.characterDesc,
-            backgroundDesc: analysisResult.backgroundDesc,
-          },
-        } : {}),
       };
 
       await ctx.reply(

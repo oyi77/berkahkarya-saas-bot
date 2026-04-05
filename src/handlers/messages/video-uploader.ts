@@ -131,7 +131,13 @@ export async function handleVideoElementPrecheck(
     const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
     if (analysis.success && analysis.prompt) {
       const elements = detectImageElements(analysis.prompt);
-      if (elements.hasCharacter && elements.hasProduct) {
+      // Always show element selection when analysis succeeds (not just when both types detected)
+      {
+        const defaultSel = {
+          keepProduct: elements.hasProduct,
+          keepCharacter: elements.hasProduct ? false : elements.hasCharacter,
+          keepBackground: false,
+        };
         ctx.session.state = 'VIDEO_ELEMENT_SELECTION';
         ctx.session.videoCreation = {
           ...ctx.session.videoCreation,
@@ -143,21 +149,13 @@ export async function handleVideoElementPrecheck(
             characterDesc: elements.characterDesc,
             backgroundDesc: elements.backgroundDesc,
           },
-          videoElementSelection: {
-            keepProduct: true,
-            keepCharacter: false,
-            keepBackground: false,
-          },
+          videoElementSelection: defaultSel,
         };
         await ctx.reply(
           buildElementSelectionMessage(elements, elements.characterDesc, elements.productDesc),
           {
             parse_mode: 'Markdown',
-            reply_markup: renderElementSelectionKeyboard({
-              keepProduct: true,
-              keepCharacter: false,
-              keepBackground: false,
-            }),
+            reply_markup: renderElementSelectionKeyboard(defaultSel),
           },
         );
         return;
