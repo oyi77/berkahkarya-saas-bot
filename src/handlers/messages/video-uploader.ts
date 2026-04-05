@@ -300,35 +300,41 @@ export async function handleVideoCreationImage(
       const videoSel = ctx.session.videoCreation?.videoElementSelection;
       const videoAnalysis = ctx.session.videoCreation?.videoAnalysisResult;
 
-      let enrichmentText = visionInsights.slice(0, 1500);
+      let enrichmentText = visionInsights.slice(0, 800);
 
       if (videoSel && videoAnalysis) {
         const parts: string[] = [];
         if (videoSel.keepProduct && !videoSel.keepCharacter) {
-          parts.push(`Focus on product: ${videoAnalysis.productDesc}. No person visible.`);
+          // Most common UMKM case: product video, no person
+          const pDesc = (videoAnalysis.productDesc || '').slice(0, 200);
+          parts.push(
+            `Cinematic product video. The subject is this exact product: ${pDesc}.` +
+            ` No person or human in frame. Professional product videography — close-up shots, slow camera reveal, dramatic lighting on the product.`
+          );
         } else if (videoSel.keepCharacter && !videoSel.keepProduct) {
-          parts.push(`Character: ${videoAnalysis.characterDesc}. Keep character consistent.`);
+          const cDesc = (videoAnalysis.characterDesc || '').slice(0, 200);
+          parts.push(`Keep this character consistent throughout: ${cDesc}.`);
         } else if (videoSel.keepProduct && videoSel.keepCharacter) {
-          parts.push(`Product: ${videoAnalysis.productDesc}. Character: ${videoAnalysis.characterDesc}.`);
+          const pDesc = (videoAnalysis.productDesc || '').slice(0, 150);
+          const cDesc = (videoAnalysis.characterDesc || '').slice(0, 150);
+          parts.push(`Product to feature: ${pDesc}. Person/character: ${cDesc}.`);
         }
         if (videoSel.keepBackground) {
-          parts.push(`Background: ${videoAnalysis.backgroundDesc}. Preserve the scene.`);
+          const bgDesc = (videoAnalysis.backgroundDesc || '').slice(0, 150);
+          parts.push(`Preserve this background setting: ${bgDesc}.`);
         }
         if (!videoSel.keepProduct && !videoSel.keepCharacter && !videoSel.keepBackground) {
           // keepNone — skip vision enrichment entirely
           enrichmentText = '';
         } else {
-          enrichmentText = parts.join(' ') || visionInsights.slice(0, 1500);
+          enrichmentText = parts.join(' ');
         }
       }
 
       if (enrichmentText) {
-        enrichedStoryboard = storyboard.map((scene: any, idx: number) => ({
+        enrichedStoryboard = storyboard.map((scene: any) => ({
           ...scene,
-          description:
-            idx === 0
-              ? `${scene.description}. Product context from reference images: ${enrichmentText}`
-              : `${scene.description}. Visual reference: ${enrichmentText.slice(0, 800)}`,
+          description: `${scene.description}. ${enrichmentText}`,
         }));
         logger.info("Storyboard enriched with vision analysis insights");
       }

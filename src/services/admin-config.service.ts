@@ -124,7 +124,7 @@ export class AdminConfigService {
 
     // AI params
     const aiParams: Record<string, number> = {
-      falai_img2img_strength: 0.85,
+      falai_img2img_strength: 0.65,
       falai_inference_steps: 28,
       falai_guidance_scale: 3.5,
       falai_ip_adapter_scale: 0.7,

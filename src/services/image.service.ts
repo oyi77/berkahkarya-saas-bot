@@ -250,12 +250,14 @@ async function generateViaFalaiImg2Img(
   if (!imageUrl)
     throw new Error("Fal.ai img2img: no reference image URL provided");
 
+  const negativePrompt = (params as any)._negativePrompt as string | undefined;
   const response = await axios.post(
     "https://fal.run/fal-ai/flux/dev/image-to-image",
     {
       prompt,
       image_url: imageUrl,
       strength: (params as any)._elementStrengthOverride ?? await AdminConfigService.getAiParam('falai_img2img_strength', 0.75),
+      ...(negativePrompt ? { negative_prompt: negativePrompt.replace(/^,\s*/, '') } : {}),
       image_size:
         params.aspectRatio === "16:9"
           ? "landscape_16_9"
@@ -1312,11 +1314,11 @@ export class ImageGenerationService {
         );
         if (analysis.success && analysis.prompt) {
           // Merge reference image analysis with user prompt.
-          // Keep character descriptions (clothing, appearance) but frame as style reference.
+          // Frame as product/subject reference so AI preserves the subject identity.
           const refAnalysis = analysis.prompt;
           visionEnrichedPrompt =
             refAnalysis.length > 20
-              ? `${params.prompt}. Reference style and character: ${refAnalysis}`
+              ? `${params.prompt}. Reference subject/product appearance: ${refAnalysis}`
               : params.prompt;
           logger.info(
             `🖼️ Style enrichment added (${refAnalysis.length} chars)`,
@@ -1345,25 +1347,33 @@ export class ImageGenerationService {
         params = { ...params, mode: "text2img", referenceImageUrl: undefined, referenceImagePath: undefined };
         logger.info("🎯 Element selection: keepNone — switching to text2img");
       } else if (sel.keepProduct && !sel.keepCharacter && !sel.keepBackground) {
-        visionEnrichedPrompt = `${params.prompt}. Preserve exact product: ${ea.productDesc}. New scene/background as described.`;
-        elementStrengthOverride = 0.90;
-        logger.info("🎯 Element selection: keepProduct only");
+        // Most common UMKM case: preserve product, change background/scene
+        // NOTE: strength ~0.55 = enough noise to follow prompt for background,
+        // low enough to preserve product shape/colors from reference.
+        const productRef = ea.productDesc ? ` Exact product to preserve: ${ea.productDesc}.` : '';
+        visionEnrichedPrompt = `Keep the product exactly as shown in the reference image.${productRef} ${params.prompt}. Change only the background and scene as described. Do not alter the product itself.`;
+        elementStrengthOverride = 0.55;
+        (params as any)._negativePrompt = ((params as any)._negativePrompt || '') + ', person, human, model, hands, body';
+        logger.info("🎯 Element selection: keepProduct only (strength=0.55)");
       } else if (sel.keepCharacter && !sel.keepProduct && !sel.keepBackground) {
-        visionEnrichedPrompt = `${params.prompt}. Preserve character appearance: ${ea.characterDesc}.`;
-        elementStrengthOverride = 0.85;
-        logger.info("🎯 Element selection: keepCharacter only");
+        const charRef = ea.characterDesc ? ` Character appearance to preserve: ${ea.characterDesc}.` : '';
+        visionEnrichedPrompt = `Preserve the person/character appearance from the reference.${charRef} ${params.prompt}.`;
+        elementStrengthOverride = 0.65;
+        logger.info("🎯 Element selection: keepCharacter only (strength=0.65)");
       } else if (sel.keepProduct && sel.keepCharacter && !sel.keepBackground) {
-        visionEnrichedPrompt = `${params.prompt}. Preserve product: ${ea.productDesc}. Preserve character: ${ea.characterDesc}. Change background.`;
-        elementStrengthOverride = 0.85;
-        logger.info("🎯 Element selection: keepProduct + keepCharacter");
+        const refs = [ea.productDesc && `Product: ${ea.productDesc}`, ea.characterDesc && `Character: ${ea.characterDesc}`].filter(Boolean).join('. ');
+        visionEnrichedPrompt = `Keep both the product and person from the reference. ${refs}. ${params.prompt}. Change only the background.`;
+        elementStrengthOverride = 0.60;
+        logger.info("🎯 Element selection: keepProduct + keepCharacter (strength=0.60)");
       } else if (sel.keepBackground && !sel.keepProduct && !sel.keepCharacter) {
-        visionEnrichedPrompt = `${params.prompt}. Preserve background scene: ${ea.backgroundDesc}.`;
-        elementStrengthOverride = 0.75;
-        logger.info("🎯 Element selection: keepBackground only");
+        const bgRef = ea.backgroundDesc ? ` Background to preserve: ${ea.backgroundDesc}.` : '';
+        visionEnrichedPrompt = `Preserve the background scene from the reference.${bgRef} ${params.prompt}.`;
+        elementStrengthOverride = 0.50;
+        logger.info("🎯 Element selection: keepBackground only (strength=0.50)");
       } else {
-        // keepAll or other combos — use full vision enrichment (current behavior)
-        elementStrengthOverride = 0.80;
-        logger.info("🎯 Element selection: keepAll/multi — using full enrichment");
+        // keepAll or other combos
+        elementStrengthOverride = 0.55;
+        logger.info("🎯 Element selection: keepAll/multi (strength=0.55)");
       }
 
       // Store strength override for downstream providers
