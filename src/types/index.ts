@@ -41,6 +41,9 @@ export interface SessionData {
     visionAnalysis?: string;
     enableVO?: boolean;
     enableSubtitles?: boolean;
+    pendingPhotos?: Array<{ fileId: string; localPath?: string }>;
+    videoElementSelection?: { keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean };
+    videoAnalysisResult?: { hasProduct: boolean; hasCharacter: boolean; productDesc: string; characterDesc: string; backgroundDesc: string };
   };
   videoCreationNew?: {
     step: number;
@@ -130,6 +133,7 @@ export type BotState =
   | "avatar_talk_photo"
   | "avatar_talk_text"
   | "IMAGE_ELEMENT_SELECTION"
+  | "VIDEO_ELEMENT_SELECTION"
   | "WAITING_BUG_REPORT";
 
 // =============================================================================

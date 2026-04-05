@@ -339,8 +339,8 @@ export async function handleVideoCallbacks(ctx: BotContext, data: string): Promi
       return true;
     }
 
-    const { handleVideoCreationImage } = await import("../message.js");
-    await handleVideoCreationImage(ctx, uploadedPhotos);
+    const { handleVideoElementPrecheck } = await import("../message.js");
+    await handleVideoElementPrecheck(ctx, uploadedPhotos);
     return true;
   }
 

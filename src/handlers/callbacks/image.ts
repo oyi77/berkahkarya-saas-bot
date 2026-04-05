@@ -516,6 +516,24 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
   // imgelem_* — element selection toggles
   if (data === "imgelem_product" || data === "imgelem_character" || data === "imgelem_background") {
     await ctx.answerCbQuery();
+
+    // Video context: update videoCreation.videoElementSelection
+    if (ctx.session.state === 'VIDEO_ELEMENT_SELECTION') {
+      const vsel = ctx.session.videoCreation?.videoElementSelection ||
+        { keepProduct: true, keepCharacter: false, keepBackground: false };
+      if (data === "imgelem_product") vsel.keepProduct = !vsel.keepProduct;
+      if (data === "imgelem_character") vsel.keepCharacter = !vsel.keepCharacter;
+      if (data === "imgelem_background") vsel.keepBackground = !vsel.keepBackground;
+      ctx.session.videoCreation = { ...ctx.session.videoCreation, videoElementSelection: vsel };
+      const videoAnalysis = ctx.session.videoCreation?.videoAnalysisResult as { hasCharacter: boolean; hasProduct: boolean } | undefined;
+      await ctx.editMessageText(
+        buildElementSelectionMessage(videoAnalysis || { hasCharacter: true, hasProduct: true }),
+        { parse_mode: "Markdown", reply_markup: renderElementSelectionKeyboard(vsel) },
+      );
+      return true;
+    }
+
+    // Image context
     const sel = (ctx.session.stateData?.imageElementSelection as {
       keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean;
     }) || { keepProduct: true, keepCharacter: false, keepBackground: false };
@@ -537,9 +555,20 @@ export async function handleImageCallbacks(ctx: BotContext, data: string): Promi
     return true;
   }
 
-  // imgelem_confirm — proceed to prompt entry with element selection saved
+  // imgelem_confirm — proceed with element selection saved
   if (data === "imgelem_confirm") {
     await ctx.answerCbQuery();
+
+    // Video context: proceed to video creation with saved element selection
+    if (ctx.session.state === 'VIDEO_ELEMENT_SELECTION') {
+      const { handleVideoCreationImage } = await import('../message.js');
+      const pendingPhotos = ctx.session.videoCreation?.pendingPhotos || [];
+      ctx.session.state = 'DASHBOARD';
+      await handleVideoCreationImage(ctx, pendingPhotos);
+      return true;
+    }
+
+    // Image context
     const lang = ctx.session?.userLang || 'id';
     const sel = (ctx.session.stateData?.imageElementSelection as {
       keepProduct: boolean; keepCharacter: boolean; keepBackground: boolean;

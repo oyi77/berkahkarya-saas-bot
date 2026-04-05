@@ -4,8 +4,8 @@
  * Handles all incoming messages
  */
 
-import { handleDisassemble, handleVideoCreationImage, handleSkipImageReference } from "./messages/video-uploader";
-export { handleDisassemble, handleVideoCreationImage, handleSkipImageReference };
+import { handleDisassemble, handleVideoCreationImage, handleSkipImageReference, handleVideoElementPrecheck } from "./messages/video-uploader";
+export { handleDisassemble, handleVideoCreationImage, handleSkipImageReference, handleVideoElementPrecheck };
 import { BotContext } from "@/types";
 import { logger } from "@/utils/logger";
 import { videosCommand } from "@/commands/videos";

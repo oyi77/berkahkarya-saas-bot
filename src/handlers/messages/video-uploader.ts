@@ -10,6 +10,7 @@ import { getVideoCreditCost } from "@/config/pricing";
 import { generateVideoAsync, generateExtendedVideoAsync } from "@/commands/create";
 import { actionableError } from "@/utils/errors";
 import { t } from "@/i18n/translations";
+import { detectImageElements, renderElementSelectionKeyboard, buildElementSelectionMessage } from "../callbacks/image";
 import * as fs from "fs";
 import * as path from "path";
 import { execFile as execFileCallback } from "child_process";
@@ -97,6 +98,59 @@ export async function handleDisassemble(ctx: BotContext): Promise<void> {
     const lang2 = dbUser2?.language || 'id';
     await ctx.reply(t('uploader.analysis_failed', lang2));
   }
+}
+
+export async function handleVideoElementPrecheck(
+  ctx: BotContext,
+  uploadedPhotos: Array<{ fileId: string; localPath?: string }>,
+): Promise<void> {
+  if (uploadedPhotos.length === 0) {
+    await handleVideoCreationImage(ctx, uploadedPhotos);
+    return;
+  }
+
+  try {
+    const photoUrl = (await ctx.telegram.getFileLink(uploadedPhotos[0].fileId)).toString();
+    const analysis = await ContentAnalysisService.extractPrompt(photoUrl, 'image');
+    if (analysis.success && analysis.prompt) {
+      const elements = detectImageElements(analysis.prompt);
+      if (elements.hasCharacter && elements.hasProduct) {
+        ctx.session.state = 'VIDEO_ELEMENT_SELECTION';
+        ctx.session.videoCreation = {
+          ...ctx.session.videoCreation,
+          pendingPhotos: uploadedPhotos,
+          videoAnalysisResult: {
+            hasProduct: elements.hasProduct,
+            hasCharacter: elements.hasCharacter,
+            productDesc: elements.productDesc,
+            characterDesc: elements.characterDesc,
+            backgroundDesc: elements.backgroundDesc,
+          },
+          videoElementSelection: {
+            keepProduct: true,
+            keepCharacter: false,
+            keepBackground: false,
+          },
+        };
+        await ctx.reply(
+          buildElementSelectionMessage(elements),
+          {
+            parse_mode: 'Markdown',
+            reply_markup: renderElementSelectionKeyboard({
+              keepProduct: true,
+              keepCharacter: false,
+              keepBackground: false,
+            }),
+          },
+        );
+        return;
+      }
+    }
+  } catch (err) {
+    logger.warn('Video element precheck failed (non-fatal), proceeding directly');
+  }
+
+  await handleVideoCreationImage(ctx, uploadedPhotos);
 }
 
 export async function handleVideoCreationImage(
@@ -227,14 +281,41 @@ export async function handleVideoCreationImage(
     // Enrich storyboard scenes with vision analysis insights
     let enrichedStoryboard = storyboard;
     if (visionInsights && storyboard && storyboard.length > 0) {
-      enrichedStoryboard = storyboard.map((scene: any, idx: number) => ({
-        ...scene,
-        description:
-          idx === 0
-            ? `${scene.description}. Product context from reference images: ${visionInsights.slice(0, 1500)}`
-            : `${scene.description}. Visual reference: ${visionInsights.slice(0, 800)}`,
-      }));
-      logger.info("Storyboard enriched with vision analysis insights");
+      const videoSel = ctx.session.videoCreation?.videoElementSelection;
+      const videoAnalysis = ctx.session.videoCreation?.videoAnalysisResult;
+
+      let enrichmentText = visionInsights.slice(0, 1500);
+
+      if (videoSel && videoAnalysis) {
+        const parts: string[] = [];
+        if (videoSel.keepProduct && !videoSel.keepCharacter) {
+          parts.push(`Focus on product: ${videoAnalysis.productDesc}. No person visible.`);
+        } else if (videoSel.keepCharacter && !videoSel.keepProduct) {
+          parts.push(`Character: ${videoAnalysis.characterDesc}. Keep character consistent.`);
+        } else if (videoSel.keepProduct && videoSel.keepCharacter) {
+          parts.push(`Product: ${videoAnalysis.productDesc}. Character: ${videoAnalysis.characterDesc}.`);
+        }
+        if (videoSel.keepBackground) {
+          parts.push(`Background: ${videoAnalysis.backgroundDesc}. Preserve the scene.`);
+        }
+        if (!videoSel.keepProduct && !videoSel.keepCharacter && !videoSel.keepBackground) {
+          // keepNone — skip vision enrichment entirely
+          enrichmentText = '';
+        } else {
+          enrichmentText = parts.join(' ') || visionInsights.slice(0, 1500);
+        }
+      }
+
+      if (enrichmentText) {
+        enrichedStoryboard = storyboard.map((scene: any, idx: number) => ({
+          ...scene,
+          description:
+            idx === 0
+              ? `${scene.description}. Product context from reference images: ${enrichmentText}`
+              : `${scene.description}. Visual reference: ${enrichmentText.slice(0, 800)}`,
+        }));
+        logger.info("Storyboard enriched with vision analysis insights");
+      }
     }
 
     // Store vision analysis in session for potential later use
