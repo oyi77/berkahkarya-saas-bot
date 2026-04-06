@@ -83,36 +83,29 @@ export async function handleOnboardingCallbacks(ctx: BotContext, data: string): 
   if (data === "onboard_claim_trial") {
     await ctx.answerCbQuery();
     const lang = ctx.session?.userLang || 'id';
+
+    // Build persona-filtered niche picker
+    const { getPersonaForUser, isNicheAllowedForPersona } = await import('@/config/personas.js');
+    const { NICHE_CONFIG } = await import('@/config/niches.js');
+    const userMode = (ctx.session?.stateData?.selectedUserMode as string) || ctx.session?.userMode || 'content_creator';
+    const persona = getPersonaForUser(userMode);
+    const allowedNiches = Object.entries(NICHE_CONFIG).filter(([k]) => isNicheAllowedForPersona(persona, k));
+
+    const nicheRows: Array<Array<{ text: string; callback_data: string }>> = [];
+    for (let i = 0; i < allowedNiches.length; i += 2) {
+      nicheRows.push(
+        allowedNiches.slice(i, i + 2).map(([k, v]) => ({
+          text: `${v.emoji} ${v.name}`,
+          callback_data: `onboard_niche_${k}`,
+        }))
+      );
+    }
+
     await ctx.editMessageText(
       t('cb.onboard_trial_claimed', lang),
       {
         parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "🍔 F&B", callback_data: "onboard_niche_fnb" },
-              { text: "👗 Fashion", callback_data: "onboard_niche_fashion" },
-            ],
-            [
-              { text: "💻 Tech", callback_data: "onboard_niche_tech" },
-              { text: "✈️ Travel", callback_data: "onboard_niche_travel" },
-            ],
-            [
-              {
-                text: "🎓 Education",
-                callback_data: "onboard_niche_education",
-              },
-              { text: "💰 Finance", callback_data: "onboard_niche_finance" },
-            ],
-            [
-              { text: "🏥 Health", callback_data: "onboard_niche_health" },
-              {
-                text: "🎬 Entertainment",
-                callback_data: "onboard_niche_entertainment",
-              },
-            ],
-          ],
-        },
+        reply_markup: { inline_keyboard: nicheRows },
       },
     );
     return true;
