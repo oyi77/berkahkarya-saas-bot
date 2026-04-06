@@ -2676,12 +2676,14 @@ You are an expert system administrator and architect for this platform. Give spe
   });
 
   // ── Persona Management ──
-  server.get('/api/personas', async () => {
+  server.get('/api/personas', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
     const { getPersonasAsync } = await import('../config/personas.js');
     return getPersonasAsync();
   });
 
   server.post('/api/personas', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
     const body = request.body as {
       id: string;
       allowedNiches?: string[] | string;
@@ -2697,7 +2699,8 @@ You are an expert system administrator and architect for this platform. Give spe
     return { success: true };
   });
 
-  server.get('/admin/personas', async (_req, reply) => {
+  server.get('/admin/personas', async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
     const { getPersonasAsync } = await import('../config/personas.js');
     const { NICHE_IDS } = await import('../config/niches.js');
     const personas = await getPersonasAsync();

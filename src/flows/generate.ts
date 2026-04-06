@@ -29,8 +29,7 @@ import { getConfig } from '@/config/env';
 import { getCorrelationId } from '@/utils/correlation';
 import { sendAdminAlert } from '@/services/admin-alert.service';
 import type { DurationPreset } from '@/config/hpas-engine';
-import { getPersonaForUser, isPresetAllowedForPersona, isNicheAllowedForPersona } from '@/config/personas';
-import { NICHE_CONFIG } from '@/config/niches';
+import { getPersonaForUser, isPresetAllowedForPersona } from '@/config/personas';
 
 const execFileAsync = promisify(execFile);
 const VIDEO_DIR = getConfig().VIDEO_DIR;
@@ -762,6 +761,15 @@ export async function showGenerateMode(ctx: BotContext): Promise<void> {
       if (!ctx.session.generateProductDesc || !fromLibrary) {
         delete ctx.session.generateProductDesc;
       }
+    }
+
+    // Cache userMode for persona-aware filtering downstream
+    if (ctx.session && !ctx.session.userMode) {
+      try {
+        const { UserService } = await import('@/services/user.service.js');
+        const u = await UserService.findByTelegramId(BigInt(ctx.from!.id));
+        ctx.session.userMode = u?.userMode || 'content_creator';
+      } catch { ctx.session.userMode = 'content_creator'; }
     }
 
     const lang = ctx.session?.userLang || 'id';

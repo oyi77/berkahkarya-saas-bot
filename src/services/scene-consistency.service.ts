@@ -40,6 +40,7 @@ const NICHE_MOOD_MAP: Record<string, string> = {
   cinematic: 'dramatic and cinematic',
   anime: 'vibrant and stylized',
   music_video: 'energetic and rhythmic',
+  entertainment: 'vibrant and exciting',
   // Fallback keys used in the simpler NICHES map from video-generation service
   trading: 'analytical and focused',
   fitness: 'energetic and powerful',

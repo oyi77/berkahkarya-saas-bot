@@ -322,6 +322,31 @@ export const NICHE_CONFIG: Record<string, NicheConfig> = {
     keywords: ['rhythm', 'beat', 'music', 'performance', 'visual'],
     colorPalettes: ['neon glow', 'concert lights', 'retro', 'high energy'],
   },
+  entertainment: {
+    id: 'entertainment',
+    name: 'Entertainment',
+    emoji: '🎭',
+    defaultAspectRatio: '9:16',
+    sceneTemplates: {
+      intro: [
+        'vibrant opener showcasing {product} with bold energy',
+        'high-energy reveal of {product} in entertainment context',
+        'crowd-stopping visual with {product} as centerpiece',
+      ],
+      body: [
+        'exciting action sequence featuring {product}',
+        'entertaining moment with {product} in spotlight',
+        'bold visual story built around {product}',
+      ],
+      outro: [
+        'memorable finale with {product} center stage',
+        'exciting close featuring {product}',
+        'energetic end card with {product}',
+      ],
+    },
+    keywords: ['vibrant', 'exciting', 'bold', 'entertaining', 'dynamic'],
+    colorPalettes: ['vibrant', 'neon', 'bold contrast', 'electric'],
+  },
 };
 
 export const NICHE_LIST = Object.values(NICHE_CONFIG);
