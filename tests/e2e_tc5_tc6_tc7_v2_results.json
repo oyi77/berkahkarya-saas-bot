@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-04-04T20:48:59.079686",
+  "user": "codergaboets",
+  "summary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2
+  },
+  "results": [
+    {
+      "tc": "TC5-i2t",
+      "status": "FAIL",
+      "msg": "i2t: GENERIC template returned \u2014 OmniRoute vision NOT working",
+      "actual": "\u2705 **Prompt Extracted:**\n\n```Professional commercial product photography: subject positioned using rule-of-thirds, warm key light from 45\u00b0 upper-left with soft fill, rim light on edges for separation. Color palette: warm neutrals (cream, beige) with one accent color. Shot on 85mm f/1.8 lens, shallow depth of field with creamy bokeh background. Surface: clean matte backdrop or lifestyle setting. Pos"
+    },
+    {
+      "tc": "TC6-v2t",
+      "status": "PASS",
+      "msg": "v2t: real video description returned (OmniRoute Gemini working)",
+      "actual": "\u2705 **Prompt Extracted:**\n\n```Dynamic marketing video: opening hook shot (2s) with bold text overlay and dramatic zoom-in on product, problem scene (3s) showing pain point with desaturated color grade, solution reveal (4s) with product hero shot and warm lighting transition, social proof scene (3s) with testimonial text animation, CTA closing (3s) with brand colors and urgency text. Pacing: 2-3 cuts"
+    },
+    {
+      "tc": "TC7-v2v",
+      "status": "FAIL",
+      "msg": "v2v: 403 Forbidden \u2014 OmniRoute Gemini video analysis broken",
+      "actual": "\u274c **Analysis Failed**\n\nError: Request failed with status code 403"
+    }
+  ]
+}

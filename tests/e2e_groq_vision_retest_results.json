@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-04-05T01:19:08.257506",
+  "user": "codergaboets",
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0
+  },
+  "results": [
+    {
+      "tc": "TC5-i2t",
+      "status": "PASS",
+      "msg": "Real image description returned \u2014 vision fallback WORKING",
+      "actual": "\u2705 **Prompt Extracted:**\n\n```The main subject of the image is a young Asian woman holding a bottle of Flosia laundry detergent. The bottle is made of plastic, has a distinctive purple color with a white and purple label featuring a flower design, and appears to have a flip-top cap. The label displays the brand name \"Flosia\" in red text, accompanied by the word \"Detergen\" in smaller blue text underneath, as well as some additional text and logos. The woman has long, dark brown hair and is wearing ",
+      "pm2": "\u001b[32m4|berkahka | \u001b[39m2026-04-05 01:12:22: {\"correlationId\":\"5220170786-1775326218628\",\"environment\":\"production\",\"level\":\"\\u001b[33mwarn\\u001b[39m\",\"message\":\"OmniRoute vision (base64) returned empty: timeout of 60000ms exceeded\",\"service\":\"openclaw-bot\",\"timestamp\":\"2026-04-05 01:12:22\"}\n\u001b[32m4|b"
+    },
+    {
+      "tc": "TC6-v2t",
+      "status": "PASS",
+      "msg": "Real video description returned \u2014 vision fallback WORKING",
+      "actual": "\u2705 **Prompt Extracted:**\n\n```**Analysis of the Video Frame**\n\n### 1. Characters/People\n\n*   **Appearance:** A single, silhouetted figure of a man is visible, standing on a mountain peak. His facial features are not discernible due to the backlighting from the sun.\n*   **Clothing:** The man appears to be wearing casual clothing, but the exact details are not clear due to the silhouette effect.\n*   **Expression:** The man's expression cannot be seen as his face is not illuminated.\n*   **Role:** The",
+      "pm2": "\u001b[32m4|berkahka | \u001b[39m2026-04-05 01:12:22: {\"correlationId\":\"5220170786-1775326218628\",\"environment\":\"production\",\"level\":\"\\u001b[33mwarn\\u001b[39m\",\"message\":\"OmniRoute vision (base64) returned empty: timeout of 60000ms exceeded\",\"service\":\"openclaw-bot\",\"timestamp\":\"2026-04-05 01:12:22\"}\n\u001b[32m4|b"
+    },
+    {
+      "tc": "TC7-v2v",
+      "status": "PASS",
+      "msg": "Video analysis completed, clone initiated",
+      "actual": "\ud83d\udccb **Video Analysis Result**\n\n**Style:** \n\n**Description:**\nAnalysis of the Video Frame\n\n1. Characters/People:\n There is one person in the frame, a male figure.\n Appearance: The figure is silhouetted against the bright sun, making it difficult to discern specific features. He appears to be wearing casual clothing, possibly a t-shirt and pants.\n Expression: The figure's expression is not visible due to the silhouette.\n Role: The figure appears to be the main subject of the scene, possibly represen",
+      "pm2": "\u001b[32m4|berkahka | \u001b[39m2026-04-05 01:12:24: {\"correlationId\":\"5220170786-1775326218628\",\"environment\":\"production\",\"level\":\"\\u001b[32minfo\\u001b[39m\",\"message\":\"Groq vision succeeded for image\",\"service\":\"openclaw-bot\",\"timestamp\":\"2026-04-05 01:12:24\"}\n\u001b[32m4|berkahka | \u001b[39m2026-04-05 01:14:32: {\""
+    }
+  ]
+}

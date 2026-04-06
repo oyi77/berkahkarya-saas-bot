@@ -1,0 +1,70 @@
+Ralph Session: Final Gaps Batch — 100% Completion
+Started: 2026-04-03
+Completed: 2026-04-03
+Plan: .omc/plans/gap-fixes-2026-04-03.md (plus GAP_ANALYSIS_2026-04-01.md)
+Status: COMPLETE — Architect APPROVED, deslop pass done, build clean
+
+## Stories completed
+
+US-001 — Fix handleTopupExtraCredit to use enabled gateways
+  File: src/commands/topup.ts:381
+  Pattern: PaymentSettingsService.getEnabledGateways() replaces hardcoded [{id:'duitku'}] array
+  Behavior: if no gateways, shows 'No payment methods available'; if duitku not enabled, shows unavailable
+
+US-002 — Localize campaign completion notifications
+  Files: src/workers/video-generation.worker.ts:995,1004 + src/i18n/translations.ts
+  Pattern: t('gen.campaign_done_single', lang, {count, total}) and t('gen.campaign_done_all', lang, {total})
+  4 languages: id/en/ru/zh
+
+US-003 — Implement bug report forwarding to admin
+  Files: src/handlers/callbacks/promptLibrary.ts:379-394, src/handlers/message.ts:1302-1313
+  Pattern: report_bug sets state=WAITING_BUG_REPORT; message handler forwards to ADMIN_TELEGRAM_IDS
+  New type: BotState union includes 'WAITING_BUG_REPORT' in types/index.ts
+
+US-004 — Duration validation unified to 6-300s
+  File: src/handlers/message.ts:236 (was already 300, confirmed matching create.ts)
+
+US-005 — Scene review truncation: 60→200 chars
+  File: src/flows/generate.ts:1291
+  Change: .slice(0,60)... → .slice(0,200)${length>200?'...':''}
+
+US-006 — Remove account menu dead-end 'coming soon' stubs
+  File: src/handlers/callbacks/settings.ts:32-35
+  Removed: account_favorites and account_preferences dead handlers
+  Fixed: account_settings now reassigns data='open_settings' and falls through
+
+US-007 — /faq route and FAQ page
+  Files: src/routes/web.ts:103-106 (GET /faq), src/views/web/faq.ejs (new)
+  Linked: landing.ejs footer, app.ejs sidebar footer
+  Content: 5 accordion sections — videos, pricing, payments, referral, account
+
+US-008 — Video expiry warnings in retention worker
+  Files: src/workers/retention.worker.ts:324-361 (checkType7VideoExpiry static method)
+  Pattern: queries Video where expiresAt gt now lte now+3d, groups by user, sends warning
+  Translation key: retention.video_expiry_warning in 4 languages
+
+US-009 — Referral commission explanation (already implemented, verified)
+
+US-010 — i18n: Video list + support buttons (already used t(), added translation keys)
+  Files: src/i18n/translations.ts — added videos.found_count, btn.chat_support, btn.view_tutorial
+
+US-011 — i18n: Scene prompts use user language (already implemented, verified)
+
+US-012 — i18n: Fallback chain en before id (already implemented, verified)
+
+US-013 — Credit race condition: deduct after enqueue
+  File: src/flows/generate.ts:513-534
+  Pattern: enqueueVideoGeneration() first → deductCredits() after → if deduct fails, remove job
+
+## Deslop changes
+  - Removed 6 inline comments that restated the line below them
+  - topup.ts, video-generation.worker.ts, promptLibrary.ts, settings.ts, retention.worker.ts
+
+## Verification
+  - npm run build: CLEAN (0 errors)
+  - Architect: APPROVED (US-005 re-verified after fix)
+  - Post-deslop regression: CLEAN
+
+## Previously completed sessions
+  See .omc/plans/medium-gaps-batch2-2026-04-03.md for US-001..US-005 from Medium Gaps Batch 2
+  See .omc/plans/gap-fixes-2026-04-03.md for Welcome Bonus, Rollover, Agency API, Stars, Talking Photo

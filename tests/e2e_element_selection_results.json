@@ -1,0 +1,32 @@
+{
+  "passed": 5,
+  "total": 5,
+  "results": [
+    {
+      "tc": "TC1",
+      "status": "PASS",
+      "detail": "Loading msg: '\ud83d\udd0d __Menganalisis gambar...__'"
+    },
+    {
+      "tc": "TC2",
+      "status": "PASS",
+      "detail": "Buttons: ['\u2705 Produk/Objek', '\u2610 Orang/Model', '\u2610 Background/Scene', '\u2728 Generate \u2192', '\u23ed\ufe0f Lewati']"
+    },
+    {
+      "tc": "TC3",
+      "status": "PASS",
+      "detail": "Produk='\u2705 Produk/Objek', Orang='\u2610 Orang/Model'"
+    },
+    {
+      "tc": "TC4",
+      "status": "PASS",
+      "detail": "After skip: '\u270f\ufe0f **Describe the Image You Want**\\n\\ne.g.: __\"premium perfume'"
+    },
+    {
+      "tc": "TC5",
+      "status": "PASS",
+      "detail": "After Generate: '\u270f\ufe0f **Describe the Image You Want**\\n\\ne.g.: __\"premium perfume'"
+    }
+  ],
+  "timestamp": "2026-04-05T22:53:49Z"
+}

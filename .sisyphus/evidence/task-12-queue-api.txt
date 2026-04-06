@@ -1,0 +1,49 @@
+# Task 12 - Queue API Implementation Evidence
+
+## Date: 2026-04-02
+
+## Task Summary
+Added admin queue management API endpoints to `src/routes/admin.ts`:
+- `POST /api/queue/retry/:jobId` — retry a failed job
+- `POST /api/queue/clean` — clean completed/failed jobs older than 24h
+
+## Files Modified
+- `src/routes/admin.ts` - Added queue management endpoints and helper function
+
+## Changes Made
+1. Added import for additional queue instances (`paymentQueue`, `notificationQueue`, `cleanupQueue`)
+2. Added `getQueueByName()` helper function to retrieve queue by name
+3. Added `/api/queue/retry/:jobId` endpoint - retries a failed job
+4. Added `/api/queue/clean` endpoint - cleans completed/failed jobs older than 24h
+5. Added `/api/queue/` to admin auth route check
+
+## Implementation Details
+- **Retry endpoint**: Uses BullMQ's `job.retry()` method to retry a failed job
+- **Clean endpoint**: Uses BullMQ's `queue.clean()` method to remove completed/failed jobs older than specified hours (default 24h)
+- Both endpoints require admin authentication (Basic auth or cookie)
+- Optional `queue` query/body param to specify which queue (video, payment, notification, cleanup)
+
+## TypeScript Type Check
+```
+npm run typecheck 2>&1 | grep "^src/" || echo "0 source errors"
+```
+Result: **0 source errors** ✓
+
+## Endpoints Added
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/queue/retry/:jobId` | Retry a failed job by ID |
+| POST | `/api/queue/clean` | Clean old completed/failed jobs |
+
+## Test Commands (Manual Verification)
+```bash
+# Retry a failed job
+curl -X POST "https://your-domain.com/api/queue/retry/123?queue=video" \
+  -H "Authorization: Basic admin:password"
+
+# Clean old jobs (default 24h)
+curl -X POST "https://your-domain.com/api/queue/clean" \
+  -H "Authorization: Basic admin:password" \
+  -H "Content-Type: application/json" \
+  -d '{"queue": "video", "olderThanHours": 24}'
+```

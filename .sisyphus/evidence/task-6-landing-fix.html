@@ -1,0 +1,81 @@
+# Task 6: Landing Page Fixes - Evidence
+
+## Verification Results
+
+### 1. "60 detik" Time Claim Fixed ✅
+
+**Before:** "Video Iklan Viral dalam 60 Detik" (misleading - implied generation took 60 seconds)
+**After:** "Video Iklan Viral (Durasi hingga 60 Detik)" (accurate - video duration up to 60 seconds)
+
+**Files Modified:**
+- `/src/views/web/landing.ejs`
+
+**Changes Made:**
+- Line 7: Title updated from "dalam 60 Detik" to "(Durasi hingga 60 Detik)"
+- Line 10: OG title updated to match
+- Line 16: Twitter description updated
+- Line 1100: H1 hero title updated
+- Line 1614: proof_time_label changed from "Generate Time" to "Video Duration"
+- Line 1227: showcase-desc text updated
+- Lines 1746-1752: i18n translations updated for all 4 languages (ID, EN, RU, ZH)
+
+**i18n Translations Updated:**
+- ID: proof_time_label: 'Video Duration' (was 'Generate Time')
+- EN: proof_time_label: 'Video Duration' (was 'Generate Time')
+- RU: proof_time_label: 'Длительность видео' (was 'Время генерации')
+- ZH: proof_time_label: '视频时长' (was '生成时间')
+
+### 2. Duplicate Language Toggle Removed ✅
+
+**Before:** Both `<select>` dropdown AND `<button>` element for language toggle
+**After:** Only `<select id="lang-switch">` dropdown remains
+
+**Changes Made:**
+- Removed `<button class="lang-switcher" id="langBtn">EN</button>` from nav
+- Cleaned up orphaned JavaScript code referencing `langBtn` (function toggleLanguage and related DOMContentLoaded listeners)
+
+**Verification:**
+```bash
+$ grep -c 'id="langBtn"' src/views/web/landing.ejs
+0  # button no longer exists
+
+$ grep -c 'lang-switch' src/views/web/landing.ejs
+1  # select dropdown exists
+```
+
+### 3. Web App CTA Added ✅
+
+**Location:** Navigation bar (line 1088)
+
+**HTML:**
+```html
+<a href="/app" class="btn btn-secondary" onclick="trackCTA('cta_webapp_click')" data-i18n="cta_webapp">Coba Web App</a>
+```
+
+**Verification:**
+```bash
+$ grep -c 'href="/app"' src/views/web/landing.ejs
+1  # web app CTA exists
+```
+
+## TypeScript Check
+
+```bash
+$ npm run typecheck 2>&1 | grep -E "^src/" | head -20
+# No errors in src/ directory
+```
+
+## Summary
+
+| Requirement | Status |
+|-------------|--------|
+| "60 detik" time claim fixed | ✅ |
+| Duplicate button removed | ✅ |
+| Web app CTA added (/app) | ✅ |
+| Only select dropdown remains | ✅ |
+| TypeScript passes (src/) | ✅ |
+
+**Modified Files:**
+- `/src/views/web/landing.ejs`
+
+**Date:** 2026-04-02

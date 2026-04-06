@@ -1,0 +1,51 @@
+# Task 13 - Welcome Message Override - Evidence
+
+## Status: ALREADY IMPLEMENTED ✓
+
+The welcome message configurable via PricingConfig feature was already fully implemented in the codebase.
+
+### Evidence
+
+#### 1. src/commands/start.ts (lines 104-110)
+```typescript
+// Send reply keyboard (persistent bottom bar)
+const customWelcome = await PaymentSettingsService.getPricingConfig(
+  "system",
+  "welcome_message",
+);
+const welcomeText =
+  customWelcome ||
+  `${t("menu.hello", lang, { name: user.first_name })}\n\n${credEmoji} ${t("menu.credits_label", lang)}: *${credBal}*\n\n${t("menu.today_question", lang)}`;
+```
+
+#### 2. src/routes/admin.ts (lines 1904-1915)
+```typescript
+// ── WELCOME MESSAGE OVERRIDE ──
+server.post("/api/admin/welcome-message", async (request, reply) => {
+  await verifyAdmin(request, reply);
+  const { message } = request.body as { message?: string };
+  if (!message) return reply.status(400).send({ error: "Message required" });
+  await PaymentSettingsService.setPricingConfig(
+    "system",
+    "welcome_message",
+    message,
+  );
+  return { success: true };
+});
+```
+
+#### 3. Typecheck Result
+```
+npm run typecheck 2>&1 | grep "^src/" || echo "0 source errors"
+0 source errors
+```
+
+### Summary
+- [x] Files modified: start.ts already reads from DB with fallback
+- [x] Admin API endpoint exists: POST /api/admin/welcome-message
+- [x] Uses PaymentSettingsService.getPricingConfig/setPricingConfig pattern
+- [x] Hardcoded default preserved as fallback
+- [x] Typecheck passes with 0 source errors
+
+## Conclusion
+Task already complete - no changes needed.

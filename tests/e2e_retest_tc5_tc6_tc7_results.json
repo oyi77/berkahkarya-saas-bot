@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-04-05T01:08:58.103115",
+  "commit": "e7f58eb",
+  "user": "codergaboets",
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3
+  },
+  "results": [
+    {
+      "tc": "TC5-i2t",
+      "status": "FAIL",
+      "msg": "Cannot navigate to Disassemble. Buttons: ['\ud83c\udf54 F&B', '\ud83d\udc57 Fashion', '\ud83d\udcf1 Tech', '\ud83d\udcaa Health', '\u2708\ufe0f Travel', '\ud83d\udcda Education', '\ud83d\udcb0 Finance', '\ud83c\udfad Entertainment', '\ud83d\udd25 Trending', '\u2728 Custom AI']",
+      "actual": ""
+    },
+    {
+      "tc": "TC6-v2t",
+      "status": "FAIL",
+      "msg": "Cannot navigate to Disassemble. Buttons: ['\ud83c\udf54 F&B', '\ud83d\udc57 Fashion', '\ud83d\udcf1 Tech', '\ud83d\udcaa Health', '\u2708\ufe0f Travel', '\ud83d\udcda Education', '\ud83d\udcb0 Finance', '\ud83c\udfad Entertainment', '\ud83d\udd25 Trending', '\u2728 Custom AI']",
+      "actual": ""
+    },
+    {
+      "tc": "TC7-v2v",
+      "status": "FAIL",
+      "msg": "Cannot navigate to Clone Video. Buttons: ['\ud83c\udf54 F&B', '\ud83d\udc57 Fashion', '\ud83d\udcf1 Tech', '\ud83d\udcaa Health', '\u2708\ufe0f Travel', '\ud83d\udcda Education', '\ud83d\udcb0 Finance', '\ud83c\udfad Entertainment', '\ud83d\udd25 Trending', '\u2728 Custom AI']",
+      "actual": ""
+    }
+  ]
+}

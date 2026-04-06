@@ -1,0 +1,116 @@
+{
+  "title": "Production Hardening — 11 Flow & Integrity Fixes",
+  "description": "Fix all critical and high/medium severity issues identified in the gap analysis: temp file leaks, credit deduction order, double-refund prevention, expired URL handling, Gemini validation, prompt length cap, job payload credit storage, dead-end state fix, JSON regex, scene file cleanup, session mutex.",
+  "stories": [
+    {
+      "id": "US-F01",
+      "title": "Temp file cleanup in generateVideoWithFallback",
+      "passes": true,
+      "acceptanceCriteria": [
+        "generateVideoWithFallback has a finally block that deletes temp file created by ensureLocalImage when resolvedRef !== params.referenceImage",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F02",
+      "title": "Credit deduction order: image_set, clone_style, campaign enqueue-first",
+      "passes": true,
+      "acceptanceCriteria": [
+        "generate.ts image_set flow: enqueueVideoGeneration called before deductCredits",
+        "generate.ts clone_style flow: enqueueVideoGeneration called before deductCredits",
+        "generate.ts campaign flow: enqueueVideoGeneration called before deductCredits",
+        "If deductCredits fails after enqueue, the enqueued job is removed via enqueuedJob.remove()",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F03",
+      "title": "Atomic refund lock to prevent double/triple refund on BullMQ retry",
+      "passes": true,
+      "acceptanceCriteria": [
+        "video-generation.worker.ts uses Redis SET refund:{jobId} NX EX 3600 before executing any credit refund",
+        "If the SET returns null (key already exists), the refund is skipped",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F04",
+      "title": "Validate image URL freshness in make_video_from_image",
+      "passes": true,
+      "acceptanceCriteria": [
+        "callbacks/generation.ts make_video_from_image validates generateLastImageUrl with a HEAD request before use",
+        "If URL is expired or unreachable, user is shown a message asking to re-upload",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F05",
+      "title": "Gemini scene ID match rate validation",
+      "passes": true,
+      "acceptanceCriteria": [
+        "hpas-engine.ts generateScenePromptsWithAI checks match rate of returned sceneId values",
+        "If fewer than 50% of scenes matched, console.warn is emitted",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F06",
+      "title": "Prompt length cap before video provider loop",
+      "passes": true,
+      "acceptanceCriteria": [
+        "video-fallback.service.ts truncates enriched prompt to 800 chars max before provider loop",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F07",
+      "title": "Store creditCost in BullMQ job payload for correct refunds",
+      "passes": true,
+      "acceptanceCriteria": [
+        "generate.ts passes creditCost in the BullMQ job data for all 4 flows",
+        "video-generation.worker.ts proportional refund uses job.data.creditCost with fallback",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F08",
+      "title": "Fix CUSTOM_DURATION_INPUT dead-end state",
+      "passes": true,
+      "acceptanceCriteria": [
+        "message.ts CUSTOM_DURATION_INPUT handler resets ctx.session.state to DASHBOARD on invalid input",
+        "Error reply includes a back button",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F09",
+      "title": "Fix Gemini JSON extraction regex to be non-greedy",
+      "passes": true,
+      "acceptanceCriteria": [
+        "hpas-engine.ts uses non-greedy matchAll loop to find first valid JSON array",
+        "Multiple arrays in Gemini response do not cause JSON.parse failure",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F10",
+      "title": "Clean up partial scene download files on failure",
+      "passes": true,
+      "acceptanceCriteria": [
+        "video-generation.worker.ts processExtendedScenes wraps scene download in try/catch",
+        "On download failure, partial file is deleted before continuing",
+        "npm run build succeeds"
+      ]
+    },
+    {
+      "id": "US-F11",
+      "title": "Per-user session mutex to prevent concurrent write corruption",
+      "passes": true,
+      "acceptanceCriteria": [
+        "message.ts updateSessionDirectly acquires Redis NX lock before read-modify-write",
+        "If lock cannot be acquired, update is skipped with a warning log",
+        "npm run build succeeds"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "run_at": "2026-04-05T03:57:12.036257",
+  "total": 2,
+  "passed": 0,
+  "failed": 2,
+  "results": [
+    {
+      "tc": "TC1-i2i-marble",
+      "status": "FAIL",
+      "msg": "Response is text only, no image",
+      "detail": "\u23f3 **Generating image (with reference)...**\n\nProcessing, you can continue using the bot. Results will be sent shortly.\u23f3 Generating image (with reference)...\n\nProcessing, you can continue using the bot. Results will be sent shortly.",
+      "pm2": "\u001b[32m4|berkahka | \u001b[39m2026-04-05 03:49:11: {\"correlationId\":\"5220170786-1775335749829\",\"environment\":\"production\",\"level\":\"\\u001b[33mwarn\\u001b[39m\",\"message\":\"\ud83d\uddbc\ufe0f Together.ai (FLUX Schnell) failed (text2img): Request failed with status code 401\",\"service\":\"openclaw-bot\",\"timestamp\":\"2026-04-05 03:49:11\"}\n\u001b[32m4|berkahka | \u001b[39m2026-04-05 03:49:11: {\"correlationId\":\"5220170786-1775335749829\",\"environment\":\"production\",\"level\":\"\\u001b[32minfo\\u001b[39m\",\"message\":\"\ud83d\uddbc\ufe0f Trying PiAPI (Flux Dev) (text"
+    },
+    {
+      "tc": "TC2-i2i-wood",
+      "status": "FAIL",
+      "msg": "Response is text only, no image",
+      "detail": "\u23f3 **Generating image (with reference)...**\n\nProcessing, you can continue using the bot. Results will be sent shortly.\u23f3 Generating image (with reference)...\n\nProcessing, you can continue using the bot. Results will be sent shortly.",
+      "pm2": "\u001b[31m4|berkahka | \u001b[39m2026-04-04 21:00:02:         at createConnectionError (node:net:1686:14)\n\u001b[32m4|berkahka | \u001b[39m2026-04-05 03:51:41: {\"correlationId\":\"5220170786-1775335899210\",\"environment\":\"production\",\"level\":\"\\u001b[32minfo\\u001b[39m\",\"message\":\"\ud83d\uddbc\ufe0f Text2Img mode \u2014 13 providers available: OmniRoute (Smart Routing), Together.ai (FLUX Schnell), PiAPI (Flux Dev), Google Gemini, SiliconFlow Flux, Fal.ai Flux, LaoZhang (Kontext + GPT-Image), EvoLink (Wan2.5 + Qwen), NVIDIA SDXL, GeminiGen, "
+    }
+  ]
+}

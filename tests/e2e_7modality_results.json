@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-04-04T19:37:37.411409",
+  "user": "codergaboets",
+  "summary": {
+    "total": 7,
+    "passed": 2,
+    "failed": 5
+  },
+  "results": [
+    {
+      "tc": "TC1-t2v",
+      "status": "PASS",
+      "msg": "t2v generation success",
+      "actual": "\ud83c\udfac Scene 1/7 complete (14%)"
+    },
+    {
+      "tc": "TC2-i2v",
+      "status": "PASS",
+      "msg": "i2v got response (no crash)",
+      "actual": "\u2702\ufe0f Combining 7 scenes..."
+    },
+    {
+      "tc": "TC3-t2i",
+      "status": "FAIL",
+      "msg": "Cannot find Create Image button in main menu",
+      "actual": ""
+    },
+    {
+      "tc": "TC4-I2I",
+      "status": "FAIL",
+      "msg": "Unhandled exception: A wait of 328 seconds is required (caused by SendMessageRequest)",
+      "actual": "urn await self._call(self._sender, request, ordered=ordered)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/linuxbrew/.linuxbrew/lib/python3.14/site-packages/teletho"
+    },
+    {
+      "tc": "TC5-I2T",
+      "status": "FAIL",
+      "msg": "Unhandled exception: A wait of 325 seconds is required (caused by SendMessageRequest)",
+      "actual": "wait self._call(self._sender, request, ordered=ordered)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/linuxbrew/.linuxbrew/lib/python3.14/site-packages/telethon/cli"
+    },
+    {
+      "tc": "TC6-V2T",
+      "status": "FAIL",
+      "msg": "Unhandled exception: A wait of 322 seconds is required (caused by SendMessageRequest)",
+      "actual": "wait self._call(self._sender, request, ordered=ordered)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/linuxbrew/.linuxbrew/lib/python3.14/site-packages/telethon/cli"
+    },
+    {
+      "tc": "TC7-V2V",
+      "status": "FAIL",
+      "msg": "Unhandled exception: A wait of 319 seconds is required (caused by SendMessageRequest)",
+      "actual": "wait self._call(self._sender, request, ordered=ordered)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/linuxbrew/.linuxbrew/lib/python3.14/site-packages/telethon/cli"
+    }
+  ]
+}

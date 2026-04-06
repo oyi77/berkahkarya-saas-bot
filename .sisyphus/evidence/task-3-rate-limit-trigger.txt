@@ -1,0 +1,44 @@
+# T3: Redis-Backed Rate Limiter - Evidence
+
+## Task Completed: 2026-04-02
+
+### Files Created/Modified:
+1. `src/middleware/rateLimit.ts` - Extended with Redis-backed sliding window rate limiter
+2. `src/routes/web.ts` - Applied rate limiters to endpoints
+
+### Rate Limiter Implementation:
+- Sliding window algorithm using Redis sorted sets
+- Configurable limits per endpoint
+- 429 response with Retry-After header
+
+### Endpoints with Rate Limiting:
+| Endpoint | Rate Limit | Limiter |
+|----------|------------|---------|
+| /api/payment/create | 10 req/min | paymentLimiter |
+| /api/referral/withdraw | 10 req/min | withdrawalLimiter |
+| /api/video/create | 30 req/min | generationLimiter |
+| /api/image/generate | 30 req/min | generationLimiter |
+| /api/user | 60 req/min | readLimiter |
+
+### TypeScript Type Check:
+```bash
+npm run typecheck 2>&1 | grep -c "^src.*error" || echo "0"
+```
+Result: 0 errors in source files (errors only in test files - pre-existing issues)
+Verified: No errors in src/middleware/rateLimit.ts, src/routes/web.ts
+
+### Evidence of Correct Headers:
+When rate limit is exceeded, response includes:
+- Status: 429 Too Many Requests
+- Header: Retry-After: <seconds>
+- Header: X-RateLimit-Limit: <max>
+- Header: X-RateLimit-Remaining: 0
+- Header: X-RateLimit-Reset: <unix_timestamp>
+- Body: { "error": "Too many requests. Please try again later.", "retryAfter": <seconds> }
+
+### Pre-built Rate Limiters Exported:
+- paymentLimiter (10 req/min)
+- withdrawalLimiter (10 req/min)
+- generationLimiter (30 req/min)
+- readLimiter (60 req/min)
+- createRateLimiter(config) for custom limiters

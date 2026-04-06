@@ -1,0 +1,191 @@
+<!doctype html>
+<html>
+  <head>
+    <title>T4 - Terms of Service Page Evidence</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+        background: #1a1a2e;
+        color: #fff;
+      }
+      .success {
+        color: #00ff88;
+        font-weight: bold;
+      }
+      .file {
+        background: #111127;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 16px 0;
+        border-left: 4px solid #00d9ff;
+      }
+      .file pre {
+        margin: 8px 0;
+        color: #00d9ff;
+      }
+      h1 {
+        color: #00d9ff;
+      }
+      h2 {
+        color: #00ff88;
+        margin-top: 24px;
+      }
+      .code {
+        font-family: monospace;
+        background: #0a0a1a;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 16px 0;
+      }
+      th,
+      td {
+        border: 1px solid #333;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background: #111127;
+        color: #00d9ff;
+      }
+      tr:nth-child(even) {
+        background: #111127;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>✅ Task T4: Terms of Service Page - Evidence</h1>
+    <p>Task completed successfully. All deliverables verified.</p>
+
+    <h2>Files Created</h2>
+    <table>
+      <tr>
+        <th>File</th>
+        <th>Status</th>
+        <th>Description</th>
+      </tr>
+      <tr>
+        <td><code>src/views/web/tos.ejs</code></td>
+        <td class="success">✓ Created</td>
+        <td>364-line EJS template with full Indonesian TOS content</td>
+      </tr>
+    </table>
+
+    <h2>Files Modified</h2>
+    <table>
+      <tr>
+        <th>File</th>
+        <th>Change</th>
+        <th>Line</th>
+      </tr>
+      <tr>
+        <td><code>src/routes/web.ts</code></td>
+        <td>Added <code>GET /terms</code> route</td>
+        <td>79-83</td>
+      </tr>
+      <tr>
+        <td><code>src/views/web/landing.ejs</code></td>
+        <td>Added <code>&lt;a href="/terms"&gt;</code> to footer</td>
+        <td>1734</td>
+      </tr>
+    </table>
+
+    <h2>Route Verification</h2>
+    <div class="file">
+      <pre>
+// src/routes/web.ts lines 78-83
+// ─── Terms of Service ────────────────────────────────────────────────────────
+server.get("/terms", async (_request, reply) => {
+  return reply.view("web/tos.ejs", {
+    botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
+  });
+});</pre
+      >
+    </div>
+
+    <h2>Footer Link Verification</h2>
+    <div class="file">
+      <pre>
+// src/views/web/landing.ejs lines 1729-1737
+&lt;footer&gt;
+  &lt;p data-i18n="footer_copy"&gt;...&lt;/p&gt;
+  &lt;p style="margin-top:8px"&gt;
+    &lt;a href="https://t.me/..."&gt;Telegram Bot&lt;/a&gt; ·
+    &lt;a href="/app"&gt;Web App&lt;/a&gt; ·
+    &lt;a href="/terms"&gt;Syarat &amp; Ketentuan&lt;/a&gt; ·   ← NEW
+    &lt;a href="https://t.me/codergaboets"&gt;Support&lt;/a&gt;
+  &lt;/p&gt;
+&lt;/footer&gt;</pre
+      >
+    </div>
+
+    <h2>TOS Content Sections (Indonesian)</h2>
+    <div class="file">
+      <ol>
+        <li>Definisi dan Interpretasi</li>
+        <li>Deskripsi Layanan (AI Video Generator, HPAS Framework)</li>
+        <li>Akun dan Pendaftaran (Bonus Selamat Datang)</li>
+        <li>Syarat Pembayaran (VA, E-wallet, Telegram Stars, Crypto)</li>
+        <li>Kebijakan Refund (Refund Otomatis, Manual, Tidak Eligible)</li>
+        <li>Kewajiban Pengguna (Konten yang Dilarang)</li>
+        <li>Konten yang Dihasilkan (Kepemilikan, Tanggung Jawab)</li>
+        <li>Keterbatasan Tanggung Jawab (Disclaimer, Batasan)</li>
+        <li>Hak Proprietary</li>
+        <li>Privasi dan Data</li>
+        <li>Penghentian Layanan</li>
+        <li>Perubahan Syarat</li>
+        <li>Hukum yang Berlaku</li>
+        <li>Kontak</li>
+      </ol>
+    </div>
+
+    <h2>Styling Consistency</h2>
+    <p>
+      The TOS page uses the same CSS variables and styling classes as
+      <code>landing.ejs</code>:
+    </p>
+    <div class="file">
+      <pre>
+:root {
+  --bg: #0a0a1a; --bg2: #111127; --card: rgba(255,255,255,0.04);
+  --border: rgba(255,255,255,0.08); --accent: #00d9ff; --accent2: #00ff88;
+  --grad: linear-gradient(135deg, #00d9ff, #00ff88);
+  --text: #fff; --dim: rgba(255,255,255,0.55);
+}</pre
+      >
+    </div>
+
+    <h2>TypeScript Verification</h2>
+    <p>
+      No new TypeScript errors introduced. All errors in output are pre-existing
+      test file issues.
+    </p>
+
+    <h2>Summary</h2>
+    <ul>
+      <li>
+        ✅ <code>src/views/web/tos.ejs</code> created with 14 sections of TOS
+        content
+      </li>
+      <li>
+        ✅ <code>GET /terms</code> route added in <code>src/routes/web.ts</code>
+      </li>
+      <li>✅ Footer link to <code>/terms</code> added in landing page</li>
+      <li>✅ Content in Bahasa Indonesia (Indonesian)</li>
+      <li>✅ Same styling as landing page</li>
+      <li>✅ Responsive design with mobile support</li>
+      <li>✅ Table of contents with anchor links</li>
+    </ul>
+
+    <hr />
+    <p>
+      <small
+        >Evidence generated: 2026-04-02 | Task T4 - Terms of Service Page</small
+      >
+    </p>
+  </body>
+</html>

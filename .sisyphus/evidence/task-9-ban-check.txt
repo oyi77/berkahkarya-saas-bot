@@ -1,0 +1,33 @@
+# Task 9: Ban Check in getUser() Middleware - Evidence
+
+## Date: 2026-04-02
+
+## File Modified
+- `src/routes/web.ts`
+
+## Change Made
+Added ban check after user lookup (line 250-253):
+
+```typescript
+// Check if user is banned
+if (user.isBanned) {
+  return reply.status(403).send({ error: "Account suspended" });
+}
+```
+
+Location: After `if (!user)` check but before JWT token creation.
+
+## Typecheck Result
+```
+0 source errors
+```
+
+## Expected Behavior
+- Banned user JWT returns 403 on any authenticated API route
+- Non-banned users unaffected
+- Per-request check sufficient (no need to invalidate existing JWTs)
+
+## Verification Command
+```bash
+npm run typecheck 2>&1 | grep "^src/" || echo "0 source errors"
+```
