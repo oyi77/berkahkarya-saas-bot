@@ -119,7 +119,7 @@ export function setupCommands(bot: Telegraf<BotContext>): void {
     { command: "settings", description: "⚙️ Pengaturan" },
     { command: "support", description: "🆘 Hubungi support" },
     { command: "help", description: "📖 Panduan lengkap" },
-  ]);
+  ]).catch(() => { /* ignore - bot token may not be set yet */ });
 
   logger.info("Bot commands registered successfully");
 }

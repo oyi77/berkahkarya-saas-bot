@@ -7,21 +7,21 @@ Wants=postgresql.service redis.service
 Type=simple
 User=openclaw
 Group=openclaw
-WorkingDirectory=/mnt/data/openclaw/projects/openclaw-saas-bot
+WorkingDirectory=/home/openclaw/projects/berkahkarya-saas-bot
 ExecStart=/home/linuxbrew/.linuxbrew/bin/npx tsx src/index.ts
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
-EnvironmentFile=/mnt/data/openclaw/projects/openclaw-saas-bot/.env
+EnvironmentFile=/home/openclaw/projects/berkahkarya-saas-bot/.env
 
 # Logging
-StandardOutput=append:/mnt/data/openclaw/projects/openclaw-saas-bot/logs/bot.log
-StandardError=append:/mnt/data/openclaw/projects/openclaw-saas-bot/logs/bot-error.log
+StandardOutput=append:/home/openclaw/projects/berkahkarya-saas-bot/logs/bot.log
+StandardError=append:/home/openclaw/projects/berkahkarya-saas-bot/logs/bot-error.log
 
 # Hardening
 NoNewPrivileges=true
 ProtectSystem=full
-ReadWritePaths=/mnt/data/openclaw/projects/openclaw-saas-bot
+ReadWritePaths=/home/openclaw/projects/berkahkarya-saas-bot
 PrivateTmp=false
 
 [Install]
