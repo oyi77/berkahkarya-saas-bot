@@ -344,6 +344,12 @@
       "type": "directory"
     },
     {
+      "path": "src/views/admin/partials/sidebar.ejs",
+      "accessCount": 12,
+      "lastAccessed": 1775556370773,
+      "type": "file"
+    },
+    {
       "path": "src/handlers/callbacks/image.ts",
       "accessCount": 11,
       "lastAccessed": 1775411926116,
@@ -353,12 +359,6 @@
       "path": "src/handlers/callbacks/media-intent.ts",
       "accessCount": 10,
       "lastAccessed": 1775412206467,
-      "type": "file"
-    },
-    {
-      "path": "src/views/admin/partials/sidebar.ejs",
-      "accessCount": 9,
-      "lastAccessed": 1775556127346,
       "type": "file"
     },
     {
