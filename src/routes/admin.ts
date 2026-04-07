@@ -77,7 +77,13 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
       return true;
   }
 
-  reply.status(401).send({ error: "Unauthorized" });
+  // Browser page loads should redirect to login; API calls get JSON 401
+  const accept = request.headers.accept || "";
+  if (accept.includes("text/html")) {
+    reply.redirect("/admin/login");
+  } else {
+    reply.status(401).send({ error: "Unauthorized" });
+  }
   return false;
 }
 
