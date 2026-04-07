@@ -176,7 +176,14 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
       const config = getConfig();
       const siteUrl = config.WEBHOOK_URL || config.WEB_APP_URL || "";
       const expectedOrigin = siteUrl ? new URL(siteUrl).origin : null;
-      if (expectedOrigin && origin !== expectedOrigin) {
+      const hostOrigin = request.headers.host
+        ? `${request.protocol}://${request.headers.host}`
+        : null;
+      if (
+        expectedOrigin &&
+        origin !== expectedOrigin &&
+        origin !== hostOrigin
+      ) {
         return reply.status(403).send({ error: "Forbidden" });
       }
     }
