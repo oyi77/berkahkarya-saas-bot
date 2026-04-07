@@ -44,44 +44,6 @@ import axios from "axios";
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
 
-/** Get authenticated admin user from request */
-async function getUser(
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<{ username: string; telegramId: bigint } | null> {
-  const ADMIN_PASSWORD = getConfig().ADMIN_PASSWORD;
-  const authHeader = request.headers.authorization;
-  if (authHeader?.startsWith("Basic ")) {
-    const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
-    const [, password] = decoded.split(":");
-    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) {
-      return {
-        username: "admin",
-        telegramId: BigInt(0),
-      };
-    }
-  }
-
-  const cookie = (request.headers.cookie || "")
-    .split(";")
-    .find((c) => c.trim().startsWith("admin_token="));
-  if (cookie) {
-    const token = cookie.split("=")[1]?.trim();
-    if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD))) {
-      return {
-        username: "admin",
-        telegramId: BigInt(0),
-      };
-    }
-  }
-
-  reply
-    .status(401)
-    .header("WWW-Authenticate", 'Basic realm="Admin"')
-    .send({ error: "Unauthorized" });
-  return null;
-}
-
 /** Pixel/analytics IDs passed to all EJS views */
 function trackingVars() {
   const config = getConfig();
@@ -106,13 +68,6 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
     return reply.status(503).send({ error: "Admin password not configured" });
   }
 
-  const authHeader = request.headers.authorization;
-  if (authHeader?.startsWith("Basic ")) {
-    const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
-    const [, password] = decoded.split(":");
-    if (password && timingSafeCompare(password, ADMIN_PASSWORD)) return true;
-  }
-
   const cookie = (request.headers.cookie || "")
     .split(";")
     .find((c) => c.trim().startsWith("admin_token="));
@@ -122,10 +77,7 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
       return true;
   }
 
-  reply
-    .status(401)
-    .header("WWW-Authenticate", 'Basic realm="Admin"')
-    .send({ error: "Unauthorized" });
+  reply.status(401).send({ error: "Unauthorized" });
   return false;
 }
 
