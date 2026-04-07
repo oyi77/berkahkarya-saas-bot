@@ -404,6 +404,12 @@
       "type": "directory"
     },
     {
+      "path": "src/views/admin",
+      "accessCount": 5,
+      "lastAccessed": 1775555964938,
+      "type": "directory"
+    },
+    {
       "path": "src/views/admin/ai-config.ejs",
       "accessCount": 4,
       "lastAccessed": 1775554411684,
@@ -413,12 +419,6 @@
       "path": "src/workers/video-generation.worker.ts",
       "accessCount": 4,
       "lastAccessed": 1775554487097,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin",
-      "accessCount": 4,
-      "lastAccessed": 1775555261747,
       "type": "directory"
     },
     {
@@ -443,6 +443,12 @@
       "path": "src/views/admin/layout.ejs",
       "accessCount": 3,
       "lastAccessed": 1775555300947,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/providers.ejs",
+      "accessCount": 3,
+      "lastAccessed": 1775555968594,
       "type": "file"
     },
     {
@@ -476,12 +482,6 @@
       "type": "directory"
     },
     {
-      "path": "src/views/admin/providers.ejs",
-      "accessCount": 2,
-      "lastAccessed": 1775554248735,
-      "type": "file"
-    },
-    {
       "path": "src/views/admin/system.ejs",
       "accessCount": 2,
       "lastAccessed": 1775554291168,
@@ -492,6 +492,12 @@
       "accessCount": 2,
       "lastAccessed": 1775554497203,
       "type": "directory"
+    },
+    {
+      "path": "src/views/admin/pricing.ejs",
+      "accessCount": 2,
+      "lastAccessed": 1775555968629,
+      "type": "file"
     },
     {
       "path": "src/routes/web.ts",
@@ -533,12 +539,6 @@
       "path": "src/views/admin/login.ejs",
       "accessCount": 1,
       "lastAccessed": 1775536988549,
-      "type": "file"
-    },
-    {
-      "path": "src/views/admin/pricing.ejs",
-      "accessCount": 1,
-      "lastAccessed": 1775554263358,
       "type": "file"
     },
     {
