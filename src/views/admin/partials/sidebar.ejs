@@ -1,5 +1,5 @@
 <%
-  // activePage: 'dashboard' | 'playground' | 'providers' | 'settings' | 'medias' | 'prompts'
+  // activePage: 'dashboard' | 'playground' | 'providers' | 'settings' | 'medias' | 'prompts' | 'dynamic-pricing'
   const _ap = typeof activePage !== 'undefined' ? activePage : 'dashboard';
   function _nav(page) { return _ap === page ? 'nav-item active' : 'nav-item'; }
 %>
@@ -24,6 +24,7 @@
     <div class="<%= _nav('prompts') %>" onclick="window.location='/admin/prompts'">✍️ Prompts</div>
     <div class="<%= _nav('providers') %>" onclick="window.location='/admin/providers'">🔌 Providers</div>
     <div class="<%= _nav('ai-config') %>" onclick="window.location='/admin/ai-config'">🤖 AI Config</div>
+    <div class="<%= _nav('dynamic-pricing') %>" onclick="window.location='/admin/dynamic-pricing'">💵 Dynamic Pricing</div>
     <div class="<%= _nav('playground') %>" onclick="window.location='/admin/playground'">🧪 Playground</div>
     <div class="<%= _nav('personas') %>" onclick="window.location='/admin/personas'">🎭 Personas</div>
     <div class="<%= _nav('settings') %>" onclick="window.location='/admin/settings'">⚙️ Settings</div>

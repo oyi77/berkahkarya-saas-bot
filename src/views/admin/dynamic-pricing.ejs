@@ -1,0 +1,482 @@
+/**
+ * Dynamic Pricing Admin Page
+ *
+ * Admin interface for monitoring provider costs and managing dynamic pricing
+ */
+
+<div class="section-title">💰 Dynamic Pricing & Provider Costs</div>
+<div class="section-sub">Real-time provider cost tracking and automatic price calculations based on cost + margin</div>
+
+<style>
+  .pricing-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .cost-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .provider-cost-row { display: grid; grid-template-columns: 2fr 120px 100px 100px 140px; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); }
+  .provider-cost-row:last-child { border-bottom: none; }
+  .provider-cost-row:hover { background: rgba(255,255,255,0.02); }
+  .cost-source { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+  .cost-source.api { background: rgba(74,222,128,0.15); color: #4ade80; }
+  .cost-source.manual { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .cost-source.static { background: rgba(160,174,192,0.15); color: #a0aec0; }
+  .cost-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  .refresh-btn { padding: 4px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; }
+  .simulation-box { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .price-change { font-size: 12px; font-weight: 600; }
+  .price-change.positive { color: var(--green); }
+  .price-change.negative { color: var(--red); }
+  .price-change.neutral { color: var(--muted); }
+  @media (max-width: 768px) {
+    .pricing-grid { grid-template-columns: 1fr; }
+    .provider-cost-row { grid-template-columns: 1fr; gap: 8px; }
+  }
+</style>
+
+<div class="pricing-grid">
+  <!-- Left: Provider Costs -->
+  <div class="cost-card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div>
+        <div style="font-size:16px; font-weight:600; margin-bottom:4px;">Provider Costs</div>
+        <div style="font-size:12px; color:var(--muted);">Real-time cost tracking from API usage and manual input</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-sm btn-gold" onclick="syncAllCosts()">🔄 Sync All</button>
+        <button class="btn btn-sm btn-ghost" onclick="loadProviderCosts()">♻️ Reload</button>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div id="cost-summary" style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px; margin-bottom:16px;">
+      <div style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); text-transform:uppercase;">Total</div>
+        <div id="summary-total" style="font-size:20px; font-weight:700;">—</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); text-transform:uppercase;">API Tracked</div>
+        <div id="summary-api" style="font-size:20px; font-weight:700; color:var(--green);">—</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); text-transform:uppercase;">Manual</div>
+        <div id="summary-manual" style="font-size:20px; font-weight:700; color:var(--yellow);">—</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); text-transform:uppercase;">Static</div>
+        <div id="summary-static" style="font-size:20px; font-weight:700; color:var(--muted);">—</div>
+      </div>
+    </div>
+
+    <!-- Provider List -->
+    <div id="provider-costs-list" style="max-height: 400px; overflow-y: auto;">
+      <div class="loading">Loading provider costs...</div>
+    </div>
+  </div>
+
+  <!-- Right: Dynamic Pricing Tools -->
+  <div>
+    <!-- Price Drift Alert -->
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:12px;">⚠️ Price Drift Monitor</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Alert when provider costs change significantly</div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="number" id="drift-threshold" value="10" min="1" max="100" style="width:60px; padding:4px 8px; background:var(--bg); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:12px;">
+        <span style="font-size:12px;">% threshold</span>
+        <button class="btn btn-sm btn-ghost" onclick="checkDrift()">Check</button>
+      </div>
+      <div id="drift-result" style="margin-top:12px; font-size:12px;"></div>
+    </div>
+
+    <!-- Pricing Simulator -->
+    <div class="card" style="margin-bottom:16px;">
+      <div style="font-size:14px; font-weight:600; margin-bottom:12px;">🧪 Price Simulator</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Simulate pricing for different scenarios</div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <select id="sim-provider" class="input" style="width:100%;">
+          <option value="">Select provider...</option>
+        </select>
+        <input type="number" id="sim-units" placeholder="Units (e.g. 70 for 7 scenes)" style="width:100%; padding:6px 10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+        <button class="btn btn-sm btn-gold" onclick="simulatePrice()">Calculate</button>
+      </div>
+      <div id="sim-result" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Dynamic Pricing Actions -->
+    <div class="card">
+      <div style="font-size:14px; font-weight:600; margin-bottom:12px;">⚡ Dynamic Pricing</div>
+      <div style="font-size:12px; color:var(--muted); margin-bottom:12px;">Auto-calculate prices from costs + margin</div>
+
+      <button class="btn btn-sm btn-gold" style="width:100%; margin-bottom:8px;" onclick="showRecommendations()">
+        📊 View Recommendations
+      </button>
+      <button class="btn btn-sm btn-ghost" style="width:100%;" onclick="recalculateAllPrices()">
+        🔄 Recalculate All Prices
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Cost Edit Modal -->
+<div class="modal-overlay" id="modal-edit-cost">
+  <div class="modal" style="max-width:480px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h3 style="margin:0;">Edit Provider Cost</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-cost')">✕</button>
+    </div>
+    <input type="hidden" id="edit-provider-key">
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:6px;">Cost (USD)</label>
+        <input type="number" id="edit-cost-usd" step="0.001" min="0" style="width:100%; padding:6px 10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+      </div>
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:6px;">Notes (optional)</label>
+        <input type="text" id="edit-notes" placeholder="e.g. Updated from provider API" style="width:100%; padding:6px 10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-gold" onclick="saveProviderCost()">💾 Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('modal-edit-cost')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recommendations Modal -->
+<div class="modal-overlay" id="modal-recommendations">
+  <div class="modal" style="max-width:800px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h3 style="margin:0;">📊 Dynamic Pricing Recommendations</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-recommendations')">✕</button>
+    </div>
+    <div style="font-size:12px; color:var(--muted); margin-bottom:16px;">
+      Recommended unit costs based on current provider costs + margin
+    </div>
+    <div id="recommendations-content" style="max-height:400px; overflow-y:auto;"></div>
+    <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-recommendations')">Close</button>
+      <button class="btn btn-gold" onclick="applyRecommendations()">Apply All</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+// ===================== AUTH =====================
+const getToken = () => localStorage.getItem('admin_password') || new URLSearchParams(location.search).get('token') || '';
+
+async function api(path, opts = {}) {
+  const token = getToken();
+  const headers = {
+    'Authorization': 'Basic ' + btoa(':' + token),
+    ...(opts.headers || {}),
+  };
+  if (opts.body && typeof opts.body !== 'string' && !(opts.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(opts.body);
+  }
+  try {
+    const res = await fetch(path, { ...opts, headers, credentials: 'include' });
+    if (res.status === 401) { location.href = '/admin/login'; return null; }
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    if (!res.ok) throw new Error(typeof data === 'string' ? data : (data?.error || 'Request failed'));
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
+
+// ===================== LOAD PROVIDER COSTS =====================
+async function loadProviderCosts() {
+  const list = document.getElementById('provider-costs-list');
+  list.innerHTML = '<div class="loading">Loading provider costs...</div>';
+
+  try {
+    const data = await api('/api/admin/provider-costs');
+    if (!data) return;
+
+    renderProviderCosts(data.costs, data.summary);
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state">Failed to load: ${esc(e.message)}</div>`;
+    toast('Failed to load provider costs', 'error');
+  }
+}
+
+function renderProviderCosts(costs, summary) {
+  document.getElementById('summary-total').textContent = summary.total;
+  document.getElementById('summary-api').textContent = summary.apiTracked;
+  document.getElementById('summary-manual').textContent = summary.manual;
+  document.getElementById('summary-static').textContent = summary.static;
+
+  const list = document.getElementById('provider-costs-list');
+  if (!costs.length) {
+    list.innerHTML = '<div class="empty-state">No provider costs found</div>';
+    return;
+  }
+
+  list.innerHTML = costs.map(cost => {
+    const sourceClass = cost.source;
+    const lastUpdated = cost.lastUpdated ? new Date(cost.lastUpdated).toLocaleDateString() : '—';
+
+    return `
+      <div class="provider-cost-row">
+        <div>
+          <div style="font-weight:600; font-size:13px;">${esc(cost.providerKey)}</div>
+          <div style="font-size:11px; color:var(--muted);">Updated: ${lastUpdated}</div>
+        </div>
+        <div class="cost-value">$${cost.costUsd.toFixed(4)}</div>
+        <div class="cost-source ${sourceClass}">${cost.source.toUpperCase()}</div>
+        <button class="refresh-btn btn-ghost" onclick="openEditCost('${esc(cost.providerKey)}', ${cost.costUsd})">✏️</button>
+        <button class="refresh-btn btn-gold" onclick="refreshProvider('${esc(cost.providerKey)}')">🔄</button>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===================== SYNC & REFRESH =====================
+async function syncAllCosts() {
+  toast('Syncing provider costs from config...');
+  try {
+    const data = await api('/api/admin/provider-costs/sync', { method: 'POST' });
+    if (!data) return;
+    toast(data.message || 'Sync complete', 'success');
+    loadProviderCosts();
+  } catch (e) {
+    toast('Sync failed: ' + e.message, 'error');
+  }
+}
+
+async function refreshProvider(key) {
+  const btn = event.target;
+  const originalText = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+
+  try {
+    const data = await api(`/api/admin/provider-costs/${encodeURIComponent(key)}/refresh`, { method: 'POST' });
+    if (!data) return;
+    toast(data.message || 'Refreshed', 'success');
+    loadProviderCosts();
+  } catch (e) {
+    toast('Refresh failed: ' + e.message, 'error');
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+// ===================== EDIT COST =====================
+function openEditCost(key, currentCost) {
+  document.getElementById('edit-provider-key').value = key;
+  document.getElementById('edit-cost-usd').value = currentCost.toFixed(4);
+  document.getElementById('edit-notes').value = '';
+  document.getElementById('modal-edit-cost').classList.add('open');
+}
+
+async function saveProviderCost() {
+  const key = document.getElementById('edit-provider-key').value;
+  const costUsd = parseFloat(document.getElementById('edit-cost-usd').value);
+  const notes = document.getElementById('edit-notes').value;
+
+  if (isNaN(costUsd) || costUsd < 0) {
+    toast('Invalid cost value', 'error');
+    return;
+  }
+
+  try {
+    await api(`/api/admin/provider-costs/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      body: { costUsd, metadata: { notes } }
+    });
+    closeModal('modal-edit-cost');
+    toast(`Cost updated for ${key}`, 'success');
+    loadProviderCosts();
+  } catch (e) {
+    toast('Failed to save: ' + e.message, 'error');
+  }
+}
+
+// ===================== PRICE DRIFT =====================
+async function checkDrift() {
+  const threshold = document.getElementById('drift-threshold').value;
+  const resultDiv = document.getElementById('drift-result');
+
+  resultDiv.innerHTML = '<span class="spinner"></span> Checking...';
+
+  try {
+    const data = await api(`/api/admin/dynamic-pricing/drift?threshold=${threshold}`);
+    if (!data) return;
+
+    if (data.needsUpdate) {
+      resultDiv.innerHTML = `
+        <div style="color:var(--red);">⚠️ ${data.message}</div>
+        <div style="margin-top:8px;">
+          ${data.driftedProviders.map(p => `
+            <div style="font-size:11px; margin-top:4px;">
+              ${esc(p.providerKey)}: $${p.oldCost.toFixed(4)} → $${p.newCost.toFixed(4)} (${p.driftPercent.toFixed(1)}%)
+            </div>
+          `).join('')}
+        </div>
+      `;
+    } else {
+      resultDiv.innerHTML = `<div style="color:var(--green);">✅ ${data.message}</div>`;
+    }
+  } catch (e) {
+    resultDiv.innerHTML = `<div style="color:var(--red);">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ===================== PRICE SIMULATOR =====================
+async function loadProviders() {
+  const data = await api('/api/admin/providers/all');
+  if (!data) return;
+
+  const select = document.getElementById('sim-provider');
+  const providers = [...data.video, ...data.image];
+
+  select.innerHTML = '<option value="">Select provider...</option>' +
+    providers.map(p => `<option value="${p.key}">${p.name} (${p.key})</option>`).join('');
+}
+
+async function simulatePrice() {
+  const provider = document.getElementById('sim-provider').value;
+  const units = parseInt(document.getElementById('sim-units').value);
+  const resultDiv = document.getElementById('sim-result');
+
+  if (!provider || !units) {
+    toast('Please select provider and enter units', 'error');
+    return;
+  }
+
+  resultDiv.innerHTML = '<span class="spinner"></span> Calculating...';
+
+  try {
+    const data = await api(`/api/admin/dynamic-pricing/simulation?providerKey=${encodeURIComponent(provider)}&units=${units}`);
+    if (!data) return;
+
+    resultDiv.innerHTML = `
+      <div style="font-size:12px; margin-bottom:8px;">
+        <strong>Provider:</strong> ${esc(data.input.providerKey)}<br>
+        <strong>Units:</strong> ${data.input.units}<br>
+        <strong>Provider Cost:</strong> $${data.costUsd.toFixed(4)}<br>
+        <strong>Margin:</strong> ${data.marginPercent}%<br>
+        <strong>Price:</strong> Rp ${data.priceIdr.toLocaleString()} for ${data.credits} credit(s)
+      </div>
+    `;
+  } catch (e) {
+    resultDiv.innerHTML = `<div style="color:var(--red);">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+// ===================== RECOMMENDATIONS =====================
+async function showRecommendations() {
+  const contentDiv = document.getElementById('recommendations-content');
+  contentDiv.innerHTML = '<div class="loading">Loading recommendations...</div>';
+  document.getElementById('modal-recommendations').classList.add('open');
+
+  try {
+    const data = await api('/api/admin/dynamic-pricing/recommendations');
+    if (!data) return;
+
+    const recs = data.recommendations;
+
+    if (!recs.length) {
+      contentDiv.innerHTML = '<div class="empty-state">No recommendations available</div>';
+      return;
+    }
+
+    contentDiv.innerHTML = `
+      <table style="width:100%; font-size:12px;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Action</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Current Units</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Recommended</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Change</th>
+            <th style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${recs.map(r => `
+            <tr style="${r.needsUpdate ? 'background:rgba(251,191,36,0.1);' : ''}">
+              <td style="padding:8px; border-bottom:1px solid var(--border);">${esc(r.key)}</td>
+              <td style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">${r.currentUnits}</td>
+              <td style="text-align:right; padding:8px; border-bottom:1px solid var(--border); font-weight:${r.needsUpdate ? '600' : '400'}; color:${r.needsUpdate ? 'var(--gold)' : 'inherit'};">${r.units}</td>
+              <td style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">
+                <span class="price-change ${r.difference > 0 ? 'positive' : r.difference < 0 ? 'negative' : 'neutral'}">
+                  ${r.difference > 0 ? '+' : ''}${r.difference}
+                </span>
+              </td>
+              <td style="text-align:right; padding:8px; border-bottom:1px solid var(--border);">Rp ${r.priceIdr.toLocaleString()}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  } catch (e) {
+    contentDiv.innerHTML = `<div class="empty-state">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function applyRecommendations() {
+  toast('Recalculating all prices...');
+  try {
+    const data = await api('/api/admin/dynamic-pricing/recalculate', { method: 'POST' });
+    if (!data) return;
+    closeModal('modal-recommendations');
+    toast(`Updated ${data.updated} unit costs`, 'success');
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
+async function recalculateAllPrices() {
+  if (!confirm('Recalculate all unit costs based on current provider costs? This will update pricing in the database.')) return;
+
+  toast('Recalculating...');
+  try {
+    const data = await api('/api/admin/dynamic-pricing/recalculate', { method: 'POST' });
+    if (!data) return;
+    toast(`Updated ${data.updated} unit costs`, 'success');
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
+// ===================== MODAL HELPERS =====================
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+// ===================== INIT =====================
+loadProviders();
+loadProviderCosts();
+</script>

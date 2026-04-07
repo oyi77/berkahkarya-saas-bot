@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775402842026,
-  "projectRoot": "/mnt/data/openclaw/projects/openclaw-saas-bot",
+  "lastScanned": 1775536302402,
+  "projectRoot": "/home/openclaw/projects/berkahkarya-saas-bot",
   "techStack": {
     "languages": [
       {
@@ -105,7 +105,7 @@
       "path": "config",
       "purpose": "Configuration files",
       "fileCount": 6,
-      "lastAccessed": 1775402841899,
+      "lastAccessed": 1775536302389,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -114,20 +114,11 @@
         "features.yml"
       ]
     },
-    "data": {
-      "path": "data",
-      "purpose": "Data files",
-      "fileCount": 1,
-      "lastAccessed": 1775402841900,
-      "keyFiles": [
-        "dump.rdb"
-      ]
-    },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 13,
-      "lastAccessed": 1775402841903,
+      "lastAccessed": 1775536302390,
       "keyFiles": [
         "AGENTS.md",
         "AI_System_Prompts.md",
@@ -136,18 +127,11 @@
         "MASTER_PROMPT.md"
       ]
     },
-    "init.sql": {
-      "path": "init.sql",
-      "purpose": null,
-      "fileCount": 0,
-      "lastAccessed": 1775402841906,
-      "keyFiles": []
-    },
     "landing": {
       "path": "landing",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1775402841906,
+      "lastAccessed": 1775536302395,
       "keyFiles": [
         "index-new.html",
         "index.html"
@@ -157,7 +141,7 @@
       "path": "logs",
       "purpose": null,
       "fileCount": 6,
-      "lastAccessed": 1775402841906,
+      "lastAccessed": 1775536302397,
       "keyFiles": [
         "bot-error.log",
         "bot.log",
@@ -170,7 +154,7 @@
       "path": "monitoring",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1775402841932,
+      "lastAccessed": 1775536302397,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -181,7 +165,7 @@
       "path": "prisma",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1775402841932,
+      "lastAccessed": 1775536302397,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -193,7 +177,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 1,
-      "lastAccessed": 1775402841932,
+      "lastAccessed": 1775536302398,
       "keyFiles": [
         "manifest.json"
       ]
@@ -202,7 +186,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1775402841932,
+      "lastAccessed": 1775536302398,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -215,7 +199,7 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 3,
-      "lastAccessed": 1775402841932,
+      "lastAccessed": 1775536302398,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -226,14 +210,14 @@
       "path": "test-results",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1775402842023,
+      "lastAccessed": 1775536302398,
       "keyFiles": []
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 25,
-      "lastAccessed": 1775402842023,
+      "fileCount": 23,
+      "lastAccessed": 1775536302398,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -242,21 +226,11 @@
         "e2e_7mod_tc3to7_results.json"
       ]
     },
-    "tmp": {
-      "path": "tmp",
-      "purpose": null,
-      "fileCount": 2,
-      "lastAccessed": 1775402842024,
-      "keyFiles": [
-        "embed-fix-check.png",
-        "landing-screenshot.png"
-      ]
-    },
     "prisma/migrations": {
       "path": "prisma/migrations",
       "purpose": "Database migrations",
       "fileCount": 1,
-      "lastAccessed": 1775402842025,
+      "lastAccessed": 1775536302401,
       "keyFiles": [
         "migration_lock.toml"
       ]
@@ -264,8 +238,8 @@
     "src/config": {
       "path": "src/config",
       "purpose": "Configuration files",
-      "fileCount": 21,
-      "lastAccessed": 1775402842026,
+      "fileCount": 22,
+      "lastAccessed": 1775536302401,
       "keyFiles": [
         "AGENTS.md",
         "audio-subtitle-engine.ts",
@@ -276,7 +250,7 @@
       "path": "src/middleware",
       "purpose": "Middleware",
       "fileCount": 7,
-      "lastAccessed": 1775402842026,
+      "lastAccessed": 1775536302402,
       "keyFiles": [
         "AGENTS.md",
         "api-auth.ts",
@@ -292,15 +266,21 @@
       "type": "file"
     },
     {
+      "path": "src/routes/admin.ts",
+      "accessCount": 56,
+      "lastAccessed": 1775555368396,
+      "type": "file"
+    },
+    {
       "path": "src/services/video-generation.service.ts",
-      "accessCount": 37,
-      "lastAccessed": 1775437048972,
+      "accessCount": 38,
+      "lastAccessed": 1775554262729,
       "type": "directory"
     },
     {
       "path": "src/flows/generate.ts",
-      "accessCount": 33,
-      "lastAccessed": 1775437312739,
+      "accessCount": 34,
+      "lastAccessed": 1775554463594,
       "type": "file"
     },
     {
@@ -314,12 +294,6 @@
       "accessCount": 25,
       "lastAccessed": 1775437583244,
       "type": "directory"
-    },
-    {
-      "path": "src/routes/admin.ts",
-      "accessCount": 21,
-      "lastAccessed": 1775437273534,
-      "type": "file"
     },
     {
       "path": "src/types/index.ts",
@@ -365,8 +339,8 @@
     },
     {
       "path": "src/services/image.service.ts",
-      "accessCount": 12,
-      "lastAccessed": 1775407150952,
+      "accessCount": 13,
+      "lastAccessed": 1775554497111,
       "type": "directory"
     },
     {
@@ -400,21 +374,75 @@
       "type": "file"
     },
     {
+      "path": "src/services/payment-settings.service.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775554912491,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/partials/sidebar.ejs",
+      "accessCount": 6,
+      "lastAccessed": 1775555322245,
+      "type": "file"
+    },
+    {
       "path": "src/config/personas.ts",
       "accessCount": 5,
       "lastAccessed": 1775437018163,
       "type": "file"
     },
     {
-      "path": "src/workers/video-generation.worker.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775411855201,
+      "path": "src/services",
+      "accessCount": 5,
+      "lastAccessed": 1775554487245,
       "type": "directory"
     },
     {
-      "path": "src/views/admin/partials/sidebar.ejs",
+      "path": "src/routes",
+      "accessCount": 5,
+      "lastAccessed": 1775554912417,
+      "type": "directory"
+    },
+    {
+      "path": "src/views/admin/ai-config.ejs",
+      "accessCount": 4,
+      "lastAccessed": 1775554411684,
+      "type": "file"
+    },
+    {
+      "path": "src/workers/video-generation.worker.ts",
+      "accessCount": 4,
+      "lastAccessed": 1775554487097,
+      "type": "directory"
+    },
+    {
+      "path": "src/views/admin",
+      "accessCount": 4,
+      "lastAccessed": 1775555261747,
+      "type": "directory"
+    },
+    {
+      "path": "src/views/admin/settings.ejs",
       "accessCount": 3,
-      "lastAccessed": 1775419682037,
+      "lastAccessed": 1775554403961,
+      "type": "file"
+    },
+    {
+      "path": "src/config/providers.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775554435998,
+      "type": "directory"
+    },
+    {
+      "path": "src/services/provider-cost-tracker.service.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775554913706,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/layout.ejs",
+      "accessCount": 3,
+      "lastAccessed": 1775555300947,
       "type": "file"
     },
     {
@@ -439,6 +467,30 @@
       "path": "src/handlers/callbacks/generation.ts",
       "accessCount": 2,
       "lastAccessed": 1775419245523,
+      "type": "directory"
+    },
+    {
+      "path": "src/utils/crypto.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775537061699,
+      "type": "directory"
+    },
+    {
+      "path": "src/views/admin/providers.ejs",
+      "accessCount": 2,
+      "lastAccessed": 1775554248735,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/system.ejs",
+      "accessCount": 2,
+      "lastAccessed": 1775554291168,
+      "type": "file"
+    },
+    {
+      "path": "src/flows",
+      "accessCount": 2,
+      "lastAccessed": 1775554497203,
       "type": "directory"
     },
     {
@@ -472,22 +524,40 @@
       "type": "file"
     },
     {
-      "path": "src/views/admin/layout.ejs",
-      "accessCount": 1,
-      "lastAccessed": 1775419530861,
-      "type": "file"
-    },
-    {
-      "path": "src/views/admin/providers.ejs",
-      "accessCount": 1,
-      "lastAccessed": 1775419596674,
-      "type": "file"
-    },
-    {
       "path": "src/views/admin/personas.ejs",
       "accessCount": 1,
       "lastAccessed": 1775419635069,
       "type": "file"
+    },
+    {
+      "path": "src/views/admin/login.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775536988549,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/pricing.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775554263358,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers",
+      "accessCount": 1,
+      "lastAccessed": 1775554456808,
+      "type": "directory"
+    },
+    {
+      "path": "src/services/video-fallback.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775554463655,
+      "type": "directory"
+    },
+    {
+      "path": "src/workers",
+      "accessCount": 1,
+      "lastAccessed": 1775554470696,
+      "type": "directory"
     }
   ],
   "userDirectives": []

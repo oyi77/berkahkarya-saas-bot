@@ -2684,4 +2684,14 @@ You are an expert system administrator and architect for this platform. Give spe
     );
     return { success: true };
   });
+
+  // ── DYNAMIC PRICING PAGE ──
+  server.get("/admin/dynamic-pricing", async (request, reply) => {
+    if (!await verifyAdmin(request, reply)) return;
+    return reply.view("admin/dynamic-pricing", { activePage: "dynamic-pricing" });
+  });
+
+  // ── REGISTER PROVIDER COSTS ROUTES ──
+  const { registerProviderCostRoutes } = await import("./provider-costs.js");
+  registerProviderCostRoutes(server);
 }
