@@ -2309,6 +2309,23 @@ You are an expert system administrator and architect for this platform. Give spe
       seeded++;
     }
 
+    // Seed provider costs from PROVIDER_CONFIG (sync with code)
+    const videoProviders = Object.entries(PROVIDER_CONFIG.video);
+    const imageProviders = Object.entries(PROVIDER_CONFIG.image);
+
+    for (const [key, cfg] of [...videoProviders, ...imageProviders]) {
+      // Check if provider has costPerGenerationUsd defined
+      const costUsd = (cfg as any).costPerGenerationUsd;
+      if (costUsd !== undefined) {
+        await prisma.pricingConfig.upsert({
+          where: { category_key: { category: "provider_cost", key } },
+          update: { value: { costUsd } as any },
+          create: { category: "provider_cost", key, value: { costUsd } as any },
+        });
+        seeded++;
+      }
+    }
+
     PaymentSettingsService.clearPricingCache();
     return { success: true, seeded };
   });

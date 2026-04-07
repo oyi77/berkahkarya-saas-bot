@@ -30,11 +30,11 @@
 
 <!-- Tab Bar -->
 <div class="settings-tabs">
-  <div class="settings-tab active" onclick="switchSettingsTab('general')">&#9881;&#65039; General</div>
-  <div class="settings-tab" onclick="switchSettingsTab('tracking')">&#128202; Tracking</div>
-  <div class="settings-tab" onclick="switchSettingsTab('broadcast')">&#128226; Broadcast</div>
-  <div class="settings-tab" onclick="switchSettingsTab('runtime')">&#128295; Runtime Config</div>
-  <div class="settings-tab" onclick="switchSettingsTab('apikeys')">&#128273; API Keys</div>
+  <div class="settings-tab active" data-tab="general" onclick="switchSettingsTab('general')">&#9881;&#65039; General</div>
+  <div class="settings-tab" data-tab="tracking" onclick="switchSettingsTab('tracking')">&#128202; Tracking</div>
+  <div class="settings-tab" data-tab="broadcast" onclick="switchSettingsTab('broadcast')">&#128226; Broadcast</div>
+  <div class="settings-tab" data-tab="runtime" onclick="switchSettingsTab('runtime')">&#128295; Runtime Config</div>
+  <div class="settings-tab" data-tab="apikeys" onclick="switchSettingsTab('apikeys')">&#128273; API Keys</div>
 </div>
 
 <!-- ====== GENERAL TAB ====== -->
@@ -206,8 +206,8 @@ function toast(msg, type = 'success') {
 function switchSettingsTab(tab) {
   document.querySelectorAll('.settings-tab').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.settings-panel').forEach(el => el.classList.remove('active'));
-  const idx = ['general','tracking','broadcast','runtime','apikeys'].indexOf(tab);
-  if (idx >= 0) document.querySelectorAll('.settings-tab')[idx].classList.add('active');
+  const tabEl = document.querySelector(`.settings-tab[data-tab="${tab}"]`);
+  if (tabEl) tabEl.classList.add('active');
   const panel = document.getElementById('stab-' + tab);
   if (panel) panel.classList.add('active');
   loadSettingsTab(tab);
