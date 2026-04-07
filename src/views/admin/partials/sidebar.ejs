@@ -10,15 +10,15 @@
     <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
   </div>
   <nav style="flex: 1; padding: 12px 0; overflow-y: auto;">
-    <div class="<%= _nav('dashboard') %>" onclick="window.location='/admin/dashboard'">📊 Overview</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#users'">👥 Users</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#transactions'">💳 Transactions</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#analytics'">📈 Analytics</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#pricing'">💰 Pricing</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#tokens'">🪙 Token Usage</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#profit'">💹 Revenue</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#niches'">🏷️ Niches</div>
-    <div class="nav-item" onclick="window.location='/admin/dashboard#landing-page'">🌐 Landing Page</div>
+    <div class="<%= _nav('dashboard') %>" id="nav-dashboard" onclick="window.location='/admin/dashboard'">📊 Overview</div>
+    <div class="nav-item" id="nav-users" onclick="window.location='/admin/dashboard#users'">👥 Users</div>
+    <div class="nav-item" id="nav-transactions" onclick="window.location='/admin/dashboard#transactions'">💳 Transactions</div>
+    <div class="nav-item" id="nav-analytics" onclick="window.location='/admin/dashboard#analytics'">📈 Analytics</div>
+    <div class="nav-item" id="nav-pricing" onclick="window.location='/admin/dashboard#pricing'">💰 Pricing</div>
+    <div class="nav-item" id="nav-tokens" onclick="window.location='/admin/dashboard#tokens'">🪙 Token Usage</div>
+    <div class="nav-item" id="nav-profit" onclick="window.location='/admin/dashboard#profit'">💹 Revenue</div>
+    <div class="nav-item" id="nav-niches" onclick="window.location='/admin/dashboard#niches'">🏷️ Niches</div>
+    <div class="nav-item" id="nav-landing-page" onclick="window.location='/admin/dashboard#landing-page'">🌐 Landing Page</div>
     <div style="margin: 8px 0; border-top: 1px solid var(--border);"></div>
     <div class="<%= _nav('medias') %>" onclick="window.location='/admin/medias'">🎬 Media Gallery</div>
     <div class="<%= _nav('prompts') %>" onclick="window.location='/admin/prompts'">✍️ Prompts</div>
@@ -36,3 +36,32 @@
     <button class="btn btn-ghost btn-sm" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="logout ? logout() : (localStorage.removeItem('admin_password'), document.cookie='admin_token=; Max-Age=0; Path=/;', location.href='/admin/login')">🚪 Logout</button>
   </div>
 </div>
+
+<script>
+// Handle hash-based active states for dashboard subsections
+function updateDashboardNav() {
+  const hash = window.location.hash.replace('#', '');
+  const isDashboard = window.location.pathname === '/admin/dashboard' || window.location.pathname === '/admin/dashboard#users';
+
+  // Remove active class from all dashboard subsections
+  const subsections = ['users', 'transactions', 'analytics', 'pricing', 'tokens', 'profit', 'niches', 'landing-page'];
+  subsections.forEach(section => {
+    const el = document.getElementById(`nav-${section}`);
+    if (el) el.classList.remove('active');
+  });
+
+  // Add active class to current subsection
+  if (hash && subsections.includes(hash)) {
+    const activeEl = document.getElementById(`nav-${hash}`);
+    if (activeEl) activeEl.classList.add('active');
+  }
+}
+
+// Update on page load and hash change
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', updateDashboardNav);
+} else {
+  updateDashboardNav();
+}
+window.addEventListener('hashchange', updateDashboardNav);
+</script>
