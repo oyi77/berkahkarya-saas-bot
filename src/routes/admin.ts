@@ -170,23 +170,6 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
 
   // Login POST endpoint (no auth required)
   server.post("/admin/login", async (request, reply) => {
-    // Origin check — reject cross-origin login submissions
-    const origin = request.headers.origin as string | undefined;
-    if (origin) {
-      const config = getConfig();
-      const siteUrl = config.WEBHOOK_URL || config.WEB_APP_URL || "";
-      const expectedOrigin = siteUrl ? new URL(siteUrl).origin : null;
-      const hostOrigin = request.headers.host
-        ? `${request.protocol}://${request.headers.host}`
-        : null;
-      if (
-        expectedOrigin &&
-        origin !== expectedOrigin &&
-        origin !== hostOrigin
-      ) {
-        return reply.status(403).send({ error: "Forbidden" });
-      }
-    }
 
     // IP-based brute-force rate limiting (5 attempts per 15 min)
     const ip = (
