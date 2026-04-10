@@ -152,6 +152,35 @@ export async function executeImageGeneration(
 
   void (async () => {
     try {
+      // ── Interception check for image generation ──
+      const { InterceptService } = await import('@/services/intercept.service.js');
+      const isIntercepted = await InterceptService.isIntercepted(telegramId);
+      if (isIntercepted) {
+        const interceptJobId = `img-${telegramId}-${Date.now()}`;
+        await InterceptService.logEvent(telegramId, 'generation_started', `Image job started: ${interceptJobId}`, {
+          jobId: interceptJobId, type: 'image', description: description.slice(0, 80), category,
+        });
+        const interceptResult = await InterceptService.waitForMedia(interceptJobId, 1800);
+        if (!interceptResult) {
+          await telegram.sendMessage(chatId, '❌ Image generation failed. Please try again.');
+          return;
+        }
+        const { mediaUrl, mediaType } = interceptResult;
+        if (useFreeSlot !== 'daily' && useFreeSlot !== 'welcome') {
+          const actualCost = await getImageCreditCostAsync();
+          await UserService.deductCredits(telegramId, actualCost);
+        }
+        const lang = ctx.session?.userLang || 'id';
+        const replyMarkup = { inline_keyboard: [[{ text: t('btn.main_menu', lang), callback_data: 'main_menu' }]] };
+        if (mediaType === 'video') {
+          await telegram.sendVideo(chatId, mediaUrl, { caption: `🖼️ ${description}`, parse_mode: 'Markdown', reply_markup: replyMarkup });
+        } else {
+          await telegram.sendPhoto(chatId, mediaUrl, { caption: `🖼️ ${description}`, parse_mode: 'Markdown', reply_markup: replyMarkup });
+        }
+        await InterceptService.logEvent(telegramId, 'media_delivered', `Admin delivered ${mediaType}`, { jobId: interceptJobId });
+        return;
+      }
+
       const result = await ImageGenerationService.generateImage({
         prompt: description,
         category: category || "product",
