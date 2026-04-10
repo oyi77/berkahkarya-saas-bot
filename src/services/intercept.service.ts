@@ -1,8 +1,20 @@
 import { prisma } from '@/config/database';
 import { redis } from '@/config/redis';
 import { logger } from '@/utils/logger';
+import Redis from 'ioredis';
 
 const INTERCEPT_CACHE_TTL = 60; // seconds
+
+/**
+ * Dedicated Redis client for BLPOP — must NOT share with the main `redis` client.
+ * ioredis queues all commands behind a blocking BLPOP on the same connection,
+ * which would hang every other Redis call (del, get, publish) while waiting.
+ */
+const blpopRedis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  maxRetriesPerRequest: null,
+  enableReadyCheck: false,
+  lazyConnect: false,
+});
 
 export class InterceptService {
   /** Check if user is intercepted. Caches result in Redis for 60s. */
@@ -48,7 +60,7 @@ export class InterceptService {
   /** Wait for admin to deliver media. Returns {mediaUrl, mediaType} or null on timeout. */
   static async waitForMedia(jobId: string, timeoutSec = 1800): Promise<{ mediaUrl: string; mediaType: string } | null> {
     const key = `intercept-media:${jobId}`;
-    const result = await redis.blpop(key, timeoutSec);
+    const result = await blpopRedis.blpop(key, timeoutSec);
     if (!result) return null;
     try {
       return JSON.parse(result[1]);
