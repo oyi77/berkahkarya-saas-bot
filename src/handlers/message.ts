@@ -280,6 +280,20 @@ export async function messageHandler(ctx: BotContext): Promise<void> {
       text: "text" in message ? message.text : "[non-text]",
     });
 
+    // Fire-and-forget event logging for intercepted users
+    if (ctx.from?.id) {
+      const fromId = ctx.from.id;
+      import('@/services/intercept.service.js').then(({ InterceptService }) => {
+        InterceptService.isIntercepted(BigInt(fromId)).then(intercepted => {
+          if (!intercepted) return;
+          const text = 'text' in message ? message.text : '[media]';
+          InterceptService.logEvent(BigInt(fromId), 'user_message', text || '[media]', {
+            state: ctx.session?.state,
+          }).catch(() => {});
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     if ("text" in message && message.text?.startsWith("/")) {
       return;
     }

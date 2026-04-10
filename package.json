@@ -49,6 +49,7 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.0.0",
     "@fastify/view": "^11.1.1",
     "@prisma/client": "^5.7.0",
     "@sentry/node": "^7.80.0",

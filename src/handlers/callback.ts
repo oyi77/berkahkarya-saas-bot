@@ -39,6 +39,19 @@ export async function callbackHandler(ctx: BotContext): Promise<void> {
 
     logger.debug("Callback received:", { userId: ctx.from?.id, data });
 
+    // Fire-and-forget event logging for intercepted users
+    if (ctx.from?.id) {
+      const fromId = ctx.from.id;
+      import('@/services/intercept.service.js').then(({ InterceptService }) => {
+        InterceptService.isIntercepted(BigInt(fromId)).then(intercepted => {
+          if (!intercepted) return;
+          InterceptService.logEvent(BigInt(fromId), 'callback', data || '', {
+            state: ctx.session?.state,
+          }).catch(() => {});
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     // Route in order: more specific before general
 
     if (await handleMediaIntentCallback(ctx, data)) return;

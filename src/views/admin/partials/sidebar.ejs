@@ -10,7 +10,7 @@
     <div style="font-size: 11px; color: var(--muted); margin-top: 2px;">Admin Dashboard v3</div>
   </div>
   <nav style="flex: 1; padding: 12px 0; overflow-y: auto;">
-    <div class="nav-item <%= _ap === 'dashboard' && !window.location.hash ? 'active' : '' %>" id="nav-dashboard" onclick="window.location='/admin/dashboard'">📊 Overview</div>
+    <div class="<%= _nav('dashboard') %>" id="nav-dashboard" onclick="window.location='/admin/dashboard'">📊 Overview</div>
     <div class="nav-item" id="nav-users" onclick="window.location='/admin/dashboard#users'">👥 Users</div>
     <div class="nav-item" id="nav-transactions" onclick="window.location='/admin/dashboard#transactions'">💳 Transactions</div>
     <div class="nav-item" id="nav-analytics" onclick="window.location='/admin/dashboard#analytics'">📈 Analytics</div>
@@ -27,6 +27,7 @@
     <div class="<%= _nav('dynamic-pricing') %>" onclick="window.location='/admin/dynamic-pricing'">💵 Dynamic Pricing</div>
     <div class="<%= _nav('playground') %>" onclick="window.location='/admin/playground'">🧪 Playground</div>
     <div class="<%= _nav('personas') %>" onclick="window.location='/admin/personas'">🎭 Personas</div>
+    <div class="<%= _nav('interceptions') %>" onclick="window.location='/admin/interceptions'">🎯 Interceptions</div>
     <div class="<%= _nav('settings') %>" onclick="window.location='/admin/settings'">⚙️ Settings</div>
     <div style="margin: 8px 0; border-top: 1px solid var(--border);"></div>
     <div class="nav-item" onclick="window.location='/admin/dashboard#ai-assistant'">🤖 AI Assistant</div>

@@ -206,6 +206,11 @@ async function main() {
     logger.info("👋 Setting up handlers...");
     setupHandlers(bot);
 
+    // Multipart file upload support
+    await server.register(require('@fastify/multipart'), {
+      limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB max
+    });
+
     // Setup routes
     logger.info("🌟 Setting up view engine...");
     await server.register(fastifyView, {

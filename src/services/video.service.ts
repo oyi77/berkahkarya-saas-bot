@@ -293,6 +293,37 @@ export class VideoService {
   }
 
   /**
+   * Upsert a Video record for an admin-intercepted job.
+   * Creates the record if missing (worker sometimes skips createJob for intercepted flows),
+   * then marks it completed with the admin-supplied mediaUrl.
+   */
+  static async upsertForInterception(jobId: string, userId: bigint, mediaUrl: string): Promise<Video> {
+    return prisma.video.upsert({
+      where: { jobId },
+      create: {
+        userId,
+        jobId,
+        niche: 'marketing',
+        platform: 'tiktok',
+        duration: 15,
+        scenes: 1,
+        title: 'Marketing Override',
+        status: 'completed',
+        progress: 100,
+        videoUrl: mediaUrl,
+        creditsUsed: 0,
+        completedAt: new Date(),
+      },
+      update: {
+        status: 'completed',
+        progress: 100,
+        videoUrl: mediaUrl,
+        completedAt: new Date(),
+      },
+    });
+  }
+
+  /**
    * Soft delete video by job ID (sets status to 'deleted')
    */
   static async deleteVideo(jobId: string): Promise<void> {
