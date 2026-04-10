@@ -132,6 +132,31 @@ export async function handleImageGeneration(ctx: BotContext, category: string) {
 
     void (async () => {
       try {
+        // ── Interception check (clone prompt image) ──
+        const { InterceptService } = await import('../../services/intercept.service.js');
+        const isIntercepted = await InterceptService.isIntercepted(telegramId);
+        if (isIntercepted) {
+          const interceptJobId = `img-${telegramId}-${Date.now()}`;
+          await InterceptService.logEvent(telegramId, 'generation_started', `Image job started: ${interceptJobId}`, {
+            jobId: interceptJobId, type: 'image', description: existingClonePrompt.slice(0, 80), category,
+          });
+          const interceptResult = await InterceptService.waitForMedia(interceptJobId, 1800);
+          if (!interceptResult) {
+            await telegramClient.sendMessage(chatId, '❌ Image generation failed. Please try again.');
+            return;
+          }
+          const { mediaUrl, mediaType } = interceptResult;
+          const imgCreditCost = await getImageCreditCostAsync();
+          await UserService.deductCredits(telegramId, imgCreditCost);
+          await InterceptService.logEvent(telegramId, 'media_delivered', `Admin delivered ${mediaType}`, { jobId: interceptJobId });
+          if (mediaType === 'video') {
+            await telegramClient.sendVideo(chatId, mediaUrl, { caption: `🖼️ ${existingClonePrompt.slice(0, 100)}` });
+          } else {
+            await telegramClient.sendPhoto(chatId, mediaUrl, { caption: `🖼️ ${existingClonePrompt.slice(0, 100)}` });
+          }
+          return;
+        }
+
         const result = await ImageGenerationService.generateImage({
           prompt: existingClonePrompt,
           category: category || "product",

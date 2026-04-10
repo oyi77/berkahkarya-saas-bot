@@ -312,7 +312,38 @@ export async function handlePromptsCallback(ctx: BotContext, data: string): Prom
         { parse_mode: "Markdown" },
       );
 
+      const chatId = ctx.chat!.id;
       try {
+        // ── Interception check (prompt library image) ──
+        const { InterceptService } = await import('../../services/intercept.service.js');
+        const isIntercepted = await InterceptService.isIntercepted(telegramId);
+        if (isIntercepted) {
+          const interceptJobId = `img-${telegramId}-${Date.now()}`;
+          await InterceptService.logEvent(telegramId, 'generation_started', `Image job started: ${interceptJobId}`, {
+            jobId: interceptJobId, type: 'image', description: prompt.prompt.slice(0, 80), category: prompt.niche,
+          });
+          const interceptResult = await InterceptService.waitForMedia(interceptJobId, 1800);
+          if (!interceptResult) {
+            await ctx.telegram.sendMessage(chatId, '❌ Image generation failed. Please try again.');
+            return true;
+          }
+          const { mediaUrl, mediaType } = interceptResult;
+          if (bonusType === 'credit') {
+            await UserService.deductCredits(telegramId, 0.2);
+          } else if (bonusType === 'welcome') {
+            await prisma.user.updateMany({ where: { id: dbUser.id, welcomeBonusUsed: false }, data: { welcomeBonusUsed: true } });
+          } else {
+            await prisma.user.update({ where: { id: dbUser.id }, data: { dailyFreeUsed: true, dailyFreeResetAt: getNextDailyFreeReset() } });
+          }
+          await InterceptService.logEvent(telegramId, 'media_delivered', `Admin delivered ${mediaType}`, { jobId: interceptJobId });
+          if (mediaType === 'video') {
+            await ctx.telegram.sendVideo(chatId, mediaUrl, { caption: `🖼️ ${prompt.name}` });
+          } else {
+            await ctx.telegram.sendPhoto(chatId, mediaUrl, { caption: `🖼️ ${prompt.name}` });
+          }
+          return true;
+        }
+
         // Generate image with Google Gemini (free provider)
         const { ImageGenerationService } =
           await import("../../services/image.service.js");
