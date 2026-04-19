@@ -68,6 +68,25 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
     return reply.status(503).send({ error: "Admin password not configured" });
   }
 
+  // 1) Basic auth header support (Authorization: Basic base64(admin:password))
+  const authHeader = request.headers.authorization;
+  if (typeof authHeader === "string" && authHeader.startsWith("Basic ")) {
+    const encoded = authHeader.slice(6).trim();
+    try {
+      const decoded = Buffer.from(encoded, "base64").toString("utf8");
+      const separator = decoded.indexOf(":");
+      if (separator > -1) {
+        const password = decoded.slice(separator + 1);
+        if (timingSafeCompare(password, ADMIN_PASSWORD)) {
+          return true;
+        }
+      }
+    } catch {
+      // Invalid base64/format -> continue to other auth methods
+    }
+  }
+
+  // 2) Cookie token support (admin_token HMAC)
   const cookie = (request.headers.cookie || "")
     .split(";")
     .find((c) => c.trim().startsWith("admin_token="));
@@ -75,6 +94,17 @@ async function verifyAdmin(request: FastifyRequest, reply: FastifyReply) {
     const token = cookie.split("=")[1]?.trim();
     if (token && timingSafeCompare(token, makeAdminToken(ADMIN_PASSWORD)))
       return true;
+  }
+
+  // 3) Query token support for integrations/debugging
+  const queryToken = (request.query as { token?: string } | undefined)?.token;
+  if (queryToken) {
+    if (
+      timingSafeCompare(queryToken, ADMIN_PASSWORD) ||
+      timingSafeCompare(queryToken, makeAdminToken(ADMIN_PASSWORD))
+    ) {
+      return true;
+    }
   }
 
   // Browser page loads should redirect to login; API calls get JSON 401
@@ -419,14 +449,26 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     const body = request.body as { banned: boolean; reason?: string };
 
     try {
+      const telegramId = BigInt(params.id);
       const user = await prisma.user.update({
-        where: { telegramId: BigInt(params.id) },
+        where: { telegramId },
         data: {
           isBanned: body.banned,
           banReason: body.reason,
           bannedAt: body.banned ? new Date() : null,
         },
       });
+
+      // Keep intercept reads coherent immediately after ban/unban changes.
+      try {
+        const { InterceptService } = await import("../services/intercept.service.js");
+        await InterceptService.invalidateCache(telegramId);
+      } catch (err: any) {
+        request.log.warn(
+          { err, telegramId: telegramId.toString() },
+          "Failed to invalidate intercept cache after ban toggle",
+        );
+      }
 
       return { success: true, isBanned: user.isBanned };
     } catch (error: any) {
@@ -1681,9 +1723,23 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
   server.post("/api/admin/providers/:key/reset-cb", async (request, reply) => {
     const { key } = request.params as { key: string };
     try {
-      await redis.del(`cb:${key}`);
-      await redis.del(`provider:history:${key}:success`);
-      await redis.del(`provider:history:${key}:failure`);
+      // Atomic multi-delete avoids partial reset under concurrent admin actions.
+      await redis
+        .multi()
+        .del(`cb:${key}`)
+        .del(`provider:history:${key}:success`)
+        .del(`provider:history:${key}:failure`)
+        .exec();
+
+      await redis.publish(
+        "admin_events",
+        JSON.stringify({
+          type: "provider_cb_reset",
+          provider: key,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+
       return { success: true, message: `Circuit breaker for ${key} reset` };
     } catch (err: any) {
       return reply.status(500).send({ error: err.message });

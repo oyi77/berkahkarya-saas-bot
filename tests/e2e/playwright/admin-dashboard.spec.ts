@@ -38,8 +38,9 @@ test('dashboard page contains sidebar navigation items', async ({ request }) => 
     headers: { Authorization: basicAuthHeader(ADMIN_PASSWORD) },
   });
   const text = await response.text();
-  // analytics.ejs uses data-section nav items
-  expect(text).toContain('data-section');
+  // Sidebar nav in partial uses nav-* IDs and class names
+  expect(text).toContain('nav-item');
+  expect(text).toContain('id="nav-users"');
 });
 
 test('dashboard page has kpi-card elements in HTML', async ({ request }) => {
@@ -58,7 +59,7 @@ test('dashboard page has Users nav section item', async ({ request }) => {
     headers: { Authorization: basicAuthHeader(ADMIN_PASSWORD) },
   });
   const text = await response.text();
-  expect(text).toContain('data-section="users"');
+  expect(text).toContain('id="nav-users"');
 });
 
 test('dashboard page has Pricing nav section item', async ({ request }) => {
@@ -66,7 +67,7 @@ test('dashboard page has Pricing nav section item', async ({ request }) => {
     headers: { Authorization: basicAuthHeader(ADMIN_PASSWORD) },
   });
   const text = await response.text();
-  expect(text).toContain('data-section="pricing"');
+  expect(text).toContain('id="nav-pricing"');
 });
 
 // ─── Navigation actually works (pages reachable) ─────────────────────────────

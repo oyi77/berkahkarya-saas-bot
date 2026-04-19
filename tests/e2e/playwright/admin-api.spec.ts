@@ -101,7 +101,9 @@ test('GET /api/transactions returns 200 with array when authenticated', async ({
   const response = await request.get('/api/transactions', { headers: auth() });
   expect(response.status()).toBe(200);
   const body = await response.json();
-  expect(Array.isArray(body)).toBe(true);
+  expect(typeof body).toBe('object');
+  expect(Array.isArray(body.transactions)).toBe(true);
+  expect(typeof body.total).toBe('number');
 });
 
 test('GET /api/transactions returns 401 without auth', async ({ request }) => {
