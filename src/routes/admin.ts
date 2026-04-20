@@ -2732,7 +2732,7 @@ You are an expert system administrator and architect for this platform. Give spe
     const { getPersonasAsync } = await import('../config/personas.js');
     const { NICHE_IDS } = await import('../config/niches.js');
     const personas = await getPersonasAsync();
-    return reply.view('admin/personas', { personas, nicheIds: NICHE_IDS });
+    return reply.view('admin/personas', { personas, nicheIds: NICHE_IDS, ...trackingVars(), activePage: 'personas', title: 'Persona Management' }, { layout: 'admin/layout.ejs' });
   });
 
   // ── WELCOME MESSAGE OVERRIDE ──
@@ -2751,7 +2751,7 @@ You are an expert system administrator and architect for this platform. Give spe
   // ── DYNAMIC PRICING PAGE ──
   server.get("/admin/dynamic-pricing", async (request, reply) => {
     if (!await verifyAdmin(request, reply)) return;
-    return reply.view("admin/dynamic-pricing", { activePage: "dynamic-pricing" });
+    return reply.view("admin/dynamic-pricing", { ...trackingVars(), activePage: "dynamic-pricing", title: 'Dynamic Pricing' }, { layout: 'admin/layout.ejs' });
   });
 
   // ── REGISTER PROVIDER COSTS ROUTES ──
