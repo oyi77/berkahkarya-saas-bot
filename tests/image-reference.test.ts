@@ -10,26 +10,30 @@ const mockAvatars: any[] = [];
 jest.mock('@/config/database', () => ({
   prisma: {
     userAvatar: {
-      deleteMany: jest.fn<any>().mockResolvedValue({ count: 0 }),
-      findMany: jest.fn<any>().mockImplementation(() => Promise.resolve([...mockAvatars])),
-      findFirst: jest.fn<any>().mockImplementation(({ where }: any) => {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      findMany: jest.fn().mockImplementation(({ where }: any) => {
+        const rows = [...mockAvatars].filter(a => !where?.userId || a.userId === where.userId);
+        return Promise.resolve(rows);
+      }),
+      findFirst: jest.fn().mockImplementation(({ where }: any) => {
         if (where?.isDefault) return Promise.resolve(mockAvatars.find(a => a.isDefault) || null);
         if (where?.id) return Promise.resolve(mockAvatars.find(a => a.id === where.id) || null);
+        if (where?.userId) return Promise.resolve(mockAvatars.find(a => a.userId === where.userId) || null);
         return Promise.resolve(mockAvatars[0] || null);
       }),
-      findUnique: jest.fn<any>().mockImplementation(({ where }: any) =>
+      findUnique: jest.fn().mockImplementation(({ where }: any) =>
         Promise.resolve(mockAvatars.find(a => a.id === where?.id) || null)),
-      create: jest.fn<any>().mockImplementation(({ data }: any) => {
+      create: jest.fn().mockImplementation(({ data }: any) => {
         const avatar = { id: BigInt(mockAvatars.length + 1), ...data, createdAt: new Date(), updatedAt: new Date() };
         mockAvatars.push(avatar);
         return Promise.resolve(avatar);
       }),
-      update: jest.fn<any>().mockImplementation(({ where, data }: any) => {
+      update: jest.fn().mockImplementation(({ where, data }: any) => {
         const idx = mockAvatars.findIndex(a => a.id === where?.id);
         if (idx >= 0) Object.assign(mockAvatars[idx], data);
         return Promise.resolve(mockAvatars[idx] || null);
       }),
-      updateMany: jest.fn<any>().mockImplementation(({ where, data }: any) => {
+      updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
         mockAvatars.forEach(a => {
           const matchesUser = !where?.userId || a.userId === where.userId;
           const matchesDefault = where?.isDefault === undefined || a.isDefault === where.isDefault;
@@ -37,29 +41,35 @@ jest.mock('@/config/database', () => ({
         });
         return Promise.resolve({ count: mockAvatars.length });
       }),
-      delete: jest.fn<any>().mockImplementation(({ where }: any) => {
+      delete: jest.fn().mockImplementation(({ where }: any) => {
         const idx = mockAvatars.findIndex(a => a.id === where?.id);
         const deleted = idx >= 0 ? mockAvatars.splice(idx, 1)[0] : null;
         return Promise.resolve(deleted);
       }),
-      count: jest.fn<any>().mockImplementation(() => Promise.resolve(mockAvatars.length)),
+      count: jest.fn().mockImplementation(({ where }: any) => {
+        const rows = mockAvatars.filter(a => !where?.userId || a.userId === where.userId);
+        return Promise.resolve(rows.length);
+      }),
     },
     user: {
-      upsert: jest.fn<any>().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
-      findUnique: jest.fn<any>().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
+      upsert: jest.fn().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
+      findUnique: jest.fn().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
     },
-    $disconnect: jest.fn<any>().mockResolvedValue(undefined),
-    $transaction: jest.fn<any>().mockImplementation(async (arg: any) => {
+    $disconnect: jest.fn().mockResolvedValue(undefined),
+    $transaction: jest.fn().mockImplementation(async (arg: any) => {
       if (Array.isArray(arg)) return Promise.all(arg);
       if (typeof arg === 'function') {
         const txPrisma = {
           userAvatar: {
-            updateMany: jest.fn<any>().mockImplementation(({ data }: any) => {
-              // Unset isDefault on all avatars
-              mockAvatars.forEach(a => { a.isDefault = data.isDefault ?? false; });
+            updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
+              mockAvatars.forEach(a => {
+                const matchesUser = !where?.userId || a.userId === where.userId;
+                const matchesDefault = where?.isDefault === undefined || a.isDefault === where.isDefault;
+                if (matchesUser && matchesDefault) a.isDefault = data.isDefault ?? false;
+              });
               return Promise.resolve({ count: mockAvatars.length });
             }),
-            update: jest.fn<any>().mockImplementation(({ where, data }: any) => {
+            update: jest.fn().mockImplementation(({ where, data }: any) => {
               const idx = mockAvatars.findIndex(a => a.id === where?.id);
               if (idx >= 0) Object.assign(mockAvatars[idx], data);
               return Promise.resolve(mockAvatars[idx] || null);
@@ -78,7 +88,18 @@ jest.mock('@/utils/logger', () => ({
 
 jest.mock('@/services/geminigen.service', () => ({
   GeminiGenService: {
-    generateImage: jest.fn<any>().mockResolvedValue({ success: true, imageUrl: 'https://example.com/generated.jpg' }),
+    generateImage: jest.fn().mockResolvedValue({ success: true, imageUrl: 'https://example.com/generated.jpg' }),
+  },
+}));
+
+jest.mock('@/services/content-analysis.service', () => ({
+  ContentAnalysisService: {
+    extractPrompt: jest.fn().mockResolvedValue({
+      success: true,
+      prompt: 'avatar portrait with clear facial features',
+      style: 'realistic',
+      elements: ['face', 'portrait'],
+    }),
   },
 }));
 

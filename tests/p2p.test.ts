@@ -14,23 +14,29 @@ jest.mock('../src/config/database', () => ({
     },
 }));
 
+jest.mock('../src/services/payment-settings.service', () => ({
+    PaymentSettingsService: {
+        getTransferFeePercent: jest.fn().mockResolvedValue(0.5),
+    },
+}));
+
 describe('P2pService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
     describe('calculateFee', () => {
-        it('should calculate exactly 0.5% fee', () => {
-            expect(P2pService.calculateFee(100)).toBe(0.5);
-            expect(P2pService.calculateFee(200)).toBe(1.0);
+        it('should calculate exactly 0.5% fee', async () => {
+            await expect(P2pService.calculateFee(100)).resolves.toBe(0.5);
+            await expect(P2pService.calculateFee(200)).resolves.toBe(1.0);
         });
 
-        it('should enforce a minimum fee of 0.01', () => {
-            expect(P2pService.calculateFee(1)).toBe(0.01);
+        it('should enforce a minimum fee of 0.01', async () => {
+            await expect(P2pService.calculateFee(1)).resolves.toBe(0.01);
         });
 
-        it('should round fee to 2 decimal places', () => {
-            expect(P2pService.calculateFee(155)).toBe(0.78);
+        it('should round fee to 2 decimal places', async () => {
+            await expect(P2pService.calculateFee(155)).resolves.toBe(0.78);
         });
     });
 

@@ -35,7 +35,7 @@ const mockGetSortedVideoProviders = jest.fn<any>();
 jest.mock("@/services/provider-settings.service", () => ({
   ProviderSettingsService: {
     getSortedVideoProviders: mockGetSortedVideoProviders,
-    getDynamicSettings: jest.fn().mockResolvedValue({ video: {}, image: {} }),
+    getDynamicSettings: (jest.fn() as any).mockResolvedValue({ video: {}, image: {} }),
   },
 }));
 

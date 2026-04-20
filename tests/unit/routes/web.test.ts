@@ -23,7 +23,7 @@ jest.mock("@/utils/logger", () => ({
 
 jest.mock("@/services/omniroute.service", () => ({
   getOmniRouteService: jest.fn(() => ({
-    chat: jest.fn().mockResolvedValue({ success: true, content: "test reply" }),
+    chat: (jest.fn() as any).mockResolvedValue({ success: true, content: "test reply" }),
   })),
 }));
 
@@ -81,15 +81,17 @@ const mockPaymentSettingsGet = jest.fn();
 jest.mock("@/services/payment-settings.service", () => ({
   PaymentSettingsService: {
     get: mockPaymentSettingsGet,
-    getEnabledGateways: jest
-      .fn()
-      .mockResolvedValue([{ id: "duitku", gateway: "duitku" }]),
-    getPricingConfig: jest.fn().mockResolvedValue(null),
+    getEnabledGateways: (() => {
+      const fn = jest.fn();
+      (fn as any).mockResolvedValue([{ id: "duitku", gateway: "duitku" }]);
+      return fn;
+    })(),
+    getPricingConfig: (jest.fn() as any).mockResolvedValue(null),
   },
 }));
 
-const mockRedisGet = jest.fn().mockResolvedValue(null as any);
-const mockRedisSet = jest.fn().mockResolvedValue("OK" as any);
+const mockRedisGet = (jest.fn() as any).mockResolvedValue(null as any);
+const mockRedisSet = (jest.fn() as any).mockResolvedValue("OK" as any);
 
 jest.mock("@/config/redis", () => ({
   redis: {
@@ -140,7 +142,7 @@ jest.mock("@/config/pricing", () => ({
   getImageCreditCostAsync: mockGetImageCreditCostAsync,
   getPackagesAsync: mockGetPackagesAsync,
   getSubscriptionPlansAsync: mockGetSubscriptionPlansAsync,
-  getUnitCostAsync: jest.fn().mockResolvedValue(10),
+  getUnitCostAsync: (jest.fn() as any).mockResolvedValue(10),
   SUBSCRIPTION_PLANS: {
     lite: {
       name: "Lite",
@@ -1055,9 +1057,12 @@ describe("Web Routes", () => {
       expect(mockPrismaVideoFindMany).toHaveBeenCalledWith({
         where: { userId: BigInt(123456789) },
         orderBy: { createdAt: "desc" },
-        take: 30,
+        take: 21,
       });
-      expect(result).toEqual(mockVideos);
+      expect(result).toEqual({
+        videos: mockVideos,
+        nextCursor: null,
+      });
     });
 
     it("should return 500 on database error", async () => {

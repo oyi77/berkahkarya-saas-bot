@@ -25,6 +25,7 @@ jest.mock('@/config/niches', () => ({
       colorPalettes: ['warm tones', 'rustic'],
     },
   },
+  resolveNicheKey: (key: string) => key,
 }));
 
 jest.mock('@/config/styles', () => ({

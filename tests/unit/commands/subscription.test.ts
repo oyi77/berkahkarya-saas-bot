@@ -15,7 +15,7 @@ import { createMockContext, mockUser, mockSubscription } from "../../fixtures";
 
 jest.mock("@/services/user.service", () => ({
   UserService: {
-    findByTelegramId: jest.fn().mockResolvedValue(null),
+    findByTelegramId: (jest.fn() as any).mockResolvedValue(null),
   },
 }));
 

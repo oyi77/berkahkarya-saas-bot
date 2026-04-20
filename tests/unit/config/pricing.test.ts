@@ -14,7 +14,7 @@ jest.mock("@/services/payment-settings.service", () => ({
   PaymentSettingsService: {
     getPricingConfig: mockGetPricingConfig,
     getAllPricingByCategory: mockGetAllPricingByCategory,
-    getImageCreditCost: jest.fn().mockResolvedValue(1.0),
+    getImageCreditCost: (jest.fn() as any).mockResolvedValue(1.0),
   },
 }));
 
@@ -34,14 +34,14 @@ describe("Pricing Async Wrappers", () => {
 
   describe("getVideoCreditCostAsync()", () => {
     it("should return dynamic value from DB if available", async () => {
-      mockGetPricingConfig.mockResolvedValue({ units: 55, credits: 5.5 });
+      (mockGetPricingConfig as any).mockResolvedValue({ units: 55, credits: 5.5 });
       const cost = await getVideoCreditCostAsync(30);
       expect(cost).toBe(5.5); // 55 units / 10
       expect(mockGetPricingConfig).toHaveBeenCalledWith("unit_cost", "VIDEO_30S");
     });
 
     it("should fallback to hardcoded if DB returns null", async () => {
-      mockGetPricingConfig.mockResolvedValue(null);
+      (mockGetPricingConfig as any).mockResolvedValue(null);
       const cost = await getVideoCreditCostAsync(30);
       expect(cost).toBe(1.5); // Fallback via getVideoCreditCost(30)
     });
@@ -52,7 +52,7 @@ describe("Pricing Async Wrappers", () => {
       const mockPkgs = {
         "custom_pkg": { name: "Custom", priceIdr: 10000, credits: 10, bonus: 2 }
       };
-      mockGetAllPricingByCategory.mockResolvedValue(mockPkgs);
+      (mockGetAllPricingByCategory as any).mockResolvedValue(mockPkgs);
 
       const pkgs = await getPackagesAsync();
       expect(pkgs).toHaveLength(1);
@@ -64,7 +64,7 @@ describe("Pricing Async Wrappers", () => {
     });
 
     it("should fallback to hardcoded packages if DB is empty", async () => {
-      mockGetAllPricingByCategory.mockResolvedValue({});
+      (mockGetAllPricingByCategory as any).mockResolvedValue({});
       const pkgs = await getPackagesAsync();
       expect(pkgs.length).toBeGreaterThan(0);
       expect(pkgs[0].id).toBe("starter");
@@ -74,14 +74,14 @@ describe("Pricing Async Wrappers", () => {
   describe("getSubscriptionPlansAsync()", () => {
     it("should return dynamic plans from DB", async () => {
       const mockPlans = { "pro_v2": { name: "Pro V2", monthlyPriceIdr: 100 } };
-      mockGetAllPricingByCategory.mockResolvedValue(mockPlans);
+      (mockGetAllPricingByCategory as any).mockResolvedValue(mockPlans);
 
       const plans = await getSubscriptionPlansAsync();
       expect(plans).toEqual(mockPlans);
     });
 
     it("should fallback to hardcoded plans if DB is empty", async () => {
-      mockGetAllPricingByCategory.mockResolvedValue({});
+      (mockGetAllPricingByCategory as any).mockResolvedValue({});
       const plans = await getSubscriptionPlansAsync();
       expect(plans).toEqual(SUBSCRIPTION_PLANS);
     });
@@ -89,13 +89,13 @@ describe("Pricing Async Wrappers", () => {
 
   describe("getUnitCostAsync()", () => {
     it("should return dynamic unit cost", async () => {
-      mockGetPricingConfig.mockResolvedValue({ value: 10.0 });
+      (mockGetPricingConfig as any).mockResolvedValue({ value: 10.0 });
       const cost = await getUnitCostAsync("VIDEO_15S");
       expect(cost).toBe(10.0);
     });
 
     it("should fallback to hardcoded unit cost", async () => {
-      mockGetPricingConfig.mockResolvedValue(null);
+      (mockGetPricingConfig as any).mockResolvedValue(null);
       const cost = await getUnitCostAsync("VIDEO_15S");
       expect(cost).toBeGreaterThan(0);
     });
@@ -103,7 +103,7 @@ describe("Pricing Async Wrappers", () => {
 
   describe("getReferralCommissionsAsync()", () => {
     it("should merge dynamic commissions with default values", async () => {
-      mockGetAllPricingByCategory.mockResolvedValue({ TIER_1: 0.5 });
+      (mockGetAllPricingByCategory as any).mockResolvedValue({ TIER_1: 0.5 });
       const comms = await getReferralCommissionsAsync();
       expect(comms.TIER_1).toBe(0.5);
       expect(comms.TIER_2).toBeDefined(); // Still exists from defaults

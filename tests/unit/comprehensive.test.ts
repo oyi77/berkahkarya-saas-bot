@@ -14,9 +14,9 @@ import { Decimal } from "@prisma/client/runtime/library.js";
 jest.mock("@/config/redis", () => ({
   redis: {
     get: jest.fn(),
-    set: jest.fn().mockResolvedValue('OK'),
+    set: (jest.fn() as any).mockResolvedValue('OK'),
     setex: jest.fn(),
-    del: jest.fn().mockResolvedValue(1),
+    del: (jest.fn() as any).mockResolvedValue(1),
   },
 }));
 
@@ -90,16 +90,16 @@ jest.mock("@/services/campaign.service", () => ({
 
 jest.mock("@/services/payment-settings.service", () => ({
   PaymentSettingsService: {
-    getPricingConfig: jest.fn().mockResolvedValue(null),
-    getImageCreditCost: jest.fn().mockResolvedValue(0.2),
-    getAllPricingByCategory: jest.fn().mockResolvedValue({}),
+    getPricingConfig: (jest.fn() as any).mockResolvedValue(null),
+    getImageCreditCost: (jest.fn() as any).mockResolvedValue(0.2),
+    getAllPricingByCategory: (jest.fn() as any).mockResolvedValue({}),
   },
 }));
 
 jest.mock("@/services/avatar.service", () => ({
   AvatarService: {
     createAvatar: jest.fn(),
-    listAvatars: jest.fn().mockResolvedValue([]),
+    listAvatars: (jest.fn() as any).mockResolvedValue([]),
     getAvatar: jest.fn(),
   },
 }));
@@ -111,9 +111,9 @@ jest.mock("@/services/metrics.service", () => ({
 }));
 
 jest.mock("@/config/free-trial", () => ({
-  canUseDailyFree: jest.fn().mockReturnValue(false),
-  canUseWelcomeBonus: jest.fn().mockReturnValue(false),
-  getNextDailyFreeReset: jest.fn().mockReturnValue(new Date()),
+  canUseDailyFree: (jest.fn() as any).mockReturnValue(false),
+  canUseWelcomeBonus: (jest.fn() as any).mockReturnValue(false),
+  getNextDailyFreeReset: (jest.fn() as any).mockReturnValue(new Date()),
 }));
 
 // ── Imports (after mocks) ────────────────────────────────────────────────────
@@ -157,15 +157,15 @@ function mockCtx(
       stateData,
       ...extraSession,
     },
-    reply: jest.fn().mockResolvedValue({}),
-    answerCbQuery: jest.fn().mockResolvedValue({}),
-    editMessageText: jest.fn().mockResolvedValue({}),
-    replyWithMediaGroup: jest.fn().mockResolvedValue({}),
+    reply: (jest.fn() as any).mockResolvedValue({}),
+    answerCbQuery: (jest.fn() as any).mockResolvedValue({}),
+    editMessageText: (jest.fn() as any).mockResolvedValue({}),
+    replyWithMediaGroup: (jest.fn() as any).mockResolvedValue({}),
     telegram: {
-      sendMessage: jest.fn().mockResolvedValue({}),
-      sendPhoto: jest.fn().mockResolvedValue({}),
-      sendVideo: jest.fn().mockResolvedValue({}),
-      getFileLink: jest.fn().mockResolvedValue({ toString: () => "https://example.com/file.jpg" }),
+      sendMessage: (jest.fn() as any).mockResolvedValue({}),
+      sendPhoto: (jest.fn() as any).mockResolvedValue({}),
+      sendVideo: (jest.fn() as any).mockResolvedValue({}),
+      getFileLink: (jest.fn() as any).mockResolvedValue({ toString: () => "https://example.com/file.jpg" }),
     },
     message: undefined,
     callbackQuery: { data: "" },
@@ -189,11 +189,6 @@ function makeUser(creditBalance: number, tier = "free") {
 describe("Session State Machine", () => {
   describe("CUSTOM_DURATION_INPUT_V3", () => {
     it("valid integer input (120) stores config and resets state to DASHBOARD", async () => {
-      // Import the message handler lazily to test the branch directly
-      const { handleMessage } = await import("@/handlers/message").catch(
-        () => ({ handleMessage: null }),
-      );
-
       // Directly test the buildCustomPresetConfig behavior that the state uses
       const config = buildCustomPresetConfig(120);
       expect(config.totalSeconds).toBe(120);
@@ -230,7 +225,7 @@ describe("Session State Machine", () => {
   describe("AVATAR_NAME_WAITING", () => {
     it("on avatar creation success — state resets to DASHBOARD", async () => {
       const { AvatarService } = require("@/services/avatar.service");
-      (AvatarService.createAvatar as jest.Mock).mockResolvedValueOnce({
+      (AvatarService.createAvatar as any).mockResolvedValueOnce({
         name: "TestAvatar",
         isDefault: false,
         description: "A test avatar",
@@ -249,7 +244,7 @@ describe("Session State Machine", () => {
 
     it("on avatar creation error — state still resets to DASHBOARD", async () => {
       const { AvatarService } = require("@/services/avatar.service");
-      (AvatarService.createAvatar as jest.Mock).mockRejectedValueOnce(
+      (AvatarService.createAvatar as any).mockRejectedValueOnce(
         new Error("DB error"),
       );
 
@@ -279,7 +274,7 @@ describe("Session State Machine", () => {
       const ctx = mockCtx("DASHBOARD");
       await settingsCommand(ctx as any);
       expect(ctx.reply).toHaveBeenCalledTimes(1);
-      const callArgs = (ctx.reply as jest.Mock).mock.calls[0];
+      const callArgs = (ctx.reply as any).mock.calls[0];
       const replyMarkup = callArgs[1]?.reply_markup?.inline_keyboard;
       const allButtonData = replyMarkup.flat().map((b: any) => b.callback_data);
       expect(allButtonData).toContain("settings_language");
@@ -299,7 +294,7 @@ describe("Session State Machine", () => {
       const ctx = mockCtx("DASHBOARD");
       await supportCommand(ctx as any);
       expect(ctx.reply).toHaveBeenCalledTimes(1);
-      const callArgs = (ctx.reply as jest.Mock).mock.calls[0];
+      const callArgs = (ctx.reply as any).mock.calls[0];
       const replyMarkup = callArgs[1]?.reply_markup?.inline_keyboard;
       const urlButtons = replyMarkup.flat().filter((b: any) => b.url);
       expect(urlButtons.length).toBeGreaterThan(0);
@@ -317,8 +312,8 @@ describe("Credit / Payment Logic", () => {
 
   describe("executeGeneration — image_set", () => {
     it("does NOT deduct credits when all images fail", async () => {
-      (UserService.findByTelegramId as jest.Mock).mockResolvedValue(makeUser(10));
-      (ImageGenerationService.generateImage as jest.Mock).mockResolvedValue({
+      (UserService.findByTelegramId as any).mockResolvedValue(makeUser(10));
+      (ImageGenerationService.generateImage as any).mockResolvedValue({
         success: false,
         error: "Provider unavailable",
       });
@@ -340,10 +335,12 @@ describe("Credit / Payment Logic", () => {
     });
 
     it("deducts proportional credits on partial success (3/7 scenes)", async () => {
-      (UserService.findByTelegramId as jest.Mock).mockResolvedValue(makeUser(10));
+      (UserService.findByTelegramId as any).mockResolvedValue(makeUser(10));
+      (VideoService.createJob as any).mockResolvedValue({ jobId: 'job_partial_123' });
+      (enqueueVideoGeneration as any).mockResolvedValue({ position: 1, job: { remove: jest.fn() } });
 
       let callCount = 0;
-      (ImageGenerationService.generateImage as jest.Mock).mockImplementation(() => {
+      (ImageGenerationService.generateImage as any).mockImplementation(() => {
         callCount++;
         // First 3 succeed, rest fail
         return Promise.resolve(
@@ -364,10 +361,9 @@ describe("Credit / Payment Logic", () => {
       await executeGeneration(ctx as any);
 
       expect(UserService.deductCredits).toHaveBeenCalledTimes(1);
-      const deductedAmount = (UserService.deductCredits as jest.Mock).mock.calls[0][1] as number;
-      // Full cost deducted upfront; partial refund handled by worker on failure
-      expect(deductedAmount).toBeGreaterThan(0);
-      expect(deductedAmount).toBeLessThanOrEqual(UNIT_COSTS.IMAGE_SET_7_SCENE / 10);
+      const deductedAmount = (UserService.deductCredits as any).mock.calls[0][1] as number;
+      // Full configured credit cost is deducted once the queue handoff succeeds.
+      expect(deductedAmount).toBe(UNIT_COSTS.IMAGE_SET_7_SCENE / 10);
     });
   });
 
@@ -379,14 +375,14 @@ describe("Credit / Payment Logic", () => {
     it("deducts credits AFTER createJob succeeds — ordering is preserved", async () => {
       const callOrder: string[] = [];
 
-      (VideoService.createJob as jest.Mock).mockImplementation(async () => {
+      (VideoService.createJob as any).mockImplementation(async () => {
         callOrder.push("createJob");
         return { jobId: "job_test_123" };
       });
-      (UserService.deductCredits as jest.Mock).mockImplementation(async () => {
+      (UserService.deductCredits as any).mockImplementation(async () => {
         callOrder.push("deductCredits");
       });
-      (enqueueVideoGeneration as jest.Mock).mockResolvedValue({ position: 1 });
+      (enqueueVideoGeneration as any).mockResolvedValue({ position: 1 });
 
       // Simulate the correct ordering from generate.ts:
       // 1. createJob, then 2. deductCredits (after job creation confirmed)
@@ -406,7 +402,7 @@ describe("Credit / Payment Logic", () => {
     });
 
     it("does NOT deduct credits if createJob throws", async () => {
-      (VideoService.createJob as jest.Mock).mockRejectedValue(new Error("DB error"));
+      (VideoService.createJob as any).mockRejectedValue(new Error("DB error"));
 
       let creditsDeducted = false;
       try {
@@ -423,7 +419,7 @@ describe("Credit / Payment Logic", () => {
     });
 
     it("insufficient credits — user balance check returns false before creating job", async () => {
-      (UserService.findByTelegramId as jest.Mock).mockResolvedValue(makeUser(0));
+      (UserService.findByTelegramId as any).mockResolvedValue(makeUser(0));
 
       const ctx = mockCtx("DASHBOARD", {}, {
         generateAction: "video",
@@ -447,7 +443,7 @@ describe("Credit / Payment Logic", () => {
   describe("executeGeneration — clone_style", () => {
     it("calls ContentAnalysisService.extractPrompt when photoUrl present (logic check)", async () => {
       const { ContentAnalysisService } = require("@/services/content-analysis.service");
-      (ContentAnalysisService.extractPrompt as jest.Mock).mockResolvedValue({
+      (ContentAnalysisService.extractPrompt as any).mockResolvedValue({
         success: true,
         prompt: "luxury product style",
       });
@@ -465,8 +461,8 @@ describe("Credit / Payment Logic", () => {
   describe("executeGeneration — campaign", () => {
     it("deducts credits once for the whole campaign (logic check)", async () => {
       const { CampaignService } = require("@/services/campaign.service");
-      (CampaignService.getCampaignCost as jest.Mock).mockReturnValue(40);
-      (UserService.deductCredits as jest.Mock).mockResolvedValue(undefined);
+      (CampaignService.getCampaignCost as any).mockReturnValue(40);
+      (UserService.deductCredits as any).mockResolvedValue(undefined);
 
       // Simulate campaign flow: one deductCredits call for the whole batch
       const campCost = CampaignService.getCampaignCost(5);
@@ -553,7 +549,7 @@ describe("Callback Routing", () => {
     it("insufficient credits → executeGeneration replies with unit error (no dynamic import needed)", async () => {
       // Test the user-balance check path in executeGeneration, which runs before
       // the dynamic import of VideoService — so it works in CJS test mode.
-      (UserService.findByTelegramId as jest.Mock).mockResolvedValue(makeUser(0));
+      (UserService.findByTelegramId as any).mockResolvedValue(makeUser(0));
 
       const ctx = mockCtx("DASHBOARD", {}, {
         generateAction: "video",
@@ -572,7 +568,7 @@ describe("Callback Routing", () => {
     });
 
     it("user not found → executeGeneration replies with user error", async () => {
-      (UserService.findByTelegramId as jest.Mock).mockResolvedValue(null);
+      (UserService.findByTelegramId as any).mockResolvedValue(null);
 
       const ctx = mockCtx("DASHBOARD", {}, {
         generateAction: "video",
@@ -682,7 +678,7 @@ describe("Generate Flow", () => {
 
       // showSmartPresetSelection sends a reply with preset options
       expect(ctx.reply).toHaveBeenCalled();
-      const replyText = (ctx.reply as jest.Mock).mock.calls[0][0];
+      const replyText = (ctx.reply as any).mock.calls[0][0];
       expect(replyText).toBeTruthy();
     });
 
@@ -771,7 +767,7 @@ describe("Generate Flow", () => {
       await showConfirmScreen(ctx as any);
 
       expect(ctx.reply).toHaveBeenCalledTimes(1);
-      const replyText = (ctx.reply as jest.Mock).mock.calls[0][0];
+      const replyText = (ctx.reply as any).mock.calls[0][0];
       expect(replyText).toContain("Konfirmasi");
       expect(replyText).toContain("kredit");
     });
@@ -801,7 +797,7 @@ describe("Commands", () => {
     it("message contains Settings header", async () => {
       const ctx = mockCtx("DASHBOARD");
       await settingsCommand(ctx as any);
-      const text = (ctx.reply as jest.Mock).mock.calls[0][0];
+      const text = (ctx.reply as any).mock.calls[0][0];
       expect(text).toContain("Settings");
     });
   });
@@ -822,7 +818,7 @@ describe("Commands", () => {
     it("message contains Support header", async () => {
       const ctx = mockCtx("DASHBOARD");
       await supportCommand(ctx as any);
-      const text = (ctx.reply as jest.Mock).mock.calls[0][0];
+      const text = (ctx.reply as any).mock.calls[0][0];
       expect(text).toContain("Support");
     });
   });
@@ -949,7 +945,7 @@ describe("VideoAnalysisService", () => {
   });
 
   it("analyze() returns fallback result when GEMINI_API_KEY is missing", async () => {
-    (VideoAnalysisService.analyze as jest.Mock).mockResolvedValue({
+    (VideoAnalysisService.analyze as any).mockResolvedValue({
       success: false,
       fallback: true,
       storyboard: [],
@@ -963,7 +959,7 @@ describe("VideoAnalysisService", () => {
   });
 
   it("analyze() returns valid storyboard structure on success", async () => {
-    (VideoAnalysisService.analyze as jest.Mock).mockResolvedValue({
+    (VideoAnalysisService.analyze as any).mockResolvedValue({
       success: true,
       fallback: false,
       storyboard: [
@@ -981,7 +977,7 @@ describe("VideoAnalysisService", () => {
   });
 
   it("analyze() handles network errors gracefully", async () => {
-    (VideoAnalysisService.analyze as jest.Mock).mockRejectedValue(
+    (VideoAnalysisService.analyze as any).mockRejectedValue(
       new Error("Network timeout"),
     );
 
@@ -1031,8 +1027,8 @@ describe("Fire-and-Forget Pattern", () => {
     const sessionKey = "session:123456";
     const existingSession = { state: "DASHBOARD", stateData: {} };
 
-    (redis.get as jest.Mock).mockResolvedValue(JSON.stringify(existingSession));
-    (redis.setex as jest.Mock).mockResolvedValue("OK");
+    (redis.get as any).mockResolvedValue(JSON.stringify(existingSession));
+    (redis.setex as any).mockResolvedValue("OK");
 
     // Simulate the updateSessionDirectly function's pattern
     const raw = await redis.get(sessionKey);
@@ -1049,12 +1045,12 @@ describe("Fire-and-Forget Pattern", () => {
   });
 
   it("fire-and-forget block: generation result sends photo on success", async () => {
-    (ImageGenerationService.generateImage as jest.Mock).mockResolvedValue({
+    (ImageGenerationService.generateImage as any).mockResolvedValue({
       success: true,
       imageUrl: "https://example.com/generated.jpg",
       provider: "fal",
     });
-    (UserService.deductCredits as jest.Mock).mockResolvedValue(undefined);
+    (UserService.deductCredits as any).mockResolvedValue(undefined);
 
     const ctx = mockCtx("DASHBOARD");
 
@@ -1078,7 +1074,7 @@ describe("Fire-and-Forget Pattern", () => {
   });
 
   it("fire-and-forget block: sends error message when generation fails", async () => {
-    (ImageGenerationService.generateImage as jest.Mock).mockResolvedValue({
+    (ImageGenerationService.generateImage as any).mockResolvedValue({
       success: false,
       error: "Provider unavailable",
     });
@@ -1112,12 +1108,12 @@ describe("creation.ts vcreate_confirm", () => {
   it("credits deducted AFTER createJob — ordering is preserved", async () => {
     const callOrder: string[] = [];
 
-    (UserService.findByTelegramId as jest.Mock).mockResolvedValue(makeUser(10));
-    (VideoService.createJob as jest.Mock).mockImplementation(async () => {
+    (UserService.findByTelegramId as any).mockResolvedValue(makeUser(10));
+    (VideoService.createJob as any).mockImplementation(async () => {
       callOrder.push("createJob");
       return { jobId: "job_creation_1" };
     });
-    (UserService.deductCredits as jest.Mock).mockImplementation(async () => {
+    (UserService.deductCredits as any).mockImplementation(async () => {
       callOrder.push("deductCredits");
     });
 
@@ -1137,7 +1133,7 @@ describe("creation.ts vcreate_confirm", () => {
   });
 
   it("no credits deducted when createJob throws — user not double-billed", async () => {
-    (VideoService.createJob as jest.Mock).mockRejectedValue(new Error("DB failure"));
+    (VideoService.createJob as any).mockRejectedValue(new Error("DB failure"));
 
     let creditsDucted = false;
     try {

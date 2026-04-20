@@ -151,17 +151,16 @@ test('Collapse All hides group body elements when route is deployed', async ({ p
   if (response && response.status() === 404) return;
 
   // Wait for config to load (the loading placeholder disappears)
-  await page.waitForFunction(() => {
-    const container = document.getElementById('config-container');
-    return container && !container.innerText.includes('Loading');
-  }, { timeout: 10000 });
+  await page.waitForFunction(
+    "() => { const container = document.getElementById('config-container'); return !!container && !container.innerText.includes('Loading'); }",
+    { timeout: 10000 },
+  );
 
   await page.getByText('Collapse All').click();
 
-  const hiddenBodies = await page.evaluate(() => {
-    const bodies = document.querySelectorAll('.group-body');
-    return Array.from(bodies).every(el => (el as HTMLElement).style.display === 'none');
-  });
+  const hiddenBodies = await page.evaluate(
+    "() => { const bodies = document.querySelectorAll('.group-body'); return Array.from(bodies).every((el) => el.style.display === 'none'); }",
+  );
   expect(hiddenBodies).toBe(true);
 });
 
@@ -170,17 +169,16 @@ test('Expand All makes group body elements visible when route is deployed', asyn
   const response = await page.goto('/admin/config');
   if (response && response.status() === 404) return;
 
-  await page.waitForFunction(() => {
-    const container = document.getElementById('config-container');
-    return container && !container.innerText.includes('Loading');
-  }, { timeout: 10000 });
+  await page.waitForFunction(
+    "() => { const container = document.getElementById('config-container'); return !!container && !container.innerText.includes('Loading'); }",
+    { timeout: 10000 },
+  );
 
   await page.getByText('Collapse All').click();
   await page.getByText('Expand All').click();
 
-  const visibleBodies = await page.evaluate(() => {
-    const bodies = document.querySelectorAll('.group-body');
-    return Array.from(bodies).every(el => (el as HTMLElement).style.display !== 'none');
-  });
+  const visibleBodies = await page.evaluate(
+    "() => { const bodies = document.querySelectorAll('.group-body'); return Array.from(bodies).every((el) => el.style.display !== 'none'); }",
+  );
   expect(visibleBodies).toBe(true);
 });

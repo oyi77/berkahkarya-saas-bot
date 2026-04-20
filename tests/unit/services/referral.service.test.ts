@@ -105,7 +105,7 @@ function makeIndirectReferrer(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ReferralService", () => {
-  let isEligibleSpy: jest.SpiedFunction<any>;
+  let isEligibleSpy: any;
 
   beforeEach(() => {
     jest.clearAllMocks();

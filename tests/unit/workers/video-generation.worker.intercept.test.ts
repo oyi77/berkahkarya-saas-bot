@@ -115,7 +115,7 @@ function buildJob(overrides: Partial<any> = {}): any {
   };
 }
 
-async function bootWorkerAndGetProcessor() {
+async function bootWorkerAndGetProcessor(): Promise<(job: any) => Promise<void>> {
   capturedProcessor = null;
   let startVideoWorker: any;
 
@@ -132,7 +132,7 @@ async function bootWorkerAndGetProcessor() {
     throw new Error('Worker processor was not captured');
   }
 
-  return capturedProcessor;
+  return capturedProcessor as (job: any) => Promise<void>;
 }
 
 describe('video-generation.worker interception branch', () => {

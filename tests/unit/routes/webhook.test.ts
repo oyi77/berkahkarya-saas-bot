@@ -210,8 +210,9 @@ describe("Webhook Routes", () => {
       const result = await telegramHandler()(request, reply);
 
       expect(mockHandleUpdate).toHaveBeenCalledWith(update);
-      expect(result).toEqual({ ok: true });
-      expect(reply.status).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+      expect(reply.status).toHaveBeenCalledWith(200);
+      expect(reply.send).toHaveBeenCalledWith({ ok: true });
     });
 
     it("should reject request with invalid webhook secret", async () => {
@@ -253,14 +254,15 @@ describe("Webhook Routes", () => {
 
       const result = await telegramHandler()(request, reply);
 
+      expect(result).toBeUndefined();
+      expect(reply.status).toHaveBeenCalledWith(200);
+      expect(reply.send).toHaveBeenCalledWith({ ok: true });
+      // handler logs async processing error through .catch()
+      await Promise.resolve();
       expect(mockLogger.error).toHaveBeenCalledWith(
-        "Telegram webhook error:",
+        "Telegram webhook processing error:",
         error,
       );
-      expect(reply.status).toHaveBeenCalledWith(500);
-      expect(reply.send).toHaveBeenCalledWith({
-        error: "Internal server error",
-      });
     });
 
     it("should handle callback query updates", async () => {
@@ -278,7 +280,9 @@ describe("Webhook Routes", () => {
       const result = await telegramHandler()(request, reply);
 
       expect(mockHandleUpdate).toHaveBeenCalledWith(update);
-      expect(result).toEqual({ ok: true });
+      expect(result).toBeUndefined();
+      expect(reply.status).toHaveBeenCalledWith(200);
+      expect(reply.send).toHaveBeenCalledWith({ ok: true });
     });
   });
 
@@ -1355,7 +1359,9 @@ describe("Webhook Routes", () => {
 
       const result = await routes.post["/webhook/telegram"](request, reply);
 
-      expect(result).toEqual({ ok: true });
+      expect(result).toBeUndefined();
+      expect(reply.status).toHaveBeenCalledWith(200);
+      expect(reply.send).toHaveBeenCalledWith({ ok: true });
     });
 
     it("should handle concurrent webhook requests", async () => {

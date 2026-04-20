@@ -241,12 +241,13 @@ export interface MockBotContext {
       text?: string;
     };
   };
-  session?: {
+  session: {
     state?: string;
     lastActivity?: Date;
     stateData?: Record<string, any>;
     creditBalance?: number;
     tier?: string;
+    userLang?: string;
     videoCreation?: any;
     videoCreationNew?: any;
     selectedNiche?: string;
@@ -327,10 +328,10 @@ export function createMockCallbackContext(
   data: string,
   overrides: Partial<MockBotContext> = {},
 ): MockBotContext & {
-  callbackQuery: { id: "test_callback"; data; message: { message_id: 1 } };
+  callbackQuery: { id: "test_callback"; data: string; message: { message_id: 1 } };
 } {
   const ctx = createMockContext(overrides);
   return ctx as MockBotContext & {
-    callbackQuery: { id: "test_callback"; data; message: { message_id: 1 } };
+    callbackQuery: { id: "test_callback"; data: string; message: { message_id: 1 } };
   };
 }

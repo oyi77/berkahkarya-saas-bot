@@ -175,7 +175,7 @@ describe("Start Command", () => {
       expect(ctx.reply).toHaveBeenCalled();
       const replyCall = ctx.reply.mock.calls[0];
       expect(replyCall[0]).toContain("Halo");
-      expect(replyCall[1].reply_markup.keyboard).toHaveLength(5);
+      expect(replyCall[1].reply_markup.keyboard).toHaveLength(6);
     });
 
     it("should show correct credit emoji for zero balance", async () => {
@@ -323,7 +323,7 @@ describe("Start Command", () => {
       expect(keyboard[0][1].text).toContain("🖼️");
       expect(keyboard[1][0].text).toContain("📚");
       expect(keyboard[2][0].text).toContain("📁");
-      expect(keyboard[4][0].text).toContain("⚙️");
+      expect(keyboard[4][1].text).toContain("⚙️");
     });
 
     it("should handle zh-hans language code", async () => {

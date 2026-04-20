@@ -97,8 +97,8 @@ jest.mock("@/config/pricing", () => ({
     (credits: number, tier: string) =>
       credits * (tier === "free" ? 20000 : 10000),
   ),
-  getUnitCostAsync: jest.fn().mockResolvedValue(20000),
-  getPackagesAsync: jest.fn().mockResolvedValue([
+  getUnitCostAsync: (jest.fn() as any).mockResolvedValue(20000),
+  getPackagesAsync: (jest.fn() as any).mockResolvedValue([
     { id: "starter", name: "Starter", credits: 6, bonus: 0, priceIdr: 49000 },
     { id: "growth", name: "Growth", credits: 16, bonus: 6, priceIdr: 149000 },
   ]),
@@ -428,7 +428,7 @@ describe("Topup Command", () => {
     });
 
     it("should show Duitku payment methods instead of immediate transaction", async () => {
-      DuitkuService.getPaymentMethods = jest.fn().mockResolvedValue([
+      DuitkuService.getPaymentMethods = (jest.fn() as any).mockResolvedValue([
         { paymentMethod: 'BC', paymentName: 'BCA Virtual Account', paymentImage: '', totalFee: '0' },
         { paymentMethod: 'OV', paymentName: 'OVO', paymentImage: '', totalFee: '0' },
       ]);

@@ -5,7 +5,7 @@
  */
 
 jest.mock("@/flows/generate", () => ({
-  showGenerateMode: jest.fn().mockResolvedValue(undefined),
+  showGenerateMode: (jest.fn() as any).mockResolvedValue(undefined),
 }));
 
 import {
