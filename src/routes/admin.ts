@@ -1905,10 +1905,63 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     const response = await axios.get('https://models.dev/api.json', { timeout: 15000 });
     const raw = response.data as Record<string, any>;
 
+    // Fetch active API keys to filter
+    const dbRows = await prisma.pricingConfig.findMany({ where: { category: 'api_keys' } });
+    const dbMap: Record<string, string> = {};
+    for (const row of dbRows) dbMap[row.key] = String(row.value ?? '');
+
+    const hasKey = (keyName: string) => {
+      const envVal = process.env[keyName] || '';
+      const dbVal = dbMap[keyName] || '';
+      return !!(dbVal || envVal);
+    };
+
+    const isProviderActive = (providerId: string) => {
+      // Special cases based on the existing environment mappings
+      const envVarMap: Record<string, string> = {
+        byteplus: "BYTEPLUS_API_KEY",
+        xai: "XAI_API_KEY",
+        laozhang: "LAOZHANG_API_KEY",
+        evolink: "EVOLINK_API_KEY",
+        hypereal: "HYPEREAL_API_KEY",
+        siliconflow: "SILICONFLOW_API_KEY",
+        falai_video: "FALAI_API_KEY",
+        falai: "FALAI_API_KEY",
+        kie: "KIE_API_KEY",
+        piapi: "PIAPI_API_KEY",
+        geminigen: "GEMINIGEN_API_KEY",
+        lingyaai: "LINGYAAI_API_KEY",
+        getgoapi: "GETGOAPI_API_KEY",
+        apiyi: "APIYI_API_KEY",
+        runware: "RUNWARE_API_KEY",
+        wavespeed: "WAVESPEED_API_KEY",
+        zai: "ZAI_API_KEY",
+        zai_video: "ZAI_API_KEY",
+        omniroute: "OMNIROUTE_API_KEY",
+        openai: "OPENAI_API_KEY",
+        gemini: "GEMINI_API_KEY",
+        groq: "GROQ_API_KEY",
+        together: "TOGETHER_API_KEY",
+        segmind: "SEGMIND_API_KEY",
+        anthropic: "ANTHROPIC_API_KEY", // assuming standard mapping if added
+      };
+
+      const mappedKey = envVarMap[providerId];
+      if (mappedKey) return hasKey(mappedKey);
+
+      // Generic fallback: provider -> PROVIDER_API_KEY
+      const fallbackKey = providerId.toUpperCase().replace(/[^A-Z0-9]/g, '_') + '_API_KEY';
+      return hasKey(fallbackKey);
+    };
+
     // Flatten into array
     const models: any[] = [];
     for (const [providerId, providerData] of Object.entries(raw)) {
       if (!providerData || typeof providerData !== 'object') continue;
+      
+      // Filter out providers we don't have configured API keys for
+      if (!isProviderActive(providerId)) continue;
+
       const providerName = (providerData as any).name || providerId;
       const providerModels = (providerData as any).models;
       if (!providerModels || typeof providerModels !== 'object') continue;
