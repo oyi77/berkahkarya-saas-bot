@@ -1024,6 +1024,10 @@ export async function adminRoutes(server: FastifyInstance): Promise<void> {
     return reply.view("admin/settings.ejs", { ...trackingVars(), activePage: 'settings', title: 'Settings' }, { layout: 'admin/layout.ejs' });
   });
 
+  server.get("/admin/interceptions", async (_request, reply) => {
+    return reply.view("admin/interceptions.ejs", { ...trackingVars(), activePage: 'interceptions', title: 'Live Interceptions' }, { layout: 'admin/layout.ejs' });
+  });
+
   server.get("/admin/users", async (_request, reply) => {
     return reply.redirect("/admin/dashboard#users");
   });
@@ -2756,10 +2760,7 @@ You are an expert system administrator and architect for this platform. Give spe
 
   // ── INTERCEPTION MANAGEMENT ──
 
-  server.get("/admin/interceptions", async (request, reply) => {
-    if (!await verifyAdmin(request, reply)) return;
-    return reply.view("admin/interceptions", { activePage: "interceptions" });
-  });
+
 
   // List intercepted users
   server.get("/api/intercept/users", async (request, reply) => {
@@ -2778,21 +2779,38 @@ You are an expert system administrator and architect for this platform. Give spe
     const { telegramId, enabled } = request.body as { telegramId: string; enabled: boolean };
     if (!telegramId) return reply.status(400).send({ error: "telegramId required" });
     const { InterceptService } = await import("../services/intercept.service.js");
-    await prisma.user.update({
-      where: { telegramId: BigInt(telegramId) },
-      data: { isIntercepted: enabled },
-    });
-    await InterceptService.invalidateCache(BigInt(telegramId));
-    return { success: true };
+    try {
+      await prisma.user.update({
+        where: { telegramId: BigInt(telegramId) },
+        data: { isIntercepted: enabled },
+      });
+      await InterceptService.invalidateCache(BigInt(telegramId));
+      return { success: true };
+    } catch (error: any) {
+        if (error.code === 'P2025') { // Prisma's 'Record to update not found'
+            return reply.status(404).send({ error: "User not found" });
+        }
+        if (error instanceof SyntaxError) { // BigInt conversion error
+            return reply.status(400).send({ error: "Invalid Telegram ID format" });
+        }
+        logger.error('Failed to toggle intercept:', error);
+        return reply.status(500).send({ error: "An unexpected error occurred" });
+    }
   });
 
   // Get recent chat events for a user
   server.get("/api/intercept/events/:telegramId", async (request, reply) => {
     if (!await verifyAdmin(request, reply)) return;
     const { telegramId } = request.params as { telegramId: string };
-    const { InterceptService } = await import("../services/intercept.service.js");
-    const events = await InterceptService.getRecentEvents(BigInt(telegramId), 100);
-    return events.map(e => ({ ...e, id: e.id.toString(), userId: e.userId.toString() }));
+    
+    try {
+      const { InterceptService } = await import("../services/intercept.service.js");
+      const events = await InterceptService.getRecentEvents(BigInt(telegramId), 100);
+      return events.map(e => ({ ...e, id: e.id.toString(), userId: e.userId.toString() }));
+    } catch (error: any) {
+      logger.error('Failed to get intercept events:', error);
+      return reply.status(500).send({ error: "Failed to retrieve events" });
+    }
   });
 
   // SSE stream of real-time chat events for a user
@@ -2902,8 +2920,14 @@ You are an expert system administrator and architect for this platform. Give spe
       jobId: string; mediaUrl: string; mediaType: string;
     };
     if (!jobId || !mediaUrl) return reply.status(400).send({ error: "jobId and mediaUrl required" });
-    const { InterceptService } = await import("../services/intercept.service.js");
-    await InterceptService.deliverMedia(jobId, mediaUrl, mediaType || "video");
-    return { success: true };
+    
+    try {
+      const { InterceptService } = await import("../services/intercept.service.js");
+      await InterceptService.deliverMedia(jobId, mediaUrl, mediaType || "video");
+      return { success: true };
+    } catch (error: any) {
+      logger.error('Failed to deliver media:', error);
+      return reply.status(500).send({ error: "Failed to deliver media" });
+    }
   });
 }

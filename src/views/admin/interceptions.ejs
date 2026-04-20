@@ -120,9 +120,15 @@
   <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:28px; width:400px;">
     <div style="font-size:15px; font-weight:700; margin-bottom:16px;">🎯 Intercept User</div>
     <div id="add-error" style="display:none; color:var(--red); font-size:12px; margin-bottom:10px; padding:8px; background:rgba(248,113,113,0.1); border-radius:6px;"></div>
-    <div style="margin-bottom:12px;">
-      <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Telegram ID</label>
-      <input id="add-telegram-id" type="text" placeholder="e.g. 123456789" style="width:100%; padding:8px 12px; background:#111; border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px;" />
+    <div style="margin-bottom:12px; position:relative;">
+      <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:4px;">Search User</label>
+      <input id="add-user-search" type="text" placeholder="Type name, username, or ID..." style="width:100%; padding:8px 12px; background:#111; border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:13px;" oninput="debouncedSearchUsers()" autocomplete="off" />
+      <div id="search-results" style="display:none; position:absolute; top:100%; left:0; right:0; background:var(--card); border:1px solid var(--border); border-radius:8px; max-height:200px; overflow-y:auto; z-index:210; margin-top:4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"></div>
+      <input id="add-telegram-id" type="hidden" />
+      <div id="selected-user-display" style="display:none; margin-top:8px; padding:8px 12px; background:rgba(74,222,128,0.1); border:1px solid rgba(74,222,128,0.3); border-radius:8px; font-size:12px; color:#4ade80; align-items:center; justify-content:space-between;">
+        <span id="selected-user-name"></span>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px; height:auto; color:var(--red);" onclick="clearSelectedUser()">✕</button>
+      </div>
     </div>
     <div style="display:flex; gap:8px; justify-content:flex-end;">
       <button class="btn btn-ghost btn-sm" onclick="closeAddModal()">Cancel</button>
@@ -138,17 +144,28 @@ let pendingJobId = null;
 
 async function loadUsers() {
   const body = document.getElementById('user-list-body');
-  const users = await fetch('/api/intercept/users').then(r => r.json());
-  if (!users.length) {
-    body.innerHTML = '<div class="empty-users">No intercepted users.<br>Click "+ Intercept User" to add one.</div>';
-    return;
+  try {
+    const response = await fetch('/api/intercept/users');
+    if (!response.ok) {
+      console.error('Failed to load users:', response.status);
+      body.innerHTML = '<div class="empty-users">Failed to load users. Please try again.</div>';
+      return;
+    }
+    const users = await response.json();
+    if (!users.length) {
+      body.innerHTML = '<div class="empty-users">No intercepted users.<br>Click "+ Intercept User" to add one.</div>';
+      return;
+    }
+    body.innerHTML = users.map(u => `
+      <div class="user-item ${selectedUser && selectedUser.telegramId === u.telegramId ? 'active' : ''}" onclick='selectUser(${JSON.stringify(u)})'>
+        <div style="font-weight:600; font-size:13px;">${escHtml(u.firstName || 'Unknown')} <span style="font-size:11px;color:var(--muted);">@${escHtml(u.username || u.telegramId)}</span></div>
+        <div style="font-size:11px; color:var(--muted); margin-top:2px;">ID: ${u.telegramId} · ${u.tier}</div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Error loading users:', error);
+    body.innerHTML = '<div class="empty-users">Error loading users. Please check console.</div>';
   }
-  body.innerHTML = users.map(u => `
-    <div class="user-item ${selectedUser && selectedUser.telegramId === u.telegramId ? 'active' : ''}" onclick='selectUser(${JSON.stringify(u)})'>
-      <div style="font-weight:600; font-size:13px;">${escHtml(u.firstName || 'Unknown')} <span style="font-size:11px;color:var(--muted);">@${escHtml(u.username || u.telegramId)}</span></div>
-      <div style="font-size:11px; color:var(--muted); margin-top:2px;">ID: ${u.telegramId} · ${u.tier}</div>
-    </div>
-  `).join('');
 }
 
 async function selectUser(user) {
@@ -365,15 +382,87 @@ async function removeIntercept() {
   loadUsers();
 }
 
-function openAddModal() { document.getElementById('add-modal').style.display = 'flex'; }
+function openAddModal() { 
+  document.getElementById('add-modal').style.display = 'flex'; 
+  document.getElementById('add-user-search').value = '';
+  document.getElementById('add-user-search').style.display = 'block';
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('add-telegram-id').value = '';
+  document.getElementById('selected-user-display').style.display = 'none';
+  document.getElementById('add-error').style.display = 'none';
+}
 function closeAddModal() { document.getElementById('add-modal').style.display = 'none'; }
+
+let searchTimeout;
+function debouncedSearchUsers() {
+  clearTimeout(searchTimeout);
+  const query = document.getElementById('add-user-search').value.trim();
+  const resultsDiv = document.getElementById('search-results');
+  
+  if (!query) {
+    resultsDiv.style.display = 'none';
+    return;
+  }
+  
+  searchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`);
+      if (!res.ok) throw new Error('Search failed');
+      const users = await res.json();
+      
+      if (!users.length) {
+        resultsDiv.innerHTML = '<div style="padding:10px 12px; color:var(--muted); font-size:12px; text-align:center;">No users found</div>';
+      } else {
+        const uItems = users.map(u => {
+          const jsUser = JSON.stringify(u).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
+          return `
+          <div style="padding:8px 12px; cursor:pointer; border-bottom:1px solid rgba(42,42,58,0.4); display:flex; flex-direction:column;" onclick="selectUserForIntercept(${jsUser})" onmouseover="this.style.background='rgba(196,163,90,0.1)'" onmouseout="this.style.background='transparent'">
+            <div style="font-size:13px; font-weight:600; color:var(--text);">${escHtml(u.firstName || 'Unknown')} <span style="font-size:11px; color:var(--muted); font-weight:normal;">@${escHtml(u.username || u.telegramId)}</span></div>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px;">ID: ${u.telegramId} · Tier: ${u.tier}</div>
+          </div>
+          `;
+        }).join('');
+        resultsDiv.innerHTML = uItems;
+      }
+      resultsDiv.style.display = 'block';
+    } catch (err) {
+      resultsDiv.innerHTML = '<div style="padding:10px 12px; color:var(--red); font-size:12px; text-align:center;">Error searching users</div>';
+      resultsDiv.style.display = 'block';
+    }
+  }, 300);
+}
+
+function selectUserForIntercept(user) {
+  document.getElementById('add-telegram-id').value = user.telegramId;
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('add-user-search').style.display = 'none';
+  
+  const display = document.getElementById('selected-user-display');
+  document.getElementById('selected-user-name').textContent = `Selected: ${user.firstName || 'Unknown'} (@${user.username || user.telegramId})`;
+  display.style.display = 'flex';
+}
+
+function clearSelectedUser() {
+  document.getElementById('add-telegram-id').value = '';
+  document.getElementById('selected-user-display').style.display = 'none';
+  const searchInput = document.getElementById('add-user-search');
+  searchInput.value = '';
+  searchInput.style.display = 'block';
+  searchInput.focus();
+}
 
 async function addIntercept() {
   const tid = document.getElementById('add-telegram-id').value.trim();
-  if (!tid) return;
   const btn = document.getElementById('add-btn');
   const errEl = document.getElementById('add-error');
   errEl.style.display = 'none';
+  
+  if (!tid) {
+    errEl.textContent = 'Telegram ID is required';
+    errEl.style.display = 'block';
+    return;
+  }
+  
   btn.disabled = true;
   const res = await fetch('/api/intercept/toggle', {
     method: 'POST',
