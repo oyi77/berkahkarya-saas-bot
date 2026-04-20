@@ -1,21 +1,16 @@
 module.exports = {
-  apps: [
-    {
-      name: 'berkahkarya-saas-bot',
-      script: '/home/openclaw/.npm-global/bin/tsx',
-      args: 'src/index.ts',
-      cwd: '/home/openclaw/projects/berkahkarya-saas-bot',
-      interpreter: 'none',
-      env: {
-        NODE_ENV: 'production',
-      },
-      restart_delay: 3000,
-      max_restarts: 10,
-      autorestart: true,
-      watch: false,
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: '/home/openclaw/.pm2/logs/berkahkarya-saas-bot-error.log',
-      out_file: '/home/openclaw/.pm2/logs/berkahkarya-saas-bot-out.log',
+  apps : [{
+    name: "berkahkarya-saas-bot",
+    script: "dist/index.js",
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    env: {
+      NODE_ENV: 'development'
     },
-  ],
+    env_production: {
+      NODE_ENV: 'production'
+    }
+  }]
 };

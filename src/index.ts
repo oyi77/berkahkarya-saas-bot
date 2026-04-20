@@ -61,7 +61,7 @@ SubscriptionService.setBotInstance(bot);
 (BigInt.prototype as any).toJSON = function () { return this.toString(); };
 
 // Initialize Fastify server
-const server = Fastify({
+export const app = Fastify({
   logger: false,
 });
 
@@ -207,20 +207,20 @@ async function main() {
     setupHandlers(bot);
 
     // Multipart file upload support
-    await server.register(require('@fastify/multipart'), {
+    await app.register(require('@fastify/multipart'), {
       limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB max
     });
 
     // Setup routes
     logger.info("🌟 Setting up view engine...");
-    await server.register(fastifyView, {
+    await app.register(fastifyView, {
       engine: { ejs },
       root: path.join(process.cwd(), "src", "views"),
       viewExt: "ejs",
     });
 
     // ── Correlation ID — attach to request for downstream logging ──
-    server.addHook('onRequest', async (request, _reply) => {
+    app.addHook('onRequest', async (request, _reply) => {
       const incomingId = request.headers['x-request-id'];
       const correlationId =
         (Array.isArray(incomingId) ? incomingId[0] : incomingId) ||
@@ -229,7 +229,7 @@ async function main() {
     });
 
     // ── Security headers (onRequest so they're set before any response) ──
-    server.addHook('onRequest', async (_request, reply) => {
+    app.addHook('onRequest', async (_request, reply) => {
       reply.header('X-Content-Type-Options', 'nosniff');
       reply.header('X-Frame-Options', 'DENY');
       reply.header('X-XSS-Protection', '1; mode=block');
@@ -237,7 +237,7 @@ async function main() {
 
     // ── CORS (onRequest to avoid conflicts with SSE/raw responses) ──
     const corsOrigin = appConfig.CORS_ORIGIN || appConfig.WEBHOOK_URL || appConfig.WEB_APP_URL || '';
-    server.addHook('onRequest', async (request, reply) => {
+    app.addHook('onRequest', async (request, reply) => {
       const origin = request.headers.origin;
       if (origin && corsOrigin) {
         const allowedOrigins = corsOrigin.split(',').map((o: string) => o.trim());
@@ -252,7 +252,7 @@ async function main() {
     });
 
     // Handle CORS preflight
-    server.options('/*', async (request, reply) => {
+    app.options('/*', async (request, reply) => {
       const origin = request.headers.origin;
       if (origin && corsOrigin) {
         const allowedOrigins = corsOrigin.split(',').map((o: string) => o.trim());
@@ -268,15 +268,22 @@ async function main() {
     });
 
     logger.info("🌐 Setting up routes...");
-    await server.register(healthCheckRoutes);
-    await server.register(webhookRoutes, { bot });
-    await server.register(adminRoutes);
-    await server.register(webRoutes);
-    await server.register(agencyRoutes, { prefix: '/api' });
+    await app.register(healthCheckRoutes);
+    await app.register(webhookRoutes, { bot });
+    await app.register(adminRoutes);
+    await app.register(webRoutes);
+    await app.register(agencyRoutes, { prefix: '/api' });
+
+    if (appConfig.NODE_ENV === 'test') {
+      const testRoutes = require('./routes/test').default;
+      await app.register(testRoutes);
+      logger.info("🧪 Test routes registered");
+    }
+
     logger.info("✅ Routes registered");
 
     // 404 handler
-    server.setNotFoundHandler((request, reply) => {
+    app.setNotFoundHandler((request, reply) => {
       const wantsHtml = request.headers.accept?.includes('text/html');
       if (wantsHtml) {
         return reply.status(404).type('text/html').send(
@@ -289,8 +296,8 @@ async function main() {
     });
 
     // 500 handler
-    server.setErrorHandler((error, request, reply) => {
-      server.log.error(error);
+    app.setErrorHandler((error, request, reply) => {
+      app.log.error(error);
       const wantsHtml = request.headers.accept?.includes('text/html');
       if (wantsHtml) {
         return reply.status(500).type('text/html').send(
@@ -304,7 +311,7 @@ async function main() {
 
     // Start Fastify server FIRST (non-blocking)
     logger.info(`🌐 Starting HTTP server on port ${port}...`);
-    server
+    app
       .listen({ port, host: "0.0.0.0" })
       .then(() => {
         logger.info(`✅ HTTP server listening on http://0.0.0.0:${port}`);
@@ -351,7 +358,7 @@ async function main() {
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
       try { await bot.stop(signal); } catch (_) { /* ignore stop errors */ }
-      try { await server.close(); } catch (_) { /* ignore close errors */ }
+      try { await app.close(); } catch (_) { /* ignore close errors */ }
       logger.info("👋 Goodbye!");
       process.exit(0);
     };

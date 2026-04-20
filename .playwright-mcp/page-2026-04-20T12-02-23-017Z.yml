@@ -1,0 +1,481 @@
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: 🎬 BK Vilona
+      - generic [ref=e5]:
+        - link "Features" [ref=e6] [cursor=pointer]:
+          - /url: "#fitur"
+        - link "Pricing" [ref=e7] [cursor=pointer]:
+          - /url: "#harga"
+        - generic [ref=e9] [cursor=pointer]:
+          - img "ID" [ref=e10]
+          - generic [ref=e11]: EN
+          - img [ref=e12]
+        - link "Try Web App" [ref=e14] [cursor=pointer]:
+          - /url: /app
+        - link "Try Free" [ref=e15] [cursor=pointer]:
+          - /url: https://t.me/berkahkarya_saas_bot
+  - generic [ref=e17]:
+    - generic [ref=e18]: ⚠️ Competitors Post 10 Videos/Day — You're Still Stuck at 1 Video/Week?
+    - heading "BK Vilona — Turn 1 Photo Into a Viral Ad Video" [level=1] [ref=e19]
+    - paragraph [ref=e20]: AI platform that transforms product photos into professional ad videos using the HPAS (Hook-Problem-Agitate-Solution) framework. Directly from Telegram. No editing skills needed. Pay with local methods.
+    - img "Before After Comparison - Stuck vs Winning Dashboard" [ref=e22]
+    - link "🎁 Start Free — 1 Free Video" [ref=e24] [cursor=pointer]:
+      - /url: https://t.me/berkahkarya_saas_bot
+    - paragraph [ref=e25]:
+      - text: ✅
+      - strong [ref=e26]: No Credit Card
+      - text: • ✅
+      - strong [ref=e27]: 100% on Telegram
+      - text: • ✅
+      - strong [ref=e28]: Pay via Bank/E-Wallet
+  - generic [ref=e31]:
+    - generic [ref=e33]:
+      - heading "See Real Results from Our AI 🎬" [level=2] [ref=e34]
+      - paragraph [ref=e35]: These viral videos were made with Vilona OpenClaw — just 1 product photo becomes a professional video (up to 60 seconds duration)
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: 👀
+          - generic [ref=e39]:
+            - generic [ref=e40]: 50M+
+            - generic [ref=e41]: Total Views
+        - generic [ref=e42]:
+          - generic [ref=e43]: ❤️
+          - generic [ref=e44]:
+            - generic [ref=e45]: 3.2M+
+            - generic [ref=e46]: Total Likes
+        - generic [ref=e47]:
+          - generic [ref=e48]: 🚀
+          - generic [ref=e49]:
+            - generic [ref=e50]: "26"
+            - generic [ref=e51]: Creator Accounts
+    - generic [ref=e52]:
+      - generic [ref=e53]: 🏆 MOST VIRAL
+      - iframe [ref=e55]:
+        - generic [active] [ref=f5e1]:
+          - main [ref=f5e3]:
+            - generic [ref=f5e5]:
+              - generic [ref=f5e9]:
+                - generic:
+                  - link [ref=f5e10] [cursor=pointer]:
+                    - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_logo&referer_video_id=7622693153870449928
+                  - generic [ref=f5e19]:
+                    - link [ref=f5e20] [cursor=pointer]:
+                      - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7622693153870449928
+                    - link:
+                      - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7622693153870449928
+                      - img [ref=f5e23] [cursor=pointer]
+                    - link "327" [ref=f5e28] [cursor=pointer]:
+                      - /url: https://www.tiktok.com/@itsaboutai1/video/7622693153870449928?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_like&referer_video_id=7622693153870449928
+                      - generic [ref=f5e29]:
+                        - img [ref=f5e30]
+                        - generic [ref=f5e34]: "327"
+                    - link "5" [ref=f5e35] [cursor=pointer]:
+                      - /url: https://www.tiktok.com/@itsaboutai1/video/7622693153870449928?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_comment_button&referer_video_id=7622693153870449928
+                      - generic [ref=f5e36]:
+                        - img [ref=f5e37]
+                        - generic [ref=f5e41]: "5"
+                    - link "7" [ref=f5e42] [cursor=pointer]:
+                      - /url: https://www.tiktok.com/@itsaboutai1/video/7622693153870449928?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_share&referer_video_id=7622693153870449928
+                      - generic [ref=f5e43]:
+                        - img [ref=f5e44]
+                        - generic [ref=f5e49]: "7"
+              - generic [ref=f5e50]:
+                - link "Watch more exciting videos on TikTok Watch more exciting videos on TikTokWatch more exciting videos on TikTok Watch now" [ref=f5e52] [cursor=pointer]:
+                  - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_discover_button
+                  - generic [ref=f5e54]:
+                    - text: Watch more exciting videos on TikTok
+                    - generic [ref=f5e55]: Watch more exciting videos on TikTokWatch more exciting videos on TikTok
+                  - button "Watch now" [ref=f5e56]
+                - link "@itsaboutai1 This Is Real Couple Goals 🔥🔥 Save People From Monster Made Wit ...See more VINGANÇA DEMONÍACA PHONK (Slowed) - MXCABRAZIL" [ref=f5e58] [cursor=pointer]:
+                  - /url: https://www.tiktok.com/@itsaboutai1/video/7622693153870449928?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_blank&referer_video_id=7622693153870449928
+                  - generic [ref=f5e59]:
+                    - link "@itsaboutai1" [ref=f5e60]:
+                      - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_name&referer_video_id=7622693153870449928
+                      - generic [ref=f5e62]: "@itsaboutai1"
+                    - generic [ref=f5e63]:
+                      - text: This Is Real Couple Goals 🔥🔥 Save People From Monster Made Wit
+                      - text: ...See more
+                    - link "VINGANÇA DEMONÍACA PHONK (Slowed) - MXCABRAZIL" [ref=f5e64]:
+                      - /url: https://www.tiktok.com/music/VINGANÇA-DEMONÍACA-PHONK-Slowed-7263282009177982978?referer_url=saas.aitradepulse.com&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_song_name
+                      - generic [ref=f5e65]: VINGANÇA DEMONÍACA PHONK (Slowed) - MXCABRAZIL
+          - text: This Is Real Couple Goals 🔥🔥 Save People From Monster Made Wit ...See more
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - generic [ref=e58]: 👀
+          - generic [ref=e59]: 3.2M Views
+        - generic [ref=e60]:
+          - generic [ref=e61]: ❤️
+          - generic [ref=e62]: 256K Likes
+        - generic [ref=e63]:
+          - generic [ref=e64]: 💬
+          - generic [ref=e65]: 8.0% Engagement
+    - generic [ref=e66]:
+      - heading "More Amazing Results" [level=3] [ref=e67]
+      - paragraph [ref=e68]: From various accounts, all using Vilona OpenClaw
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - iframe [ref=e71]:
+            - generic [active] [ref=f6e1]:
+              - main [ref=f6e3]:
+                - generic [ref=f6e5]:
+                  - generic [ref=f6e9]:
+                    - generic:
+                      - link [ref=f6e10] [cursor=pointer]:
+                        - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_logo&referer_video_id=7618874468072475925
+                      - generic [ref=f6e19]:
+                        - link [ref=f6e20] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7618874468072475925
+                        - link:
+                          - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7618874468072475925
+                          - img [ref=f6e23] [cursor=pointer]
+                        - link "101" [ref=f6e28] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1/video/7618874468072475925?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_like&referer_video_id=7618874468072475925
+                          - generic [ref=f6e29]:
+                            - img [ref=f6e30]
+                            - generic [ref=f6e34]: "101"
+                        - link "5" [ref=f6e35] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1/video/7618874468072475925?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_comment_button&referer_video_id=7618874468072475925
+                          - generic [ref=f6e36]:
+                            - img [ref=f6e37]
+                            - generic [ref=f6e41]: "5"
+                        - link "8" [ref=f6e42] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1/video/7618874468072475925?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_share&referer_video_id=7618874468072475925
+                          - generic [ref=f6e43]:
+                            - img [ref=f6e44]
+                            - generic [ref=f6e49]: "8"
+                  - generic [ref=f6e50]:
+                    - link "Watch more exciting videos on TikTok Watch more exciting videos on TikTokWatch more exciting videos on TikTok Watch now" [ref=f6e52] [cursor=pointer]:
+                      - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_discover_button
+                      - generic [ref=f6e54]:
+                        - text: Watch more exciting videos on TikTok
+                        - generic [ref=f6e55]: Watch more exciting videos on TikTokWatch more exciting videos on TikTok
+                      - button "Watch now" [ref=f6e56]
+                    - 'link "@itsaboutai1 Fight With Last Boss Made With Seedance2.0 #videoai #seeda ...See more REVENGE SUPERSLOWED - SSLNNX4 音楽" [ref=f6e58] [cursor=pointer]':
+                      - /url: https://www.tiktok.com/@itsaboutai1/video/7618874468072475925?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_blank&referer_video_id=7618874468072475925
+                      - generic [ref=f6e59]:
+                        - link "@itsaboutai1" [ref=f6e60]:
+                          - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_name&referer_video_id=7618874468072475925
+                          - generic [ref=f6e62]: "@itsaboutai1"
+                        - generic [ref=f6e63]:
+                          - text: "Fight With Last Boss Made With Seedance2.0 #videoai #seeda"
+                          - text: ...See more
+                        - link "REVENGE SUPERSLOWED - SSLNNX4 音楽" [ref=f6e64]:
+                          - /url: https://www.tiktok.com/music/REVENGE-SUPERSLOWED-7595323842844396310?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_song_name
+                          - generic [ref=f6e65]: REVENGE SUPERSLOWED - SSLNNX4 音楽
+              - text: "Fight With Last Boss Made With Seedance2.0 #videoai #seeda ...See more"
+          - generic [ref=e72]: AI Video 🎬
+        - generic [ref=e73]:
+          - iframe [ref=e74]:
+            - generic [active] [ref=f7e1]:
+              - main [ref=f7e3]:
+                - generic [ref=f7e5]:
+                  - generic [ref=f7e9]:
+                    - generic:
+                      - link [ref=f7e10] [cursor=pointer]:
+                        - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_logo&referer_video_id=7618816985907957012
+                      - generic [ref=f7e19]:
+                        - link [ref=f7e20] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7618816985907957012
+                        - link:
+                          - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7618816985907957012
+                          - img [ref=f7e23] [cursor=pointer]
+                        - link "8285" [ref=f7e28] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1/video/7618816985907957012?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_like&referer_video_id=7618816985907957012
+                          - generic [ref=f7e29]:
+                            - img [ref=f7e30]
+                            - generic [ref=f7e34]: "8285"
+                        - link "42" [ref=f7e35] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1/video/7618816985907957012?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_comment_button&referer_video_id=7618816985907957012
+                          - generic [ref=f7e36]:
+                            - img [ref=f7e37]
+                            - generic [ref=f7e41]: "42"
+                        - link "308" [ref=f7e42] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@itsaboutai1/video/7618816985907957012?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_share&referer_video_id=7618816985907957012
+                          - generic [ref=f7e43]:
+                            - img [ref=f7e44]
+                            - generic [ref=f7e49]: "308"
+                  - generic [ref=f7e50]:
+                    - link "Watch more exciting videos on TikTok Watch more exciting videos on TikTokWatch more exciting videos on TikTok Watch now" [ref=f7e52] [cursor=pointer]:
+                      - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_discover_button
+                      - generic [ref=f7e54]:
+                        - text: Watch more exciting videos on TikTok
+                        - generic [ref=f7e55]: Watch more exciting videos on TikTokWatch more exciting videos on TikTok
+                      - button "Watch now" [ref=f7e56]
+                    - link "@itsaboutai1 This More Different Ending. I'm tired of monotonous battles. So I chan ...See more សំឡេងដើម - 𝐒𝐌 𝐌𝐔𝐒𝐈𝐂 - 𝐒𝐌 𝐌𝐔𝐒𝐈𝐂 𝟐𝟎𝟐𝟔" [ref=f7e58] [cursor=pointer]:
+                      - /url: https://www.tiktok.com/@itsaboutai1/video/7618816985907957012?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_blank&referer_video_id=7618816985907957012
+                      - generic [ref=f7e59]:
+                        - link "@itsaboutai1" [ref=f7e60]:
+                          - /url: https://www.tiktok.com/@itsaboutai1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_name&referer_video_id=7618816985907957012
+                          - generic [ref=f7e62]: "@itsaboutai1"
+                        - generic [ref=f7e63]:
+                          - text: This More Different Ending. I'm tired of monotonous battles. So I chan
+                          - text: ...See more
+                        - link "សំឡេងដើម - 𝐒𝐌 𝐌𝐔𝐒𝐈𝐂 - 𝐒𝐌 𝐌𝐔𝐒𝐈𝐂 𝟐𝟎𝟐𝟔" [ref=f7e64]:
+                          - /url: https://www.tiktok.com/music/សំឡេងដើម-𝐒𝐌-𝐌𝐔𝐒𝐈𝐂-7578489943192341255?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_song_name
+                          - generic [ref=f7e65]: សំឡេងដើម - 𝐒𝐌 𝐌𝐔𝐒𝐈𝐂 - 𝐒𝐌 𝐌𝐔𝐒𝐈𝐂 𝟐𝟎𝟐𝟔
+              - text: This More Different Ending. I'm tired of monotonous battles. So I chan ...See more
+          - generic [ref=e75]: AI Story 📖
+        - generic [ref=e76]:
+          - iframe [ref=e77]:
+            - generic [active] [ref=f8e1]:
+              - main [ref=f8e3]:
+                - generic [ref=f8e5]:
+                  - generic [ref=f8e9]:
+                    - generic:
+                      - link [ref=f8e10] [cursor=pointer]:
+                        - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_logo&referer_video_id=7609293836942200071
+                      - generic [ref=f8e19]:
+                        - link [ref=f8e20] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@hasnacare1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7609293836942200071
+                        - link:
+                          - /url: https://www.tiktok.com/@hasnacare1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7609293836942200071
+                          - img [ref=f8e23] [cursor=pointer]
+                        - link "0" [ref=f8e28] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@hasnacare1/video/7609293836942200071?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_like&referer_video_id=7609293836942200071
+                          - generic [ref=f8e29]:
+                            - img [ref=f8e30]
+                            - generic [ref=f8e34]: "0"
+                        - link "0" [ref=f8e35] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@hasnacare1/video/7609293836942200071?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_comment_button&referer_video_id=7609293836942200071
+                          - generic [ref=f8e36]:
+                            - img [ref=f8e37]
+                            - generic [ref=f8e41]: "0"
+                        - link "0" [ref=f8e42] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@hasnacare1/video/7609293836942200071?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_share&referer_video_id=7609293836942200071
+                          - generic [ref=f8e43]:
+                            - img [ref=f8e44]
+                            - generic [ref=f8e49]: "0"
+                  - generic [ref=f8e50]:
+                    - link "Tonton video menarik lainnya di TikTok Tonton video menarik lainnya di TikTokTonton video menarik lainnya di TikTok Tonton sekarang" [ref=f8e52] [cursor=pointer]:
+                      - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_discover_button
+                      - generic [ref=f8e54]:
+                        - text: Tonton video menarik lainnya di TikTok
+                        - generic [ref=f8e55]: Tonton video menarik lainnya di TikTokTonton video menarik lainnya di TikTok
+                      - button "Tonton sekarang" [ref=f8e56]
+                    - 'link "@hasnacare1 Satu sendok tiap pagi, jadi bagian dari self care aku #minumanalami # ...Lihat lainnya suara asli - hasnacare - hasnacare" [ref=f8e58] [cursor=pointer]':
+                      - /url: https://www.tiktok.com/@hasnacare1/video/7609293836942200071?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_blank&referer_video_id=7609293836942200071
+                      - generic [ref=f8e59]:
+                        - link "@hasnacare1" [ref=f8e60]:
+                          - /url: https://www.tiktok.com/@hasnacare1?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_name&referer_video_id=7609293836942200071
+                          - generic [ref=f8e62]: "@hasnacare1"
+                        - generic [ref=f8e63]:
+                          - text: "Satu sendok tiap pagi, jadi bagian dari self care aku #minumanalami #"
+                          - text: ...Lihat lainnya
+                        - link "suara asli - hasnacare - hasnacare" [ref=f8e64]:
+                          - /url: https://www.tiktok.com/music/suara-asli-hasnacare-7609293895637207816?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_song_name
+                          - generic [ref=f8e65]: suara asli - hasnacare - hasnacare
+              - text: "Satu sendok tiap pagi, jadi bagian dari self care aku #minumanalami # ...Lihat lainnya"
+          - generic [ref=e78]: Skincare ✨
+        - generic [ref=e79]:
+          - iframe [ref=e80]:
+            - generic [active] [ref=f9e1]:
+              - main [ref=f9e3]:
+                - generic [ref=f9e5]:
+                  - generic [ref=f9e9]:
+                    - generic:
+                      - link [ref=f9e10] [cursor=pointer]:
+                        - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_logo&referer_video_id=7610004343936322833
+                      - generic [ref=f9e19]:
+                        - link [ref=f9e20] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@rekomendasiprodukksehat?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7610004343936322833
+                        - link:
+                          - /url: https://www.tiktok.com/@rekomendasiprodukksehat?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_head&referer_video_id=7610004343936322833
+                          - img [ref=f9e23] [cursor=pointer]
+                        - link "0" [ref=f9e28] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@rekomendasiprodukksehat/video/7610004343936322833?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_like&referer_video_id=7610004343936322833
+                          - generic [ref=f9e29]:
+                            - img [ref=f9e30]
+                            - generic [ref=f9e34]: "0"
+                        - link "0" [ref=f9e35] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@rekomendasiprodukksehat/video/7610004343936322833?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_comment_button&referer_video_id=7610004343936322833
+                          - generic [ref=f9e36]:
+                            - img [ref=f9e37]
+                            - generic [ref=f9e41]: "0"
+                        - link "0" [ref=f9e42] [cursor=pointer]:
+                          - /url: https://www.tiktok.com/@rekomendasiprodukksehat/video/7610004343936322833?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_share&referer_video_id=7610004343936322833
+                          - generic [ref=f9e43]:
+                            - img [ref=f9e44]
+                            - generic [ref=f9e49]: "0"
+                  - generic [ref=f9e50]:
+                    - link "Tonton video menarik lainnya di TikTok Tonton video menarik lainnya di TikTokTonton video menarik lainnya di TikTok Tonton sekarang" [ref=f9e52] [cursor=pointer]:
+                      - /url: https://www.tiktok.com?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_discover_button
+                      - generic [ref=f9e54]:
+                        - text: Tonton video menarik lainnya di TikTok
+                        - generic [ref=f9e55]: Tonton video menarik lainnya di TikTokTonton video menarik lainnya di TikTok
+                      - button "Tonton sekarang" [ref=f9e56]
+                    - link "@rekomendasiprodukksehat Mata sering lelah karena layar? Yuk mulai lebih peduli sama kesehatan ...Lihat lainnya suara asli - Berkah Utama Herbal - Berkah Utama Herbal" [ref=f9e58] [cursor=pointer]:
+                      - /url: https://www.tiktok.com/@rekomendasiprodukksehat/video/7610004343936322833?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_blank&referer_video_id=7610004343936322833
+                      - generic [ref=f9e59]:
+                        - link "@rekomendasiprodukksehat" [ref=f9e60]:
+                          - /url: https://www.tiktok.com/@rekomendasiprodukksehat?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_name&referer_video_id=7610004343936322833
+                          - generic [ref=f9e62]: "@rekomendasiprodukksehat"
+                        - generic [ref=f9e63]:
+                          - text: Mata sering lelah karena layar? Yuk mulai lebih peduli sama kesehatan
+                          - text: ...Lihat lainnya
+                        - link "suara asli - Berkah Utama Herbal - Berkah Utama Herbal" [ref=f9e64]:
+                          - /url: https://www.tiktok.com/music/suara-asli-Berkah-Utama-Herbal-7610004545770523400?referer_url=saas.aitradepulse.com%2F&refer=embed&embed_source=121374463%2C121468991%2C121439635%2C121749182%2C121433650%2C121404359%2C121497414%2C122221973%2C122122240%2C121351166%2C121811500%2C121960941%2C122122244%2C122122243%2C122122242%2C121487028%2C122258714%2C121331973%2C120811592%2C120810756%2C121885509%3Bnull%3Bembed_song_name
+                          - generic [ref=f9e65]: suara asli - Berkah Utama Herbal - Berkah Utama Herbal
+              - text: Mata sering lelah karena layar? Yuk mulai lebih peduli sama kesehatan ...Lihat lainnya
+          - generic [ref=e81]: Health 💚
+    - generic [ref=e82]:
+      - link "🚀 🚀 Create Videos Like This Now" [ref=e83] [cursor=pointer]:
+        - /url: https://t.me/berkahkarya_saas_bot
+        - text: 🚀
+        - generic [ref=e84]: 🚀 Create Videos Like This Now
+      - paragraph [ref=e85]: Start free — 1 free video for new members
+  - generic [ref=e87]:
+    - generic [ref=e88]:
+      - generic [ref=e89]: 22+
+      - generic [ref=e90]: AI Providers (Auto-Failover)
+    - generic [ref=e91]:
+      - generic [ref=e92]: 60 detik
+      - generic [ref=e93]: Video Duration
+    - generic [ref=e94]:
+      - generic [ref=e95]: 7 Scene
+      - generic [ref=e96]: HPAS Framework
+    - generic [ref=e97]:
+      - generic [ref=e98]: 0%
+      - generic [ref=e99]: Editing Skills Required
+  - generic [ref=e101]:
+    - generic [ref=e102]: Why Is Your Content Stuck?
+    - generic [ref=e103]: The 3 biggest problems holding small businesses back on TikTok/IG
+    - generic [ref=e104]:
+      - generic [ref=e105]:
+        - generic [ref=e106]: 💸
+        - heading "Expensive Editors, Slow Results" [level=3] [ref=e107]
+        - paragraph [ref=e108]: Hiring editors costs $10-20 per video. Revisions take 3-5 days. Budget runs out before going viral. Competitors already posted 10 videos while you finished 1.
+      - generic [ref=e109]:
+        - generic [ref=e110]: ⏰
+        - heading "No Time to Learn Editing" [level=3] [ref=e111]
+        - paragraph [ref=e112]: Spend 6 months learning CapCut/Premiere? You need content NOW, not next year. TikTok's algorithm won't wait for you to become an editing pro.
+      - generic [ref=e113]:
+        - generic [ref=e114]: 💳
+        - heading "Foreign Tools Need Credit Cards" [level=3] [ref=e115]
+        - paragraph [ref=e116]: Canva $10/mo, InVideo $28/mo — all USD, all credit cards. Many small businesses don't have one. You need a local solution with local payments.
+  - generic [ref=e118]:
+    - generic [ref=e119]: "Solution: AI Video Studio on Telegram"
+    - generic [ref=e120]: Everything you need to create viral content, no editing skills required
+    - generic [ref=e121]:
+      - generic [ref=e122]:
+        - generic [ref=e123]: 🎬
+        - heading "HPAS Framework (7 Scenes)" [level=3] [ref=e124]
+        - paragraph [ref=e125]: Every video follows the Hook-Problem-Agitate-Solution structure. Proven to convert. Consistent character across every scene.
+      - generic [ref=e126]:
+        - generic [ref=e127]: 🤖
+        - heading "3 Generation Modes" [level=3] [ref=e128]
+        - paragraph [ref=e129]: Basic (full auto), Smart (choose preset), Pro (full control). From beginners to agencies, everyone can use it.
+      - generic [ref=e130]:
+        - generic [ref=e131]: 📱
+        - heading "100% on Telegram" [level=3] [ref=e132]
+        - paragraph [ref=e133]: No browser needed, no signup required. Chat the bot, upload a photo, done. Video up to 60 seconds duration.
+      - generic [ref=e134]:
+        - generic [ref=e135]: 💳
+        - heading "Pay with Bank/E-Wallet" [level=3] [ref=e136]
+        - paragraph [ref=e137]: Bank transfer, GoPay, OVO, DANA, Telegram Stars, Crypto. No credit card needed. Local currency pricing.
+      - generic [ref=e138]:
+        - generic [ref=e139]: 🎨
+        - heading "Clone Competitor Styles" [level=3] [ref=e140]
+        - paragraph [ref=e141]: Screenshot a competitor's ad → Upload your product photo → AI replicates their visual style. Legal — just the style, not the content.
+      - generic [ref=e142]:
+        - generic [ref=e143]: 🚀
+        - heading "Campaign Builder (A/B Test)" [level=3] [ref=e144]
+        - paragraph [ref=e145]: Generate 5-10 videos at once with different hooks. Test which converts best. Data-driven marketing.
+    - generic [ref=e147]:
+      - generic [ref=e148]: User Testimonials
+      - generic [ref=e149]: What successful users say about BK Vilona
+      - generic [ref=e150]:
+        - generic [ref=e151] [cursor=pointer]:
+          - generic [ref=e152]: ★★★★★
+          - paragraph [ref=e153]: "\"Crazy, I tried it with 1 shoe product photo, generated a 30s video. Reached 500k views on TikTok! 32 orders in one day. Totally worth it!\""
+          - generic [ref=e154]:
+            - generic [ref=e155]: JD
+            - generic [ref=e156]:
+              - generic [ref=e157]: John D.
+              - generic [ref=e158]: Local Shoe Store Owner
+        - generic [ref=e159] [cursor=pointer]:
+          - generic [ref=e160]: ★★★★★
+          - paragraph [ref=e161]: "\"I sell skincare, usually confused about content because I don't understand editing. Vilona really helped because the (HPAS) framework actually converts!\""
+          - generic [ref=e162]:
+            - generic [ref=e163]: SM
+            - generic [ref=e164]:
+              - generic [ref=e165]: Sarah M.
+              - generic [ref=e166]: Skincare Reseller
+    - generic [ref=e168]:
+      - generic [ref=e169]: Affordable Pricing for Small Businesses
+      - generic [ref=e170]: Start free (1 video), scale as your business grows. Pay with bank transfer/e-wallet, no credit card.
+      - generic [ref=e171]:
+        - generic [ref=e172]:
+          - generic [ref=e173]: ⭐ MOST POPULAR
+          - heading "Growth Machine" [level=3] [ref=e174]
+          - generic [ref=e175]: $9.31 USD
+          - generic [ref=e176]: 22 Kredit
+          - list [ref=e177]:
+            - listitem [ref=e178]: ✓ ~22 videos (30 sec each)
+            - listitem [ref=e179]: ✓ All modes (Basic/Smart/Pro)
+            - listitem [ref=e180]: ✓ HPAS Framework
+            - listitem [ref=e181]: ✓ HD Download
+            - listitem [ref=e182]: ✓ Multi-platform output
+          - link "Get Started" [ref=e183] [cursor=pointer]:
+            - /url: https://t.me/berkahkarya_saas_bot
+        - generic [ref=e184]:
+          - heading "Business Kingdom" [level=3] [ref=e185]
+          - generic [ref=e186]: $31.19 USD
+          - generic [ref=e187]: 85 Kredit
+          - list [ref=e188]:
+            - listitem [ref=e189]: ✓ ~85 videos (30 sec each)
+            - listitem [ref=e190]: ✓ All modes (Basic/Smart/Pro)
+            - listitem [ref=e191]: ✓ HPAS Framework
+            - listitem [ref=e192]: ✓ HD Download
+            - listitem [ref=e193]: ✓ Multi-platform output
+          - link "Get Started" [ref=e194] [cursor=pointer]:
+            - /url: https://t.me/berkahkarya_saas_bot
+        - generic [ref=e195]:
+          - heading "Starter Flow" [level=3] [ref=e196]
+          - generic [ref=e197]: $6.19 USD
+          - generic [ref=e198]: 6 Kredit
+          - list [ref=e199]:
+            - listitem [ref=e200]: ✓ ~6 videos (30 sec each)
+            - listitem [ref=e201]: ✓ All modes (Basic/Smart/Pro)
+            - listitem [ref=e202]: ✓ HPAS Framework
+            - listitem [ref=e203]: ✓ HD Download
+            - listitem [ref=e204]: ✓ Multi-platform output
+          - link "Get Started" [ref=e205] [cursor=pointer]:
+            - /url: https://t.me/berkahkarya_saas_bot
+      - paragraph [ref=e206]: "💳 Payment Methods: Bank Transfer • GoPay • OVO • DANA • Telegram Stars • Crypto (BTC/USDT/ETH/BNB/MATIC/TON)"
+      - paragraph [ref=e207]:
+        - text: 🎁
+        - strong [ref=e208]: "New User Bonus:"
+        - text: 1x free image generation (one-time, not daily)
+    - generic [ref=e210]:
+      - heading "⏰ Your Competitors Already Posted 10 Videos Today" [level=2] [ref=e211]
+      - paragraph [ref=e212]: While you're still thinking, your competitors generated 10 videos, posted to TikTok/IG, and closed 5 customers. TikTok's algorithm rewards consistent posting. How long will you wait?
+      - link "🎁 Try Free Now — 1 Free Video" [ref=e213] [cursor=pointer]:
+        - /url: https://t.me/berkahkarya_saas_bot
+      - paragraph [ref=e214]: ✅ No Credit Card • ✅ 100% on Telegram • ✅ Up to 60 Seconds Video Duration
+    - generic [ref=e215]:
+      - paragraph [ref=e216]: © 2026 BK Vilona AI — All rights reserved.
+      - paragraph [ref=e217]:
+        - link "Telegram Bot" [ref=e218] [cursor=pointer]:
+          - /url: https://t.me/berkahkarya_saas_bot
+        - text: ·
+        - link "Web App" [ref=e219] [cursor=pointer]:
+          - /url: /app
+        - text: ·
+        - link "FAQ" [ref=e220] [cursor=pointer]:
+          - /url: /faq
+        - text: ·
+        - link "Syarat & Ketentuan" [ref=e221] [cursor=pointer]:
+          - /url: /terms
+        - text: ·
+        - link "Kebijakan Privasi" [ref=e222] [cursor=pointer]:
+          - /url: /privacy
+        - text: ·
+        - link "Support" [ref=e223] [cursor=pointer]:
+          - /url: https://t.me/codergaboets
+    - button "Chat with AI" [ref=e224] [cursor=pointer]: 💬
+    - generic [ref=e225]:
+      - generic [ref=e226]: 🚀
+      - generic [ref=e227]:
+        - generic [ref=e228]: Lisa (Agency) successfully generated a viral video
+        - generic [ref=e229]: Just now

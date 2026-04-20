@@ -1,0 +1,13 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - heading "BerkahKarya Bot" [level=1] [ref=e4]
+    - paragraph [ref=e5]: Admin Dashboard
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: Password
+        - textbox "Password" [active] [ref=e9]:
+          - /placeholder: Enter admin password
+      - button "Login" [ref=e10] [cursor=pointer]
+  - paragraph [ref=e11]:
+    - text: "Default password:"
+    - code [ref=e12]: admin

@@ -1,0 +1,391 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ⚡ BerkahKarya
+      - generic [ref=e5]: Admin Dashboard v3
+    - navigation [ref=e6]:
+      - generic [ref=e7] [cursor=pointer]: 📊 Overview
+      - generic [ref=e8] [cursor=pointer]: 👥 Users
+      - generic [ref=e9] [cursor=pointer]: 💳 Transactions
+      - generic [ref=e10] [cursor=pointer]: 📈 Analytics
+      - generic [ref=e11] [cursor=pointer]: 💰 Pricing
+      - generic [ref=e12] [cursor=pointer]: 🪙 Token Usage
+      - generic [ref=e13] [cursor=pointer]: 💹 Revenue
+      - generic [ref=e14] [cursor=pointer]: 🏷️ Niches
+      - generic [ref=e15] [cursor=pointer]: 🌐 Landing Page
+      - generic [ref=e17] [cursor=pointer]: 🎬 Media Gallery
+      - generic [ref=e18] [cursor=pointer]: ✍️ Prompts
+      - generic [ref=e19] [cursor=pointer]: 🔌 Providers
+      - generic [ref=e20] [cursor=pointer]: 🤖 AI Config
+      - generic [ref=e21] [cursor=pointer]: 💵 Dynamic Pricing
+      - generic [ref=e22] [cursor=pointer]: 🧪 Playground
+      - generic [ref=e23] [cursor=pointer]: 🎭 Personas
+      - generic [ref=e24] [cursor=pointer]: 🎯 Interceptions
+      - generic [ref=e25] [cursor=pointer]: ⚙️ Settings
+      - generic [ref=e27] [cursor=pointer]: 🤖 AI Assistant
+    - generic [ref=e28]:
+      - generic [ref=e29]: Sen, 20 Apr, 17.34.45
+      - button "🚪 Logout" [ref=e30] [cursor=pointer]
+  - generic [ref=e32]:
+    - generic [ref=e33]: Users
+    - generic [ref=e34]: Manage registered users
+    - generic [ref=e36]:
+      - textbox "🔍 Search by name or username..." [ref=e37]
+      - combobox [ref=e38]:
+        - option "All Users" [selected]
+        - option "Active"
+        - option "Banned"
+        - option "free"
+        - option "basic"
+        - option "lite"
+        - option "pro"
+        - option "agency"
+      - button "Refresh" [ref=e39] [cursor=pointer]
+    - table [ref=e42]:
+      - rowgroup [ref=e43]:
+        - row "Telegram ID Name Username Tier Credits Status Last Active Actions" [ref=e44]:
+          - columnheader "Telegram ID" [ref=e45]
+          - columnheader "Name" [ref=e46]
+          - columnheader "Username" [ref=e47]
+          - columnheader "Tier" [ref=e48]
+          - columnheader "Credits" [ref=e49]
+          - columnheader "Status" [ref=e50]
+          - columnheader "Last Active" [ref=e51]
+          - columnheader "Actions" [ref=e52]
+      - rowgroup [ref=e53]:
+        - row "186198255 Adi @Wardana7 free 10.0 Active 19d ago 👁 💰 🏷 🚫" [ref=e54]:
+          - cell "186198255" [ref=e55]
+          - cell "Adi" [ref=e56]
+          - cell "@Wardana7" [ref=e57]
+          - cell "free" [ref=e58]:
+            - generic [ref=e59]: free
+          - cell "10.0" [ref=e60]
+          - cell "Active" [ref=e61]:
+            - generic [ref=e62]: Active
+          - cell "19d ago" [ref=e63]
+          - cell "👁 💰 🏷 🚫" [ref=e64]:
+            - generic [ref=e65]:
+              - button "👁" [ref=e66] [cursor=pointer]
+              - button "💰" [ref=e67] [cursor=pointer]
+              - button "🏷" [ref=e68] [cursor=pointer]
+              - button "🚫" [ref=e69] [cursor=pointer]
+        - row "7547049127 Arbith @Arbitha free 10.0 Active 10d ago 👁 💰 🏷 🚫" [ref=e70]:
+          - cell "7547049127" [ref=e71]
+          - cell "Arbith" [ref=e72]
+          - cell "@Arbitha" [ref=e73]
+          - cell "free" [ref=e74]:
+            - generic [ref=e75]: free
+          - cell "10.0" [ref=e76]
+          - cell "Active" [ref=e77]:
+            - generic [ref=e78]: Active
+          - cell "10d ago" [ref=e79]
+          - cell "👁 💰 🏷 🚫" [ref=e80]:
+            - generic [ref=e81]:
+              - button "👁" [ref=e82] [cursor=pointer]
+              - button "💰" [ref=e83] [cursor=pointer]
+              - button "🏷" [ref=e84] [cursor=pointer]
+              - button "🚫" [ref=e85] [cursor=pointer]
+        - row "7461521902 Id @— free 48.5 Active 15d ago 👁 💰 🏷 🚫" [ref=e86]:
+          - cell "7461521902" [ref=e87]
+          - cell "Id" [ref=e88]
+          - cell "@—" [ref=e89]
+          - cell "free" [ref=e90]:
+            - generic [ref=e91]: free
+          - cell "48.5" [ref=e92]
+          - cell "Active" [ref=e93]:
+            - generic [ref=e94]: Active
+          - cell "15d ago" [ref=e95]
+          - cell "👁 💰 🏷 🚫" [ref=e96]:
+            - generic [ref=e97]:
+              - button "👁" [ref=e98] [cursor=pointer]
+              - button "💰" [ref=e99] [cursor=pointer]
+              - button "🏷" [ref=e100] [cursor=pointer]
+              - button "🚫" [ref=e101] [cursor=pointer]
+        - row "7779681834 Niluh Septiya @Niluhseptiya free 2.8 Active 20d ago 👁 💰 🏷 🚫" [ref=e102]:
+          - cell "7779681834" [ref=e103]
+          - cell "Niluh Septiya" [ref=e104]
+          - cell "@Niluhseptiya" [ref=e105]
+          - cell "free" [ref=e106]:
+            - generic [ref=e107]: free
+          - cell "2.8" [ref=e108]
+          - cell "Active" [ref=e109]:
+            - generic [ref=e110]: Active
+          - cell "20d ago" [ref=e111]
+          - cell "👁 💰 🏷 🚫" [ref=e112]:
+            - generic [ref=e113]:
+              - button "👁" [ref=e114] [cursor=pointer]
+              - button "💰" [ref=e115] [cursor=pointer]
+              - button "🏷" [ref=e116] [cursor=pointer]
+              - button "🚫" [ref=e117] [cursor=pointer]
+        - row "1232764329 Berkembang @berkembangbersamacom free 3.0 Active 23d ago 👁 💰 🏷 🚫" [ref=e118]:
+          - cell "1232764329" [ref=e119]
+          - cell "Berkembang" [ref=e120]
+          - cell "@berkembangbersamacom" [ref=e121]
+          - cell "free" [ref=e122]:
+            - generic [ref=e123]: free
+          - cell "3.0" [ref=e124]
+          - cell "Active" [ref=e125]:
+            - generic [ref=e126]: Active
+          - cell "23d ago" [ref=e127]
+          - cell "👁 💰 🏷 🚫" [ref=e128]:
+            - generic [ref=e129]:
+              - button "👁" [ref=e130] [cursor=pointer]
+              - button "💰" [ref=e131] [cursor=pointer]
+              - button "🏷" [ref=e132] [cursor=pointer]
+              - button "🚫" [ref=e133] [cursor=pointer]
+        - row "8197779555 Aishi @lifeaishiterru free 2.8 Active 23d ago 👁 💰 🏷 🚫" [ref=e134]:
+          - cell "8197779555" [ref=e135]
+          - cell "Aishi" [ref=e136]
+          - cell "@lifeaishiterru" [ref=e137]
+          - cell "free" [ref=e138]:
+            - generic [ref=e139]: free
+          - cell "2.8" [ref=e140]
+          - cell "Active" [ref=e141]:
+            - generic [ref=e142]: Active
+          - cell "23d ago" [ref=e143]
+          - cell "👁 💰 🏷 🚫" [ref=e144]:
+            - generic [ref=e145]:
+              - button "👁" [ref=e146] [cursor=pointer]
+              - button "💰" [ref=e147] [cursor=pointer]
+              - button "🏷" [ref=e148] [cursor=pointer]
+              - button "🚫" [ref=e149] [cursor=pointer]
+        - row "1494047492 AiBabah @AmaySufiPreneur free 2.8 Active 23d ago 👁 💰 🏷 🚫" [ref=e150]:
+          - cell "1494047492" [ref=e151]
+          - cell "AiBabah" [ref=e152]
+          - cell "@AmaySufiPreneur" [ref=e153]
+          - cell "free" [ref=e154]:
+            - generic [ref=e155]: free
+          - cell "2.8" [ref=e156]
+          - cell "Active" [ref=e157]:
+            - generic [ref=e158]: Active
+          - cell "23d ago" [ref=e159]
+          - cell "👁 💰 🏷 🚫" [ref=e160]:
+            - generic [ref=e161]:
+              - button "👁" [ref=e162] [cursor=pointer]
+              - button "💰" [ref=e163] [cursor=pointer]
+              - button "🏷" [ref=e164] [cursor=pointer]
+              - button "🚫" [ref=e165] [cursor=pointer]
+        - row "1202133937 Bramanda @BramandaTobZ free 2.8 Active 23d ago 👁 💰 🏷 🚫" [ref=e166]:
+          - cell "1202133937" [ref=e167]
+          - cell "Bramanda" [ref=e168]
+          - cell "@BramandaTobZ" [ref=e169]
+          - cell "free" [ref=e170]:
+            - generic [ref=e171]: free
+          - cell "2.8" [ref=e172]
+          - cell "Active" [ref=e173]:
+            - generic [ref=e174]: Active
+          - cell "23d ago" [ref=e175]
+          - cell "👁 💰 🏷 🚫" [ref=e176]:
+            - generic [ref=e177]:
+              - button "👁" [ref=e178] [cursor=pointer]
+              - button "💰" [ref=e179] [cursor=pointer]
+              - button "🏷" [ref=e180] [cursor=pointer]
+              - button "🚫" [ref=e181] [cursor=pointer]
+        - row "8346545492 Eka @— free 3.0 Active 23d ago 👁 💰 🏷 🚫" [ref=e182]:
+          - cell "8346545492" [ref=e183]
+          - cell "Eka" [ref=e184]
+          - cell "@—" [ref=e185]
+          - cell "free" [ref=e186]:
+            - generic [ref=e187]: free
+          - cell "3.0" [ref=e188]
+          - cell "Active" [ref=e189]:
+            - generic [ref=e190]: Active
+          - cell "23d ago" [ref=e191]
+          - cell "👁 💰 🏷 🚫" [ref=e192]:
+            - generic [ref=e193]:
+              - button "👁" [ref=e194] [cursor=pointer]
+              - button "💰" [ref=e195] [cursor=pointer]
+              - button "🏷" [ref=e196] [cursor=pointer]
+              - button "🚫" [ref=e197] [cursor=pointer]
+        - row "1325252702 Dendi @dendisuprihadi free 0.0 Active 24d ago 👁 💰 🏷 🚫" [ref=e198]:
+          - cell "1325252702" [ref=e199]
+          - cell "Dendi" [ref=e200]
+          - cell "@dendisuprihadi" [ref=e201]
+          - cell "free" [ref=e202]:
+            - generic [ref=e203]: free
+          - cell "0.0" [ref=e204]
+          - cell "Active" [ref=e205]:
+            - generic [ref=e206]: Active
+          - cell "24d ago" [ref=e207]
+          - cell "👁 💰 🏷 🚫" [ref=e208]:
+            - generic [ref=e209]:
+              - button "👁" [ref=e210] [cursor=pointer]
+              - button "💰" [ref=e211] [cursor=pointer]
+              - button "🏷" [ref=e212] [cursor=pointer]
+              - button "🚫" [ref=e213] [cursor=pointer]
+        - row "5895899980 DIMAS LAMONGAN @Sukses01 free 3.0 Active 21d ago 👁 💰 🏷 🚫" [ref=e214]:
+          - cell "5895899980" [ref=e215]
+          - cell "DIMAS LAMONGAN" [ref=e216]
+          - cell "@Sukses01" [ref=e217]
+          - cell "free" [ref=e218]:
+            - generic [ref=e219]: free
+          - cell "3.0" [ref=e220]
+          - cell "Active" [ref=e221]:
+            - generic [ref=e222]: Active
+          - cell "21d ago" [ref=e223]
+          - cell "👁 💰 🏷 🚫" [ref=e224]:
+            - generic [ref=e225]:
+              - button "👁" [ref=e226] [cursor=pointer]
+              - button "💰" [ref=e227] [cursor=pointer]
+              - button "🏷" [ref=e228] [cursor=pointer]
+              - button "🚫" [ref=e229] [cursor=pointer]
+        - row "1288123058 Peujuang @pejuang_cuan001 free 2.5 Active 24d ago 👁 💰 🏷 🚫" [ref=e230]:
+          - cell "1288123058" [ref=e231]
+          - cell "Peujuang" [ref=e232]
+          - cell "@pejuang_cuan001" [ref=e233]
+          - cell "free" [ref=e234]:
+            - generic [ref=e235]: free
+          - cell "2.5" [ref=e236]
+          - cell "Active" [ref=e237]:
+            - generic [ref=e238]: Active
+          - cell "24d ago" [ref=e239]
+          - cell "👁 💰 🏷 🚫" [ref=e240]:
+            - generic [ref=e241]:
+              - button "👁" [ref=e242] [cursor=pointer]
+              - button "💰" [ref=e243] [cursor=pointer]
+              - button "🏷" [ref=e244] [cursor=pointer]
+              - button "🚫" [ref=e245] [cursor=pointer]
+        - row "919661671 Bang @bangbenyamin free 2.0 Active 24d ago 👁 💰 🏷 🚫" [ref=e246]:
+          - cell "919661671" [ref=e247]
+          - cell "Bang" [ref=e248]
+          - cell "@bangbenyamin" [ref=e249]
+          - cell "free" [ref=e250]:
+            - generic [ref=e251]: free
+          - cell "2.0" [ref=e252]
+          - cell "Active" [ref=e253]:
+            - generic [ref=e254]: Active
+          - cell "24d ago" [ref=e255]
+          - cell "👁 💰 🏷 🚫" [ref=e256]:
+            - generic [ref=e257]:
+              - button "👁" [ref=e258] [cursor=pointer]
+              - button "💰" [ref=e259] [cursor=pointer]
+              - button "🏷" [ref=e260] [cursor=pointer]
+              - button "🚫" [ref=e261] [cursor=pointer]
+        - row "1937542314 Ec @hilmiyazid free 2.8 Active 23d ago 👁 💰 🏷 🚫" [ref=e262]:
+          - cell "1937542314" [ref=e263]
+          - cell "Ec" [ref=e264]
+          - cell "@hilmiyazid" [ref=e265]
+          - cell "free" [ref=e266]:
+            - generic [ref=e267]: free
+          - cell "2.8" [ref=e268]
+          - cell "Active" [ref=e269]:
+            - generic [ref=e270]: Active
+          - cell "23d ago" [ref=e271]
+          - cell "👁 💰 🏷 🚫" [ref=e272]:
+            - generic [ref=e273]:
+              - button "👁" [ref=e274] [cursor=pointer]
+              - button "💰" [ref=e275] [cursor=pointer]
+              - button "🏷" [ref=e276] [cursor=pointer]
+              - button "🚫" [ref=e277] [cursor=pointer]
+        - row "440909482 Asep @r4md4ni free 2.8 Active 24d ago 👁 💰 🏷 🚫" [ref=e278]:
+          - cell "440909482" [ref=e279]
+          - cell "Asep" [ref=e280]
+          - cell "@r4md4ni" [ref=e281]
+          - cell "free" [ref=e282]:
+            - generic [ref=e283]: free
+          - cell "2.8" [ref=e284]
+          - cell "Active" [ref=e285]:
+            - generic [ref=e286]: Active
+          - cell "24d ago" [ref=e287]
+          - cell "👁 💰 🏷 🚫" [ref=e288]:
+            - generic [ref=e289]:
+              - button "👁" [ref=e290] [cursor=pointer]
+              - button "💰" [ref=e291] [cursor=pointer]
+              - button "🏷" [ref=e292] [cursor=pointer]
+              - button "🚫" [ref=e293] [cursor=pointer]
+        - row "527302782 Tisno @Ciptopram free 3.0 Active 25d ago 👁 💰 🏷 🚫" [ref=e294]:
+          - cell "527302782" [ref=e295]
+          - cell "Tisno" [ref=e296]
+          - cell "@Ciptopram" [ref=e297]
+          - cell "free" [ref=e298]:
+            - generic [ref=e299]: free
+          - cell "3.0" [ref=e300]
+          - cell "Active" [ref=e301]:
+            - generic [ref=e302]: Active
+          - cell "25d ago" [ref=e303]
+          - cell "👁 💰 🏷 🚫" [ref=e304]:
+            - generic [ref=e305]:
+              - button "👁" [ref=e306] [cursor=pointer]
+              - button "💰" [ref=e307] [cursor=pointer]
+              - button "🏷" [ref=e308] [cursor=pointer]
+              - button "🚫" [ref=e309] [cursor=pointer]
+        - row "228956686 WhoMe @Oyi77 free 2.6 Active 11d ago 👁 💰 🏷 🚫" [ref=e310]:
+          - cell "228956686" [ref=e311]
+          - cell "WhoMe" [ref=e312]
+          - cell "@Oyi77" [ref=e313]
+          - cell "free" [ref=e314]:
+            - generic [ref=e315]: free
+          - cell "2.6" [ref=e316]
+          - cell "Active" [ref=e317]:
+            - generic [ref=e318]: Active
+          - cell "11d ago" [ref=e319]
+          - cell "👁 💰 🏷 🚫" [ref=e320]:
+            - generic [ref=e321]:
+              - button "👁" [ref=e322] [cursor=pointer]
+              - button "💰" [ref=e323] [cursor=pointer]
+              - button "🏷" [ref=e324] [cursor=pointer]
+              - button "🚫" [ref=e325] [cursor=pointer]
+        - row "6077091585 Kumpulan Materi @kumpulanmateriveris free 1.3 Active 17d ago 👁 💰 🏷 🚫" [ref=e326]:
+          - cell "6077091585" [ref=e327]
+          - cell "Kumpulan Materi" [ref=e328]
+          - cell "@kumpulanmateriveris" [ref=e329]
+          - cell "free" [ref=e330]:
+            - generic [ref=e331]: free
+          - cell "1.3" [ref=e332]
+          - cell "Active" [ref=e333]:
+            - generic [ref=e334]: Active
+          - cell "17d ago" [ref=e335]
+          - cell "👁 💰 🏷 🚫" [ref=e336]:
+            - generic [ref=e337]:
+              - button "👁" [ref=e338] [cursor=pointer]
+              - button "💰" [ref=e339] [cursor=pointer]
+              - button "🏷" [ref=e340] [cursor=pointer]
+              - button "🚫" [ref=e341] [cursor=pointer]
+        - row "999999999 TestUser @testuser_imgref pro 100.0 Active 29d ago 👁 💰 🏷 🚫" [ref=e342]:
+          - cell "999999999" [ref=e343]
+          - cell "TestUser" [ref=e344]
+          - cell "@testuser_imgref" [ref=e345]
+          - cell "pro" [ref=e346]:
+            - generic [ref=e347]: pro
+          - cell "100.0" [ref=e348]
+          - cell "Active" [ref=e349]:
+            - generic [ref=e350]: Active
+          - cell "29d ago" [ref=e351]
+          - cell "👁 💰 🏷 🚫" [ref=e352]:
+            - generic [ref=e353]:
+              - button "👁" [ref=e354] [cursor=pointer]
+              - button "💰" [ref=e355] [cursor=pointer]
+              - button "🏷" [ref=e356] [cursor=pointer]
+              - button "🚫" [ref=e357] [cursor=pointer]
+        - row "157228659 Andik @alwayscuanbos free 9991.0 Active 2d ago 👁 💰 🏷 🚫" [ref=e358]:
+          - cell "157228659" [ref=e359]
+          - cell "Andik" [ref=e360]
+          - cell "@alwayscuanbos" [ref=e361]
+          - cell "free" [ref=e362]:
+            - generic [ref=e363]: free
+          - cell "9991.0" [ref=e364]
+          - cell "Active" [ref=e365]:
+            - generic [ref=e366]: Active
+          - cell "2d ago" [ref=e367]
+          - cell "👁 💰 🏷 🚫" [ref=e368]:
+            - generic [ref=e369]:
+              - button "👁" [ref=e370] [cursor=pointer]
+              - button "💰" [ref=e371] [cursor=pointer]
+              - button "🏷" [ref=e372] [cursor=pointer]
+              - button "🚫" [ref=e373] [cursor=pointer]
+        - row "5220170786 Coder @codergaboets free 40.3 Active 9d ago 👁 💰 🏷 🚫" [ref=e374]:
+          - cell "5220170786" [ref=e375]
+          - cell "Coder" [ref=e376]
+          - cell "@codergaboets" [ref=e377]
+          - cell "free" [ref=e378]:
+            - generic [ref=e379]: free
+          - cell "40.3" [ref=e380]
+          - cell "Active" [ref=e381]:
+            - generic [ref=e382]: Active
+          - cell "9d ago" [ref=e383]
+          - cell "👁 💰 🏷 🚫" [ref=e384]:
+            - generic [ref=e385]:
+              - button "👁" [ref=e386] [cursor=pointer]
+              - button "💰" [ref=e387] [cursor=pointer]
+              - button "🏷" [ref=e388] [cursor=pointer]
+              - button "🚫" [ref=e389] [cursor=pointer]

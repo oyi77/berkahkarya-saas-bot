@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1775536302402,
+  "lastScanned": 1775817034654,
   "projectRoot": "/home/openclaw/projects/berkahkarya-saas-bot",
   "techStack": {
     "languages": [
@@ -105,7 +105,7 @@
       "path": "config",
       "purpose": "Configuration files",
       "fileCount": 6,
-      "lastAccessed": 1775536302389,
+      "lastAccessed": 1775817034635,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -118,7 +118,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 13,
-      "lastAccessed": 1775536302390,
+      "lastAccessed": 1775817034636,
       "keyFiles": [
         "AGENTS.md",
         "AI_System_Prompts.md",
@@ -131,7 +131,7 @@
       "path": "landing",
       "purpose": null,
       "fileCount": 2,
-      "lastAccessed": 1775536302395,
+      "lastAccessed": 1775817034641,
       "keyFiles": [
         "index-new.html",
         "index.html"
@@ -141,7 +141,7 @@
       "path": "logs",
       "purpose": null,
       "fileCount": 6,
-      "lastAccessed": 1775536302397,
+      "lastAccessed": 1775817034647,
       "keyFiles": [
         "bot-error.log",
         "bot.log",
@@ -154,7 +154,7 @@
       "path": "monitoring",
       "purpose": null,
       "fileCount": 3,
-      "lastAccessed": 1775536302397,
+      "lastAccessed": 1775817034647,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -165,7 +165,7 @@
       "path": "prisma",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1775536302397,
+      "lastAccessed": 1775817034648,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -177,7 +177,7 @@
       "path": "public",
       "purpose": "Public files",
       "fileCount": 1,
-      "lastAccessed": 1775536302398,
+      "lastAccessed": 1775817034648,
       "keyFiles": [
         "manifest.json"
       ]
@@ -186,7 +186,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 7,
-      "lastAccessed": 1775536302398,
+      "lastAccessed": 1775817034648,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -199,7 +199,7 @@
       "path": "src",
       "purpose": "Source code",
       "fileCount": 3,
-      "lastAccessed": 1775536302398,
+      "lastAccessed": 1775817034648,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -210,14 +210,14 @@
       "path": "test-results",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1775536302398,
+      "lastAccessed": 1775817034649,
       "keyFiles": []
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 23,
-      "lastAccessed": 1775536302398,
+      "lastAccessed": 1775817034649,
       "keyFiles": [
         "AGENTS.md",
         "README.md",
@@ -230,7 +230,7 @@
       "path": "prisma/migrations",
       "purpose": "Database migrations",
       "fileCount": 1,
-      "lastAccessed": 1775536302401,
+      "lastAccessed": 1775817034651,
       "keyFiles": [
         "migration_lock.toml"
       ]
@@ -239,7 +239,7 @@
       "path": "src/config",
       "purpose": "Configuration files",
       "fileCount": 22,
-      "lastAccessed": 1775536302401,
+      "lastAccessed": 1775817034653,
       "keyFiles": [
         "AGENTS.md",
         "audio-subtitle-engine.ts",
@@ -250,7 +250,7 @@
       "path": "src/middleware",
       "purpose": "Middleware",
       "fileCount": 7,
-      "lastAccessed": 1775536302402,
+      "lastAccessed": 1775817034653,
       "keyFiles": [
         "AGENTS.md",
         "api-auth.ts",
@@ -260,304 +260,160 @@
   },
   "hotPaths": [
     {
-      "path": "src/handlers/message.ts",
-      "accessCount": 59,
-      "lastAccessed": 1775419302628,
-      "type": "file"
-    },
-    {
       "path": "src/routes/admin.ts",
-      "accessCount": 56,
-      "lastAccessed": 1775555368396,
-      "type": "file"
-    },
-    {
-      "path": "src/services/video-generation.service.ts",
-      "accessCount": 38,
-      "lastAccessed": 1775554262729,
-      "type": "directory"
-    },
-    {
-      "path": "src/flows/generate.ts",
-      "accessCount": 34,
-      "lastAccessed": 1775554463594,
-      "type": "file"
-    },
-    {
-      "path": "src/handlers/callbacks/onboarding.ts",
-      "accessCount": 31,
-      "lastAccessed": 1775437613207,
-      "type": "file"
-    },
-    {
-      "path": "src",
-      "accessCount": 25,
-      "lastAccessed": 1775437583244,
-      "type": "directory"
-    },
-    {
-      "path": "src/types/index.ts",
-      "accessCount": 17,
-      "lastAccessed": 1775437025077,
-      "type": "directory"
-    },
-    {
-      "path": "src/config/niches.ts",
-      "accessCount": 17,
-      "lastAccessed": 1775437255668,
-      "type": "file"
-    },
-    {
-      "path": "src/services/scene-consistency.service.ts",
-      "accessCount": 16,
-      "lastAccessed": 1775437264007,
-      "type": "file"
-    },
-    {
-      "path": "tests/e2e_element_selection.py",
-      "accessCount": 14,
-      "lastAccessed": 1775404292972,
+      "accessCount": 22,
+      "lastAccessed": 1775822100126,
       "type": "file"
     },
     {
       "path": "prisma/schema.prisma",
-      "accessCount": 14,
-      "lastAccessed": 1775437018262,
-      "type": "file"
-    },
-    {
-      "path": "",
-      "accessCount": 14,
-      "lastAccessed": 1775437038795,
-      "type": "directory"
-    },
-    {
-      "path": "src/commands/create.ts",
-      "accessCount": 14,
-      "lastAccessed": 1775437103961,
-      "type": "file"
-    },
-    {
-      "path": "src/services/image.service.ts",
-      "accessCount": 13,
-      "lastAccessed": 1775554497111,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin/partials/sidebar.ejs",
-      "accessCount": 12,
-      "lastAccessed": 1775556370773,
-      "type": "file"
-    },
-    {
-      "path": "src/handlers/callbacks/image.ts",
-      "accessCount": 11,
-      "lastAccessed": 1775411926116,
-      "type": "directory"
-    },
-    {
-      "path": "src/handlers/callbacks/media-intent.ts",
-      "accessCount": 10,
-      "lastAccessed": 1775412206467,
-      "type": "file"
-    },
-    {
-      "path": "src/handlers/callback.ts",
-      "accessCount": 8,
-      "lastAccessed": 1775418875567,
-      "type": "file"
-    },
-    {
-      "path": "src/commands/start.ts",
-      "accessCount": 7,
-      "lastAccessed": 1775437030399,
-      "type": "file"
-    },
-    {
-      "path": "src/handlers/callbacks/clone.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775411963114,
-      "type": "file"
-    },
-    {
-      "path": "src/services/payment-settings.service.ts",
-      "accessCount": 6,
-      "lastAccessed": 1775554912491,
-      "type": "file"
-    },
-    {
-      "path": "src/config/personas.ts",
-      "accessCount": 5,
-      "lastAccessed": 1775437018163,
-      "type": "file"
-    },
-    {
-      "path": "src/services",
-      "accessCount": 5,
-      "lastAccessed": 1775554487245,
-      "type": "directory"
-    },
-    {
-      "path": "src/routes",
-      "accessCount": 5,
-      "lastAccessed": 1775554912417,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin",
-      "accessCount": 5,
-      "lastAccessed": 1775555964938,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin/ai-config.ejs",
-      "accessCount": 4,
-      "lastAccessed": 1775554411684,
+      "accessCount": 15,
+      "lastAccessed": 1775818131432,
       "type": "file"
     },
     {
       "path": "src/workers/video-generation.worker.ts",
-      "accessCount": 4,
-      "lastAccessed": 1775554487097,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin/settings.ejs",
-      "accessCount": 3,
-      "lastAccessed": 1775554403961,
+      "accessCount": 14,
+      "lastAccessed": 1775818344290,
       "type": "file"
     },
     {
-      "path": "src/config/providers.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775554435998,
-      "type": "directory"
-    },
-    {
-      "path": "src/services/provider-cost-tracker.service.ts",
-      "accessCount": 3,
-      "lastAccessed": 1775554913706,
+      "path": "src/handlers/message.ts",
+      "accessCount": 12,
+      "lastAccessed": 1775824208836,
       "type": "file"
     },
     {
-      "path": "src/views/admin/layout.ejs",
-      "accessCount": 3,
-      "lastAccessed": 1775555300947,
+      "path": "src/views/admin/interceptions.ejs",
+      "accessCount": 8,
+      "lastAccessed": 1775819229543,
       "type": "file"
     },
     {
-      "path": "src/views/admin/providers.ejs",
-      "accessCount": 3,
-      "lastAccessed": 1775555968594,
+      "path": "src/services/intercept.service.ts",
+      "accessCount": 6,
+      "lastAccessed": 1775822205494,
       "type": "file"
     },
     {
-      "path": "src/config/queue.ts",
-      "accessCount": 2,
-      "lastAccessed": 1775411838802,
-      "type": "file"
-    },
-    {
-      "path": "src/config/database.ts",
-      "accessCount": 2,
-      "lastAccessed": 1775418441588,
-      "type": "file"
-    },
-    {
-      "path": "src/handlers/callbacks/video.ts",
-      "accessCount": 2,
-      "lastAccessed": 1775419110267,
-      "type": "file"
-    },
-    {
-      "path": "src/handlers/callbacks/generation.ts",
-      "accessCount": 2,
-      "lastAccessed": 1775419245523,
-      "type": "directory"
-    },
-    {
-      "path": "src/utils/crypto.ts",
-      "accessCount": 2,
-      "lastAccessed": 1775537061699,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin/system.ejs",
-      "accessCount": 2,
-      "lastAccessed": 1775554291168,
-      "type": "file"
-    },
-    {
-      "path": "src/flows",
-      "accessCount": 2,
-      "lastAccessed": 1775554497203,
-      "type": "directory"
-    },
-    {
-      "path": "src/views/admin/pricing.ejs",
-      "accessCount": 2,
-      "lastAccessed": 1775555968629,
+      "path": "src/services/video.service.ts",
+      "accessCount": 5,
+      "lastAccessed": 1775817441340,
       "type": "file"
     },
     {
       "path": "src/routes/web.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775417745671,
-      "type": "directory"
-    },
-    {
-      "path": "prisma/migrations/20260406000000_add_user_mode/migration.sql",
-      "accessCount": 1,
-      "lastAccessed": 1775418302393,
+      "accessCount": 3,
+      "lastAccessed": 1775817209534,
       "type": "file"
     },
     {
-      "path": "src/utils/logger.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775418446859,
-      "type": "directory"
-    },
-    {
-      "path": "src/services/user.service.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775419440921,
+      "path": "src/views/admin/partials/sidebar.ejs",
+      "accessCount": 3,
+      "lastAccessed": 1775818113897,
       "type": "file"
     },
     {
-      "path": "src/views/admin/analytics.ejs",
-      "accessCount": 1,
-      "lastAccessed": 1775419525555,
+      "path": "src/handlers/callbacks/prompts.ts",
+      "accessCount": 3,
+      "lastAccessed": 1775820155093,
+      "type": "file"
+    },
+    {
+      "path": "src/flows/generate.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775817214597,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers/callback.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775818185028,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/layout.ejs",
+      "accessCount": 2,
+      "lastAccessed": 1775818216826,
       "type": "file"
     },
     {
       "path": "src/views/admin/personas.ejs",
-      "accessCount": 1,
-      "lastAccessed": 1775419635069,
+      "accessCount": 2,
+      "lastAccessed": 1775818222258,
       "type": "file"
     },
     {
-      "path": "src/views/admin/login.ejs",
-      "accessCount": 1,
-      "lastAccessed": 1775536988549,
+      "path": "src/index.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775819169017,
       "type": "file"
     },
     {
-      "path": "src/handlers",
-      "accessCount": 1,
-      "lastAccessed": 1775554456808,
-      "type": "directory"
+      "path": "src/handlers/callbacks/image.ts",
+      "accessCount": 2,
+      "lastAccessed": 1775820146978,
+      "type": "file"
     },
     {
-      "path": "src/services/video-fallback.service.ts",
-      "accessCount": 1,
-      "lastAccessed": 1775554463655,
-      "type": "directory"
+      "path": "ecosystem.config.js",
+      "accessCount": 2,
+      "lastAccessed": 1775824024377,
+      "type": "file"
     },
     {
       "path": "src/workers",
       "accessCount": 1,
-      "lastAccessed": 1775554470696,
+      "lastAccessed": 1775817135180,
       "type": "directory"
+    },
+    {
+      "path": "src",
+      "accessCount": 1,
+      "lastAccessed": 1775817136113,
+      "type": "directory"
+    },
+    {
+      "path": "src/handlers/messages/video-uploader.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775817141224,
+      "type": "file"
+    },
+    {
+      "path": "src/views/admin/medias.ejs",
+      "accessCount": 1,
+      "lastAccessed": 1775817223397,
+      "type": "file"
+    },
+    {
+      "path": "src/config",
+      "accessCount": 1,
+      "lastAccessed": 1775819451534,
+      "type": "directory"
+    },
+    {
+      "path": "src/config/personas.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775819454476,
+      "type": "file"
+    },
+    {
+      "path": "src/handlers/callbacks/media-intent.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775820082899,
+      "type": "file"
+    },
+    {
+      "path": "src/commands/create.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775823162905,
+      "type": "file"
+    },
+    {
+      "path": "src/i18n/translations.ts",
+      "accessCount": 1,
+      "lastAccessed": 1775824195350,
+      "type": "file"
     }
   ],
   "userDirectives": []

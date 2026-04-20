@@ -1,0 +1,359 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ⚡ BerkahKarya
+      - generic [ref=e5]: Admin Dashboard v3
+    - navigation [ref=e6]:
+      - generic [ref=e7] [cursor=pointer]: 📊 Overview
+      - generic [ref=e8] [cursor=pointer]: 👥 Users
+      - generic [ref=e9] [cursor=pointer]: 💳 Transactions
+      - generic [ref=e10] [cursor=pointer]: 📈 Analytics
+      - generic [ref=e11] [cursor=pointer]: 💰 Pricing
+      - generic [ref=e12] [cursor=pointer]: 🪙 Token Usage
+      - generic [ref=e13] [cursor=pointer]: 💹 Revenue
+      - generic [ref=e14] [cursor=pointer]: 🏷️ Niches
+      - generic [ref=e15] [cursor=pointer]: 🌐 Landing Page
+      - generic [ref=e17] [cursor=pointer]: 🎬 Media Gallery
+      - generic [ref=e18] [cursor=pointer]: ✍️ Prompts
+      - generic [ref=e19] [cursor=pointer]: 🔌 Providers
+      - generic [ref=e20] [cursor=pointer]: 🤖 AI Config
+      - generic [ref=e21] [cursor=pointer]: 💵 Dynamic Pricing
+      - generic [ref=e22] [cursor=pointer]: 🧪 Playground
+      - generic [ref=e23] [cursor=pointer]: 🎭 Personas
+      - generic [ref=e24] [cursor=pointer]: 🎯 Interceptions
+      - generic [ref=e25] [cursor=pointer]: ⚙️ Settings
+      - generic [ref=e27] [cursor=pointer]: 🤖 AI Assistant
+    - generic [ref=e28]:
+      - generic [ref=e29]: Sen, 20 Apr, 19.03.45
+      - button "🚪 Logout" [ref=e30] [cursor=pointer]
+  - generic [ref=e31]:
+    - generic [ref=e32]: 🔌 Provider Management
+    - generic [ref=e33]: Configure AI providers, monitor circuit breakers, and manage API balances
+    - generic [ref=e34]:
+      - generic [ref=e35] [cursor=pointer]: 🎬 Video Providers
+      - generic [ref=e36] [cursor=pointer]: 🖼️ Image Providers
+      - generic [ref=e37] [cursor=pointer]: 🤖 AI Tasks
+      - generic [ref=e38] [cursor=pointer]: 🔧 Custom Providers
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]: Total Providers
+        - generic [ref=e42]: "18"
+      - generic [ref=e43]:
+        - generic [ref=e44]: Active
+        - generic [ref=e45]: "18"
+      - generic [ref=e46]:
+        - generic [ref=e47]: Configured
+        - generic [ref=e48]: "17"
+      - generic [ref=e49]:
+        - generic [ref=e50]: Erroring
+        - generic [ref=e51]: "0"
+    - generic [ref=e53]:
+      - generic [ref=e54]: "Bulk Actions:"
+      - button "🔄 Refresh Balances" [active] [ref=e55] [cursor=pointer]
+      - button "⚠️ Reset All Circuit Breakers" [ref=e56] [cursor=pointer]
+      - button "🔃 Reload" [ref=e57] [cursor=pointer]
+    - generic [ref=e58]:
+      - generic [ref=e61] [cursor=pointer]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]: OmniRoute (Smart Routing)
+            - generic [ref=e65]: video
+          - generic [ref=e66]:
+            - generic "API Key Status" [ref=e67]:
+              - generic "API key configured" [ref=e68]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e69]:
+              - generic [ref=e71]: Closed
+            - generic "Balance" [ref=e72]:
+              - text: 💰
+              - generic [ref=e73]: ✓ Valid
+        - generic [ref=e75]:
+          - spinbutton [ref=e77]: "0"
+          - generic "Enable/Disable" [ref=e78]
+      - generic [ref=e81] [cursor=pointer]:
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - generic [ref=e84]: BytePlus Seedance
+            - generic [ref=e85]: video
+          - generic [ref=e86]:
+            - generic "API Key Status" [ref=e87]:
+              - generic "API key configured" [ref=e88]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e89]:
+              - generic [ref=e91]: Closed
+            - generic "Balance" [ref=e92]:
+              - text: 💰
+              - generic [ref=e93]: N/A
+        - generic [ref=e95]:
+          - spinbutton [ref=e97]: "1"
+          - generic "Enable/Disable" [ref=e98]
+      - generic [ref=e101] [cursor=pointer]:
+        - generic [ref=e102]:
+          - generic [ref=e103]:
+            - generic [ref=e104]: XAI Grok Aurora
+            - generic [ref=e105]: video
+          - generic [ref=e106]:
+            - generic "API Key Status" [ref=e107]:
+              - generic "API key configured" [ref=e108]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e109]:
+              - generic [ref=e111]: Closed
+            - generic "Balance" [ref=e112]:
+              - text: 💰
+              - generic [ref=e113]: —
+        - generic [ref=e115]:
+          - spinbutton [ref=e117]: "2"
+          - generic "Enable/Disable" [ref=e118]
+      - generic [ref=e121] [cursor=pointer]:
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - generic [ref=e124]: LaoZhang
+            - generic [ref=e125]: video
+          - generic [ref=e126]:
+            - generic "API Key Status" [ref=e127]:
+              - generic "API key configured" [ref=e128]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e129]:
+              - generic [ref=e131]: Closed
+            - generic "Balance" [ref=e132]:
+              - text: 💰
+              - generic [ref=e133]: N/A
+        - generic [ref=e135]:
+          - spinbutton [ref=e137]: "3"
+          - generic "Enable/Disable" [ref=e138]
+      - generic [ref=e141] [cursor=pointer]:
+        - generic [ref=e142]:
+          - generic [ref=e143]:
+            - generic [ref=e144]: EvoLink
+            - generic [ref=e145]: video
+          - generic [ref=e146]:
+            - generic "API Key Status" [ref=e147]:
+              - generic "API key configured" [ref=e148]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e149]:
+              - generic [ref=e151]: Closed
+            - generic "Balance" [ref=e152]:
+              - text: 💰
+              - generic [ref=e153]: N/A
+        - generic [ref=e155]:
+          - spinbutton [ref=e157]: "4"
+          - generic "Enable/Disable" [ref=e158]
+      - generic [ref=e161] [cursor=pointer]:
+        - generic [ref=e162]:
+          - generic [ref=e163]:
+            - generic [ref=e164]: Hypereal
+            - generic [ref=e165]: video
+          - generic [ref=e166]:
+            - generic "API Key Status" [ref=e167]:
+              - generic "API key configured" [ref=e168]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e169]:
+              - generic [ref=e171]: Closed
+            - generic "Balance" [ref=e172]:
+              - text: 💰
+              - generic [ref=e173]: N/A
+        - generic [ref=e175]:
+          - spinbutton [ref=e177]: "5"
+          - generic "Enable/Disable" [ref=e178]
+      - generic [ref=e181] [cursor=pointer]:
+        - generic [ref=e182]:
+          - generic [ref=e183]:
+            - generic [ref=e184]: SiliconFlow
+            - generic [ref=e185]: video
+          - generic [ref=e186]:
+            - generic "API Key Status" [ref=e187]:
+              - generic "API key configured" [ref=e188]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e189]:
+              - generic [ref=e191]: Closed
+            - generic "Balance" [ref=e192]:
+              - text: 💰
+              - generic [ref=e193]: —
+        - generic [ref=e195]:
+          - spinbutton [ref=e197]: "6"
+          - generic "Enable/Disable" [ref=e198]
+      - generic [ref=e201] [cursor=pointer]:
+        - generic [ref=e202]:
+          - generic [ref=e203]:
+            - generic [ref=e204]: Fal.ai Video
+            - generic [ref=e205]: video
+          - generic [ref=e206]:
+            - generic "API Key Status" [ref=e207]:
+              - generic "API key configured" [ref=e208]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e209]:
+              - generic [ref=e211]: Closed
+            - generic "Balance" [ref=e212]: 💰
+        - generic [ref=e215]:
+          - spinbutton [ref=e217]: "7"
+          - generic "Enable/Disable" [ref=e218]
+      - generic [ref=e221] [cursor=pointer]:
+        - generic [ref=e222]:
+          - generic [ref=e223]:
+            - generic [ref=e224]: Kie.ai
+            - generic [ref=e225]: video
+          - generic [ref=e226]:
+            - generic "API Key Status" [ref=e227]:
+              - generic "API key configured" [ref=e228]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e229]:
+              - generic [ref=e231]: Closed
+            - generic "Balance" [ref=e232]:
+              - text: 💰
+              - generic [ref=e233]: N/A
+        - generic [ref=e235]:
+          - spinbutton [ref=e237]: "8"
+          - generic "Enable/Disable" [ref=e238]
+      - generic [ref=e241] [cursor=pointer]:
+        - generic [ref=e242]:
+          - generic [ref=e243]:
+            - generic [ref=e244]: Remotion+FFmpeg
+            - generic [ref=e245]: video
+          - generic [ref=e246]:
+            - generic "API Key Status" [ref=e247]:
+              - generic "API key configured" [ref=e248]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e249]:
+              - generic [ref=e251]: Closed
+            - generic "Balance" [ref=e252]: 💰
+        - generic [ref=e255]:
+          - spinbutton [ref=e257]: "9"
+          - generic "Enable/Disable" [ref=e258]
+      - generic [ref=e261] [cursor=pointer]:
+        - generic [ref=e262]:
+          - generic [ref=e263]:
+            - generic [ref=e264]: PiAPI (Kling)
+            - generic [ref=e265]: video
+          - generic [ref=e266]:
+            - generic "API Key Status" [ref=e267]:
+              - generic "API key configured" [ref=e268]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e269]:
+              - generic [ref=e271]: Closed
+            - generic "Balance" [ref=e272]:
+              - text: 💰
+              - generic [ref=e273]: —
+        - generic [ref=e275]:
+          - spinbutton [ref=e277]: "99"
+          - generic "Enable/Disable" [ref=e278]
+      - generic [ref=e281] [cursor=pointer]:
+        - generic [ref=e282]:
+          - generic [ref=e283]:
+            - generic [ref=e284]: LingyaAI
+            - generic [ref=e285]: video
+          - generic [ref=e286]:
+            - generic "API Key Status" [ref=e287]:
+              - generic "API key configured" [ref=e288]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e289]:
+              - generic [ref=e291]: Closed
+            - generic "Balance" [ref=e292]:
+              - text: 💰
+              - generic [ref=e293]: ✓ Valid
+        - generic [ref=e295]:
+          - spinbutton [ref=e297]: "10"
+          - generic "Enable/Disable" [ref=e298]
+      - generic [ref=e301] [cursor=pointer]:
+        - generic [ref=e302]:
+          - generic [ref=e303]:
+            - generic [ref=e304]: GetGoAPI
+            - generic [ref=e305]: video
+          - generic [ref=e306]:
+            - generic "API Key Status" [ref=e307]:
+              - generic "API key configured" [ref=e308]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e309]:
+              - generic [ref=e311]: Closed
+            - generic "Balance" [ref=e312]:
+              - text: 💰
+              - generic [ref=e313]: ✓ Valid
+        - generic [ref=e315]:
+          - spinbutton [ref=e317]: "11"
+          - generic "Enable/Disable" [ref=e318]
+      - generic [ref=e321] [cursor=pointer]:
+        - generic [ref=e322]:
+          - generic [ref=e323]:
+            - generic [ref=e324]: ApiYi (Sora 2)
+            - generic [ref=e325]: video
+          - generic [ref=e326]:
+            - generic "API Key Status" [ref=e327]:
+              - generic "API key configured" [ref=e328]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e329]:
+              - generic [ref=e331]: Closed
+            - generic "Balance" [ref=e332]:
+              - text: 💰
+              - generic [ref=e333]: ✓ Valid
+        - generic [ref=e335]:
+          - spinbutton [ref=e337]: "12"
+          - generic "Enable/Disable" [ref=e338]
+      - generic [ref=e341] [cursor=pointer]:
+        - generic [ref=e342]:
+          - generic [ref=e343]:
+            - generic [ref=e344]: Runware
+            - generic [ref=e345]: video
+          - generic [ref=e346]:
+            - generic "API Key Status" [ref=e347]:
+              - generic "API key configured" [ref=e348]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e349]:
+              - generic [ref=e351]: Closed
+            - generic "Balance" [ref=e352]:
+              - text: 💰
+              - generic [ref=e353]: ✓ Valid
+        - generic [ref=e355]:
+          - spinbutton [ref=e357]: "13"
+          - generic "Enable/Disable" [ref=e358]
+      - generic [ref=e361] [cursor=pointer]:
+        - generic [ref=e362]:
+          - generic [ref=e363]:
+            - generic [ref=e364]: WaveSpeed
+            - generic [ref=e365]: video
+          - generic [ref=e366]:
+            - generic "API Key Status" [ref=e367]:
+              - generic "API key configured" [ref=e368]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e369]:
+              - generic [ref=e371]: Closed
+            - generic "Balance" [ref=e372]:
+              - text: 💰
+              - generic [ref=e373]: —
+        - generic [ref=e375]:
+          - spinbutton [ref=e377]: "14"
+          - generic "Enable/Disable" [ref=e378]
+      - generic [ref=e381] [cursor=pointer]:
+        - generic [ref=e382]:
+          - generic [ref=e383]:
+            - generic [ref=e384]: Z.ai Video
+            - generic [ref=e385]: video
+          - generic [ref=e386]:
+            - generic "API Key Status" [ref=e387]:
+              - generic "API key configured" [ref=e388]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e389]:
+              - generic [ref=e391]: Closed
+            - generic "Balance" [ref=e392]:
+              - text: 💰
+              - generic [ref=e393]: —
+        - generic [ref=e395]:
+          - spinbutton [ref=e397]: "15"
+          - generic "Enable/Disable" [ref=e398]
+      - generic [ref=e401] [cursor=pointer]:
+        - generic [ref=e402]:
+          - generic [ref=e403]:
+            - generic [ref=e404]: D-ID Talking Head
+            - generic [ref=e405]: video
+          - generic [ref=e406]:
+            - generic "API Key Status" [ref=e407]:
+              - generic "API key missing" [ref=e408]
+              - text: Key
+            - generic "Circuit Breaker" [ref=e409]:
+              - generic [ref=e411]: Closed
+            - generic "Balance" [ref=e412]: 💰
+        - generic [ref=e415]:
+          - spinbutton [ref=e417]: "16"
+          - generic "Enable/Disable" [ref=e418]
+    - generic [ref=e420]:
+      - generic [ref=e421]: Refreshing all balances...
+      - generic [ref=e422]: Balances refreshed
+  - button "💾 Save Changes" [ref=e419] [cursor=pointer]

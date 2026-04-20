@@ -31,6 +31,18 @@
   </script>
   <!-- TikTok Pixel (D6IA84RC77UCTB9KG9OG) -->
   <script>
+    // Suppress TikTok monitoring CORS errors (cosmetic only - pixel still works)
+    (function() {
+      var originalError = console.error;
+      console.error = function() {
+        var msg = arguments[0] || '';
+        if (typeof msg === 'string' && msg.includes('mon.tiktokv.com') && msg.includes('CORS')) {
+          return; // Silently ignore TikTok monitoring CORS errors
+        }
+        originalError.apply(console, arguments);
+      };
+    })();
+    
     !function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
     ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie"],
     ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};

@@ -90,7 +90,7 @@ async function fetchMediaAsBase64(url: string): Promise<{ data: string; mimeType
 
   // Telegram often returns 'application/octet-stream' — detect real type from URL or magic bytes
   let contentType = response.headers['content-type'] || 'image/jpeg';
-  if (contentType === 'application/octet-stream' || !contentType.startsWith('image/')) {
+  if (contentType === 'application/octet-stream' || (contentType && !contentType.startsWith('image/'))) {
     // Infer from URL extension
     if (url.includes('.jpg') || url.includes('.jpeg')) contentType = 'image/jpeg';
     else if (url.includes('.png')) contentType = 'image/png';

@@ -1,0 +1,54 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ⚡ BerkahKarya
+      - generic [ref=e5]: Admin Dashboard v3
+    - navigation [ref=e6]:
+      - generic [ref=e7] [cursor=pointer]: 📊 Overview
+      - generic [ref=e8] [cursor=pointer]: 👥 Users
+      - generic [ref=e9] [cursor=pointer]: 💳 Transactions
+      - generic [ref=e10] [cursor=pointer]: 📈 Analytics
+      - generic [ref=e11] [cursor=pointer]: 💰 Pricing
+      - generic [ref=e12] [cursor=pointer]: 🪙 Token Usage
+      - generic [ref=e13] [cursor=pointer]: 💹 Revenue
+      - generic [ref=e14] [cursor=pointer]: 🏷️ Niches
+      - generic [ref=e15] [cursor=pointer]: 🌐 Landing Page
+      - generic [ref=e17] [cursor=pointer]: 🎬 Media Gallery
+      - generic [ref=e18] [cursor=pointer]: ✍️ Prompts
+      - generic [ref=e19] [cursor=pointer]: 🔌 Providers
+      - generic [ref=e20] [cursor=pointer]: 🤖 AI Config
+      - generic [ref=e21] [cursor=pointer]: 💵 Dynamic Pricing
+      - generic [ref=e22] [cursor=pointer]: 🧪 Playground
+      - generic [ref=e23] [cursor=pointer]: 🎭 Personas
+      - generic [ref=e24] [cursor=pointer]: 🎯 Interceptions
+      - generic [ref=e25] [cursor=pointer]: ⚙️ Settings
+      - generic [ref=e27] [cursor=pointer]: 🤖 AI Assistant
+    - generic [ref=e28]:
+      - generic [ref=e29]: Sen, 20 Apr, 17.33.58
+      - button "🚪 Logout" [ref=e30] [cursor=pointer]
+  - generic [ref=e32]:
+    - generic [ref=e33]: Overview
+    - generic [ref=e34]: Business metrics at a glance
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]: Total Users
+        - generic [ref=e38]: "21"
+        - generic [ref=e39]: "pro: 1, free: 20"
+      - generic [ref=e40]:
+        - generic [ref=e41]: Total Revenue
+        - generic [ref=e42]: Rp 0
+        - generic [ref=e43]: "Today: Rp 0"
+      - generic [ref=e44]:
+        - generic [ref=e45]: Total Videos
+        - generic [ref=e46]: "55"
+        - generic [ref=e47]: "failed: 20, completed: 35"
+      - generic [ref=e48]:
+        - generic [ref=e49]: Queue Waiting
+        - generic [ref=e50]: "0"
+        - generic [ref=e51]: "active: 0"
+    - generic [ref=e52]:
+      - generic [ref=e54]: REVENUE (7 DAYS)
+      - generic [ref=e58]: NEW USERS (7 DAYS)
+    - generic [ref=e61]:
+      - generic [ref=e63]: USERS BY TIER
+      - generic [ref=e67]: VIDEOS BY STATUS
