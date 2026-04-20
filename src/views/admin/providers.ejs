@@ -265,12 +265,38 @@ function toast(msg, type = 'info') {
 // ===================== HELPERS =====================
 function formatBalance(b) {
   if (!b) return `<span class="spinner"></span>`;
-  if (b.status === 'not_configured') return `<span style="color:var(--muted);">—</span>`;
-  if (b.status === 'not_supported') return `<span style="color:var(--muted);">N/A</span>`;
-  if (b.status === 'error') return `<span style="color:var(--red);" title="${esc(b.error||'')}">Error</span>`;
-  if (b.currency === 'key_valid') return `<span style="color:var(--green);">✓ Valid</span>`;
-  if (b.balance !== null && b.balance !== undefined) return `<span style="color:var(--green);">${esc(String(b.balance))} ${esc(b.currency)}</span>`;
-  return `<span style="color:var(--muted);">N/A</span>`;
+  
+  // Not configured - API key missing
+  if (b.status === 'not_configured') {
+    return `<span style="color:var(--muted);cursor:help;" title="API key not configured for this provider">—</span>`;
+  }
+  
+  // Not supported - Provider doesn't expose balance API
+  if (b.status === 'not_supported') {
+    return `<span style="color:var(--muted);cursor:help;" title="This provider doesn't support balance checking. Balance queries are not available via their API.">N/A</span>`;
+  }
+  
+  // Error - Failed to fetch balance
+  if (b.status === 'error') {
+    const errorMsg = b.error || 'Unknown error';
+    const tooltip = `Balance check failed: ${esc(errorMsg)}. This could be due to network issues, invalid API key, or provider API downtime.`;
+    return `<span style="color:var(--red);cursor:help;text-decoration:underline dotted;" title="${tooltip}">⚠️ Error</span>`;
+  }
+  
+  // Key validation only (no balance endpoint)
+  if (b.currency === 'key_valid') {
+    return `<span style="color:var(--green);cursor:help;" title="API key is valid and working. Balance information not available from this provider.">✓ Valid</span>`;
+  }
+  
+  // Success - Balance retrieved
+  if (b.balance !== null && b.balance !== undefined) {
+    const balanceStr = esc(String(b.balance));
+    const currencyStr = esc(b.currency);
+    return `<span style="color:var(--green);cursor:help;" title="Current account balance: ${balanceStr} ${currencyStr}">${balanceStr} ${currencyStr}</span>`;
+  }
+  
+  // Fallback
+  return `<span style="color:var(--muted);cursor:help;" title="Balance information unavailable">N/A</span>`;
 }
 
 function esc(s) {

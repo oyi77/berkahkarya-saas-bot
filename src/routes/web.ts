@@ -212,7 +212,7 @@ export async function webRoutes(server: FastifyInstance): Promise<void> {
 
   // Web app
   server.get("/app", async (_request, reply) => {
-    reply.view("web/app.ejs", {
+    return reply.view("web/app.ejs", {
       botUsername: getConfig().BOT_USERNAME || "berkahkarya_saas_bot",
     });
   });

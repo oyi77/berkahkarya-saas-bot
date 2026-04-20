@@ -1,7 +1,7 @@
 import axios from "axios";
 import { getConfig } from "@/config/env";
 import { redis } from "@/config/redis";
-import { logger } from "@/utils/logger";
+import { checkProviderBalance } from "@/services/balance-checker.service";
 
 export interface BalanceResult {
   provider: string;
@@ -72,7 +72,7 @@ const API_KEY_MAP: Record<string, string> = {
   agentrouter: "AGENTROUTER_API_KEY",
 };
 
-const NO_BALANCE_ENDPOINT = ["geminigen", "byteplus", "hypereal", "kie"];
+const INVALID_API_KEYS = ["xai", "siliconflow", "together", "agentrouter", "falai", "piapi", "wavespeed", "zai_video"];
 
 export class ProviderBalanceService {
   static async fetchBalance(providerKey: string): Promise<BalanceResult> {
@@ -86,12 +86,13 @@ export class ProviderBalanceService {
         currency: "",
         status: "not_configured",
       };
-    if (NO_BALANCE_ENDPOINT.includes(providerKey))
+    if (INVALID_API_KEYS.includes(providerKey))
       return {
         provider: providerKey,
         balance: null,
         currency: "",
-        status: "not_supported",
+        status: "not_configured",
+        error: "API key is invalid or blocked",
       };
 
     const cacheKey = `provider:balance:${providerKey}`;
@@ -103,28 +104,32 @@ export class ProviderBalanceService {
     const omnirouteUrl = config.OMNIROUTE_URL || "http://localhost:20128";
 
     const urlMap: Record<string, string> = {
-      omniroute: `${omnirouteUrl}/v1/models`,
-      groq: "https://api.groq.com/openai/v1/models",
-      lingyaai: "https://api.lingyaai.cn/dashboard/billing/usage",
-      getgoapi: "https://api.getgoapi.com/api/user/balance",
-      apiyi: "https://api.apiyi.com/dashboard/billing/usage",
-      runware: "https://api.runware.ai/v1/models",
-      wavespeed: "https://api.wavespeed.ai/v1/models",
-      zai_video: "https://api.z.ai/v1/models",
-      falai: "https://rest.fal.ai/credits",
-      siliconflow: "https://api.siliconflow.cn/v1/user/info",
-      laozhang: "https://api.laozhang.ai/dashboard/billing/usage",
-      evolink: "https://api.evolink.ai/v1/user",
-      piapi: "https://api.piapi.ai/api/v1/user",
-      agentrouter: "https://agentrouter.org/v1/models",
-      together: "https://api.together.xyz/v1/dashboard/billing/usage",
-      nvidia: "https://integrate.api.nvidia.com/v1/models",
-      xai: "https://api.x.ai/v1/models",
-      segmind: "https://api.segmind.com/v1/models",
+      omniroute: `${omnirouteUrl}/v1`,
+      groq: "https://api.groq.com/openai/v1",
+      lingyaai: "https://api.lingyaai.cn/v1",
+      getgoapi: "https://api.getgoapi.com/v1",
+      apiyi: "https://api.apiyi.com/v1",
+      runware: "https://api.runware.ai/v1",
+      wavespeed: "https://api.wavespeed.ai/v1",
+      zai_video: "https://api.zai.video/v1",
+      falai: "https://fal.run",
+      siliconflow: "https://api.siliconflow.cn/v1",
+      laozhang: "https://api.laozhang.ai/v1",
+      evolink: "https://api.evolink.ai/v1",
+      piapi: "https://api.piapi.ai/v1",
+      agentrouter: "https://agentrouter.org/v1",
+      together: "https://api.together.xyz/v1",
+      nvidia: "https://integrate.api.nvidia.com/v1",
+      xai: "https://api.x.ai/v1",
+      segmind: "https://api.segmind.com/v1",
+      byteplus: "https://api.byteplus.com/v1",
+      hypereal: "https://api.hypereal.cloud/v1",
+      kie: "https://api.kie.ai",
+      geminigen: "https://api.geminigen.ai/v1",
     };
 
-    const url = urlMap[providerKey];
-    if (!url)
+    const baseUrl = urlMap[providerKey];
+    if (!baseUrl)
       return {
         provider: providerKey,
         balance: null,
@@ -132,65 +137,17 @@ export class ProviderBalanceService {
         status: "not_supported",
       };
 
-    const authHeaders: Record<string, string> = {};
-    if (providerKey === "falai") authHeaders["Authorization"] = `Key ${apiKey}`;
-    else if (providerKey === "segmind") authHeaders["x-api-key"] = apiKey;
-    else if (providerKey === "piapi") authHeaders["x-api-key"] = apiKey;
-    else if (providerKey === "gemini") {
-      /* key in URL */
-    } else authHeaders["Authorization"] = `Bearer ${apiKey}`;
-
     try {
-      const resp = await axios.get(url, {
-        headers: { ...authHeaders, "Content-Type": "application/json" },
-        timeout: 10000,
-      });
-      let balance: number | null = null;
-      let currency = "USD";
-
-      if (
-        [
-          "omniroute",
-          "groq",
-          "runware",
-          "wavespeed",
-          "zai_video",
-          "agentrouter",
-          "nvidia",
-          "xai",
-          "apiyi",
-        ].includes(providerKey)
-      ) {
-        balance = 1;
-        currency = "key_valid";
-      } else if (providerKey === "together")
-        balance = resp.data?.credits?.remaining ?? null;
-      else if (providerKey === "siliconflow") {
-        balance = resp.data?.data?.balance ?? resp.data?.balance ?? null;
-        currency = "CNY";
-      } else if (providerKey === "laozhang")
-        balance =
-          resp.data?.total_balance ?? resp.data?.data?.total_balance ?? null;
-      else if (providerKey === "evolink")
-        balance = resp.data?.credits ?? resp.data?.data?.credits ?? null;
-      else if (providerKey === "piapi")
-        balance = resp.data?.data?.balance ?? resp.data?.balance ?? null;
-      else if (providerKey === "falai")
-        balance = resp.data?.credit_balance ?? resp.data?.balance ?? null;
-      else if (providerKey === "segmind") {
-        balance = 1;
-        currency = "key_valid";
-      } else {
-        balance = 1;
-        currency = "key_valid";
-      }
-
+      const checkerResult = await checkProviderBalance(baseUrl, apiKey);
+      
       const result: BalanceResult = {
         provider: providerKey,
-        balance,
-        currency,
-        status: "ok",
+        balance: checkerResult.balance ?? null,
+        currency: checkerResult.currency || checkerResult.unit || "USD",
+        status: checkerResult.success ? "ok" : "error",
+        error: checkerResult.error,
       };
+      
       try {
         await redis.set(
           cacheKey,

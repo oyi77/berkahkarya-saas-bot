@@ -10,7 +10,8 @@
  * Supported providers (built-in):
  *   SiliconFlow, Laozhang/AIGC-Best, Runware, Fal.ai, PiAPI, Segmind, Wavespeed,
  *   ZhipuAI/BigModel, Groq (no balance), GetGoAPI, LingYaAI, JuheAPI, ApiYi,
- *   EvoLink, Hypereal, + generic OpenAI-compatible fallback
+ *   EvoLink, Hypereal, Kie.ai, BytePlus (no balance), GeminiGen (no balance),
+ *   + generic OpenAI-compatible fallback
  */
 
 import axios, { AxiosError } from 'axios';
@@ -431,32 +432,117 @@ const evolinkStrategy: BalanceStrategyEntry = {
 
 /**
  * Hypereal — GET /v1/account/balance or /v1/user/info
+ * Also supports checking via generation response (creditsUsed field)
  */
 const hyperealStrategy: BalanceStrategyEntry = {
   pattern: 'hypereal',
   name: 'Hypereal',
   async check(baseUrl, apiKey) {
+    // Try /account/balance first
     try {
       const data = await httpGet(`${baseUrl}/account/balance`, apiKey);
-      return {
-        success: true,
-        balance: safe('balance', data?.data?.balance ?? data?.balance),
-        currency: 'credits',
-        unit: 'credits',
-        raw: data?.data ?? data,
-        strategyUsed: 'Hypereal/account/balance',
-      };
+      const balance = safe('balance', data?.data?.balance ?? data?.balance ?? data?.credits);
+      if (balance !== undefined) {
+        return {
+          success: true,
+          balance,
+          currency: 'credits',
+          unit: 'credits',
+          raw: data?.data ?? data,
+          strategyUsed: 'Hypereal/account/balance',
+        };
+      }
     } catch {
-      const data = await httpGet(`${baseUrl}/user/info`, apiKey);
-      return {
-        success: true,
-        balance: safe('balance', data?.data?.balance ?? data?.balance),
-        currency: 'credits',
-        unit: 'credits',
-        raw: data?.data ?? data,
-        strategyUsed: 'Hypereal/user/info',
-      };
+      // fall through
     }
+    
+    // Try /user/info as fallback
+    try {
+      const data = await httpGet(`${baseUrl}/user/info`, apiKey);
+      const balance = safe('balance', data?.data?.balance ?? data?.balance ?? data?.credits);
+      if (balance !== undefined) {
+        return {
+          success: true,
+          balance,
+          currency: 'credits',
+          unit: 'credits',
+          raw: data?.data ?? data,
+          strategyUsed: 'Hypereal/user/info',
+        };
+      }
+    } catch {
+      // fall through
+    }
+    
+    // Try /user as last resort
+    const data = await httpGet(`${baseUrl}/user`, apiKey);
+    return {
+      success: true,
+      balance: safe('balance', data?.data?.balance ?? data?.balance ?? data?.credits),
+      currency: 'credits',
+      unit: 'credits',
+      raw: data?.data ?? data,
+      strategyUsed: 'Hypereal/user',
+    };
+  },
+};
+
+/**
+ * Kie.ai — GET /api/v1/chat/credit
+ * Response: { code: 200, data: { credit: N } }
+ */
+const kieStrategy: BalanceStrategyEntry = {
+  pattern: /kie\.ai|kieai/i,
+  name: 'Kie.ai',
+  async check(baseUrl, apiKey) {
+    const base = baseUrl.replace(/\/v\d+\/?$/, '');
+    const data = await httpGet(`${base}/api/v1/chat/credit`, apiKey);
+    return {
+      success: true,
+      balance: safe('credit', data?.data?.credit ?? data?.credit),
+      currency: 'credits',
+      unit: 'credits',
+      raw: data?.data ?? data,
+      strategyUsed: 'Kie.ai',
+    };
+  },
+};
+
+/**
+ * BytePlus Seedance — No public balance endpoint available
+ * Returns N/A status (usage-based billing via BytePlus console)
+ */
+const byteplusStrategy: BalanceStrategyEntry = {
+  pattern: /byteplus|seedance/i,
+  name: 'BytePlus',
+  async check(_baseUrl: string, _apiKey: string) {
+    return {
+      success: true,
+      balance: undefined,
+      currency: 'N/A',
+      unit: 'usage-based (BytePlus console)',
+      raw: {},
+      strategyUsed: 'BytePlus/no-balance-api',
+    };
+  },
+};
+
+/**
+ * GeminiGen — No public balance endpoint available
+ * Returns N/A status (check balance via GeminiGen dashboard)
+ */
+const geminigenStrategy: BalanceStrategyEntry = {
+  pattern: /geminigen/i,
+  name: 'GeminiGen',
+  async check(_baseUrl: string, _apiKey: string) {
+    return {
+      success: true,
+      balance: undefined,
+      currency: 'N/A',
+      unit: 'check dashboard',
+      raw: {},
+      strategyUsed: 'GeminiGen/no-balance-api',
+    };
   },
 };
 
@@ -522,6 +608,9 @@ const STRATEGY_REGISTRY: BalanceStrategyEntry[] = [
   juheStrategy,
   evolinkStrategy,
   hyperealStrategy,
+  kieStrategy,
+  byteplusStrategy,
+  geminigenStrategy,
   // generic fallback must be last
   genericOpenAIStrategy,
 ];
