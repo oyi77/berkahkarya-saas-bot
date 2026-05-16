@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kebijakan Privasi — BK Vilona AI</title>
+  <meta name="description" content="Kebijakan Privasi BK Vilona AI - Pelajari bagaimana kami mengumpulkan, menggunakan, dan melindungi data pribadi Anda sesuai UU PDP.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0a0a1a; --bg2: #111127; --card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08); --accent: #00d9ff; --accent2: #00ff88;
+      --grad: linear-gradient(135deg, #00d9ff, #00ff88);
+      --text: #fff; --dim: rgba(255,255,255,0.55); --red: #ff4444;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+    .container { max-width: 800px; width: 100%; margin: 0 auto; padding: 0 20px; box-sizing: border-box; }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(10,10,26,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+    .nav-inner { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; max-width: 1100px; margin: 0 auto; }
+    .logo { font-size: 20px; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--dim); text-decoration: none; font-size: 14px; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a.active { color: var(--accent); }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: all .25s; border: none; cursor: pointer; }
+    .btn-primary { background: var(--grad); color: #0a0a1a; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,217,255,0.3); }
+    .page-header { padding: 60px 20px 40px; text-align: center; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); }
+    .page-header h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 800; margin-bottom: 16px; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .page-header p { font-size: 16px; color: var(--dim); max-width: 600px; margin: 0 auto; }
+    .last-updated { display: inline-block; background: var(--card); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; font-size: 13px; color: var(--dim); margin-top: 16px; }
+    .content { padding: 40px 20px 80px; }
+    .toc { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 40px; }
+    .toc h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; color: var(--accent); }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; font-size: 14px; }
+    .toc a { color: var(--dim); text-decoration: none; transition: color .2s; }
+    .toc a:hover { color: var(--accent); }
+    .section { margin-bottom: 40px; }
+    .section h2 { font-size: 24px; font-weight: 700; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+    .section h3 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; color: var(--accent2); }
+    .section p { font-size: 15px; color: var(--dim); margin-bottom: 16px; line-height: 1.8; }
+    .section ul { padding-left: 24px; margin-bottom: 16px; }
+    .section li { font-size: 15px; color: var(--dim); margin-bottom: 8px; line-height: 1.7; }
+    .highlight-box { background: rgba(0,217,255,0.08); border: 1px solid rgba(0,217,255,0.2); border-radius: 12px; padding: 20px; margin: 20px 0; }
+    .highlight-box.blue { background: rgba(0,217,255,0.08); border-color: rgba(0,217,255,0.2); }
+    .highlight-box.green { background: rgba(0,255,136,0.08); border-color: rgba(0,255,136,0.2); }
+    .highlight-box p { color: var(--text); font-size: 14px; margin: 0; }
+    .contact-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-top: 40px; }
+    .contact-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: var(--text); }
+    .contact-box p { font-size: 14px; color: var(--dim); margin-bottom: 8px; }
+    .contact-box a { color: var(--accent); text-decoration: none; }
+    .contact-box a:hover { text-decoration: underline; }
+    footer { border-top: 1px solid var(--border); padding: 40px 20px; text-align: center; color: var(--dim); font-size: 14px; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    @media(max-width: 640px) {
+      .page-header { padding: 40px 16px 30px; }
+      .content { padding: 30px 16px 60px; }
+      .section h2 { font-size: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-inner">
+      <div class="logo">🎬 BK Vilona</div>
+      <div class="nav-links">
+        <a href="/">Beranda</a>
+        <a href="/#fitur">Fitur</a>
+        <a href="/#harga">Harga</a>
+        <a href="/privacy" class="active">Privasi</a>
+        <a href="https://t.me/BerkahKarya_SaaS_Bot" class="btn btn-primary">Coba Gratis</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="page-header">
+    <div class="container">
+      <h1>Kebijakan Privasi</h1>
+      <p>Kebijakan Privasi ini menjelaskan bagaimana BK Vilona AI mengumpulkan, menggunakan, dan melindungi data pribadi Anda sesuai Undang-Undang Perlindungan Data Pribadi (UU PDP) No. 27 Tahun 2022.</p>
+      <span class="last-updated">📅 Terakhir diperbarui: April 2026</span>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="container">
+
+      <!-- Table of Contents -->
+      <nav class="toc">
+        <h3>📋 Daftar Isi</h3>
+        <ol>
+          <li><a href="#data-collection">Data yang Kami Kumpulkan</a></li>
+          <li><a href="#data-usage">Penggunaan Data</a></li>
+          <li><a href="#data-sharing">Pembagian Data</a></li>
+          <li><a href="#data-retention">Penyimpanan Data</a></li>
+          <li><a href="#user-rights">Hak Anda (UU PDP)</a></li>
+          <li><a href="#data-security">Keamanan Data</a></li>
+          <li><a href="#cookies">Cookie</a></li>
+          <li><a href="#children">Anak di Bawah Umur</a></li>
+          <li><a href="#changes">Perubahan Kebijakan</a></li>
+          <li><a href="#contact">Hubungi Kami</a></li>
+        </ol>
+      </nav>
+
+      <!-- Section 1: Data Collection -->
+      <section class="section" id="data-collection">
+        <h2>1. Data yang Kami Kumpulkan</h2>
+        <p>Kami mengumpulkan data pribadi yang Anda berikan langsung kepada kami dan data yang dihasilkan secara otomatis saat Anda menggunakan layanan kami.</p>
+        
+        <h3>1.1 Data yang Anda Berikan</h3>
+        <ul>
+          <li><strong>ID Telegram:</strong> Nomor identifikasi unik yang diberikan oleh Telegram untuk membuat akun dan mengoperasikan bot kami.</li>
+          <li><strong>Username Telegram:</strong> Nama pengguna publik Anda di Telegram (jika tersedia).</li>
+          <li><strong>Nama Depan & Belakang:</strong> Nama yang terkait dengan akun Telegram Anda.</li>
+          <li><strong>Data Pembayaran:</strong> Informasi transaksi termasuk ID pesanan, jumlah pembayaran, metode pembayaran, dan status pembayaran. Data ini diproses oleh gateway pembayaran pihak ketiga (Midtrans, Tripay, Duitku).</li>
+          <li><strong>Kredit & Langganan:</strong> Riwayat kredit, paket yang dibeli, dan status langganan Anda.</li>
+          <li><strong>Video yang Dibuat:</strong> Video yang Anda generate menggunakan layanan kami.</li>
+          <li><strong>Konten yang Diunggah:</strong> Foto dan gambar yang Anda upload untuk pembuatan video.</li>
+          <li><strong>Referral Code:</strong> Kode referral unik Anda dan riwayat komisi affiliate.</li>
+        </ul>
+
+        <h3>1.2 Data yang Dikumpulkan Secara Otomatis</h3>
+        <ul>
+          <li><strong>Metadata Layanan:</strong> Tanggal registrasi, waktu login, fitur yang digunakan, dan aktivitas di platform.</li>
+          <li><strong>Data Teknis:</strong> Alamat IP (saat menggunakan web app), tipe perangkat, dan informasi browser.</li>
+          <li><strong>Data Penggunaan:</strong> Statistik penggunaan seperti jumlah video yang di-generate, durasi, dan fitur yang digunakan.</li>
+        </ul>
+
+        <div class="highlight-box blue">
+          <p><strong>⚠️ Catatan Penting:</strong> Kami tidak mengumpulkan data pribadi sensitif seperti agama, suku, kesehatan, atau pandangan politik. Penggunaan bot Telegram secara anonymized untuk analitik dasar.</p>
+        </div>
+      </section>
+
+      <!-- Section 2: Data Usage -->
+      <section class="section" id="data-usage">
+        <h2>2. Penggunaan Data</h2>
+        <p>Data yang kami kumpulkan digunakan untuk tujuan-tujuan berikut:</p>
+        
+        <h3>2.1 Penyediaan Layanan</h3>
+        <ul>
+          <li>Mengelola akun pengguna dan autentikasi via Telegram</li>
+          <li>Memproses pembayaran dan mengelola kredit</li>
+          <li>Menghasilkan video AI sesuai permintaan Anda</li>
+          <li>Menyimpan dan menyajikan video yang telah dibuat</li>
+          <li>Memberikan dukungan teknis dan respons terhadap pertanyaan</li>
+        </ul>
+
+        <h3>2.2 Peningkatan Layanan</h3>
+        <ul>
+          <li>Menganalisis pola penggunaan untuk meningkatkan kualitas AI</li>
+          <li>Mengoptimalkan algoritma pembuatan video</li>
+          <li>Mengembangkan fitur baru berdasarkan umpan balik pengguna</li>
+          <li>Melakukan debugging dan troubleshooting</li>
+        </ul>
+
+        <h3>2.3 Komunikasi</h3>
+        <ul>
+          <li>Mengirim notifikasi tentang status video</li>
+          <li>Mengirim pengumuman layanan dan pembaruan</li>
+          <li>Merespons pertanyaan dan permintaan dukungan</li>
+        </ul>
+
+        <h3>2.4 Kepatuhan Hukum</h3>
+        <ul>
+          <li>Memenuhi kewajiban peraturan perundang-undangan</li>
+          <li>Melindungi hak hukum kami</li>
+          <li>Mencegah penipuan dan penyalahgunaan layanan</li>
+        </ul>
+      </section>
+
+      <!-- Section 3: Data Sharing -->
+      <section class="section" id="data-sharing">
+        <h2>3. Pembagian Data</h2>
+        <p>Kami tidak menjual data pribadi Anda kepada pihak ketiga. Data hanya dibagikan dalam kondisi berikut:</p>
+
+        <h3>3.1 Gateway Pembayaran</h3>
+        <p>Untuk memproses pembayaran, data transaksi dibagikan kepada gateway pembayaran yang Anda pilih:</p>
+        <ul>
+          <li><strong>Midtrans:</strong> Kebijakan privasi Midtrans berlaku untuk data pembayaran yang diproses.</li>
+          <li><strong>Tripay:</strong> Data pembayaran diproses sesuai kebijakan privasi Tripay.</li>
+          <li><strong>Duitku:</strong> Data pembayaran diproses sesuai kebijakan privasi Duitku.</li>
+        </ul>
+
+        <h3>3.2 Penyedia Layanan AI</h3>
+        <p>Untuk menghasilkan video, data prompt dan referensi gambar diproses oleh penyedia AI pihak ketiga. Kami memastikan penyedia ini memiliki kebijakan privasi yang sesuai.</p>
+
+        <h3>3.3 Persyaratan Hukum</h3>
+        <p>Kami dapat membagikan data jika diperlukan untuk:</p>
+        <ul>
+          <li>Memenuhi perintah pengadilan atau permintaan otoritas hukum</li>
+          <li>Mencegah penipuan atau penyalahgunaan</li>
+          <li>Melindungi hak, properti, atau keselamatan kami atau pengguna lain</li>
+        </ul>
+      </section>
+
+      <!-- Section 4: Data Retention -->
+      <section class="section" id="data-retention">
+        <h2>4. Penyimpanan Data</h2>
+        <p>Kami menyimpan data pribadi Anda selama diperlukan untuk menyediakan layanan dan untuk tujuan bisnis yang sah:</p>
+
+        <h3>4.1 Periode Retensi</h3>
+        <ul>
+          <li><strong>Akun & Data Profil:</strong> Disimpan selama akun aktif. Dihapus dalam 30 hari setelah permintaan penghapusan.</li>
+          <li><strong>Riwayat Transaksi:</strong> Disimpan minimal 10 tahun sesuai peraturan perpajakan Indonesia.</li>
+          <li><strong>Video & Konten:</strong> Video disimpan selama 30 hari setelah dibuat. Setelah itu dapat dihapus secara otomatis.</li>
+          <li><strong>Log Aktivitas:</strong> Disimpan maksimal 12 bulan untuk keperluan keamanan dan debugging.</li>
+          <li><strong>Data Pembayaran:</strong> Disimpan minimal 10 tahun sesuai regulasi keuangan Indonesia.</li>
+        </ul>
+
+        <div class="highlight-box green">
+          <p><strong>✅ Hak Penghapusan:</strong> Anda dapat meminta penghapusan data kapan saja (lihat Bagian 5). Data akan dihapus kecuali kami diwajibkan oleh hukum untuk menyimpannya lebih lama.</p>
+        </div>
+      </section>
+
+      <!-- Section 5: User Rights -->
+      <section class="section" id="user-rights">
+        <h2>5. Hak Anda (UU PDP)</h2>
+        <p>Sesuai Undang-Undang Perlindungan Data Pribadi (UU PDP) No. 27 Tahun 2022, Anda memiliki hak-hak berikut:</p>
+
+        <h3>5.1 Hak untuk Mengetahui</h3>
+        <p>Anda berhak mengetahui apakah data pribadi Anda diproses dan mendapatkan akses terhadap data tersebut.</p>
+
+        <h3>5.2 Hak untuk Mengoreksi</h3>
+        <p>Anda berhak meminta koreksi terhadap data pribadi yang tidak akurat atau tidak lengkap.</p>
+
+        <h3>5.3 Hak untuk Menghapus</h3>
+        <p>Anda berhak meminta penghapusan data pribadi Anda. Untuk menggunakan hak ini:</p>
+        <ul>
+          <li>Kirim permintaan ke: <a href="https://t.me/codergaboets">@codergaboets</a></li>
+          <li>Atau email ke: support@berkahkarya.com</li>
+          <li>Kami akan memproses permintaan dalam waktu 1x24 jam kerja</li>
+        </ul>
+
+        <h3>5.4 Hak untuk Menarik Persetujuan</h3>
+        <p>Anda dapat menarik persetujuan pemrosesan data kapan saja dengan menghubungi kami. Penarikan persetujuan tidak memengaruhi pemrosesan yang telah dilakukan sebelum penarikan.</p>
+
+        <h3>5.5 Hak untuk Mengajukan Keberatan</h3>
+        <p>Anda berhak mengajukan keberatan terhadap pemrosesan data pribadi Anda untuk tujuan tertentu.</p>
+
+        <h3>5.6 Hak untuk Portabilitas Data</h3>
+        <p>Anda berhak menerima data pribadi Anda dalam format yang terstruktur dan dapat dibaca mesin.</p>
+
+        <h3>5.7 Hak untuk Tidak Dijual</h3>
+        <p>Data pribadi Anda tidak akan dijual kepada pihak ketiga untuk tujuan pemasaran.</p>
+
+        <div class="highlight-box blue">
+          <p><strong>📝 Cara Menggunakan Hak Anda:</strong> Untuk行使 hak apa pun di atas, silakan hubungi kami melalui Telegram di <a href="https://t.me/codergaboets">@codergaboets</a> atau email ke support@berkahkarya.com. Kami akan merespons dalam waktu 1x24 jam kerja.</p>
+        </div>
+      </section>
+
+      <!-- Section 6: Data Security -->
+      <section class="section" id="data-security">
+        <h2>6. Keamanan Data</h2>
+        <p>Kami menerapkan langkah-langkah keamanan teknis dan organisasi yang memadai untuk melindungi data pribadi Anda:</p>
+
+        <ul>
+          <li><strong>Enkripsi:</strong> Data dienkripsi saat transit (TLS) dan saat diam (AES-256).</li>
+          <li><strong>Akses Terbatas:</strong> Hanya персонал yang berwenang yang memiliki akses ke data pribadi.</li>
+          <li><strong>Monitoring:</strong> Sistem dipantau secara kontinu untuk mendeteksi ancaman keamanan.</li>
+          <li><strong>Backup:</strong> Backup data dilakukan secara berkala dengan enkripsi.</li>
+          <li><strong>Audit:</strong> Kami melakukan audit keamanan secara periodik.</li>
+        </ul>
+
+        <div class="highlight-box blue">
+          <p><strong>🔒 Catatan:</strong> Meskipun kami尽全力保护数据, tidak ada sistem yang 100% aman. Kami tidak dapat menjamin keamanan mutlak, tetapi kami berkomitmen untuk melindungi data Anda sesuai standar industri.</p>
+        </div>
+      </section>
+
+      <!-- Section 7: Cookies -->
+      <section class="section" id="cookies">
+        <h2>7. Cookie</h2>
+        <p>Kami menggunakan cookie dan teknologi serupa untuk:</p>
+
+        <ul>
+          <li><strong>Cookie Esensial:</strong> Diperlukan untuk fungsi dasar platform (autentikasi, preferensi).</li>
+          <li><strong>Cookie Analitik:</strong> Untuk memahami bagaimana pengguna menggunakan layanan kami.</li>
+          <li><strong>Cookie Preferensi:</strong> Menyimpan preferensi bahasa dan pengaturan lainnya.</li>
+        </ul>
+
+        <p>Anda dapat mengontrol cookie melalui pengaturan browser. Menonaktifkan cookie tertentu dapat memengaruhi fungsionalitas layanan.</p>
+      </section>
+
+      <!-- Section 8: Children -->
+      <section class="section" id="children">
+        <h2>8. Anak di Bawah Umur</h2>
+        <p>Layanan kami tidak ditujukan untuk anak di bawah umur 21 tahun (sesuai UU PDP). Kami tidak secara sengaja mengumpulkan data pribadi dari anak di bawah umur. Jika Anda mengetahui bahwa kami telah mengumpulkan data dari anak di bawah umur, silakan hubungi kami segera untuk penghapusan.</p>
+      </section>
+
+      <!-- Section 9: Changes -->
+      <section class="section" id="changes">
+        <h2>9. Perubahan Kebijakan</h2>
+        <p>Kami dapat memperbarui Kebijakan Privasi ini dari waktu ke waktu. Perubahan akan diinformasikan melalui:</p>
+        <ul>
+          <li>Pemberitahuan di bot Telegram</li>
+          <li>Posting di channel Telegram resmi</li>
+          <li>Update di halaman ini dengan memperbarui tanggal "Terakhir diperbarui"</li>
+        </ul>
+        <p>Kami mendorong Anda untuk reviewing kebijakan privasi secara berkala. Perubahan signifikan akan dikomunikasikan secara eksplisit sebelum berlaku.</p>
+      </section>
+
+      <!-- Section 10: Contact -->
+      <section class="section" id="contact">
+        <h2>10. Hubungi Kami</h2>
+        <p>Jika Anda memiliki pertanyaan tentang Kebijakan Privasi ini atau ingin行使 hak Anda, silakan hubungi kami:</p>
+
+        <div class="contact-box">
+          <h3>📬 Kontak Perlindungan Data</h3>
+          <p><strong>Email:</strong> <a href="mailto:support@berkahkarya.com">support@berkahkarya.com</a></p>
+          <p><strong>Telegram:</strong> <a href="https://t.me/codergaboets">@codergaboets</a></p>
+          <p><strong>Website:</strong> <a href="https://saas.aitradepulse.com">saas.aitradepulse.com</a></p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 BK Vilona AI — All rights reserved.</p>
+      <p style="margin-top:8px">
+        <a href="/">Beranda</a> ·
+        <a href="/privacy">Kebijakan Privasi</a> ·
+        <a href="/app">Web App</a> ·
+        <a href="https://t.me/BerkahKarya_SaaS_Bot">Telegram Bot</a>
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,260 @@
+<style>
+  .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .media-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; cursor: pointer; }
+  .media-card:hover { border-color: var(--gold-dim); }
+  .media-thumb { width: 100%; height: 160px; object-fit: cover; background: #0d0d14; display: flex; align-items: center; justify-content: center; }
+  .media-thumb img { width: 100%; height: 160px; object-fit: cover; }
+  .media-thumb.no-thumb { background: rgba(196,163,90,0.05); border-bottom: 1px solid var(--border); }
+  .media-info { padding: 12px; }
+  .storyboard-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .scene-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
+  .scene-item { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; font-size: 12px; }
+</style>
+
+<div class="section-title">🎬 Media Gallery</div>
+<div class="section-sub">All generated media — videos, images, storyboards from user generations.</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <div class="tab active" data-tab="videos" onclick="switchTab('videos')">🎬 Videos</div>
+  <div class="tab" data-tab="images" onclick="switchTab('images')">🖼️ Images</div>
+  <div class="tab" data-tab="storyboard" onclick="switchTab('storyboard')">📋 Storyboard</div>
+</div>
+
+<!-- Filter bar -->
+<div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap; align-items:center;">
+  <select id="filter-status" class="input" style="width:150px;" onchange="loadMedia()">
+    <option value="">All Status</option>
+    <option value="completed">Completed</option>
+    <option value="processing">Processing</option>
+    <option value="failed">Failed</option>
+  </select>
+  <select id="filter-niche" class="input" style="width:150px;" onchange="loadMedia()">
+    <option value="">All Niches</option>
+    <option value="fnb">Food & Beverage</option>
+    <option value="fashion">Fashion</option>
+    <option value="tech">Tech</option>
+    <option value="travel">Travel</option>
+    <option value="health">Health</option>
+    <option value="education">Education</option>
+    <option value="finance">Finance</option>
+    <option value="entertainment">Entertainment</option>
+  </select>
+  <select id="filter-limit" class="input" style="width:120px;" onchange="loadMedia()">
+    <option value="50">50 items</option>
+    <option value="100">100 items</option>
+    <option value="200">200 items</option>
+  </select>
+  <button class="btn btn-ghost btn-sm" onclick="loadMedia()">🔄 Refresh</button>
+  <span id="media-count" style="color:var(--muted);font-size:13px;margin-left:auto;"></span>
+</div>
+
+<!-- Videos Tab -->
+<div id="tab-videos" class="tab-content">
+  <div id="videos-grid" class="media-grid">
+    <div class="loading">Loading...</div>
+  </div>
+</div>
+
+<!-- Images Tab -->
+<div id="tab-images" class="tab-content" style="display:none;">
+  <div class="card" style="text-align:center; padding:40px;">
+    <div style="font-size:48px; margin-bottom:16px;">🖼️</div>
+    <div style="font-size:16px; font-weight:600; margin-bottom:8px;">Image Gallery</div>
+    <div style="color:var(--muted); font-size:14px;">Generated images are embedded in video storyboards.<br>Standalone image history coming soon.</div>
+  </div>
+</div>
+
+<!-- Storyboard Tab -->
+<div id="tab-storyboard" class="tab-content" style="display:none;">
+  <div id="storyboard-list">
+    <div class="loading">Loading...</div>
+  </div>
+</div>
+
+<!-- Video Preview Modal -->
+<div class="modal-overlay" id="modal-video">
+  <div class="modal" style="max-width:800px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;" id="modal-video-title">Video Preview</h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeVideoModal()">✕</button>
+    </div>
+    <div id="modal-video-player" style="background:#000;border-radius:8px;margin-bottom:16px;min-height:200px;display:flex;align-items:center;justify-content:center;">
+      <span style="color:var(--muted);">Loading...</span>
+    </div>
+    <div id="modal-video-meta" style="font-size:13px;color:var(--muted);"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast-container"></div>
+
+<script>
+let allVideos = [];
+let currentTab = 'videos';
+
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+
+function dt(s) {
+  if (!s) return '—';
+  return new Date(s).toLocaleString('id-ID', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+function statusBadge(s) {
+  const map = { completed:'badge-active', processing:'badge-default', failed:'badge-open', pending:'badge-default' };
+  return `<span class="badge ${map[s]||'badge-default'}">${esc(s)}</span>`;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById(`tab-${tab}`).style.display = 'block';
+  if (tab === 'storyboard') renderStoryboards();
+}
+
+async function loadMedia() {
+  const status = document.getElementById('filter-status').value;
+  const limit = document.getElementById('filter-limit').value || 50;
+  let url = `/api/videos?limit=${limit}`;
+  if (status) url += `&status=${status}`;
+
+  document.getElementById('videos-grid').innerHTML = '<div class="loading">Loading...</div>';
+
+  try {
+    const r = await fetch(url, { credentials: 'include' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    allVideos = await r.json();
+
+    const nicheFilter = document.getElementById('filter-niche').value;
+    const filtered = nicheFilter ? allVideos.filter(v => v.niche === nicheFilter) : allVideos;
+
+    document.getElementById('media-count').textContent = `${filtered.length} items`;
+    renderVideos(filtered);
+    if (currentTab === 'storyboard') renderStoryboards();
+  } catch(e) {
+    document.getElementById('videos-grid').innerHTML = `<div class="empty-state">Failed to load: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderVideos(videos) {
+  const grid = document.getElementById('videos-grid');
+  if (!videos.length) {
+    grid.innerHTML = '<div class="empty-state">No videos found.</div>';
+    return;
+  }
+  grid.innerHTML = videos.map(v => {
+    const hasThumbnail = !!v.thumbnailUrl;
+    const hasVideo = !!v.videoUrl;
+    return `
+      <div class="media-card" onclick="openVideo(${v.id})">
+        <div class="media-thumb ${hasThumbnail ? '' : 'no-thumb'}">
+          ${hasThumbnail
+            ? `<img src="${esc(v.thumbnailUrl)}" alt="${esc(v.title||v.niche)}" loading="lazy" onerror="this.parentElement.className='media-thumb no-thumb'; this.parentElement.innerHTML='<span style=\\'color:var(--muted);font-size:12px;\\'>No preview</span>'">`
+            : `<span style="color:var(--muted);font-size:13px;">${hasVideo ? '▶ No thumbnail' : '⏳ ' + esc(v.status)}</span>`
+          }
+        </div>
+        <div class="media-info">
+          <div style="font-weight:600;font-size:13px;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(v.title || v.niche + ' • ' + v.platform)}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            ${statusBadge(v.status)}
+            <span class="badge badge-video">${esc(v.niche)}</span>
+            ${v.finalProvider ? `<span class="badge badge-default" style="font-size:10px;">${esc(v.finalProvider)}</span>` : ''}
+          </div>
+          <div style="font-size:11px;color:var(--muted);">
+            ${v.duration ? v.duration + 's • ' : ''}${v.creditsUsed ? v.creditsUsed + ' credits • ' : ''}${dt(v.createdAt)}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderStoryboards() {
+  const list = document.getElementById('storyboard-list');
+  const withSb = allVideos.filter(v => v.storyboard);
+  if (!withSb.length) {
+    list.innerHTML = '<div class="empty-state">No storyboard data found. Generate videos first.</div>';
+    return;
+  }
+  list.innerHTML = withSb.map(v => {
+    let scenes = [];
+    try { scenes = Array.isArray(v.storyboard) ? v.storyboard : (v.storyboard.scenes || []); } catch {}
+    return `
+      <div class="storyboard-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-weight:600;">${esc(v.title || v.jobId)}</div>
+          <div style="font-size:12px;color:var(--muted);">${esc(v.niche)} • ${dt(v.createdAt)}</div>
+        </div>
+        <div class="scene-grid">
+          ${scenes.map((s, i) => `
+            <div class="scene-item">
+              <div style="color:var(--gold);font-weight:600;margin-bottom:4px;">Scene ${i+1}</div>
+              <div style="color:var(--muted);">${esc(s.hook || s.description || s.script || JSON.stringify(s).slice(0, 100))}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openVideo(id) {
+  const v = allVideos.find(x => x.id === id);
+  if (!v) return;
+
+  document.getElementById('modal-video-title').textContent = v.title || v.jobId || 'Video Preview';
+  const player = document.getElementById('modal-video-player');
+  if (v.videoUrl) {
+    player.innerHTML = `<video src="${esc(v.videoUrl)}" controls style="width:100%;border-radius:8px;max-height:400px;"></video>`;
+  } else {
+    player.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted);">${v.status === 'processing' ? '⏳ Video is still processing...' : '❌ No video URL available'}</div>`;
+  }
+
+  document.getElementById('modal-video-meta').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px;">
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:2px;">STATUS</div><div>${statusBadge(v.status)}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:2px;">PROVIDER</div><div style="font-size:13px;">${esc(v.finalProvider||'—')}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:2px;">CREDITS</div><div style="font-size:13px;">${v.creditsUsed||'—'}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:2px;">NICHE</div><div style="font-size:13px;">${esc(v.niche)}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:2px;">DURATION</div><div style="font-size:13px;">${v.duration ? v.duration + 's' : '—'}</div></div>
+      <div><div style="font-size:11px;color:var(--muted);margin-bottom:2px;">CREATED</div><div style="font-size:13px;">${dt(v.createdAt)}</div></div>
+    </div>
+    ${v.downloadUrl ? `<div style="margin-top:12px;"><a href="${esc(v.downloadUrl)}" target="_blank" class="btn btn-gold btn-sm">⬇️ Download</a></div>` : ''}
+    ${v.errorMessage ? `<div style="margin-top:12px;padding:10px;background:rgba(248,113,113,0.1);border-radius:8px;color:var(--red);font-size:12px;">Error: ${esc(v.errorMessage)}</div>` : ''}
+  `;
+
+  document.getElementById('modal-video').classList.add('open');
+}
+
+function closeVideoModal() {
+  const modal = document.getElementById('modal-video');
+  modal.classList.remove('open');
+  // Stop video playback
+  const video = modal.querySelector('video');
+  if (video) video.pause();
+}
+
+document.getElementById('modal-video').addEventListener('click', function(e) {
+  if (e.target === this) closeVideoModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeVideoModal();
+});
+
+loadMedia();
+</script>

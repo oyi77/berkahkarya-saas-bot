@@ -1,0 +1,1589 @@
+# Unified Visual Marketing, VO, Video & Subtitle Engine V2.2
+
+## Overview
+Dokumen ini adalah versi lanjutan dari master engine yang menggabungkan:
+
+- Visual image engine
+- Marketing engine
+- VO persona engine
+- Video engine
+- Audio intelligence engine
+- Subtitle synchronization engine
+- Platform rendering engine
+- SEO metadata engine
+
+Tujuannya adalah membuat satu sumber konfigurasi yang konsisten untuk tool generasi konten:
+- gambar
+- video
+- voice over
+- subtitle sinkron
+- audio mix
+- metadata promosi
+
+Prinsip utamanya:
+- subtitle harus mengikuti **final voice over audio**
+- struktur harus modular dan scalable
+- category-driven orchestration
+- valid JSON untuk integrasi backend
+
+---
+
+## Master JSON V2.2
+
+```json
+{
+  "tool_module": "unified_visual_marketing_vo_video_subtitle_engine",
+  "version": "2.2_full_content_orchestration",
+  "description": "Unified master engine for visual prompts, marketing layers, voice persona, video direction, audio intelligence, subtitle synchronization, platform rendering, and SEO metadata.",
+
+  "system_identity": {
+    "primary_goal": "generate image and video marketing assets with human-like voice over and synchronized subtitles",
+    "design_principles": [
+      "final_voice_over_is_source_of_truth",
+      "modular_scalable_structure",
+      "platform_safe_rendering",
+      "backend_ready_json",
+      "category_first_logic",
+      "marketing_and_visual_alignment"
+    ]
+  },
+
+  "visual_engine": {
+    "description": "Controls image prompt logic across industries including product focus, style, material, lighting, mood, and composition.",
+    "category_rules": {
+      "home_decor": {
+        "label": "Home Decor & Furniture",
+        "products": [
+          "seating_sofa",
+          "table_desk",
+          "bedding_mattress",
+          "lighting_fixture",
+          "decor_accessories",
+          "kitchen_dining_ware"
+        ],
+        "default_focus": [
+          "fabric_texture",
+          "cushion_plumpness",
+          "wood_or_marble_grain",
+          "light_temperature"
+        ],
+        "default_styles": [
+          "scandinavian_hygge",
+          "mid_century_modern",
+          "japandi_zen",
+          "modern_farmhouse",
+          "luxury_hotel_suite",
+          "bohemian_eclectic",
+          "industrial_loft"
+        ],
+        "default_mood": [
+          "golden_hour",
+          "blue_hour",
+          "moody_night",
+          "rainy_day",
+          "fireplace_glow"
+        ],
+        "default_composition": [
+          "wide_architectural",
+          "macro_detail",
+          "flatlay_editorial",
+          "rule_of_thirds"
+        ]
+      },
+      "skincare_cosmetic": {
+        "label": "Skincare & Cosmetic",
+        "products": [
+          "serum",
+          "cream",
+          "face_mask",
+          "lipstick_makeup",
+          "soap_cleanser"
+        ],
+        "default_focus": [
+          "dewy_droplets",
+          "cream_texture",
+          "floral_accents",
+          "liquid_splash",
+          "clean_packaging"
+        ],
+        "default_styles": [
+          "natural_organic",
+          "luxury_elegant",
+          "soft_feminine",
+          "clinical_dermatologist",
+          "minimalist_studio"
+        ],
+        "default_lighting": [
+          "bright_soft_light",
+          "golden_hour",
+          "studio_softbox",
+          "dramatic_dark"
+        ],
+        "default_composition": [
+          "macro_detail",
+          "product_centered",
+          "editorial_close_up"
+        ]
+      },
+      "electronics": {
+        "label": "Electronics",
+        "products": [
+          "smartphone",
+          "earbuds",
+          "smartwatch",
+          "speaker",
+          "accessory"
+        ],
+        "default_focus": [
+          "screen_reflection",
+          "clean_edges",
+          "material_finish",
+          "product_color_matching"
+        ],
+        "default_styles": [
+          "minimal_futuristic",
+          "editorial_flatlay",
+          "handheld_lifestyle",
+          "colored_liquid_splash"
+        ],
+        "default_lighting": [
+          "soft_natural_light",
+          "warm_golden_hour",
+          "studio_clean"
+        ],
+        "default_composition": [
+          "flatlay_editorial",
+          "hero_centered",
+          "clean_product_close_up"
+        ]
+      },
+      "fashion": {
+        "label": "Fashion",
+        "products": [
+          "tops_outer",
+          "bottoms",
+          "shoes",
+          "accessories",
+          "full_outfit",
+          "hijab_modest_wear"
+        ],
+        "default_focus": [
+          "fabric_texture",
+          "fit_silhouette",
+          "styling_layers",
+          "movement"
+        ],
+        "default_styles": [
+          "casual_streetwear",
+          "formal_office",
+          "party_glamour",
+          "sport_activewear"
+        ],
+        "default_environment": [
+          "studio_minimalist",
+          "urban_industrial",
+          "nature_outdoors",
+          "luxury_interior"
+        ],
+        "default_camera_bias": [
+          "85mm_portrait",
+          "macro_detail",
+          "low_angle_heroic",
+          "dutch_angle"
+        ]
+      },
+      "fnb_food_drink": {
+        "label": "Food & Beverage",
+        "products": [
+          "wet_savory_dishes",
+          "dry_carb_mains",
+          "desserts",
+          "cold_beverages"
+        ],
+        "default_focus": [
+          "steam",
+          "glossy_surface",
+          "melting_dripping",
+          "ice_frost",
+          "splash_effect"
+        ],
+        "default_styles": [
+          "steamy_cozy",
+          "dark_moody_grill",
+          "bright_lifestyle",
+          "refreshing_splash",
+          "rustic_artisan"
+        ],
+        "default_composition": [
+          "hero_plate_angle",
+          "macro_texture",
+          "serving_scene"
+        ]
+      },
+      "service_professional": {
+        "label": "Service & Professional",
+        "products": [
+          "automotive_service",
+          "cleaning_laundry",
+          "medical_clinic",
+          "business_professional"
+        ],
+        "default_styles": [
+          "industrial_pro",
+          "bright_fresh",
+          "clinical_trust",
+          "corporate_blue"
+        ],
+        "default_focus": [
+          "trust",
+          "clean_process",
+          "tools_equipment",
+          "professional_presence"
+        ]
+      },
+      "travel_lifestyle": {
+        "label": "Travel & Lifestyle",
+        "products": [
+          "travel_gear",
+          "accommodation",
+          "destination_scene",
+          "leisure_moment"
+        ],
+        "default_styles": [
+          "adventure_nature",
+          "tropical_escape",
+          "clean_luxury_travel",
+          "cozy_lifestyle"
+        ],
+        "default_focus": [
+          "movement",
+          "destination_context",
+          "comfort",
+          "aspirational_mood"
+        ]
+      },
+      "health_fitness": {
+        "label": "Health & Fitness",
+        "products": [
+          "gym_equipment",
+          "supplement",
+          "activewear",
+          "wellness_item"
+        ],
+        "default_styles": [
+          "energetic_gym",
+          "fresh_healthy",
+          "performance_focus"
+        ],
+        "default_focus": [
+          "sweat",
+          "intensity",
+          "clean_nutrition",
+          "motion"
+        ]
+      },
+      "finance_business": {
+        "label": "Finance & Business",
+        "products": [
+          "finance_data",
+          "property_investment",
+          "business_service",
+          "dashboard_visual"
+        ],
+        "default_styles": [
+          "futuristic_finance",
+          "luxury_property",
+          "corporate_clean"
+        ],
+        "default_focus": [
+          "trust",
+          "clarity",
+          "data_visualization",
+          "premium_business"
+        ]
+      },
+      "entertainment_art": {
+        "label": "Entertainment & Art",
+        "products": [
+          "music_instrument",
+          "event_decor",
+          "creative_scene",
+          "performance_setup"
+        ],
+        "default_styles": [
+          "stage_concert",
+          "festive_party",
+          "editorial_creative"
+        ],
+        "default_focus": [
+          "atmosphere",
+          "lighting_drama",
+          "celebration",
+          "artistic_energy"
+        ]
+      },
+      "kids_baby": {
+        "label": "Kids & Baby",
+        "default_styles": [
+          "soft_pastel",
+          "playful_colorful"
+        ],
+        "default_focus": [
+          "safety_softness",
+          "playful_energy",
+          "cute_detail"
+        ]
+      },
+      "automotive_parts": {
+        "label": "Automotive Parts",
+        "default_styles": [
+          "masculine_industrial",
+          "glossy_showroom"
+        ],
+        "default_focus": [
+          "chrome_detail",
+          "mechanical_precision",
+          "performance"
+        ]
+      },
+      "pet_care": {
+        "label": "Pet Care",
+        "default_styles": [
+          "clean_friendly",
+          "playful_home",
+          "warm_lifestyle"
+        ],
+        "default_focus": [
+          "trust",
+          "comfort",
+          "pet_interaction"
+        ]
+      },
+      "jewelry": {
+        "label": "Jewelry",
+        "default_styles": [
+          "velvet_luxury",
+          "editorial_fashion"
+        ],
+        "default_focus": [
+          "sparkle",
+          "precious_metal",
+          "macro_detail",
+          "premium_presentation"
+        ]
+      },
+      "sports_outdoor": {
+        "label": "Sports & Outdoor",
+        "default_styles": [
+          "action_lifestyle",
+          "outdoor_adventure"
+        ],
+        "default_focus": [
+          "movement",
+          "endurance",
+          "terrain_context",
+          "sweat_energy"
+        ]
+      }
+    },
+
+    "material_library": {
+      "light_oak": "light oak wood grain, natural soft texture",
+      "dark_walnut": "dark walnut wood, rich deep grain",
+      "carrara_marble": "carrara marble surface with elegant veining",
+      "terrazzo": "terrazzo texture with stone chip detail",
+      "boucle": "boucle fabric with looped tactile texture",
+      "velvet": "velvet fabric with soft directional sheen",
+      "linen": "linen fabric with breathable natural weave",
+      "saddle_leather": "saddle leather with premium matte finish",
+      "chrome_metal": "reflective chrome metal with clean highlights",
+      "precious_metal": "fine polished precious metal with luxury gleam",
+      "rubber_thread": "durable rubber and stitched thread detail",
+      "plastic_abs": "smooth ABS plastic with modern molded finish",
+      "sport_fabric": "technical sport fabric with breathable texture"
+    },
+
+    "composition_library": {
+      "wide_architectural": "wide architectural framing showing full environment",
+      "macro_detail": "extreme close up for material and texture detail",
+      "flatlay_editorial": "top-down editorial layout with clean spacing",
+      "rule_of_thirds": "balanced framing using rule of thirds composition",
+      "hero_centered": "centered hero product composition"
+    }
+  },
+
+  "marketing_engine": {
+    "description": "Controls promotional overlays, hooks, benefits, CTA logic, storyboard patterns, and audio mood guidance.",
+    "text_overlay_engine": {
+      "hook_templates": [
+        "baru tahu ternyata ini bikin hidup lebih gampang",
+        "jangan beli sebelum lihat ini",
+        "ternyata bedanya jauh banget",
+        "ini alasan kenapa banyak orang pindah ke produk ini"
+      ],
+      "benefit_templates": [
+        "lebih hemat waktu untuk aktivitas harian",
+        "lebih rapi, nyaman, dan enak dipakai",
+        "terlihat premium tanpa ribet",
+        "praktis dipakai untuk kebutuhan harian"
+      ],
+      "cta_templates": [
+        "cek detailnya sekarang",
+        "save dulu buat nanti",
+        "coba lihat varian lengkapnya",
+        "pilih yang paling cocok buat kamu"
+      ]
+    },
+
+    "audio_mood_recommendation": {
+      "skincare_cosmetic": "calm_focus",
+      "home_decor": "calm_focus",
+      "electronics": "cinematic_epic",
+      "fashion": "upbeat_energy",
+      "fnb_food_drink": "upbeat_energy",
+      "travel_lifestyle": "upbeat_energy",
+      "finance_business": "calm_focus",
+      "automotive_parts": "cinematic_epic",
+      "social_content": "trendy_viral"
+    },
+
+    "viral_storyboard_templates": {
+      "problem_solution": [
+        "hook_problem",
+        "pain_point",
+        "product_intro",
+        "benefit_demo",
+        "result",
+        "cta"
+      ],
+      "unboxing_reveal": [
+        "hook",
+        "package_reveal",
+        "detail_close_up",
+        "hero_moment",
+        "benefit_text",
+        "cta"
+      ],
+      "before_after": [
+        "before_state",
+        "contrast_moment",
+        "solution_intro",
+        "after_result",
+        "cta"
+      ]
+    },
+
+    "hashtag_generator_rules": {
+      "mix_strategy": "3_large_3_medium_3_small",
+      "tone_bias": [
+        "niche_specific",
+        "benefit_oriented",
+        "platform_relevant"
+      ]
+    },
+
+    "engagement_hooks": {
+      "pattern_interrupt": [
+        "sudden_zoom_in",
+        "hard_pause_then_resume",
+        "cover_camera_then_reveal",
+        "change_background"
+      ],
+      "open_loop_templates": [
+        "yang terakhir justru paling penting",
+        "tunggu sampai akhir karena hasilnya beda jauh",
+        "ada satu detail yang sering dilewatkan orang"
+      ]
+    }
+  },
+
+  "vo_persona_engine": {
+    "description": "Controls speaking behavior, natural delivery, human imperfection signals, and presenter personality.",
+    "vo_persona_core": {
+      "default_persona": "credible_human_presenter",
+      "persona_modes": [
+        "credible_human_presenter",
+        "warm_storyteller",
+        "confident_explainer",
+        "casual_creator",
+        "empathetic_advisor",
+        "high_energy_promoter"
+      ],
+      "language_style": {
+        "primary_mode": "conversational_natural",
+        "tone_options": [
+          "calm",
+          "friendly",
+          "professional",
+          "empathetic",
+          "energetic",
+          "persuasive"
+        ],
+        "regional_flexibility": true,
+        "allow_bilingual_phrases": true
+      },
+      "delivery_defaults": {
+        "speaking_speed": "medium_natural",
+        "emotional_intensity": "balanced",
+        "clarity_level": "high",
+        "naturalness_priority": "high",
+        "persuasion_strength": "medium"
+      }
+    },
+
+    "imperfection_injector": {
+      "enabled": true,
+      "speech_disfluency": {
+        "enabled": true,
+        "filler_words": [
+          "umm",
+          "uhh",
+          "you know",
+          "like",
+          "jadi gini",
+          "ehm"
+        ],
+        "frequency": "rare_random",
+        "false_start_chance": 0.15,
+        "self_correction_phrases": [
+          "wait, actually",
+          "eh maaf",
+          "let me rephrase that"
+        ],
+        "max_disfluency_per_minute": 3
+      },
+      "natural_pauses": {
+        "enabled": true,
+        "duration_min_seconds": 1.5,
+        "duration_max_seconds": 3.0,
+        "pause_frequency": "low_to_medium",
+        "visual_actions": [
+          "eyes_glancing_up",
+          "eyes_glancing_side",
+          "subtle_blink_reset"
+        ],
+        "micro_filler_actions": [
+          "lip_press",
+          "lip_lick",
+          "soft_swallow"
+        ]
+      },
+      "emotional_bleeds": {
+        "enabled": true,
+        "intensity": "subtle",
+        "allowed_reactions": [
+          "laugh_chuckle",
+          "frustrated_sigh",
+          "amazed_breath_hold",
+          "soft_exhale",
+          "brief_smile_break"
+        ],
+        "max_emotional_bleeds_per_segment": 2
+      }
+    },
+
+    "micro_reaction_sync": {
+      "enabled": true,
+      "hand_gestures_library": {
+        "rules": [
+          {
+            "speech_context": "explaining_concept",
+            "gesture": "open_palms_up",
+            "prompt_val": "slow hand movement, palms facing up, gesture offering"
+          },
+          {
+            "speech_context": "emphasizing_point",
+            "gesture": "hand_chop_or_firm_point",
+            "prompt_val": "sharp hand chopping motion or firm pointing gesture"
+          },
+          {
+            "speech_context": "counting_list",
+            "gesture": "finger_count",
+            "prompt_val": "counting fingers one by one naturally"
+          },
+          {
+            "speech_context": "showing_product",
+            "gesture": "invisible_product_hold",
+            "prompt_val": "hands holding an invisible object, rotating slowly"
+          },
+          {
+            "speech_context": "reassuring_audience",
+            "gesture": "soft_hand_press_down",
+            "prompt_val": "gentle downward palm gesture to calm and reassure"
+          }
+        ]
+      },
+      "eye_behavior": {
+        "camera_eye_contact_ratio": 0.7,
+        "thinking_reference_look_ratio": 0.2,
+        "natural_blink_rate_per_minute_min": 14,
+        "natural_blink_rate_per_minute_max": 17
+      }
+    },
+
+    "persona_presets": {
+      "credible_human_presenter": {
+        "tone": "professional_friendly",
+        "speaking_speed": "medium_natural",
+        "imperfection_level": "subtle",
+        "gesture_intensity": "balanced"
+      },
+      "warm_storyteller": {
+        "tone": "empathetic_warm",
+        "speaking_speed": "medium_slow",
+        "imperfection_level": "moderate",
+        "gesture_intensity": "soft"
+      },
+      "confident_explainer": {
+        "tone": "clear_confident",
+        "speaking_speed": "medium",
+        "imperfection_level": "light",
+        "gesture_intensity": "controlled"
+      },
+      "casual_creator": {
+        "tone": "relaxed_social",
+        "speaking_speed": "medium_fast",
+        "imperfection_level": "moderate",
+        "gesture_intensity": "natural"
+      },
+      "empathetic_advisor": {
+        "tone": "calm_supportive",
+        "speaking_speed": "medium_slow",
+        "imperfection_level": "subtle",
+        "gesture_intensity": "soft"
+      },
+      "high_energy_promoter": {
+        "tone": "energetic_persuasive",
+        "speaking_speed": "fast_controlled",
+        "imperfection_level": "light",
+        "gesture_intensity": "high"
+      }
+    }
+  },
+
+  "video_engine": {
+    "description": "Controls motion, camera, speed, mood, and industry-based motion logic.",
+    "smart_logic_rules": {
+      "home_decor": {
+        "recommended_motion": [
+          "light_glow",
+          "window_sheer_flow",
+          "leaves_rustle"
+        ],
+        "recommended_camera": [
+          "wide_angle_panning",
+          "pull_out_reveal",
+          "macro_slider"
+        ],
+        "recommended_speed": "calm_showcase",
+        "recommended_mood": [
+          "calm",
+          "premium",
+          "aspirational"
+        ]
+      },
+      "skincare_cosmetic": {
+        "recommended_motion": [
+          "liquid_splash",
+          "texture_press",
+          "steam_rise",
+          "light_leaks"
+        ],
+        "recommended_camera": [
+          "macro_slider",
+          "push_in_zoom",
+          "close_up_detail"
+        ],
+        "recommended_speed": "super_slow_mo",
+        "recommended_mood": [
+          "calm",
+          "premium",
+          "aspirational"
+        ]
+      },
+      "electronics": {
+        "recommended_motion": [
+          "screen_glow",
+          "floating_levitation",
+          "light_leaks"
+        ],
+        "recommended_camera": [
+          "orbit_360",
+          "push_in_zoom",
+          "close_up_detail"
+        ],
+        "recommended_speed": "normal_realtime",
+        "recommended_mood": [
+          "premium",
+          "professional"
+        ]
+      },
+      "fashion": {
+        "recommended_motion": [
+          "fabric_flow",
+          "wind_blow",
+          "light_leaks"
+        ],
+        "recommended_camera": [
+          "tracking_follow",
+          "static_portrait",
+          "dynamic_angle"
+        ],
+        "recommended_speed": "normal_realtime",
+        "recommended_mood": [
+          "aspirational",
+          "premium"
+        ]
+      },
+      "fnb_food_drink": {
+        "recommended_motion": [
+          "steam_rise",
+          "pouring_action",
+          "cheese_stretch",
+          "confetti_blast"
+        ],
+        "recommended_camera": [
+          "static_tripod",
+          "push_in_zoom",
+          "macro_slider"
+        ],
+        "recommended_speed": "super_slow_mo",
+        "recommended_mood": [
+          "calm",
+          "energetic",
+          "aspirational"
+        ]
+      },
+      "service_professional": {
+        "recommended_motion": [
+          "tool_action",
+          "cleaning_wipe",
+          "light_glow"
+        ],
+        "recommended_camera": [
+          "static_tripod",
+          "close_up_detail",
+          "pull_out_reveal"
+        ],
+        "recommended_speed": "normal_realtime",
+        "recommended_mood": [
+          "professional",
+          "calm"
+        ]
+      },
+      "travel_lifestyle": {
+        "recommended_motion": [
+          "cloud_move",
+          "water_flow",
+          "leaves_rustle",
+          "light_leaks"
+        ],
+        "recommended_camera": [
+          "wide_angle_panning",
+          "tracking_follow",
+          "pull_out_reveal"
+        ],
+        "recommended_speed": "timelapse_fast",
+        "recommended_mood": [
+          "aspirational",
+          "calm"
+        ]
+      },
+      "health_fitness": {
+        "recommended_motion": [
+          "sweat_drip",
+          "impact_fall",
+          "powder_explosion",
+          "smoke_flare"
+        ],
+        "recommended_camera": [
+          "tracking_follow",
+          "dynamic_angle",
+          "close_up_detail"
+        ],
+        "recommended_speed": "energetic_fast",
+        "recommended_mood": [
+          "energetic",
+          "aspirational"
+        ]
+      },
+      "finance_business": {
+        "recommended_motion": [
+          "data_visualization",
+          "light_glow"
+        ],
+        "recommended_camera": [
+          "static_tripod",
+          "push_in_zoom",
+          "pull_out_reveal"
+        ],
+        "recommended_speed": "normal_realtime",
+        "recommended_mood": [
+          "professional",
+          "premium"
+        ]
+      },
+      "entertainment_art": {
+        "recommended_motion": [
+          "confetti_blast",
+          "stage_smoke",
+          "glitch_effect"
+        ],
+        "recommended_camera": [
+          "dynamic_angle",
+          "orbit_360",
+          "tracking_follow"
+        ],
+        "recommended_speed": "beat_sync_fast",
+        "recommended_mood": [
+          "energetic",
+          "playful"
+        ]
+      },
+      "automotive_parts": {
+        "recommended_motion": [
+          "tool_action",
+          "impact_fall",
+          "smoke_flare",
+          "light_leaks"
+        ],
+        "recommended_camera": [
+          "orbit_360",
+          "close_up_detail",
+          "dynamic_angle"
+        ],
+        "recommended_speed": "energetic_fast",
+        "recommended_mood": [
+          "energetic",
+          "professional"
+        ]
+      },
+      "kids_baby": {
+        "recommended_motion": [
+          "confetti_blast",
+          "floating_levitation",
+          "light_glow"
+        ],
+        "recommended_camera": [
+          "tracking_follow",
+          "orbit_360",
+          "push_in_zoom"
+        ],
+        "recommended_speed": "playful_fast",
+        "recommended_mood": [
+          "playful",
+          "aspirational"
+        ]
+      },
+      "jewelry": {
+        "recommended_motion": [
+          "light_leaks",
+          "light_glow"
+        ],
+        "recommended_camera": [
+          "macro_slider",
+          "orbit_360",
+          "close_up_detail"
+        ],
+        "recommended_speed": "calm_showcase",
+        "recommended_mood": [
+          "premium",
+          "calm"
+        ]
+      },
+      "sports_outdoor": {
+        "recommended_motion": [
+          "sweat_drip",
+          "wind_blow",
+          "smoke_flare"
+        ],
+        "recommended_camera": [
+          "tracking_follow",
+          "dynamic_angle",
+          "wide_angle_panning"
+        ],
+        "recommended_speed": "energetic_fast",
+        "recommended_mood": [
+          "energetic",
+          "aspirational"
+        ]
+      }
+    },
+
+    "motion_library": {
+      "steam_rise": "steam rising gently, hot temperature",
+      "pouring_action": "pouring liquid, dynamic flow",
+      "liquid_splash": "water splashing, liquid explosion",
+      "texture_press": "pressing cream, finger indentation, texture",
+      "fabric_flow": "fabric flowing in wind, silk movement",
+      "wind_blow": "strong wind effect, hair blowing",
+      "screen_glow": "screen lighting up, display animation",
+      "floating_levitation": "floating in mid air, zero gravity",
+      "sweat_drip": "sweat dripping, water droplet",
+      "impact_fall": "dropping to ground, impact, debris",
+      "powder_explosion": "powder exploding, dust cloud",
+      "confetti_blast": "confetti explosion, celebration",
+      "stage_smoke": "stage smoke machine, atmospheric haze",
+      "glitch_effect": "digital glitch, screen flicker, distortion",
+      "cloud_move": "time-lapse clouds moving, fast sky",
+      "water_flow": "river flowing, stream movement",
+      "leaves_rustle": "leaves moving in wind, nature movement",
+      "data_visualization": "holographic charts, graph moving, futuristic interface",
+      "light_glow": "lights turning on, warm glow",
+      "tool_action": "wrench turning, screwing, mechanical movement",
+      "cleaning_wipe": "cloth wiping surface, cleaning action",
+      "light_leaks": "cinematic light leaks, subtle flare, premium atmosphere",
+      "smoke_flare": "smoke flare, cinematic haze burst",
+      "window_sheer_flow": "window sheer curtain flowing softly in natural light",
+      "cheese_stretch": "cheese stretch, hot melty texture"
+    },
+
+    "camera_library": {
+      "static_tripod": "static camera, locked off",
+      "push_in_zoom": "camera moving forward, zoom in",
+      "pull_out_reveal": "camera moving backward, revealing context",
+      "orbit_360": "circling around subject, rotating view",
+      "tracking_follow": "tracking shot, following subject",
+      "wide_angle_panning": "wide angle, panning landscape",
+      "macro_slider": "extreme close up, slider movement",
+      "dynamic_angle": "dutch angle, tilted frame, edgy",
+      "close_up_detail": "close up detail shot, product texture focus",
+      "static_portrait": "static portrait framing, centered composition"
+    },
+
+    "speed_settings": {
+      "super_slow_mo": {
+        "prompt_val": "super slow motion, 1000fps"
+      },
+      "normal_realtime": {
+        "prompt_val": "normal speed"
+      },
+      "timelapse_fast": {
+        "prompt_val": "timelapse, fast motion"
+      },
+      "beat_sync_fast": {
+        "prompt_val": "fast cuts, dynamic speed"
+      },
+      "calm_showcase": {
+        "prompt_val": "smooth slow pacing, elegant camera rhythm"
+      },
+      "energetic_fast": {
+        "prompt_val": "fast dynamic movement, energetic pacing"
+      },
+      "playful_fast": {
+        "prompt_val": "playful fast movement, bright upbeat pacing"
+      }
+    }
+  },
+
+  "audio_subtitle_engine": {
+    "description": "Controls music recommendation, SFX, voice selection, subtitle sync, and timeline exports.",
+
+    "music_library_recommendation": {
+      "upbeat_energy": {
+        "use_case": [
+          "video_promo",
+          "travel_vlog",
+          "unboxing"
+        ],
+        "music_tags": [
+          "upbeat_pop",
+          "energetic_funk",
+          "tropical_house",
+          "corporate_happy"
+        ],
+        "platform_source": "youtube_audio_library"
+      },
+      "calm_focus": {
+        "use_case": [
+          "tutorial",
+          "product_review",
+          "education"
+        ],
+        "music_tags": [
+          "ambient",
+          "soft_piano",
+          "lo_fi_chill",
+          "modern_classical"
+        ],
+        "platform_source": "pixabay_music"
+      },
+      "cinematic_epic": {
+        "use_case": [
+          "property_video",
+          "automotive",
+          "drone_shot"
+        ],
+        "music_tags": [
+          "orchestral_epic",
+          "cinematic_trailer",
+          "heroic_strings"
+        ],
+        "platform_source": "mixkit"
+      },
+      "trendy_viral": {
+        "use_case": [
+          "tiktok_style",
+          "story_content",
+          "gen_z_content"
+        ],
+        "music_tags": [
+          "phonk",
+          "trap_beat",
+          "slap_house",
+          "viral_instrumental"
+        ],
+        "platform_source": "tiktok_commercial_library"
+      }
+    },
+
+    "sfx_automation": {
+      "transition_sounds": {
+        "slide_left": "whoosh_swipe_left.wav",
+        "zoom_in": "swoosh_fast.wav",
+        "glitch": "digital_glitch_static.wav",
+        "pop_up": "pop_bubble.wav"
+      },
+      "action_sounds": {
+        "product_appear": "soft_chime_magic.wav",
+        "impact_fall": "heavy_thud_impact.wav",
+        "liquid_splash": "water_splash_clear.wav",
+        "typing_text": "keyboard_typing_fast.wav"
+      },
+      "ui_notification": {
+        "sale_badge": "cash_register_cha_ching.wav",
+        "info_pop": "notification_ping.wav",
+        "success": "correct_ding.wav"
+      }
+    },
+
+    "audio_mixing_rules": {
+      "ducking_logic": {
+        "enabled": true,
+        "voice_over_trigger_threshold_db": -24,
+        "music_reduction_percent": 60,
+        "fade_in_seconds": 0.5,
+        "fade_out_seconds": 0.5,
+        "resume_behavior": "smooth_restore"
+      },
+      "volume_standardization": {
+        "platform_specs": {
+          "youtube": {
+            "integrated_lufs": -14,
+            "true_peak_db": -1
+          },
+          "tiktok": {
+            "integrated_lufs": -15,
+            "true_peak_db": -1
+          },
+          "instagram": {
+            "integrated_lufs": -14,
+            "true_peak_db": -1
+          }
+        }
+      },
+      "voice_priority_logic": {
+        "enabled": true,
+        "background_music_max_relative_level_db": -18,
+        "sfx_sidechain_to_voice": true
+      }
+    },
+
+    "ai_voice_profiles": {
+      "indonesian_male_generative": {
+        "voice_id": "id-ID-Standard-A",
+        "language": "id",
+        "style": [
+          "casual",
+          "friendly",
+          "trustworthy"
+        ],
+        "best_for": [
+          "product_review",
+          "tips_and_tricks"
+        ],
+        "subtitle_defaults": {
+          "caption_tone": "clean_conversational",
+          "reading_speed_wpm": 145
+        }
+      },
+      "indonesian_female_soft": {
+        "voice_id": "id-ID-Standard-B",
+        "language": "id",
+        "style": [
+          "calm",
+          "soothing",
+          "elegant"
+        ],
+        "best_for": [
+          "skincare",
+          "decor",
+          "storytelling"
+        ],
+        "subtitle_defaults": {
+          "caption_tone": "soft_clean",
+          "reading_speed_wpm": 135
+        }
+      },
+      "english_us_male_deep": {
+        "voice_id": "en-US-Deep-Male",
+        "language": "en",
+        "style": [
+          "authoritative",
+          "cinematic",
+          "epic"
+        ],
+        "best_for": [
+          "gadget",
+          "automotive",
+          "tech_review"
+        ],
+        "subtitle_defaults": {
+          "caption_tone": "bold_clean",
+          "reading_speed_wpm": 150
+        }
+      }
+    },
+
+    "subtitle_sync_engine": {
+      "enabled": true,
+      "source_of_truth": "final_voice_over_audio",
+      "sync_mode": "word_and_phrase_aligned",
+      "transcript_generation": {
+        "enabled": true,
+        "mode": "tts_source_transcript_first",
+        "fallback_mode": "forced_alignment_from_rendered_audio",
+        "punctuation_cleanup": true,
+        "normalize_numbers": true,
+        "normalize_currency": true,
+        "normalize_abbreviations": true
+      },
+      "timing_alignment": {
+        "enabled": true,
+        "alignment_method": "forced_alignment",
+        "timing_unit": "word_level",
+        "export_levels": [
+          "word",
+          "phrase",
+          "sentence"
+        ],
+        "max_allowed_drift_ms": 120,
+        "auto_realign_if_drift_exceeds_ms": 150
+      },
+      "subtitle_segmentation": {
+        "enabled": true,
+        "segmentation_mode": "phrase_first_then_line_break",
+        "max_characters_per_line": 32,
+        "max_lines_per_block": 2,
+        "min_caption_duration_seconds": 0.8,
+        "max_caption_duration_seconds": 3.5,
+        "min_gap_between_blocks_ms": 80,
+        "break_on": [
+          "comma",
+          "period",
+          "natural_pause",
+          "conjunction_if_needed"
+        ],
+        "avoid_breaking": [
+          "person_name",
+          "brand_phrase",
+          "currency_value",
+          "number_unit_pair"
+        ]
+      },
+      "karaoke_highlight": {
+        "enabled": true,
+        "highlight_mode": "word_progressive",
+        "highlight_follow_vo": true,
+        "inactive_text_opacity": 0.65,
+        "active_word_emphasis": "color_or_weight_shift"
+      },
+      "subtitle_style_presets": {
+        "clean_minimal": {
+          "font_style": "sans_bold",
+          "case_mode": "sentence_case",
+          "stroke": "medium",
+          "shadow": "soft",
+          "placement": "bottom_center"
+        },
+        "viral_bold": {
+          "font_style": "sans_extra_bold",
+          "case_mode": "upper_or_title_case",
+          "stroke": "strong",
+          "shadow": "medium",
+          "placement": "center_lower_third"
+        },
+        "cinematic_soft": {
+          "font_style": "clean_semi_bold",
+          "case_mode": "sentence_case",
+          "stroke": "light",
+          "shadow": "soft",
+          "placement": "bottom_safe"
+        }
+      },
+      "subtitle_logic_rules": {
+        "tutorial": {
+          "preset": "clean_minimal",
+          "segmentation_bias": "clarity"
+        },
+        "sales_promo": {
+          "preset": "viral_bold",
+          "segmentation_bias": "impact"
+        },
+        "storytelling": {
+          "preset": "cinematic_soft",
+          "segmentation_bias": "emotion"
+        }
+      },
+      "multilingual_support": {
+        "enabled": true,
+        "supported_modes": [
+          "id",
+          "en",
+          "id_en_mixed"
+        ],
+        "keep_original_spoken_language": true,
+        "optional_secondary_translation_track": true
+      },
+      "quality_control": {
+        "enabled": true,
+        "checks": [
+          "subtitle_matches_final_vo",
+          "timing_not_ahead_of_voice",
+          "timing_not_lagging_voice",
+          "line_length_within_limit",
+          "safe_area_compliant"
+        ]
+      },
+      "export_formats": {
+        "caption_burn_in": true,
+        "srt": true,
+        "vtt": true,
+        "json_timeline": true
+      }
+    }
+  },
+
+  "platform_rendering_engine": {
+    "description": "Controls platform-safe rendering, subtitle safe zones, and export formatting.",
+    "platform_presets": {
+      "tiktok_reels_shorts": {
+        "aspect_ratio": "9:16",
+        "resolution": "1080x1920",
+        "fps_options": [
+          30,
+          60
+        ],
+        "bitrate_mbps": {
+          "min": 8,
+          "max": 12
+        },
+        "safe_area": {
+          "bottom_margin_percent": 18,
+          "top_margin_percent": 10,
+          "horizontal_padding_percent": 8
+        },
+        "composition_rule": "subject_center_priority"
+      },
+      "youtube_feed_ads": {
+        "aspect_ratio": "16:9",
+        "resolution": "1920x1080",
+        "fps_options": [
+          24,
+          30
+        ],
+        "bitrate_mbps": {
+          "min": 5,
+          "max": 8
+        },
+        "safe_area": {
+          "bottom_margin_percent": 10,
+          "top_margin_percent": 8,
+          "horizontal_padding_percent": 6
+        }
+      },
+      "instagram_stories": {
+        "aspect_ratio": "9:16",
+        "resolution": "1080x1920",
+        "max_file_size_mb": 4,
+        "max_duration_seconds_per_part": 15,
+        "safe_area": {
+          "bottom_margin_percent": 20,
+          "top_margin_percent": 12,
+          "horizontal_padding_percent": 8
+        }
+      }
+    },
+
+    "export_formats": {
+      "mp4_h264": {
+        "description": "universal export format for mobile and web"
+      },
+      "gif_preview": {
+        "description": "short loop preview for websites"
+      }
+    }
+  },
+
+  "seo_metadata_engine": {
+    "description": "Controls title optimization, hashtag strategy, and thumbnail testing logic.",
+    "title_generator": {
+      "formula": "hook_phrase + product_keyword + primary_benefit",
+      "example": "murah_banget_review_sepatu_running_terbaik_anti_sakit_lutut"
+    },
+    "hashtag_strategy": {
+      "mix_strategy": "3_large_3_medium_3_small",
+      "example_groups": {
+        "large": [
+          "fyp",
+          "review",
+          "viral"
+        ],
+        "medium": [
+          "sepaturunning",
+          "ootdindo",
+          "trending"
+        ],
+        "small": [
+          "reviewsepatubaru",
+          "sepaturarimurah",
+          "tipspelari"
+        ]
+      }
+    },
+    "thumbnail_ab_tester": {
+      "feature": "generate_3_thumbnail_options_for_ctr_testing",
+      "prompt_val": "high_ctr_thumbnail, contrast_color, expressive_face, readable_big_text"
+    }
+  },
+
+  "cross_engine_logic": {
+    "description": "Maps category and content type into visual, marketing, voice, video, subtitle, and music decisions.",
+    "content_type_rules": {
+      "tutorial": {
+        "persona": "confident_explainer",
+        "subtitle_preset": "clean_minimal",
+        "music_mood": "calm_focus",
+        "video_mood": "professional",
+        "storyboard": "problem_solution"
+      },
+      "sales_promo": {
+        "persona": "high_energy_promoter",
+        "subtitle_preset": "viral_bold",
+        "music_mood": "upbeat_energy",
+        "video_mood": "energetic",
+        "storyboard": "unboxing_reveal"
+      },
+      "storytelling": {
+        "persona": "warm_storyteller",
+        "subtitle_preset": "cinematic_soft",
+        "music_mood": "calm_focus",
+        "video_mood": "aspirational",
+        "storyboard": "before_after"
+      },
+      "product_review": {
+        "persona": "credible_human_presenter",
+        "subtitle_preset": "clean_minimal",
+        "music_mood": "calm_focus",
+        "video_mood": "premium",
+        "storyboard": "problem_solution"
+      },
+      "social_content": {
+        "persona": "casual_creator",
+        "subtitle_preset": "viral_bold",
+        "music_mood": "trendy_viral",
+        "video_mood": "playful",
+        "storyboard": "unboxing_reveal"
+      }
+    },
+
+    "category_to_voice_mapping": {
+      "home_decor": "indonesian_female_soft",
+      "skincare_cosmetic": "indonesian_female_soft",
+      "electronics": "english_us_male_deep",
+      "fashion": "indonesian_female_soft",
+      "fnb_food_drink": "indonesian_female_soft",
+      "service_professional": "indonesian_male_generative",
+      "travel_lifestyle": "indonesian_female_soft",
+      "health_fitness": "indonesian_male_generative",
+      "finance_business": "indonesian_male_generative",
+      "automotive_parts": "english_us_male_deep",
+      "jewelry": "indonesian_female_soft"
+    },
+
+    "category_to_marketing_bias": {
+      "home_decor": "comfort_and_premium_lifestyle",
+      "skincare_cosmetic": "beauty_and_trust",
+      "electronics": "innovation_and_clean_design",
+      "fashion": "style_and_identity",
+      "fnb_food_drink": "taste_and_craving",
+      "service_professional": "trust_and_clarity",
+      "travel_lifestyle": "aspiration_and_escape",
+      "health_fitness": "energy_and_results",
+      "finance_business": "trust_and_growth",
+      "automotive_parts": "performance_and_precision",
+      "jewelry": "luxury_and_giftability"
+    }
+  },
+
+  "workflow_orchestration": {
+    "generation_order": [
+      "input_analysis",
+      "content_type_resolution",
+      "category_resolution",
+      "visual_prompt_resolution",
+      "marketing_layer_resolution",
+      "persona_selection",
+      "voice_profile_selection",
+      "script_generation",
+      "video_style_resolution",
+      "voice_over_generation",
+      "voice_over_transcript_lock",
+      "forced_alignment",
+      "subtitle_block_generation",
+      "music_and_sfx_mix",
+      "platform_safe_render",
+      "seo_metadata_generation",
+      "quality_control",
+      "final_export"
+    ],
+    "hard_rules": [
+      "subtitles_must_follow_final_voice_over_not_draft_script",
+      "subtitle_timing_must_be_realigned_if_audio_changes",
+      "music_must_duck_under_voice_over",
+      "subtitle_safe_area_must_follow_platform_preset",
+      "marketing_text_must_match_content_type_and_category",
+      "final_export_requires_qc_pass"
+    ]
+  },
+
+  "quality_control": {
+    "global_checks": [
+      "visual_category_rule_resolved",
+      "marketing_layer_resolved",
+      "valid_voice_profile_selected",
+      "persona_and_tone_consistent",
+      "video_category_rule_resolved",
+      "subtitle_sync_passed",
+      "audio_ducking_applied",
+      "platform_safe_area_passed",
+      "seo_metadata_resolved",
+      "export_format_resolved"
+    ]
+  },
+
+  "example_scenarios": [
+    {
+      "name": "skincare_sales_video_id",
+      "input": {
+        "content_type": "sales_promo",
+        "category": "skincare_cosmetic",
+        "language": "id",
+        "platform": "tiktok_reels_shorts"
+      },
+      "resolved_output": {
+        "persona": "high_energy_promoter",
+        "voice_profile": "indonesian_female_soft",
+        "visual_style": "luxury_elegant",
+        "video_motion": [
+          "liquid_splash",
+          "texture_press",
+          "light_leaks"
+        ],
+        "video_camera": [
+          "macro_slider",
+          "push_in_zoom"
+        ],
+        "video_speed": "super_slow_mo",
+        "subtitle_preset": "viral_bold",
+        "music_mood": "upbeat_energy",
+        "storyboard": "unboxing_reveal",
+        "sync_mode": "word_and_phrase_aligned"
+      }
+    },
+    {
+      "name": "home_decor_storytelling_video",
+      "input": {
+        "content_type": "storytelling",
+        "category": "home_decor",
+        "language": "id",
+        "platform": "instagram_stories"
+      },
+      "resolved_output": {
+        "persona": "warm_storyteller",
+        "voice_profile": "indonesian_female_soft",
+        "visual_style": "scandinavian_hygge",
+        "video_motion": [
+          "light_glow",
+          "window_sheer_flow"
+        ],
+        "video_camera": [
+          "wide_angle_panning",
+          "macro_slider"
+        ],
+        "video_speed": "calm_showcase",
+        "subtitle_preset": "cinematic_soft",
+        "music_mood": "calm_focus",
+        "storyboard": "before_after",
+        "sync_mode": "word_and_phrase_aligned"
+      }
+    },
+    {
+      "name": "electronics_review_youtube",
+      "input": {
+        "content_type": "product_review",
+        "category": "electronics",
+        "language": "en",
+        "platform": "youtube_feed_ads"
+      },
+      "resolved_output": {
+        "persona": "credible_human_presenter",
+        "voice_profile": "english_us_male_deep",
+        "visual_style": "minimal_futuristic",
+        "video_motion": [
+          "screen_glow",
+          "floating_levitation"
+        ],
+        "video_camera": [
+          "orbit_360",
+          "close_up_detail"
+        ],
+        "video_speed": "normal_realtime",
+        "subtitle_preset": "clean_minimal",
+        "music_mood": "cinematic_epic",
+        "storyboard": "problem_solution",
+        "sync_mode": "word_and_phrase_aligned"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Summary
+V2.2 ini sudah menggabungkan seluruh blok utama ke dalam satu master configuration:
+
+- **visual_engine**
+- **marketing_engine**
+- **vo_persona_engine**
+- **video_engine**
+- **audio_subtitle_engine**
+- **platform_rendering_engine**
+- **seo_metadata_engine**
+- **cross_engine_logic**
+- **workflow_orchestration**
+
+Keunggulan paling penting:
+- subtitle mengikuti **final VO**
+- image, marketing, dan video saling sinkron
+- platform-safe
+- scalable untuk kategori baru
+- lebih siap untuk dipakai sebagai config source backend
+
+Dokumen ini bisa dijadikan base untuk:
+- prompt orchestration
+- automation pipeline
+- internal spec developer
+- product documentation
+- future V3 roadmap

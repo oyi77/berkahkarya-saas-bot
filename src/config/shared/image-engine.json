@@ -1,0 +1,227 @@
+{
+  "tool_module": "image_engine_unified",
+  "version": "1.0",
+  "description": "Unified image prompt orchestration config consolidating 6 source modules.",
+  "modules": {
+    "additional_categories": {
+      "product_detection": {
+        "kids_baby_goods": {
+          "keywords": ["toy", "doll", "baby clothes", "stroller", "diaper", "milk bottle", "bib"],
+          "label": "Kids & Baby",
+          "focus": "soft edges, safety material, playful colors",
+          "default_style": "soft_pastel"
+        },
+        "automotive_parts": {
+          "keywords": ["helmet", "tire", "rim", "oil", "car accessories", "spark plug", "muffler"],
+          "label": "Automotive",
+          "focus": "glossy finish, metal reflection, rugged texture",
+          "default_style": "masculine_industrial"
+        },
+        "pet_supplies": {
+          "keywords": ["pet food", "cat tree", "leash", "collar", "aquarium", "pet toy"],
+          "label": "Pet Supplies",
+          "focus": "fur interaction, food freshness, durable fabric",
+          "default_style": "playful_natural"
+        },
+        "health_medical": {
+          "keywords": ["mask", "vitamin", "medicine", "thermometer", "stethoscope", "bandage"],
+          "label": "Health & Medical",
+          "focus": "sterile packaging, clinical precision, clean label",
+          "default_style": "clinical_clean"
+        },
+        "jewelry_luxury": {
+          "keywords": ["ring", "necklace", "earring", "bracelet", "diamond", "gold", "silver"],
+          "label": "Jewelry",
+          "focus": "gemstone sparkle, metal polish, intricate details",
+          "default_style": "velvet_luxury"
+        },
+        "sports_outdoor": {
+          "keywords": ["yoga mat", "dumbbell", "tent", "hiking bag", "soccer ball", "bottle"],
+          "label": "Sports & Outdoor",
+          "focus": "sweat resistance, durable texture, dynamic shape",
+          "default_style": "action_lifestyle"
+        }
+      },
+      "category_styles": {
+        "soft_pastel": { "label": "Soft Pastel", "prompt_val": "soft pastel colors, baby pink and blue, bright soft lighting, innocent, safe and clean, dreamy atmosphere" },
+        "playful_colorful": { "label": "Playful Colorful", "prompt_val": "vibrant colors, playful background, toys scattered, happy vibe, children room setting" },
+        "masculine_industrial": { "label": "Masculine Industrial", "prompt_val": "industrial garage background, concrete floor, dramatic lighting, masculine, rugged, high contrast" },
+        "glossy_showroom": { "label": "Glossy Showroom", "prompt_val": "car showroom lighting, glossy floor reflection, sleek, premium automotive display" },
+        "playful_natural": { "label": "Natural Pet Vibe", "prompt_val": "natural lighting, wooden floor, blurred greenery background, pet-friendly environment" },
+        "cozy_home": { "label": "Cozy Home", "prompt_val": "living room carpet, soft blanket, warm home atmosphere, cozy" },
+        "clinical_clean": { "label": "Clinical Clean", "prompt_val": "clean white background, medical blue accents, sterile, professional, scientific, high key lighting" },
+        "lab_professional": { "label": "Lab Professional", "prompt_val": "blurred laboratory background, scientist in background, professional equipment, trust" },
+        "velvet_luxury": { "label": "Velvet Luxury", "prompt_val": "black velvet background, spotlight, sparkling gems, high end jewelry, dramatic contrast" },
+        "editorial_fashion": { "label": "Editorial Fashion", "prompt_val": "vogue magazine style, model neck or hand, fashion editorial, artistic lighting" },
+        "action_lifestyle": { "label": "Action Lifestyle", "prompt_val": "sweat droplets, dynamic pose, gym background, energetic, high energy lighting" },
+        "outdoor_adventure": { "label": "Outdoor Adventure", "prompt_val": "mountain peak background, snow or forest, extreme conditions, durable" }
+      },
+      "material_specifics": {
+        "metal_chrome": { "label": "Chrome Metal", "prompt_val": "chrome finish, shiny metal, reflection" },
+        "gold_silver": { "label": "Precious Metal", "prompt_val": "polished gold, sterling silver, shiny texture" },
+        "rubber_tire": { "label": "Rubber/Thread", "prompt_val": "rubber texture, tire tread pattern, grippy" },
+        "plastic_toy": { "label": "Plastic ABS", "prompt_val": "matte plastic, colorful, durable toy material" },
+        "fabric_sport": { "label": "Sport Fabric", "prompt_val": "breathable fabric texture" }
+      }
+    },
+    "home_decor_furniture": {
+      "product_detection": {
+        "seating_sofa": { "keywords": ["sofa", "couch", "armchair", "loveseat", "sectional", "ottoman", "bean bag"], "label": "Seating & Sofa", "focus_point": "fabric texture, cushion plumpness, ergonomic curves", "default_subgenre": "scandinavian_hygge" },
+        "table_desk": { "keywords": ["table", "desk", "coffee table", "dining table", "side table", "console"], "label": "Table & Desk", "focus_point": "surface finish, leg structure, wood grain or marble vein", "default_subgenre": "mid_century_modern" },
+        "bedding_mattress": { "keywords": ["bed", "mattress", "headboard", "bedframe", "pillow", "blanket"], "label": "Bedding & Mattress", "focus_point": "linen texture, layering, headboard material", "default_subgenre": "luxury_hotel_suite" },
+        "lighting_decor": { "keywords": ["lamp", "chandelier", "pendant", "sconce", "lantern", "floor lamp"], "label": "Lighting Fixture", "focus_point": "material shade, wire detail, light glow temperature", "default_subgenre": "moody_ambience" },
+        "decor_accessories": { "keywords": ["vase", "planter", "mirror", "clock", "candle", "frame", "sculpture"], "label": "Decor & Accessories", "focus_point": "ceramic glaze, reflection, intricate patterns", "default_subgenre": "bohemian_eclectic" },
+        "kitchen_dining": { "keywords": ["plate", "bowl", "cutlery", "glassware", "mug", "jar", "tray"], "label": "Kitchen & Dining Ware", "focus_point": "stacking arrangement, food pairing, gloss finish", "default_subgenre": "flatlay_editorial" }
+      },
+      "interior_styles": {
+        "scandinavian_hygge": { "label": "Scandinavian Hygge", "prompt_val": "scandinavian interior, light wood floors, white walls, minimalist, cozy throws, bright natural light" },
+        "mid_century_modern": { "label": "Mid-Century Modern", "prompt_val": "mid century modern furniture, tapered legs, rich walnut wood, retro vibe, stylish living room" },
+        "japandi_fusion": { "label": "Japandi Zen", "prompt_val": "japandi style, low profile furniture, neutral tones, paper lanterns, natural wood, zen atmosphere" },
+        "modern_farmhouse": { "label": "Modern Farmhouse", "prompt_val": "modern farmhouse interior, shiplap walls, rustic wood, black metal accents, apron sink, cozy" },
+        "luxury_hotel_suite": { "label": "Luxury Hotel Suite", "prompt_val": "luxury hotel room, king size bed, ambient lighting, city view window, marble details, expensive" },
+        "bohemian_eclectic": { "label": "Bohemian Eclectic", "prompt_val": "boho chic interior, layered rugs, rattan furniture, hanging plants, macrame, colorful cushions" },
+        "industrial_loft": { "label": "Industrial Loft", "prompt_val": "converted warehouse, exposed brick walls, concrete floor, steel beams, leather sofa" }
+      },
+      "ambient_moods": {
+        "golden_hour_magic": { "label": "Golden Hour", "prompt_val": "warm sunset light, sun rays through window, golden glow, cinematic" },
+        "blue_hour_twilight": { "label": "Blue Hour", "prompt_val": "blue hour lighting, twilight sky, city lights, calm atmosphere" },
+        "moody_night": { "label": "Moody Night", "prompt_val": "evening ambience, lamp turned on, warm low light, intimate setting" },
+        "rainy_cozy": { "label": "Rainy Day", "prompt_val": "raindrops on window, grey sky outside, cozy indoor lighting" },
+        "fireplace_cozy": { "label": "Fireplace Glow", "prompt_val": "glow from fireplace, warm and inviting, winter evening, orange ambient light" }
+      }
+    },
+    "electronics_lifestyle": {
+      "color_palette_matching": {
+        "orange_theme": { "label": "Orange / Bronze / Copper", "prompt_val": "matching with oranges, autumn leaves, copper metal, terracotta pot, warm sunset vibe, bronze texture" },
+        "blue_theme": { "label": "Blue / Navy / Cyan", "prompt_val": "matching with blue sky, ocean water, blue denim jeans, blue hydrangea flowers, swimming pool" },
+        "green_theme": { "label": "Green / Olive / Mint", "prompt_val": "matching with monstera leaves, avocado, matcha latte, grass field, mint ice cream, forest" },
+        "pink_theme": { "label": "Pink / Rose / Magenta", "prompt_val": "matching with pink flowers, strawberry, pink cotton candy, sunset clouds, rose gold accessories" },
+        "white_silver": { "label": "White / Silver / Grey", "prompt_val": "matching with white marble, clouds, pearls, silver jewelry, minimalist white room, milk" },
+        "black_dark": { "label": "Black / Midnight / Space", "prompt_val": "matching with black coffee, dark volcanic rock, midnight sky, shadows, matte black car" },
+        "gold_premium": { "label": "Gold / Champagne", "prompt_val": "matching with gold jewelry, champagne glass, honey, golden hour sunlight, sand dune" }
+      },
+      "lifestyle_vibes": {
+        "editorial_flatlay": { "label": "Editorial Flatlay", "prompt_val": "flat lay photography, top view, arranged neatly on table, aesthetic composition, magazine layout, ample negative space" },
+        "handheld_lifestyle": { "label": "Handheld Lifestyle", "prompt_val": "hand holding the product, blurred background matching the product color, human touch, soft sunlight, outdoor vibe" },
+        "props_matching": { "label": "Props & Environment", "prompt_val": "product placed on textured surface, surrounded by aesthetic props like bag, watch, or fruit, fashion style, cozy interior" },
+        "liquid_splash_color": { "label": "Colored Liquid Splash", "prompt_val": "colored liquid splash matching product color, dynamic motion, frozen action, studio lighting, high speed photography" }
+      },
+      "ad_atmosphere": {
+        "soft_natural": { "label": "Soft Natural Light", "prompt_val": "soft diffused daylight, bright and airy, clean look, morning light" },
+        "warm_golden": { "label": "Warm Golden Hour", "prompt_val": "warm sunset glow, golden hour, orange tones, cozy feeling" },
+        "studio_clean": { "label": "Studio Clean", "prompt_val": "professional studio lighting, shadowless, pure white or gradient background" }
+      }
+    },
+    "fashion_ultra_realistic": {
+      "product_detection": {
+        "tops_shirts": { "keywords": ["shirt", "t-shirt", "blouse", "hoodie", "sweater", "jacket", "blazer", "polo", "tank top"], "label": "Tops & Outer", "default_subgenre": "casual_street", "default_lens": "portrait_85mm" },
+        "bottoms_pants": { "keywords": ["pants", "jeans", "trousers", "skirt", "shorts", "leggings", "cargo"], "label": "Bottoms", "default_subgenre": "casual_street", "default_lens": "wide_angle_24mm" },
+        "footwear_shoes": { "keywords": ["shoes", "sneakers", "heels", "boots", "sandals", "slippers", "loafers"], "label": "Shoes & Sandals", "default_subgenre": "casual_street", "default_lens": "macro_100mm" },
+        "accessories_jewelry": { "keywords": ["watch", "bag", "necklace", "ring", "glasses", "hat", "earrings", "bracelet", "sunglasses"], "label": "Accessories", "default_subgenre": "formal_office", "default_lens": "macro_100mm" },
+        "full_outfit_dress": { "keywords": ["dress", "gown", "suit", "jumpsuit", "robe", "caftan", "kimono"], "label": "Full Outfit", "default_subgenre": "party_glamour", "default_lens": "portrait_85mm" },
+        "hijab_modest": { "keywords": ["hijab", "scarf", "veil", "tudung", "shawl", "khimar", "niqab"], "label": "Hijab & Modest Wear", "default_subgenre": "traditional_cultural", "default_lens": "portrait_85mm" }
+      },
+      "fashion_sub_genres": {
+        "casual_street": { "label": "Casual & Streetwear", "prompt_val": "streetwear fashion, urban vibe, casual look, trendy style, comfortable fit" },
+        "formal_office": { "label": "Formal & Office", "prompt_val": "business professional attire, office environment, sharp and clean look, formal elegance, corporate style" },
+        "party_glamour": { "label": "Party & Glamour", "prompt_val": "red carpet look, glamour style, sparkling details, luxury party attire, night event" },
+        "sport_activewear": { "label": "Sport & Activewear", "prompt_val": "athletic wear, fitness model, dynamic sporty look, sweat glistening, performance gear" },
+        "traditional_cultural": { "label": "Traditional & Cultural", "prompt_val": "cultural heritage fashion, traditional attire, elegant draping, rich patterns, ceremonial look" },
+        "swimwear_resort": { "label": "Swimwear & Resort", "prompt_val": "beach resort style, summer vibes, golden sunlight, swimwear photography, exotic location" }
+      },
+      "environments": {
+        "studio_minimal": { "label": "Studio Minimalist", "prompt_val": "clean studio background, seamless background paper, professional lighting setup" },
+        "urban_industrial": { "label": "Urban Industrial", "prompt_val": "concrete wall background, warehouse setting, brick texture, moody city atmosphere" },
+        "nature_outdoors": { "label": "Nature Outdoors", "prompt_val": "natural outdoor background, park, forest, or beach, soft natural light" },
+        "luxury_interior": { "label": "Luxury Interior", "prompt_val": "expensive furniture background, hotel lobby, penthouse view, elegant interior design" },
+        "urban_street": { "label": "Urban Street", "prompt_val": "city street background, neon signs, traffic lights, night city life" },
+        "pastel_dream": { "label": "Pastel Dream", "prompt_val": "pastel colored background, soft pink or blue, dreamy clouds, surreal atmosphere" }
+      },
+      "materials": {
+        "cotton": { "label": "Cotton", "prompt_val": "soft cotton texture, breathable, matte finish" },
+        "denim": { "label": "Denim", "prompt_val": "classic denim texture, visible weave, rugged" },
+        "silk": { "label": "Silk", "prompt_val": "shiny silk texture, smooth, luxurious drape" },
+        "leather": { "label": "Leather", "prompt_val": "genuine leather texture, grain patterns, glossy" },
+        "wool": { "label": "Wool", "prompt_val": "knitted texture, wool fibers, cozy" }
+      }
+    },
+    "fnb_global": {
+      "category_detection": {
+        "wet_savory_dishes": { "keywords": ["soup", "stew", "curry", "broth", "bowl", "liquid", "gravy", "ramen", "pho", "meatball", "soto", "gulai"], "global_label": "Wet Savory Dishes", "auto_suggestion": { "style": "steamy_cozy", "effects": ["steam_hot", "glossy_wet"] } },
+        "dry_carb_main": { "keywords": ["rice", "pasta", "noodle", "fried rice", "risotto", "biriyani", "spaghetti", "paella", "nasi goreng", "fried noodle"], "global_label": "Dry Carb Mains", "auto_suggestion": { "style": "appetizing_top_view", "effects": ["glossy_wet", "fresh_greens"] } },
+        "burgers_sandwiches": { "keywords": ["burger", "sandwich", "hotdog", "bun", "bread", "patty", "kebab", "subway", "tacos"], "global_label": "Handhelds & Sandwiches", "auto_suggestion": { "style": "dark_moody_grill", "effects": ["melting_dripping", "crispy_texture"] } },
+        "pizza_baked_goods": { "keywords": ["pizza", "pie", "pastry", "baked", "cheese", "dough", "bread", "croissant", "flatbread"], "global_label": "Pizza & Baked Savory", "auto_suggestion": { "style": "rustic_artisan", "effects": ["melting_dripping", "crispy_texture"] } },
+        "grilled_meats_seafood": { "keywords": ["steak", "grill", "bbq", "barbecue", "roast", "chicken", "fish", "shrimp", "prawn", "satay", "skewer"], "global_label": "Grill & Roast", "auto_suggestion": { "style": "dark_moody_grill", "effects": ["glossy_wet", "steam_hot"] } },
+        "desserts_sweets": { "keywords": ["cake", "dessert", "ice cream", "chocolate", "sweet", "waffle", "pancake", "pudding", "pastry sweet", "donut"], "global_label": "Desserts", "auto_suggestion": { "style": "bright_lifestyle", "effects": ["melting_dripping", "soft_creamy"] } },
+        "cold_beverages": { "keywords": ["drink", "beverage", "juice", "soda", "cocktail", "smoothie", "milkshake", "iced", "coffee cold", "water"], "global_label": "Cold Drinks", "auto_suggestion": { "style": "refreshing_splash", "effects": ["frozen_crystallized", "splash_explosion"] } },
+        "hot_beverages": { "keywords": ["coffee", "tea", "latte", "cappuccino", "hot chocolate", "mug", "cup", "steam"], "global_label": "Hot Drinks", "auto_suggestion": { "style": "cozy_warm", "effects": ["steam_hot", "latte_art"] } }
+      },
+      "style_options": {
+        "steamy_cozy": { "label": "Steamy & Cozy", "prompt_val": "steaming hot, cozy atmosphere, warm tones, comfort food vibe, appetizing" },
+        "dark_moody_grill": { "label": "Dark & Moody Grill", "prompt_val": "dark atmospheric background, black table, cinematic side lighting, smoke, grill marks, intense shadows, dramatic food photography" },
+        "bright_lifestyle": { "label": "Bright Lifestyle", "prompt_val": "bright natural daylight, high key lighting, soft shadows, happy mood, fresh colors" },
+        "refreshing_splash": { "label": "Refreshing Splash", "prompt_val": "condensation, ice crystals, water splashes, refreshing feel, freezing cold, dynamic motion" },
+        "rustic_artisan": { "label": "Rustic Artisan", "prompt_val": "wooden table, flour dust, rustic background, natural textures, artisan look" },
+        "minimalist_commercial": { "label": "Minimalist Commercial", "prompt_val": "clean white background, studio lighting, product photography, sharp focus" }
+      },
+      "effect_options": {
+        "steam_hot": { "label": "Hot Steam", "prompt_val": "rising steam, freshly cooked, hot temperature" },
+        "glossy_wet": { "label": "Glossy/Shiny", "prompt_val": "glistening oil, glossy sauce, shiny surface, wet look" },
+        "melting_dripping": { "label": "Melting/Dripping", "prompt_val": "melting cheese, dripping sauce, oozing texture" },
+        "frozen_crystallized": { "label": "Iced/Frozen", "prompt_val": "frosty glass, ice crystals, condensation droplets" },
+        "splash_explosion": { "label": "Splash/Explosion", "prompt_val": "high speed photography, liquid splash, ingredients flying, dynamic action" },
+        "fresh_greens": { "label": "Fresh Veggies", "prompt_val": "fresh herbs, green leaves, crisp vegetables, healthy look" }
+      }
+    },
+    "skincare_kosmetik": {
+      "product_specifics": {
+        "serum_face": { "label": "Serum Wajah", "prompt_hint": "glass serum bottle with dropper, skincare product, glowing liquid" },
+        "moisturizer_cream": { "label": "Krim Wajah/Tubuh", "prompt_hint": "cream jar, moisturizer texture, soft texture, body lotion tube" },
+        "face_mask": { "label": "Masker Wajah", "prompt_hint": "sheet mask packaging, clay mask texture, face mask product" },
+        "lipstick_makeup": { "label": "Lipstick & Make Up", "prompt_hint": "lipstick tube, makeup palette, cosmetic product, vibrant color" },
+        "soap_cleanser": { "label": "Sabun & Pembersih", "prompt_hint": "bar soap, foam cleanser bottle, hand soap, bubbly texture" }
+      },
+      "style_themes": {
+        "natural_organic": { "label": "Natural & Organic", "prompt_val": "surrounded by green leaves, aloe vera texture, wood background, natural sunlight, herbal concept, fresh ingredients, eco friendly vibe" },
+        "luxury_elegant": { "label": "Luxury & Elegant", "prompt_val": "placed on white marble surface, gold accents, soft satin cloth, elegant shadows, premium beauty product, cinematic lighting, high class" },
+        "soft_feminine": { "label": "Soft & Feminine", "prompt_val": "soft pastel pink or lavender background, flower petals, silky texture, dreamy atmosphere, beauty magazine style, romantic mood" },
+        "clinical_clean": { "label": "Clinical & Dermatologist", "prompt_val": "clean white laboratory background, medical aesthetic, minimalist, professional lighting, clinical look, trusted brand, sterile" },
+        "minimalist_studio": { "label": "Minimalist Studio", "prompt_val": "solid white background, soft shadows, professional studio photography, product shot, sharp focus, no distraction" }
+      },
+      "texture_effects": {
+        "none": { "label": "Normal", "prompt_val": "clean surface" },
+        "water_droplets": { "label": "Water Drops (Dewy)", "prompt_val": "water droplets on bottle, condensation, wet surface, fresh look, hydrating concept" },
+        "cream_texture": { "label": "Cream Texture", "prompt_val": "visible cream texture, soft scoop, smooth surface, product consistency, close up texture" },
+        "flower_decor": { "label": "Flower Decoration", "prompt_val": "decorated with fresh flowers, rose petals, lavender, botanical arrangement" },
+        "splash_liquid": { "label": "Liquid Splash", "prompt_val": "dynamic water splash, liquid explosion, wet look, fresh burst" }
+      },
+      "lighting_options": {
+        "bright_airry": { "label": "Bright & Airy", "prompt_val": "bright natural daylight, high key lighting, soft shadows, airy atmosphere" },
+        "golden_hour": { "label": "Golden Hour", "prompt_val": "warm sunlight, golden glow, sunset vibes, cozy feeling" },
+        "studio_softbox": { "label": "Studio Softbox", "prompt_val": "professional studio lighting, soft box light, balanced exposure, clear detail" },
+        "moody_dramatic": { "label": "Dramatic & Dark", "prompt_val": "dark background, spotlight effect, low key lighting, elegant and mysterious" }
+      },
+      "quality_tags": ["8k resolution", "photorealistic", "ultra detailed", "skin care photography", "commercial ad", "unreal engine 5", "macro lens", "sharp focus"]
+    }
+  },
+  "niche_to_image_module": {
+    "food_culinary": { "module": "fnb_global", "default_style_key": "steamy_cozy", "label": "Food & Beverage" },
+    "fnb": { "module": "fnb_global", "default_style_key": "steamy_cozy", "label": "Food & Beverage" },
+    "fashion_lifestyle": { "module": "fashion_ultra_realistic", "default_style_key": "casual_street", "label": "Fashion" },
+    "fashion": { "module": "fashion_ultra_realistic", "default_style_key": "casual_street", "label": "Fashion" },
+    "tech_gadgets": { "module": "electronics_lifestyle", "default_style_key": "studio_clean", "label": "Electronics" },
+    "tech": { "module": "electronics_lifestyle", "default_style_key": "studio_clean", "label": "Electronics" },
+    "beauty_skincare": { "module": "skincare_kosmetik", "default_style_key": "luxury_elegant", "label": "Skincare & Cosmetic" },
+    "skincare": { "module": "skincare_kosmetik", "default_style_key": "luxury_elegant", "label": "Skincare & Cosmetic" },
+    "travel_adventure": { "module": "home_decor_furniture", "default_style_key": "luxury_hotel_suite", "label": "Travel & Lifestyle" },
+    "travel": { "module": "home_decor_furniture", "default_style_key": "luxury_hotel_suite", "label": "Travel & Lifestyle" },
+    "fitness_health": { "module": "additional_categories", "default_style_key": "action_lifestyle", "label": "Health & Fitness" },
+    "health": { "module": "additional_categories", "default_style_key": "action_lifestyle", "label": "Health & Fitness" },
+    "home_decor": { "module": "home_decor_furniture", "default_style_key": "scandinavian_hygge", "label": "Home & Decor" },
+    "business_finance": { "module": "additional_categories", "default_style_key": "clinical_clean", "label": "Business & Finance" },
+    "finance": { "module": "additional_categories", "default_style_key": "clinical_clean", "label": "Business & Finance" },
+    "education_knowledge": { "module": "additional_categories", "default_style_key": "clinical_clean", "label": "Education" },
+    "education": { "module": "additional_categories", "default_style_key": "clinical_clean", "label": "Education" },
+    "entertainment": { "module": "additional_categories", "default_style_key": "playful_colorful", "label": "Entertainment" }
+  }
+}

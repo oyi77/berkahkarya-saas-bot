@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-04-05T00:57:21.363874",
+  "commit": "e7f58eb",
+  "navigation": "/help \u2192 Main Menu",
+  "user": "codergaboets",
+  "summary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2
+  },
+  "results": [
+    {
+      "tc": "TC5-i2t",
+      "status": "FAIL",
+      "msg": "i2t: GENERIC template \u2014 OmniRoute vision NOT fixed",
+      "actual": "\u2705 **Prompt Extracted:**\n\n```Professional commercial product photography: subject positioned using rule-of-thirds, warm key light from 45\u00b0 upper-left with soft fill, rim light on edges for separation. Color palette: warm neutrals (cream, beige) with one accent color. Shot on 85mm f/1.8 lens, shallow depth of field with creamy bokeh background. Surface: clean matte backdrop or lifestyle setting. Post-processing: slight warm grade, enhanced shadows, commercial skin retouching if applicable. Mood: p"
+    },
+    {
+      "tc": "TC6-v2t",
+      "status": "FAIL",
+      "msg": "v2t: GENERIC template \u2014 OmniRoute Gemini video NOT fixed",
+      "actual": "\u2705 **Prompt Extracted:**\n\n```Dynamic marketing video: opening hook shot (2s) with bold text overlay and dramatic zoom-in on product, problem scene (3s) showing pain point with desaturated color grade, solution reveal (4s) with product hero shot and warm lighting transition, social proof scene (3s) with testimonial text animation, CTA closing (3s) with brand colors and urgency text. Pacing: 2-3 cuts/second, transitions: mix of hard cuts and zoom transitions, color grade: warm highlights with teal "
+    },
+    {
+      "tc": "TC7-v2v",
+      "status": "PASS",
+      "msg": "v2v: video analysis completed, clone initiated",
+      "actual": "\ud83d\udccb **Video Analysis Result**\n\n**Style:** commercial\n\n**Description:**\nDynamic marketing video: opening hook shot (2s) with bold text overlay and dramatic zoom-in on product, problem scene (3s) showing pain point with desaturated color grade, solution reveal (4s) with product hero shot and warm lighting transition, social proof scene (3s) with testimonial text animation, CTA closing (3s) with brand colors and urgency text. Pacing: 2-3 cuts/second, transitions: mix of hard cuts and zoom transitions"
+    }
+  ]
+}

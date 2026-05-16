@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-04-04T20:04:39.826967",
+  "user": "codergaboets",
+  "summary": {
+    "total": 5,
+    "passed": 1,
+    "failed": 4
+  },
+  "results": [
+    {
+      "tc": "TC3-t2i",
+      "status": "PASS",
+      "msg": "t2i got response (no crash)",
+      "actual": "\ud83c\udfa8 Applying color grading..."
+    },
+    {
+      "tc": "TC4-i2i",
+      "status": "FAIL",
+      "msg": "i2i: no response within 150s",
+      "actual": "timeout"
+    },
+    {
+      "tc": "TC5-i2t",
+      "status": "FAIL",
+      "msg": "i2t: no response within 150s",
+      "actual": "timeout"
+    },
+    {
+      "tc": "TC6-v2t",
+      "status": "FAIL",
+      "msg": "v2t: no response within 150s",
+      "actual": "timeout"
+    },
+    {
+      "tc": "TC7-v2v",
+      "status": "FAIL",
+      "msg": "v2v: no response within 150s",
+      "actual": "timeout"
+    }
+  ]
+}

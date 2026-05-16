@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title + ' — BerkahKarya Admin' : 'BerkahKarya Admin' %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #0d0d14;
+      --sidebar: #111118;
+      --card: #1a1a24;
+      --border: #2a2a3a;
+      --gold: #c4a35a;
+      --gold-dim: #8a6f3a;
+      --text: #e0e0f0;
+      --muted: #888899;
+      --green: #4ade80;
+      --red: #f87171;
+      --blue: #3b82f6;
+      --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; min-height: 100vh; }
+    .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); width: 240px; min-height: 100vh; position: fixed; top: 0; left: 0; z-index: 50; display: flex; flex-direction: column; }
+    .main { margin-left: 240px; padding: 24px; min-height: 100vh; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s; color: var(--muted); font-size: 14px; text-decoration: none; }
+    .nav-item:hover { background: rgba(196,163,90,0.08); color: var(--text); }
+    .nav-item.active { border-left-color: var(--gold); color: var(--gold); background: rgba(196,163,90,0.1); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .kpi-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .kpi-card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .kpi-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+    .badge-video { background: #1a2a4a; color: #60a5fa; }
+    .badge-image { background: #2a1a4a; color: #a78bfa; }
+    .badge-active { background: #0f3020; color: #4ade80; }
+    .badge-inactive { background: #3a0f0f; color: #f87171; }
+    .badge-closed { background: #0f3020; color: #4ade80; }
+    .badge-open { background: #3a0f0f; color: #f87171; }
+    .badge-half { background: #3a2a0a; color: #fbbf24; }
+    .badge-configured { background: #0f3020; color: #4ade80; }
+    .badge-missing { background: #3a0f0f; color: #f87171; }
+    .badge-db { background: #0f3020; color: #4ade80; }
+    .badge-default { background: #3a2a0a; color: #fbbf24; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-gold { background: var(--gold); color: #0d0d14; }
+    .btn-gold:hover { background: #d4b36a; }
+    .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .btn-danger { background: #3a0f0f; color: #f87171; border: 1px solid #5a1f1f; }
+    .btn-danger:hover { background: #5a1f1f; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-xs { padding: 3px 8px; font-size: 11px; }
+    .input { background: #0d0d14; border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; font-size: 13px; outline: none; }
+    .input:focus { border-color: var(--gold); }
+    .input-sm { width: 60px; text-align: center; padding: 4px 6px; }
+    .toggle { position: relative; width: 40px; height: 22px; background: var(--border); border-radius: 11px; cursor: pointer; transition: background 0.2s; }
+    .toggle.on { background: var(--green); }
+    .toggle::after { content: ''; position: absolute; width: 18px; height: 18px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: transform 0.2s; }
+    .toggle.on::after { transform: translateX(18px); }
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab { padding: 8px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; color: var(--muted); background: transparent; border: 1px solid transparent; transition: all 0.15s; }
+    .tab.active { background: rgba(196,163,90,0.15); color: var(--gold); border-color: var(--gold-dim); }
+    .tab:hover:not(.active) { background: rgba(255,255,255,0.05); color: var(--text); }
+    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .empty-state { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Toast */
+    #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; max-width: 320px; animation: slideIn 0.2s ease; border: 1px solid; }
+    .toast-success { background: #0f3020; border-color: #1a5030; color: #4ade80; }
+    .toast-error { background: #3a0f0f; border-color: #5a1f1f; color: #f87171; }
+    .toast-info { background: #0f2040; border-color: #1a3060; color: #60a5fa; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { font-size: 18px; font-weight: 700; margin: 0 0 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    /* Mobile */
+    .hamburger { display: none; position: fixed; top: 12px; left: 12px; z-index: 200; background: var(--gold); border: none; border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 18px; color: #000; }
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; z-index: 150; }
+      .sidebar.open { transform: translateX(0); }
+      .main { margin-left: 0 !important; padding: 12px !important; }
+      .hamburger { display: block; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    }
+  </style>
+</head>
+<body>
+
+<%- include('./partials/sidebar', { activePage: typeof activePage !== 'undefined' ? activePage : 'dashboard' }) %>
+
+<div class="main">
+  <%- body %>
+</div>
+
+<script>
+// ===================== CLOCK =====================
+function updateClock() {
+  const el = document.getElementById('live-clock');
+  if (el) el.textContent = new Date().toLocaleString('id-ID', { weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===================== SIDEBAR TOGGLE =====================
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+</script>
+
+</body>
+</html>

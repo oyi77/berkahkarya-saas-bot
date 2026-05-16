@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-04-04T20:25:00.878171",
+  "user": "codergaboets",
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3
+  },
+  "results": [
+    {
+      "tc": "TC5-i2t",
+      "status": "FAIL",
+      "msg": "Cannot find Disassemble button. Buttons were: ['\ud83c\udfac Create Video', '\ud83d\uddbc\ufe0f Create Image', '\ud83d\udcda Choose Prompt & Create Video', '\ud83d\udd25 Trending', '\ud83d\udcb3 Top Up Credits', '\ud83d\udcc1 My Videos']",
+      "actual": ""
+    },
+    {
+      "tc": "TC6-v2t",
+      "status": "FAIL",
+      "msg": "Cannot find Disassemble button. Buttons: ['\ud83c\udfac Create Video', '\ud83d\uddbc\ufe0f Generate Image', '\ud83d\udcac Chat AI', '\ud83d\udcda Prompt Library', '\ud83d\udd25 Trending', '\ud83c\udf81 Daily Prompt', '\ud83d\udcc1 My Videos', '\ud83e\uddec Fingerprint', '\ud83d\udde3\ufe0f Talking Photo', '\ud83d\udcb0 Top Up', '\ud83d\udc64 Profile', '\u2b50 Subscription', '\ud83d\udc65 Referral', '\u2699\ufe0f Settings', '\ud83c\udd98 Support', '\ud83d\udcd6 Help']",
+      "actual": ""
+    },
+    {
+      "tc": "TC7-v2v",
+      "status": "FAIL",
+      "msg": "Cannot find Clone button. Buttons: ['\ud83c\udfac Create Video', '\ud83d\uddbc\ufe0f Create Image', '\ud83d\udcda Choose Prompt & Create Video', '\ud83d\udd25 Trending', '\ud83d\udcb3 Top Up Credits', '\ud83d\udcc1 My Videos']",
+      "actual": ""
+    }
+  ]
+}

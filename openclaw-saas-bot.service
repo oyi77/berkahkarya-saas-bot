@@ -1,0 +1,28 @@
+[Unit]
+Description=OpenClaw SaaS Bot - Telegram AI Video Marketing
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=openclaw
+Group=openclaw
+WorkingDirectory=/home/openclaw/projects/berkahkarya-saas-bot
+ExecStart=/home/linuxbrew/.linuxbrew/bin/npx tsx src/index.ts
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/home/openclaw/projects/berkahkarya-saas-bot/.env
+
+# Logging
+StandardOutput=append:/home/openclaw/projects/berkahkarya-saas-bot/logs/bot.log
+StandardError=append:/home/openclaw/projects/berkahkarya-saas-bot/logs/bot-error.log
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/home/openclaw/projects/berkahkarya-saas-bot
+PrivateTmp=false
+
+[Install]
+WantedBy=multi-user.target

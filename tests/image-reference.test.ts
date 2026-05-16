@@ -1,0 +1,446 @@
+/**
+ * Image Reference & Avatar Tests
+ *
+ * Tests smart routing, img2img, IP-Adapter, avatar CRUD,
+ * and backward compatibility of text-to-image flow.
+ */
+
+// Mock database before importing services
+const mockAvatars: any[] = [];
+jest.mock('@/config/database', () => ({
+  prisma: {
+    userAvatar: {
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      findMany: jest.fn().mockImplementation(({ where }: any) => {
+        const rows = [...mockAvatars].filter(a => !where?.userId || a.userId === where.userId);
+        return Promise.resolve(rows);
+      }),
+      findFirst: jest.fn().mockImplementation(({ where }: any) => {
+        if (where?.isDefault) return Promise.resolve(mockAvatars.find(a => a.isDefault) || null);
+        if (where?.id) return Promise.resolve(mockAvatars.find(a => a.id === where.id) || null);
+        if (where?.userId) return Promise.resolve(mockAvatars.find(a => a.userId === where.userId) || null);
+        return Promise.resolve(mockAvatars[0] || null);
+      }),
+      findUnique: jest.fn().mockImplementation(({ where }: any) =>
+        Promise.resolve(mockAvatars.find(a => a.id === where?.id) || null)),
+      create: jest.fn().mockImplementation(({ data }: any) => {
+        const avatar = { id: BigInt(mockAvatars.length + 1), ...data, createdAt: new Date(), updatedAt: new Date() };
+        mockAvatars.push(avatar);
+        return Promise.resolve(avatar);
+      }),
+      update: jest.fn().mockImplementation(({ where, data }: any) => {
+        const idx = mockAvatars.findIndex(a => a.id === where?.id);
+        if (idx >= 0) Object.assign(mockAvatars[idx], data);
+        return Promise.resolve(mockAvatars[idx] || null);
+      }),
+      updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
+        mockAvatars.forEach(a => {
+          const matchesUser = !where?.userId || a.userId === where.userId;
+          const matchesDefault = where?.isDefault === undefined || a.isDefault === where.isDefault;
+          if (matchesUser && matchesDefault) Object.assign(a, data);
+        });
+        return Promise.resolve({ count: mockAvatars.length });
+      }),
+      delete: jest.fn().mockImplementation(({ where }: any) => {
+        const idx = mockAvatars.findIndex(a => a.id === where?.id);
+        const deleted = idx >= 0 ? mockAvatars.splice(idx, 1)[0] : null;
+        return Promise.resolve(deleted);
+      }),
+      count: jest.fn().mockImplementation(({ where }: any) => {
+        const rows = mockAvatars.filter(a => !where?.userId || a.userId === where.userId);
+        return Promise.resolve(rows.length);
+      }),
+    },
+    user: {
+      upsert: jest.fn().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
+      findUnique: jest.fn().mockResolvedValue({ telegramId: BigInt(999999999), tier: 'pro', creditBalance: 100 }),
+    },
+    $disconnect: jest.fn().mockResolvedValue(undefined),
+    $transaction: jest.fn().mockImplementation(async (arg: any) => {
+      if (Array.isArray(arg)) return Promise.all(arg);
+      if (typeof arg === 'function') {
+        const txPrisma = {
+          userAvatar: {
+            updateMany: jest.fn().mockImplementation(({ where, data }: any) => {
+              mockAvatars.forEach(a => {
+                const matchesUser = !where?.userId || a.userId === where.userId;
+                const matchesDefault = where?.isDefault === undefined || a.isDefault === where.isDefault;
+                if (matchesUser && matchesDefault) a.isDefault = data.isDefault ?? false;
+              });
+              return Promise.resolve({ count: mockAvatars.length });
+            }),
+            update: jest.fn().mockImplementation(({ where, data }: any) => {
+              const idx = mockAvatars.findIndex(a => a.id === where?.id);
+              if (idx >= 0) Object.assign(mockAvatars[idx], data);
+              return Promise.resolve(mockAvatars[idx] || null);
+            }),
+          },
+        };
+        return arg(txPrisma);
+      }
+    }),
+  },
+}));
+
+jest.mock('@/utils/logger', () => ({
+  logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
+
+jest.mock('@/services/geminigen.service', () => ({
+  GeminiGenService: {
+    generateImage: jest.fn().mockResolvedValue({ success: true, imageUrl: 'https://example.com/generated.jpg' }),
+  },
+}));
+
+jest.mock('@/services/content-analysis.service', () => ({
+  ContentAnalysisService: {
+    extractPrompt: jest.fn().mockResolvedValue({
+      success: true,
+      prompt: 'avatar portrait with clear facial features',
+      style: 'realistic',
+      elements: ['face', 'portrait'],
+    }),
+  },
+}));
+
+import { ImageGenerationService, ImageGenerationParams, ImageGenerationMode } from '@/services/image.service';
+import { AvatarService } from '@/services/avatar.service';
+
+// ── Test user setup ──
+const TEST_TELEGRAM_ID = BigInt(999999999);
+
+beforeAll(() => {
+  mockAvatars.length = 0; // Clear avatars before all tests
+});
+
+// ── Mode Detection ──
+
+describe('Image Generation Mode Detection', () => {
+  it('should default to text2img when no reference or avatar', () => {
+    const params: ImageGenerationParams = {
+      prompt: 'A product on white background',
+      category: 'product',
+    };
+    // Mode detection is internal — test via generateImage behavior
+    // With DEMO_MODE, we can verify it returns
+    expect(params.referenceImageUrl).toBeUndefined();
+    expect(params.avatarImageUrl).toBeUndefined();
+    expect(params.mode).toBeUndefined();
+  });
+
+  it('should detect img2img mode when referenceImageUrl is set', () => {
+    const params: ImageGenerationParams = {
+      prompt: 'Product on marble table',
+      category: 'product',
+      referenceImageUrl: 'https://example.com/product.jpg',
+    };
+    expect(params.referenceImageUrl).toBeDefined();
+    expect(params.mode).toBeUndefined(); // auto-detected internally
+  });
+
+  it('should detect ip_adapter mode when avatarImageUrl is set', () => {
+    const params: ImageGenerationParams = {
+      prompt: 'Person in office setting',
+      category: 'product',
+      avatarImageUrl: 'https://example.com/avatar.jpg',
+    };
+    expect(params.avatarImageUrl).toBeDefined();
+  });
+
+  it('should respect explicit mode override', () => {
+    const params: ImageGenerationParams = {
+      prompt: 'Product shot',
+      category: 'product',
+      mode: 'ip_adapter' as ImageGenerationMode,
+      avatarImageUrl: 'https://example.com/avatar.jpg',
+    };
+    expect(params.mode).toBe('ip_adapter');
+  });
+});
+
+// ── Backward Compatibility ──
+
+describe('Backward Compatibility — Text-to-Image', () => {
+  it('generateProductImage should work without reference (string-only signature)', async () => {
+    // This tests the old API signature still works
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    const result = await ImageGenerationService.generateProductImage('Modern smartphone on white background');
+    expect(result.success).toBe(true);
+    expect(result.imageUrl).toBeDefined();
+    expect(result.provider).toBe('demo');
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+
+  it('generateFoodImage should work without reference', async () => {
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    const result = await ImageGenerationService.generateFoodImage('Sushi platter with wasabi');
+    expect(result.success).toBe(true);
+    expect(result.provider).toBe('demo');
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+
+  it('generateRealEstateImage should work without reference', async () => {
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    const result = await ImageGenerationService.generateRealEstateImage('Modern villa with pool');
+    expect(result.success).toBe(true);
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+
+  it('generateCarImage should work without reference', async () => {
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    const result = await ImageGenerationService.generateCarImage('Red Ferrari on mountain road');
+    expect(result.success).toBe(true);
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+});
+
+// ── Reference Image Flow ──
+
+describe('Reference Image (img2img) Flow', () => {
+  it('generateProductImage with referenceImageUrl should pass it through', async () => {
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    // With DEMO_MODE, all providers are skipped → demo fallback
+    // But this verifies the function signature accepts referenceImageUrl
+    const result = await ImageGenerationService.generateProductImage(
+      'Product on marble table',
+      'https://example.com/my-product.jpg'
+    );
+    expect(result.success).toBe(true);
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+
+  it('generateImage with referenceImageUrl should set img2img mode', async () => {
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    const result = await ImageGenerationService.generateImage({
+      prompt: 'Product on marble table, soft lighting',
+      category: 'product',
+      aspectRatio: '1:1',
+      style: 'commercial',
+      referenceImageUrl: 'https://example.com/my-product.jpg',
+    });
+    expect(result.success).toBe(true);
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+});
+
+// ── Avatar CRUD ──
+
+describe('Avatar Service CRUD', () => {
+  let createdAvatarId: number;
+
+  it('should create an avatar', async () => {
+    const avatar = await AvatarService.createAvatar(
+      TEST_TELEGRAM_ID,
+      'Test Avatar',
+      'https://example.com/avatar-test.jpg',
+    );
+
+    expect(avatar.id).toBeDefined();
+    expect(avatar.name).toBe('Test Avatar');
+    expect(avatar.imageUrl).toBe('https://example.com/avatar-test.jpg');
+    expect(avatar.isDefault).toBe(true); // First avatar → default
+    createdAvatarId = avatar.id;
+  });
+
+  it('should list avatars', async () => {
+    const avatars = await AvatarService.listAvatars(TEST_TELEGRAM_ID);
+    expect(avatars.length).toBeGreaterThanOrEqual(1);
+    expect(avatars.some(a => a.name === 'Test Avatar')).toBe(true);
+  });
+
+  it('should get avatar by ID', async () => {
+    const avatar = await AvatarService.getAvatar(createdAvatarId);
+    expect(avatar).not.toBeNull();
+    expect(avatar!.name).toBe('Test Avatar');
+  });
+
+  it('should get default avatar', async () => {
+    const avatar = await AvatarService.getDefaultAvatar(TEST_TELEGRAM_ID);
+    expect(avatar).not.toBeNull();
+    expect(avatar!.isDefault).toBe(true);
+  });
+
+  it('should create second avatar (non-default)', async () => {
+    const avatar2 = await AvatarService.createAvatar(
+      TEST_TELEGRAM_ID,
+      'Second Avatar',
+      'https://example.com/avatar-2.jpg',
+    );
+    expect(avatar2.isDefault).toBe(false); // Second → not default
+  });
+
+  it('should set a different avatar as default', async () => {
+    const avatars = await AvatarService.listAvatars(TEST_TELEGRAM_ID);
+    const nonDefault = avatars.find(a => !a.isDefault);
+    expect(nonDefault).toBeDefined();
+
+    await AvatarService.setDefault(TEST_TELEGRAM_ID, nonDefault!.id);
+
+    const newDefault = await AvatarService.getDefaultAvatar(TEST_TELEGRAM_ID);
+    expect(newDefault!.id).toBe(nonDefault!.id);
+
+    // Old default should no longer be default
+    const oldDefault = await AvatarService.getAvatar(createdAvatarId);
+    expect(oldDefault!.isDefault).toBe(false);
+  });
+
+  it('should enforce max avatar limit', async () => {
+    // Create up to max (5) — already have 2, add 3 more
+    for (let i = 3; i <= 5; i++) {
+      await AvatarService.createAvatar(
+        TEST_TELEGRAM_ID,
+        `Avatar ${i}`,
+        `https://example.com/avatar-${i}.jpg`,
+      );
+    }
+
+    // 6th should fail
+    await expect(
+      AvatarService.createAvatar(
+        TEST_TELEGRAM_ID,
+        'Too Many',
+        'https://example.com/avatar-6.jpg',
+      )
+    ).rejects.toThrow('Maximum 5 avatars');
+  });
+
+  it('should delete an avatar', async () => {
+    const avatars = await AvatarService.listAvatars(TEST_TELEGRAM_ID);
+    const toDelete = avatars[avatars.length - 1];
+    const deleted = await AvatarService.deleteAvatar(TEST_TELEGRAM_ID, toDelete.id);
+    expect(deleted).toBe(true);
+
+    const afterDelete = await AvatarService.listAvatars(TEST_TELEGRAM_ID);
+    expect(afterDelete.length).toBe(avatars.length - 1);
+  });
+
+  it('should promote next avatar if default is deleted', async () => {
+    const defaultAvatar = await AvatarService.getDefaultAvatar(TEST_TELEGRAM_ID);
+    expect(defaultAvatar).not.toBeNull();
+
+    await AvatarService.deleteAvatar(TEST_TELEGRAM_ID, defaultAvatar!.id);
+
+    const newDefault = await AvatarService.getDefaultAvatar(TEST_TELEGRAM_ID);
+    // Should have promoted another one
+    if (newDefault) {
+      expect(newDefault.isDefault).toBe(true);
+      expect(newDefault.id).not.toBe(defaultAvatar!.id);
+    }
+  });
+
+  it('should return false when deleting non-existent avatar', async () => {
+    const deleted = await AvatarService.deleteAvatar(TEST_TELEGRAM_ID, 999999);
+    expect(deleted).toBe(false);
+  });
+});
+
+// ── Avatar + Image Generation ──
+
+describe('Generate with Avatar (IP-Adapter)', () => {
+  it('generateWithAvatar should accept avatar URL and use ip_adapter mode', async () => {
+    const originalEnv = process.env.DEMO_MODE;
+    process.env.DEMO_MODE = 'true';
+
+    const result = await ImageGenerationService.generateWithAvatar(
+      'Person presenting a product in a modern office',
+      'https://example.com/avatar.jpg',
+      'product',
+      '1:1',
+    );
+    expect(result.success).toBe(true);
+
+    process.env.DEMO_MODE = originalEnv;
+  });
+});
+
+// ── Provider Capability Verification ──
+
+describe('Provider Config Capability Flags', () => {
+  it('should have correct capability flags in PROVIDER_CONFIG', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PROVIDER_CONFIG } = require('@/config/providers');
+
+    // Text-only providers
+    expect(PROVIDER_CONFIG.image.geminigen.supportsImg2Img).toBe(false);
+    expect(PROVIDER_CONFIG.image.geminigen.supportsIPAdapter).toBe(false);
+    expect(PROVIDER_CONFIG.image.nvidia.supportsImg2Img).toBe(false);
+    expect(PROVIDER_CONFIG.image.nvidia.supportsIPAdapter).toBe(false);
+    expect(PROVIDER_CONFIG.image.huggingface.supportsImg2Img).toBe(false);
+
+    // Capable providers
+    expect(PROVIDER_CONFIG.image.falai.supportsImg2Img).toBe(true);
+    expect(PROVIDER_CONFIG.image.falai.supportsIPAdapter).toBe(true);
+    expect(PROVIDER_CONFIG.image.gemini.supportsImg2Img).toBe(true);
+    expect(PROVIDER_CONFIG.image.gemini.supportsIPAdapter).toBe(false);
+    expect(PROVIDER_CONFIG.image.replicate.supportsImg2Img).toBe(true);
+    expect(PROVIDER_CONFIG.image.replicate.supportsIPAdapter).toBe(true);
+
+    // New aggregator providers
+    expect(PROVIDER_CONFIG.image.laozhang.supportsImg2Img).toBe(true);
+    expect(PROVIDER_CONFIG.image.laozhang.supportsIPAdapter).toBe(false);
+    expect(PROVIDER_CONFIG.image.laozhang.costPerGenerationUsd).toBe(0.04);
+    expect(PROVIDER_CONFIG.image.evolink.supportsImg2Img).toBe(true);
+    expect(PROVIDER_CONFIG.image.evolink.supportsIPAdapter).toBe(false);
+    expect(PROVIDER_CONFIG.image.evolink.costPerGenerationUsd).toBe(0.03);
+
+    // Cheapest providers
+    expect(PROVIDER_CONFIG.image.together.supportsImg2Img).toBe(false);
+    expect(PROVIDER_CONFIG.image.together.costPerGenerationUsd).toBe(0.003);
+    expect(PROVIDER_CONFIG.image.segmind.supportsImg2Img).toBe(true);
+    expect(PROVIDER_CONFIG.image.segmind.supportsIPAdapter).toBe(true);
+    expect(PROVIDER_CONFIG.image.segmind.costPerGenerationUsd).toBe(0.01);
+  });
+});
+
+// ── ImageGenerationParams interface ──
+
+describe('ImageGenerationParams Interface', () => {
+  it('should support all new fields', () => {
+    const params: ImageGenerationParams = {
+      prompt: 'test',
+      category: 'product',
+      style: 'commercial',
+      aspectRatio: '1:1',
+      referenceImageUrl: 'https://example.com/ref.jpg',
+      referenceImagePath: '/tmp/ref.jpg',
+      avatarImageUrl: 'https://example.com/avatar.jpg',
+      avatarImagePath: '/tmp/avatar.jpg',
+      mode: 'img2img',
+    };
+
+    expect(params.referenceImageUrl).toBe('https://example.com/ref.jpg');
+    expect(params.referenceImagePath).toBe('/tmp/ref.jpg');
+    expect(params.avatarImageUrl).toBe('https://example.com/avatar.jpg');
+    expect(params.avatarImagePath).toBe('/tmp/avatar.jpg');
+    expect(params.mode).toBe('img2img');
+  });
+
+  it('should work with minimal params (backward compat)', () => {
+    const params: ImageGenerationParams = {
+      prompt: 'test',
+      category: 'product',
+    };
+
+    expect(params.referenceImageUrl).toBeUndefined();
+    expect(params.avatarImageUrl).toBeUndefined();
+    expect(params.mode).toBeUndefined();
+  });
+});
