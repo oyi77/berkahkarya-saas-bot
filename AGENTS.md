@@ -1,7 +1,7 @@
-<<<<<<< HEAD
-<!-- Generated: 2026-04-01 | Updated: 2026-04-01 -->
+<!-- Parent: ../AGENTS.md -->
+<!-- Generated: 2026-05-17 | Updated: 2026-05-17 -->
 
-# openclaw-saas-bot
+# 1ai-content
 
 ## Purpose
 Telegram bot SaaS platform for AI-powered video generation. Built with TypeScript, Telegraf, Fastify, BullMQ, Prisma, and Redis. Users create short-form videos via a conversational bot interface with multi-provider AI generation, credit-based pricing, and an admin dashboard.
